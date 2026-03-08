@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --ember-glow: 0 0 40px rgba(240, 74, 0, 0.15);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: #141410;
+    min-height: 100vh;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #26251f; }
+  ::-webkit-scrollbar-thumb { background: #5e5b53; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #ff6a20; }
+}
+
+@layer components {
+  .card {
+    @apply bg-ash-900 border border-ash-800 rounded-xl;
+  }
+
+  .card-glow {
+    @apply card;
+    box-shadow: var(--ember-glow);
+  }
+
+  .btn-primary {
+    @apply bg-ember-500 hover:bg-ember-400 text-white font-medium px-6 py-3 rounded-lg
+           transition-all duration-200 hover:shadow-lg hover:shadow-ember-500/20
+           active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-ash-800 hover:bg-ash-700 text-ash-100 font-medium px-6 py-3 rounded-lg
+           border border-ash-700 transition-all duration-200 active:scale-95;
+  }
+
+  .btn-ghost {
+    @apply text-ash-400 hover:text-ash-100 hover:bg-ash-800 px-4 py-2 rounded-lg
+           transition-all duration-200;
+  }
+
+  .input {
+    @apply bg-ash-800 border border-ash-700 rounded-lg px-4 py-3 text-ash-100
+           placeholder-ash-500 focus:outline-none focus:border-ember-500
+           focus:ring-1 focus:ring-ember-500/30 transition-all duration-200 w-full;
+  }
+
+  .label {
+    @apply text-ash-400 text-sm font-medium mb-1 block;
+  }
+
+  .badge-safe    { @apply bg-signal-safe/20 text-signal-safe border border-signal-safe/30 text-xs px-2 py-0.5 rounded-full; }
+  .badge-warn    { @apply bg-signal-warn/20 text-signal-warn border border-signal-warn/30 text-xs px-2 py-0.5 rounded-full; }
+  .badge-danger  { @apply bg-signal-danger/20 text-signal-danger border border-signal-danger/30 text-xs px-2 py-0.5 rounded-full; }
+  .badge-info    { @apply bg-signal-info/20 text-signal-info border border-signal-info/30 text-xs px-2 py-0.5 rounded-full; }
+
+  .stat-value {
+    @apply font-display text-3xl font-bold text-white;
+  }
+
+  .stat-label {
+    @apply text-ash-400 text-sm mt-1;
+  }
+
+  .section-title {
+    @apply font-display text-2xl font-bold text-white;
+  }
+
+  .nav-link {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-ash-400
+           hover:text-white hover:bg-ash-800 transition-all duration-200 cursor-pointer;
+  }
+
+  .nav-link-active {
+    @apply nav-link text-white bg-ash-800 border-l-2 border-ember-500;
+  }
+}
+
+@layer utilities {
+  .text-gradient-ember {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #ff6a20, #f04a00, #ffa060);
+  }
+
+  .bg-noise {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  }
+
+  .animate-delay-100 { animation-delay: 100ms; }
+  .animate-delay-200 { animation-delay: 200ms; }
+  .animate-delay-300 { animation-delay: 300ms; }
+  .animate-delay-400 { animation-delay: 400ms; }
+}
