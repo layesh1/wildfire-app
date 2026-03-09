@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, Suspense } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Flame, Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
@@ -15,6 +15,7 @@ function LoginForm() {
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [githubLoading, setGithubLoading] = useState(false)
   const [error, setError] = useState('')
   const supabase = createClient()
 
@@ -23,11 +24,19 @@ function LoginForm() {
     setError('')
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?role=${defaultRole}`,
-      },
+      options: { redirectTo: `${window.location.origin}/auth/callback?role=${defaultRole}` },
     })
     if (error) { setError(error.message); setGoogleLoading(false) }
+  }
+
+  const handleGithubLogin = async () => {
+    setGithubLoading(true)
+    setError('')
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: { redirectTo: `${window.location.origin}/auth/callback?role=${defaultRole}` },
+    })
+    if (error) { setError(error.message); setGithubLoading(false) }
   }
 
   const handleSubmit = async () => {
@@ -56,17 +65,10 @@ function LoginForm() {
   return (
     <main className="min-h-screen bg-ash-950 bg-noise flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-ember-radial pointer-events-none" />
-
       <div className="relative w-full max-w-md">
-        {/* Back */}
-        <button
-          onClick={() => router.push('/')}
-          className="flex items-center gap-2 text-ash-500 hover:text-ash-300 mb-8 transition-colors text-sm"
-        >
+        <button onClick={() => router.push('/')} className="flex items-center gap-2 text-ash-500 hover:text-ash-300 mb-8 transition-colors text-sm">
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
-
-        {/* Logo */}
         <div className="flex items-center gap-3 mb-8">
           <div className="w-10 h-10 rounded-xl bg-ember-500/20 border border-ember-500/40 flex items-center justify-center">
             <Flame className="w-5 h-5 text-ember-400" />
@@ -76,7 +78,6 @@ function LoginForm() {
             <div className="text-ash-500 text-xs">Equity-driven evacuation intelligence</div>
           </div>
         </div>
-
         <div className="card p-8">
           <h2 className="font-display text-2xl font-bold text-white mb-1">
             {mode === 'login' ? 'Welcome back' : 'Create account'}
@@ -85,12 +86,9 @@ function LoginForm() {
             {mode === 'login' ? 'Sign in to access your dashboard.' : 'Join the WildfireAlert network.'}
           </p>
 
-          {/* Google OAuth */}
-          <button
-            onClick={handleGoogleLogin}
-            disabled={googleLoading}
-            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-gray-900 font-medium px-4 py-3 rounded-lg transition-all duration-200 mb-6 disabled:opacity-50"
-          >
+          {/* Google */}
+          <button onClick={handleGoogleLogin} disabled={googleLoading}
+            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-gray-900 font-medium px-4 py-3 rounded-lg transition-all duration-200 mb-3 disabled:opacity-50">
             {googleLoading ? (
               <div className="w-5 h-5 border-2 border-gray-400 border-t-gray-800 rounded-full animate-spin" />
             ) : (
@@ -104,7 +102,19 @@ function LoginForm() {
             Continue with Google
           </button>
 
-          {/* Divider */}
+          {/* GitHub */}
+          <button onClick={handleGithubLogin} disabled={githubLoading}
+            className="w-full flex items-center justify-center gap-3 bg-[#24292e] hover:bg-[#2f363d] text-white font-medium px-4 py-3 rounded-lg transition-all duration-200 mb-6 disabled:opacity-50 border border-white/10">
+            {githubLoading ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+              </svg>
+            )}
+            Continue with GitHub
+          </button>
+
           <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-ash-700" />
@@ -114,35 +124,22 @@ function LoginForm() {
             </div>
           </div>
 
-          {/* Email + Password */}
           <div className="space-y-4 mb-6">
             <div>
               <label className="label">Email</label>
-              <input
-                type="email"
-                className="input"
-                placeholder="you@example.com"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-              />
+              <input type="email" className="input" placeholder="you@example.com"
+                value={email} onChange={e => setEmail(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSubmit()} />
             </div>
             <div>
               <label className="label">Password</label>
               <div className="relative">
-                <input
-                  type={showPw ? 'text' : 'password'}
-                  className="input pr-11"
-                  placeholder="••••••••"
-                  value={password}
+                <input type={showPw ? 'text' : 'password'} className="input pr-11"
+                  placeholder="••••••••" value={password}
                   onChange={e => setPassword(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPw(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ash-500 hover:text-ash-300 transition-colors"
-                >
+                  onKeyDown={e => e.key === 'Enter' && handleSubmit()} />
+                <button type="button" onClick={() => setShowPw(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ash-500 hover:text-ash-300 transition-colors">
                   {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
@@ -154,32 +151,22 @@ function LoginForm() {
               error.includes('Check your email')
                 ? 'bg-signal-safe/10 text-signal-safe border border-signal-safe/30'
                 : 'bg-signal-danger/10 text-signal-danger border border-signal-danger/30'
-            }`}>
-              {error}
-            </div>
+            }`}>{error}</div>
           )}
 
-          <button
-            onClick={handleSubmit}
-            disabled={loading || !email || !password}
-            className="btn-primary w-full"
-          >
+          <button onClick={handleSubmit} disabled={loading || !email || !password} className="btn-primary w-full">
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 {mode === 'login' ? 'Signing in...' : 'Creating account...'}
               </span>
-            ) : (
-              mode === 'login' ? 'Sign in' : 'Create account'
-            )}
+            ) : (mode === 'login' ? 'Sign in' : 'Create account')}
           </button>
 
           <p className="text-center text-ash-500 text-sm mt-6">
             {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-            <button
-              onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError('') }}
-              className="text-ember-400 hover:text-ember-300 transition-colors font-medium"
-            >
+            <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError('') }}
+              className="text-ember-400 hover:text-ember-300 transition-colors font-medium">
               {mode === 'login' ? 'Sign up' : 'Sign in'}
             </button>
           </p>
@@ -190,9 +177,5 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
-  return (
-    <Suspense>
-      <LoginForm />
-    </Suspense>
-  )
+  return <Suspense><LoginForm /></Suspense>
 }
