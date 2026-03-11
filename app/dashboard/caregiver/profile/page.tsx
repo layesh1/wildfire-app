@@ -35,6 +35,8 @@ interface ProfileData {
   emergency_contact_name: string
   emergency_contact_phone: string
   language_preference: string
+  communication_needs: string[]
+  household_languages: string
 }
 
 const EMPTY_DEP: Dependent = { name: '', relationship: '', mobility_needs: '', medications: '', other_needs: '' }
@@ -53,6 +55,8 @@ const DEFAULT: ProfileData = {
   emergency_contact_name: '',
   emergency_contact_phone: '',
   language_preference: 'en',
+  communication_needs: [],
+  household_languages: '',
 }
 
 function Section({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) {
@@ -138,6 +142,8 @@ export default function ProfilePage() {
           emergency_contact_name: data.emergency_contact_name || '',
           emergency_contact_phone: data.emergency_contact_phone || '',
           language_preference: data.language_preference || 'en',
+          communication_needs: data.communication_needs || [],
+          household_languages: data.household_languages || '',
         })
       }
       setLoading(false)
@@ -185,6 +191,16 @@ export default function ProfilePage() {
   function addPet() { setProfile(p => ({ ...p, pets: [...p.pets, { ...EMPTY_PET }] })) }
   function removePet(i: number) {
     setProfile(p => ({ ...p, pets: p.pets.filter((_, idx) => idx !== i) }))
+  }
+
+  function toggleNeed(need: string) {
+    setProfile(p => ({
+      ...p,
+      communication_needs: p.communication_needs.includes(need)
+        ? p.communication_needs.filter(n => n !== need)
+        : [...p.communication_needs, need],
+    }))
+    setSaved(false)
   }
 
   async function save() {
@@ -317,7 +333,61 @@ export default function ProfilePage() {
 
       {/* Emergency notes */}
       <Section icon={ShieldAlert} title="For Emergency Responders">
-        <Field label="Anything else first responders should know" hint="e.g. 'Front door code is 1234', 'Grandfather uses oxygen on 2nd floor', 'Dog may be aggressive when scared'">
+        {/* Communication needs */}
+        <div className="mb-6">
+          <label className="block text-ash-300 text-xs font-medium mb-1">Communication needs</label>
+          <p className="text-ash-600 text-xs mb-3">
+            Helps responders communicate effectively at your door and at evacuation shelters.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {[
+              'Non-verbal household member',
+              'Deaf / Hard of hearing',
+              'Uses sign language (ASL)',
+              'Blind / Low vision',
+              'Spanish-speaking only',
+              'Limited English proficiency',
+              'Mixed-language household',
+              'Uses AAC device',
+              'Cognitive disability affecting communication',
+              'Autism spectrum — sensory sensitivities',
+              'Dementia / memory impairment',
+              'Prefers written communication',
+            ].map(need => {
+              const active = profile.communication_needs.includes(need)
+              return (
+                <button
+                  key={need}
+                  type="button"
+                  onClick={() => toggleNeed(need)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                    active
+                      ? 'bg-ember-500/20 border-ember-500/50 text-ember-300'
+                      : 'bg-ash-800 border-ash-700 text-ash-400 hover:border-ash-500 hover:text-ash-200'
+                  }`}
+                >
+                  {active ? '✓ ' : ''}{need}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Household languages */}
+        <Field
+          label="Languages spoken in this household"
+          hint="e.g. 'Spanish and English', 'Cantonese only', 'Tagalog, some English'"
+        >
+          <Input
+            value={profile.household_languages}
+            onChange={v => update('household_languages', v)}
+            placeholder="e.g. Spanish only, no English"
+          />
+        </Field>
+
+        <div className="border-t border-ash-800 my-5" />
+
+        <Field label="Additional notes for first responders" hint="e.g. 'Front door code is 1234', 'Grandfather uses oxygen on 2nd floor', 'Dog may be aggressive when scared'">
           <Textarea
             value={profile.special_notes}
             onChange={v => update('special_notes', v)}
