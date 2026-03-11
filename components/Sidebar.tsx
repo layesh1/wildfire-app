@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import {
   Flame, Shield, Heart, BarChart3, Map, AlertTriangle,
   Users, Brain, LogOut, ChevronLeft, ChevronRight,
-  Activity, TrendingUp, Bell
+  Activity, TrendingUp, Bell, User
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 
@@ -25,13 +25,13 @@ const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> 
     { label: 'My Alerts', href: '/dashboard/caregiver', icon: Bell },
     { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: Map },
     { label: 'Check-In', href: '/dashboard/caregiver/checkin', icon: Users },
-    { label: 'SAFE-PATH', href: '/dashboard/caregiver/ai', icon: Brain },
+    { label: 'My Profile', href: '/dashboard/caregiver/profile', icon: User },
   ],
   evacuee: [
     { label: 'My Alerts', href: '/dashboard/caregiver', icon: Bell },
     { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: Map },
     { label: 'Check-In', href: '/dashboard/caregiver/checkin', icon: Users },
-    { label: 'SAFE-PATH', href: '/dashboard/caregiver/ai', icon: Brain },
+    { label: 'My Profile', href: '/dashboard/caregiver/profile', icon: User },
   ],
   data_analyst: [
     { label: 'Overview', href: '/dashboard/analyst', icon: BarChart3 },
