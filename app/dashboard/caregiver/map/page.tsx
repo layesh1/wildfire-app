@@ -40,7 +40,7 @@ function EvacuationMapContent() {
       }
 
       // Fetch NASA FIRMS satellite hotspots (US, last 1 day)
-      const firmsRes = await fetch('/api/fires/firms?days=1&area=usa_contiguous_and_hawaii').catch(() => null)
+      const firmsRes = await fetch('/api/fires/firms?days=1').catch(() => null)
       if (firmsRes?.ok) {
         const { data: firmsData } = await firmsRes.json()
         if (firmsData) setFirms(firmsData)
