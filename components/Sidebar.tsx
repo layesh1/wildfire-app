@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import {
   Flame, Shield, Heart, BarChart3, Map, AlertTriangle,
   Users, Brain, LogOut, ChevronLeft, ChevronRight,
-  Activity, TrendingUp, Bell, User, Globe
+  Activity, TrendingUp, Bell, User, Globe, RefreshCw
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/components/LanguageProvider'
@@ -146,6 +146,20 @@ export default function Sidebar({ user, profile }: Props) {
             </div>
             <div className="text-ash-500 text-xs truncate">{user?.email}</div>
           </div>
+        )}
+
+        {/* Switch role — only shown when user has multiple roles */}
+        {Array.isArray(profile?.roles) && profile.roles.length > 1 && (
+          <button
+            onClick={() => router.push('/dashboard')}
+            className={`flex items-center gap-2 text-ash-400 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-ash-800 w-full mb-1
+              ${collapsed ? 'justify-center' : ''}
+            `}
+            title={collapsed ? 'Switch role' : undefined}
+          >
+            <RefreshCw className="w-4 h-4 shrink-0" />
+            {!collapsed && <span className="text-sm">Switch role</span>}
+          </button>
         )}
 
         {/* Language picker */}
