@@ -2,9 +2,11 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import {
-  User, Home, Phone, Mail, Bell, BellOff, Plus, Trash2,
-  Heart, PawPrint, AlertTriangle, CheckCircle, Save, ShieldAlert
+  User, Bell, BellOff, Plus, Trash2,
+  Heart, PawPrint, AlertTriangle, CheckCircle, Save, ShieldAlert, Globe
 } from 'lucide-react'
+import { LANGUAGES, getLang } from '@/lib/languages'
+import { useLanguage } from '@/components/LanguageProvider'
 
 interface Dependent {
   name: string
@@ -32,6 +34,7 @@ interface ProfileData {
   special_notes: string
   emergency_contact_name: string
   emergency_contact_phone: string
+  language_preference: string
 }
 
 const EMPTY_DEP: Dependent = { name: '', relationship: '', mobility_needs: '', medications: '', other_needs: '' }
@@ -49,6 +52,7 @@ const DEFAULT: ProfileData = {
   special_notes: '',
   emergency_contact_name: '',
   emergency_contact_phone: '',
+  language_preference: 'en',
 }
 
 function Section({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) {
@@ -103,12 +107,14 @@ function Textarea({ value, onChange, placeholder, rows = 2 }: {
 
 export default function ProfilePage() {
   const supabase = createClient()
+  const { lang: currentLang, setLanguage } = useLanguage()
   const [profile, setProfile] = useState<ProfileData>(DEFAULT)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | null>(null)
+  const [changingLang, setChangingLang] = useState<string | null>(null)
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
@@ -131,6 +137,7 @@ export default function ProfilePage() {
           special_notes: data.special_notes || '',
           emergency_contact_name: data.emergency_contact_name || '',
           emergency_contact_phone: data.emergency_contact_phone || '',
+          language_preference: data.language_preference || 'en',
         })
       }
       setLoading(false)
@@ -329,6 +336,45 @@ export default function ProfilePage() {
       </Section>
 
       {/* Notifications */}
+      {/* Language preference */}
+      <Section icon={Globe} title="Language / Idioma / 语言">
+        <p className="text-ash-500 text-xs mb-4">
+          Choose the language for this app. All pages will be translated automatically.
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {LANGUAGES.map(l => {
+            const isActive = (profile.language_preference || 'en') === l.code
+            const isLoading = changingLang === l.code
+            return (
+              <button
+                key={l.code}
+                disabled={!!changingLang}
+                onClick={async () => {
+                  setChangingLang(l.code)
+                  update('language_preference', l.code)
+                  await setLanguage(l.code)
+                  setChangingLang(null)
+                }}
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-left transition-all disabled:opacity-60 ${
+                  isActive
+                    ? 'border-ember-500/60 bg-ember-500/10 text-white'
+                    : 'border-ash-700 bg-ash-800/50 hover:border-ash-500 hover:bg-ash-800 text-ash-300 hover:text-white'
+                }`}
+              >
+                <span className="text-lg shrink-0">{l.flag}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-medium truncate">{l.native}</div>
+                  <div className="text-ash-500 text-xs truncate">{l.name}</div>
+                </div>
+                {isLoading && (
+                  <div className="w-3 h-3 border border-ember-400/40 border-t-ember-400 rounded-full animate-spin shrink-0" />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </Section>
+
       <Section icon={Bell} title="Fire Alerts & Notifications">
         <div className="space-y-4">
           {/* Browser notifications */}

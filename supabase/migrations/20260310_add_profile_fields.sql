@@ -11,3 +11,4 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS pets               jsonb   DEFAULT
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS special_notes      text;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS emergency_contact_name  text;
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS emergency_contact_phone text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS language_preference     text    DEFAULT 'en';

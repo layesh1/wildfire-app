@@ -4,9 +4,11 @@ import { useRouter, usePathname } from 'next/navigation'
 import {
   Flame, Shield, Heart, BarChart3, Map, AlertTriangle,
   Users, Brain, LogOut, ChevronLeft, ChevronRight,
-  Activity, TrendingUp, Bell, User
+  Activity, TrendingUp, Bell, User, Globe
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+import { useLanguage } from '@/components/LanguageProvider'
+import { LANGUAGES as LANGUAGES_IMPORT } from '@/lib/languages'
 
 interface Props {
   user: any
@@ -58,9 +60,11 @@ const ROLE_COLORS: Record<string, string> = {
 
 export default function Sidebar({ user, profile }: Props) {
   const [collapsed, setCollapsed] = useState(false)
+  const [showLangPicker, setShowLangPicker] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
+  const { lang, setLanguage } = useLanguage()
 
   const role = profile?.role || 'caregiver'
   const nav = NAV_BY_ROLE[role] || NAV_BY_ROLE.caregiver
@@ -132,16 +136,57 @@ export default function Sidebar({ user, profile }: Props) {
         })}
       </nav>
 
-      {/* User + signout */}
-      <div className={`p-3 border-t border-ash-800 ${collapsed ? 'flex justify-center' : ''}`}>
+      {/* User + language + signout */}
+      <div className={`p-3 border-t border-ash-800 ${collapsed ? 'flex flex-col items-center gap-1' : ''}`}>
         {!collapsed && (
-          <div className="px-3 py-2 mb-2">
+          <div className="px-3 py-2 mb-1">
             <div className="text-white text-sm font-medium truncate">
               {profile?.full_name || user?.email?.split('@')[0]}
             </div>
             <div className="text-ash-500 text-xs truncate">{user?.email}</div>
           </div>
         )}
+
+        {/* Language picker */}
+        <div className="relative">
+          <button
+            onClick={() => setShowLangPicker(v => !v)}
+            className={`flex items-center gap-2 text-ash-400 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-ash-800 w-full mb-1
+              ${collapsed ? 'justify-center' : ''}
+            `}
+            title={collapsed ? `Language: ${lang.native}` : undefined}
+          >
+            <Globe className="w-4 h-4 shrink-0" />
+            {!collapsed && (
+              <>
+                <span className="text-sm flex-1 text-left">{lang.flag} {lang.native}</span>
+              </>
+            )}
+          </button>
+
+          {/* Mini language picker dropdown */}
+          {showLangPicker && !collapsed && (
+            <div className="absolute bottom-full left-0 right-0 mb-1 bg-ash-800 border border-ash-700 rounded-xl shadow-xl overflow-hidden z-50">
+              <div className="max-h-64 overflow-y-auto p-1">
+                {LANGUAGES_IMPORT.map(l => (
+                  <button
+                    key={l.code}
+                    onClick={async () => { setShowLangPicker(false); await setLanguage(l.code) }}
+                    className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm text-left transition-colors ${
+                      l.code === lang.code
+                        ? 'bg-ember-500/20 text-ember-300'
+                        : 'text-ash-300 hover:bg-ash-700 hover:text-white'
+                    }`}
+                  >
+                    <span className="text-base shrink-0">{l.flag}</span>
+                    <span className="truncate">{l.native}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         <button
           onClick={handleSignOut}
           className={`flex items-center gap-2 text-ash-500 hover:text-signal-danger transition-colors px-3 py-2 rounded-lg hover:bg-signal-danger/10 w-full
