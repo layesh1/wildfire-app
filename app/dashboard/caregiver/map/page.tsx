@@ -40,7 +40,7 @@ function EvacuationMapContent() {
       }
 
       // Fetch NASA FIRMS satellite hotspots (US, last 1 day)
-      const firmsRes = await fetch('/api/fires/firms?days=1').catch(() => null)
+      const firmsRes = await fetch('/api/fires/firms?days=7').catch(() => null)
       if (firmsRes?.ok) {
         const { data: firmsData } = await firmsRes.json()
         if (firmsData) setFirms(firmsData)
@@ -153,10 +153,13 @@ function EvacuationMapContent() {
           ) : firms.length === 0 && mappableFires.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
               <MapPin className="w-8 h-8 text-ash-600" />
-              <div className="text-ash-400 text-sm font-medium">No map coordinates available</div>
+              <div className="text-ash-400 text-sm font-medium">
+                {firmsError ? 'NASA FIRMS unavailable' : 'No active fire detections in last 7 days'}
+              </div>
               <p className="text-ash-600 text-xs max-w-xs">
-                The WiDS dataset uses county-level data without precise coordinates.
-                Configure <code className="text-ash-400">NASA_FIRMS_API_KEY</code> in Vercel env vars to show satellite hotspots.
+                {firmsError
+                  ? 'Check that NASA_FIRMS_API_KEY is set in Vercel environment variables.'
+                  : 'NASA FIRMS satellite data shows no hotspots in the continental US this week. The WiDS dataset fires are listed in the sidebar.'}
               </p>
             </div>
           ) : (
