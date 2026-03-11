@@ -130,6 +130,41 @@ function EvacuationMapContent() {
 
   useEffect(() => { loadNifc() }, [])
 
+  // Poll every 5 min and fire browser notification if containment drops or new fire appears
+  useEffect(() => {
+    const knownRef: Record<string, number | null> = {}
+    nifc.forEach(f => { knownRef[f.fire_name] = f.containment })
+
+    const interval = setInterval(async () => {
+      const res = await fetch('/api/fires/nifc').catch(() => null)
+      if (!res?.ok) return
+      const { data } = await res.json().catch(() => ({}))
+      if (!Array.isArray(data)) return
+
+      data.forEach((f: NifcFire) => {
+        const prev = knownRef[f.fire_name]
+        const curr = f.containment
+        const isNew = !(f.fire_name in knownRef)
+        const dropped = prev != null && curr != null && curr < prev - 5
+
+        if ((isNew || dropped) && Notification.permission === 'granted') {
+          new Notification(isNew ? `🔥 New fire: ${f.fire_name}` : `⚠️ ${f.fire_name} containment dropped`, {
+            body: curr != null
+              ? `${curr}% contained${f.acres ? ` · ${f.acres.toLocaleString(undefined, { maximumFractionDigits: 0 })} acres` : ''}`
+              : 'Containment unknown — monitor local alerts.',
+            icon: '/favicon.ico',
+          })
+        }
+        knownRef[f.fire_name] = curr
+      })
+
+      setNifc(data)
+      setLastUpdated(new Date())
+    }, 5 * 60 * 1000)
+
+    return () => clearInterval(interval)
+  }, [nifc.length])
+
   function locateMe() {
     setLocating(true)
     setLocationError(false)
