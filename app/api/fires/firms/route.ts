@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const days = searchParams.get('days') || '1'
-  const area = searchParams.get('area') || 'world'
+  // Bounding box: W,S,E,N — covers contiguous US + Hawaii
+  const area = searchParams.get('area') || '-125,24,-65,50'
 
   const FIRMS_KEY = process.env.NASA_FIRMS_API_KEY
   if (!FIRMS_KEY) {
