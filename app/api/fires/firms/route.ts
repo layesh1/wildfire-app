@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const days = searchParams.get('days') || '1'
-  // Bounding box: W,S,E,N — covers contiguous US + Hawaii
-  const area = searchParams.get('area') || '-125,24,-65,50'
+  // Area endpoint supports 1–5 days; country endpoint requires a different key tier
+  const daysRaw = parseInt(searchParams.get('days') || '5', 10)
+  const days = Math.min(Math.max(daysRaw, 1), 5)
+  // Bounding box: W,S,E,N — contiguous US + Hawaii + southern Alaska
+  const area = '-170,18,-65,72'
   const debug = searchParams.get('debug') === 'true'
 
   const FIRMS_KEY = process.env.NASA_FIRMS_API_KEY

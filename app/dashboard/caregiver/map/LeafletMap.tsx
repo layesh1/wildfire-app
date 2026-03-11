@@ -25,9 +25,20 @@ export interface FirmsPoint {
   satellite: string
 }
 
+export interface NifcFire {
+  id: string
+  latitude: number
+  longitude: number
+  fire_name: string
+  acres: number | null
+  containment: number | null
+  source: 'nifc_perimeter' | 'nifc_incident'
+}
+
 interface Props {
   fires: FireEvent[]
   firms: FirmsPoint[]
+  nifc: NifcFire[]
   center: [number, number]
 }
 
@@ -38,7 +49,7 @@ function sviColor(svi?: number) {
   return '#22c55e'
 }
 
-export default function LeafletMap({ fires, firms, center }: Props) {
+export default function LeafletMap({ fires, firms, nifc, center }: Props) {
   return (
     <MapContainer center={center} zoom={5} style={{ height: '100%', width: '100%' }}>
       <TileLayer
@@ -74,17 +85,37 @@ export default function LeafletMap({ fires, firms, center }: Props) {
         )
       })}
 
-      {/* WiDS dataset fire events with known coordinates */}
+      {/* NIFC current active fires */}
+      {nifc.map((f) => (
+        <CircleMarker
+          key={f.id}
+          center={[f.latitude, f.longitude]}
+          radius={10}
+          pathOptions={{ color: '#ef4444', fillColor: '#dc2626', fillOpacity: 0.85, weight: 2 }}
+        >
+          <Popup>
+            <div style={{ fontFamily: 'sans-serif', fontSize: 13, lineHeight: 1.6 }}>
+              <strong style={{ color: '#dc2626' }}>🔴 {f.fire_name}</strong><br />
+              Source: {f.source === 'nifc_perimeter' ? 'NIFC Perimeter' : 'NIFC Incident'}<br />
+              {f.acres != null && <>{f.acres.toLocaleString(undefined, { maximumFractionDigits: 0 })} acres<br /></>}
+              {f.containment != null && <>Containment: {f.containment}%<br /></>}
+              <span style={{ color: '#ef4444', fontWeight: 600 }}>⚠ ACTIVE FIRE</span>
+            </div>
+          </Popup>
+        </CircleMarker>
+      ))}
+
+      {/* WiDS dataset fire events */}
       {fires.map(fire => (
         <CircleMarker
           key={fire.id}
           center={[fire.latitude, fire.longitude]}
-          radius={fire.has_evacuation_order ? 10 : 7}
+          radius={fire.has_evacuation_order ? 8 : 5}
           pathOptions={{
             color: fire.has_evacuation_order ? '#ef4444' : sviColor(fire.svi_score),
             fillColor: fire.has_evacuation_order ? '#ef4444' : sviColor(fire.svi_score),
-            fillOpacity: 0.75,
-            weight: fire.has_evacuation_order ? 2 : 1,
+            fillOpacity: 0.6,
+            weight: fire.has_evacuation_order ? 2 : 0.5,
           }}
         >
           <Popup>
