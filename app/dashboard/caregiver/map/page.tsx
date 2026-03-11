@@ -2,8 +2,8 @@
 import { useEffect, useState, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
-import { MapPin, AlertTriangle, Clock, Filter, Satellite, TrendingUp, Flame } from 'lucide-react'
-import type { FireEvent, FirmsPoint, NifcFire } from './LeafletMap'
+import { MapPin, Clock, Filter, Satellite, TrendingUp, Flame, Layers } from 'lucide-react'
+import type { FirmsPoint, NifcFire } from './LeafletMap'
 
 const LeafletMap = dynamic(() => import('./LeafletMap'), { ssr: false })
 
@@ -14,18 +14,61 @@ function sviLabel(svi?: number) {
   return { text: 'Low SVI', cls: 'text-signal-safe' }
 }
 
+type LayerKey = 'firms' | 'nifc'
+
+function LayerToggle({
+  active,
+  onToggle,
+  color,
+  icon: Icon,
+  label,
+  count,
+}: {
+  active: boolean
+  onToggle: () => void
+  color: string
+  icon: React.ElementType
+  label: string
+  count: number | null
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+        active
+          ? `border-${color}/50 bg-${color}/10 text-white`
+          : 'border-ash-700 bg-ash-900 text-ash-500 hover:text-ash-300 hover:border-ash-600'
+      }`}
+    >
+      <span className={`w-2.5 h-2.5 rounded-full ${active ? `bg-${color}` : 'bg-ash-600'}`} />
+      <Icon className="w-3 h-3" />
+      {label}
+      {count !== null && (
+        <span className={`ml-0.5 ${active ? 'text-ash-300' : 'text-ash-600'}`}>
+          ({count.toLocaleString()})
+        </span>
+      )}
+    </button>
+  )
+}
+
 function EvacuationMapContent() {
-  // WiDS static JSON fires (all with lat/lng)
   const [wids, setWids] = useState<any[]>([])
-  // NASA FIRMS satellite hotspots
   const [firms, setFirms] = useState<FirmsPoint[]>([])
   const [firmsError, setFirmsError] = useState(false)
-  // NIFC current active fires
   const [nifc, setNifc] = useState<NifcFire[]>([])
   const [loading, setLoading] = useState(true)
   const [filterOrders, setFilterOrders] = useState(false)
+  const [layers, setLayers] = useState<Record<LayerKey, boolean>>({
+    firms: true,
+    nifc: true,
+  })
   const searchParams = useSearchParams()
   const filterParam = searchParams.get('filter')
+
+  function toggleLayer(key: LayerKey) {
+    setLayers(l => ({ ...l, [key]: !l[key] }))
+  }
 
   useEffect(() => {
     async function load() {
@@ -35,13 +78,11 @@ function EvacuationMapContent() {
         fetch('/api/fires/nifc'),
       ])
 
-      // WiDS static JSON
       if (widsRes.status === 'fulfilled' && widsRes.value.ok) {
         const data = await widsRes.value.json().catch(() => [])
         if (Array.isArray(data)) setWids(data)
       }
 
-      // NASA FIRMS
       if (firmsRes.status === 'fulfilled' && firmsRes.value.ok) {
         const json = await firmsRes.value.json().catch(() => null)
         if (json && Array.isArray(json.data)) setFirms(json.data)
@@ -50,10 +91,9 @@ function EvacuationMapContent() {
         setFirmsError(true)
       }
 
-      // NIFC
       if (nifcRes.status === 'fulfilled' && nifcRes.value.ok) {
-        const { data: nifcData } = await nifcRes.value.json().catch(() => ({}))
-        if (nifcData) setNifc(nifcData)
+        const json = await nifcRes.value.json().catch(() => ({}))
+        if (json?.data) setNifc(json.data)
       }
 
       setLoading(false)
@@ -62,28 +102,15 @@ function EvacuationMapContent() {
   }, [])
 
   const showOnlyOrders = filterOrders || filterParam === 'shelter'
-
-  // WiDS fires for sidebar — sorted by SVI descending
-  const sidebarFires = [...wids].sort((a, b) => (b.svi_score ?? 0) - (a.svi_score ?? 0))
-  const filteredSidebar = showOnlyOrders ? sidebarFires.filter(f => f.evacuation_occurred) : sidebarFires
-
-  // WiDS fires mapped as FireEvent (already have lat/lng)
-  const mapFires: FireEvent[] = (showOnlyOrders ? wids.filter(f => f.evacuation_occurred) : wids).map(f => ({
-    id: f.geo_event_id,
-    incident_name: f.name,
-    latitude: f.latitude,
-    longitude: f.longitude,
-    county: f.county_name,
-    state: f.state,
-    acres_burned: f.max_acres,
-    has_evacuation_order: f.evacuation_occurred ?? false,
-    signal_gap_hours: f.hours_to_order,
-    svi_score: f.svi_score,
-  }))
+  const sidebarFires = [...wids]
+    .sort((a, b) => (b.svi_score ?? 0) - (a.svi_score ?? 0))
+  const filteredSidebar = showOnlyOrders
+    ? sidebarFires.filter(f => f.evacuation_occurred)
+    : sidebarFires
 
   const evacuationCount = wids.filter(f => f.evacuation_occurred).length
+  const hasLiveData = firms.length > 0 || nifc.length > 0
   const center: [number, number] = [37.5, -119.5]
-  const hasData = mapFires.length > 0 || firms.length > 0 || nifc.length > 0
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -95,28 +122,28 @@ function EvacuationMapContent() {
         </div>
         <h1 className="font-display text-3xl font-bold text-white mb-2">Evacuation Map</h1>
         <p className="text-ash-400 text-sm">
-          WiDS dataset fires · NASA FIRMS satellite hotspots · NIFC current incidents · CDC SVI vulnerability scoring
+          Live satellite detections (NASA FIRMS) · Current incident reports (NIFC) · Historical context in sidebar
         </p>
       </div>
 
-      {/* Stats row */}
+      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
         <div className="card p-4">
           <div className="text-white font-bold text-2xl">{loading ? '—' : wids.length.toLocaleString()}</div>
-          <div className="text-ash-400 text-xs mt-0.5">WiDS fires (with coords)</div>
-          <div className="text-ash-600 text-xs">of 62,696 total</div>
+          <div className="text-ash-400 text-xs mt-0.5">Historical incidents</div>
+          <div className="text-ash-600 text-xs">WiDS dataset · sidebar</div>
         </div>
         <div className="card p-4">
           <div className="text-signal-danger font-bold text-2xl">{loading ? '—' : evacuationCount}</div>
           <div className="text-ash-400 text-xs mt-0.5">With evacuation orders</div>
-          <div className="text-ash-600 text-xs">from WiDS dataset</div>
+          <div className="text-ash-600 text-xs">from historical dataset</div>
         </div>
         <div className="card p-4 flex items-start gap-3">
           <Satellite className="w-4 h-4 text-amber-400 mt-1 shrink-0" />
           <div>
             <div className="text-amber-400 font-bold text-2xl">{loading ? '—' : firms.length}</div>
-            <div className="text-ash-400 text-xs mt-0.5">NASA FIRMS hotspots</div>
-            <div className="text-ash-600 text-xs">{firmsError ? 'Key not configured' : 'Last 7d · VIIRS'}</div>
+            <div className="text-ash-400 text-xs mt-0.5">FIRMS hotspots</div>
+            <div className="text-ash-600 text-xs">{firmsError ? 'API error' : 'Last 5 days · VIIRS live'}</div>
           </div>
         </div>
         <div className="card p-4 flex items-start gap-3">
@@ -124,25 +151,48 @@ function EvacuationMapContent() {
           <div>
             <div className="text-signal-danger font-bold text-2xl">{loading ? '—' : nifc.length}</div>
             <div className="text-ash-400 text-xs mt-0.5">NIFC active fires</div>
-            <div className="text-ash-600 text-xs">Current · live data</div>
+            <div className="text-ash-600 text-xs">Current incident reports</div>
           </div>
         </div>
       </div>
 
-      {/* SVI legend */}
-      <div className="flex items-center gap-4 mb-4 p-3 bg-ash-900/60 border border-ash-800 rounded-xl text-xs text-ash-400">
-        <TrendingUp className="w-4 h-4 text-signal-info shrink-0" />
-        <span>
-          CDC SVI colors WiDS markers:
-          <span className="text-signal-danger ml-2">● High (&gt;0.75)</span>
-          <span className="text-signal-warn ml-2">● Moderate (0.5–0.75)</span>
-          <span className="text-signal-safe ml-2">● Low (&lt;0.5)</span>
-          <span className="text-amber-400 ml-2">● FIRMS hotspot</span>
-          <span className="text-red-500 ml-2">● NIFC active fire</span>
-        </span>
+      {/* Layer toggles */}
+      <div className="flex items-center gap-2 mb-4 p-3 bg-ash-900/60 border border-ash-800 rounded-xl">
+        <Layers className="w-4 h-4 text-ash-500 shrink-0" />
+        <span className="text-ash-500 text-xs mr-1">Map layers:</span>
+        <button
+          onClick={() => toggleLayer('firms')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+            layers.firms
+              ? 'border-amber-500/50 bg-amber-500/10 text-amber-300'
+              : 'border-ash-700 bg-ash-900 text-ash-500 hover:text-ash-300'
+          }`}
+        >
+          <span className={`w-2 h-2 rounded-full ${layers.firms ? 'bg-amber-400' : 'bg-ash-600'}`} />
+          <Satellite className="w-3 h-3" />
+          NASA FIRMS
+          {!loading && <span className="text-ash-400 ml-0.5">({firms.length.toLocaleString()})</span>}
+        </button>
+        <button
+          onClick={() => toggleLayer('nifc')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+            layers.nifc
+              ? 'border-red-500/50 bg-red-500/10 text-red-300'
+              : 'border-ash-700 bg-ash-900 text-ash-500 hover:text-ash-300'
+          }`}
+        >
+          <span className={`w-2 h-2 rounded-full ${layers.nifc ? 'bg-red-500' : 'bg-ash-600'}`} />
+          <Flame className="w-3 h-3" />
+          NIFC Active Fires
+          {!loading && <span className="text-ash-400 ml-0.5">({nifc.length})</span>}
+        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <TrendingUp className="w-3 h-3 text-ash-600" />
+          <span className="text-ash-600 text-xs">Live data only · historical fires in sidebar</span>
+        </div>
       </div>
 
-      {/* Filters */}
+      {/* Sidebar filter */}
       <div className="flex items-center gap-3 mb-4">
         <button
           onClick={() => setFilterOrders(v => !v)}
@@ -153,51 +203,47 @@ function EvacuationMapContent() {
           }`}
         >
           <Filter className="w-3.5 h-3.5" />
-          {showOnlyOrders ? 'Evacuation orders only' : 'Show evacuation orders only'}
+          {showOnlyOrders ? 'Showing evacuation orders only' : 'Filter: evacuation orders only'}
         </button>
-        {!firmsError && firms.length > 0 && (
-          <span className="text-amber-400/70 text-xs flex items-center gap-1">
-            <Satellite className="w-3 h-3" /> {firms.length} FIRMS hotspots
-          </span>
-        )}
-        {nifc.length > 0 && (
-          <span className="text-red-400/70 text-xs flex items-center gap-1">
-            <Flame className="w-3 h-3" /> {nifc.length} NIFC fires
-          </span>
-        )}
       </div>
 
       {/* Map + sidebar */}
       <div className="grid md:grid-cols-3 gap-5">
-        {/* Map */}
         <div className="md:col-span-2 card overflow-hidden" style={{ height: 520 }}>
           {loading ? (
             <div className="h-full flex flex-col items-center justify-center gap-3">
               <div className="w-8 h-8 border-2 border-ember-500/30 border-t-ember-500 rounded-full animate-spin" />
-              <span className="text-ash-500 text-sm">Loading WiDS + NASA FIRMS + NIFC…</span>
+              <span className="text-ash-500 text-sm">Loading live fire data…</span>
             </div>
-          ) : !hasData ? (
+          ) : !hasLiveData ? (
             <div className="h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
               <MapPin className="w-8 h-8 text-ash-600" />
-              <div className="text-ash-400 text-sm font-medium">No fire data available</div>
+              <div className="text-ash-400 text-sm font-medium">No live fire data available</div>
               <p className="text-ash-600 text-xs max-w-xs">
-                Could not load WiDS fire coordinates, NASA FIRMS hotspots, or NIFC current fires.
-                Check that public/data/fire_events_map.json is deployed and NASA_FIRMS_API_KEY is set.
+                {firmsError
+                  ? 'NASA FIRMS API unavailable — check that NASA_FIRMS_API_KEY is set in environment variables.'
+                  : 'No active fire detections in the last 5 days and no current NIFC incidents.'}
               </p>
             </div>
           ) : (
-            <LeafletMap fires={mapFires} firms={firmsError ? [] : firms} nifc={nifc} center={center} />
+            <LeafletMap
+              firms={firms}
+              nifc={nifc}
+              showFirms={layers.firms}
+              showNifc={layers.nifc}
+              center={center}
+            />
           )}
         </div>
 
-        {/* Sidebar — WiDS fires sorted by SVI desc */}
+        {/* Sidebar — WiDS historical */}
         <div className="card overflow-hidden flex flex-col" style={{ maxHeight: 520 }}>
           <div className="p-4 border-b border-ash-800 shrink-0">
             <h3 className="text-white font-semibold text-sm">
-              {showOnlyOrders ? 'Evacuation Orders' : 'WiDS Fires by SVI'}
+              {showOnlyOrders ? 'Evacuation Orders' : 'Historical Incidents'}
               <span className="ml-2 text-ash-500 font-normal">{filteredSidebar.length.toLocaleString()}</span>
             </h3>
-            <p className="text-ash-600 text-xs mt-0.5">Sorted by vulnerability (highest first)</p>
+            <p className="text-ash-600 text-xs mt-0.5">WiDS dataset · sorted by vulnerability</p>
           </div>
           <div className="overflow-y-auto flex-1">
             {loading ? (
@@ -216,7 +262,7 @@ function EvacuationMapContent() {
                     <div key={fire.geo_event_id} className="p-3 hover:bg-ash-800/50 transition-colors">
                       <div className="flex items-start gap-2">
                         <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
-                          fire.evacuation_occurred ? 'bg-signal-danger animate-pulse-slow' : 'bg-ember-400'
+                          fire.evacuation_occurred ? 'bg-signal-danger' : 'bg-ember-400'
                         }`} />
                         <div className="min-w-0 flex-1">
                           <div className="text-white text-xs font-medium truncate">
@@ -224,15 +270,13 @@ function EvacuationMapContent() {
                           </div>
                           <div className="text-ash-500 text-xs">
                             {fire.county_name && `${fire.county_name}, `}{fire.state}
-                            {fire.max_acres && ` · ${Number(fire.max_acres).toLocaleString()} ac`}
+                            {fire.max_acres ? ` · ${Number(fire.max_acres).toLocaleString()} ac` : ''}
                           </div>
                           <div className="flex items-center gap-2 mt-0.5">
                             {fire.evacuation_occurred && (
                               <span className="text-signal-danger text-xs font-medium">⚠ Evac order</span>
                             )}
-                            {svi && (
-                              <span className={`text-xs ${svi.cls}`}>{svi.text}</span>
-                            )}
+                            {svi && <span className={`text-xs ${svi.cls}`}>{svi.text}</span>}
                             {fire.hours_to_order != null && !isNaN(fire.hours_to_order) && (
                               <span className="text-ash-600 text-xs">{Number(fire.hours_to_order).toFixed(1)}h delay</span>
                             )}
@@ -244,7 +288,7 @@ function EvacuationMapContent() {
                 })}
                 {filteredSidebar.length > 200 && (
                   <div className="p-3 text-center text-ash-600 text-xs">
-                    Showing top 200 of {filteredSidebar.length.toLocaleString()}
+                    Showing 200 of {filteredSidebar.length.toLocaleString()} — use filter to narrow results
                   </div>
                 )}
               </div>
@@ -256,24 +300,20 @@ function EvacuationMapContent() {
       {/* Legend */}
       <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-ash-500">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-signal-danger" />
-          WiDS: High SVI / Evacuation order
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-signal-warn" />
-          WiDS: Moderate SVI
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-signal-safe" />
-          WiDS: Low SVI
-        </div>
-        <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-amber-400" />
-          NASA FIRMS hotspot
+          NASA FIRMS hotspot cluster
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-red-500" />
           NIFC active fire
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-signal-danger" />
+          Historical: evac order / high SVI
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-ember-400" />
+          Historical: low SVI
         </div>
       </div>
     </div>
