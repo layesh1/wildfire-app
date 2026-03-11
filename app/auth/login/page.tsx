@@ -1,13 +1,29 @@
 'use client'
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Flame, Eye, EyeOff, ArrowLeft } from 'lucide-react'
+import { Flame, Eye, EyeOff, ArrowLeft, ShieldCheck, Lock, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+
+const PROTECTED_ROLES = ['data_analyst', 'emergency_responder']
+
+const ROLE_LABELS: Record<string, { label: string; hint: string }> = {
+  data_analyst: {
+    label: 'Data Analyst',
+    hint: 'Requires an invite code sent to your institutional or work email.',
+  },
+  emergency_responder: {
+    label: 'Emergency Responder',
+    hint: 'Requires an organization access code from your agency or department.',
+  },
+  caregiver: { label: 'Caregiver', hint: '' },
+  evacuee: { label: 'Evacuee', hint: '' },
+}
 
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const defaultRole = searchParams.get('role') || 'caregiver'
+  const supabase = createClient()
 
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
@@ -17,7 +33,38 @@ function LoginForm() {
   const [googleLoading, setGoogleLoading] = useState(false)
   const [githubLoading, setGithubLoading] = useState(false)
   const [error, setError] = useState('')
-  const supabase = createClient()
+
+  // Invite code state (only for protected roles on signup)
+  const [inviteCode, setInviteCode] = useState('')
+  const [codeVerified, setCodeVerified] = useState(false)
+  const [verifiedOrgName, setVerifiedOrgName] = useState<string | null>(null)
+  const [verifiedCodeId, setVerifiedCodeId] = useState<string | null>(null)
+  const [codeLoading, setCodeLoading] = useState(false)
+
+  const needsCode = mode === 'signup' && PROTECTED_ROLES.includes(defaultRole)
+  const roleInfo = ROLE_LABELS[defaultRole] ?? ROLE_LABELS.caregiver
+
+  async function verifyCode() {
+    if (!inviteCode.trim()) return
+    setCodeLoading(true)
+    setError('')
+    const res = await fetch('/api/invite/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: inviteCode.trim(), email }),
+    })
+    const data = await res.json()
+    if (!res.ok || !data.valid) {
+      setError(data.error || 'Invalid code.')
+      setCodeVerified(false)
+    } else {
+      setCodeVerified(true)
+      setVerifiedOrgName(data.org_name)
+      setVerifiedCodeId(data.code_id)
+      setError('')
+    }
+    setCodeLoading(false)
+  }
 
   const handleGoogleLogin = async () => {
     setGoogleLoading(true)
@@ -40,14 +87,16 @@ function LoginForm() {
   }
 
   const handleSubmit = async () => {
+    if (needsCode && !codeVerified) {
+      setError('Please verify your access code first.')
+      return
+    }
     setLoading(true)
     setError('')
     try {
       if (mode === 'login') {
         const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
-        // Ensure profile exists with correct role (covers email-confirmed users
-        // whose profile was never created, or users with no role set)
         if (authData.user) {
           const roleFromMeta = authData.user.user_metadata?.role || defaultRole
           await supabase.from('profiles').upsert(
@@ -57,15 +106,27 @@ function LoginForm() {
         }
         router.push('/dashboard')
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data: signupData, error } = await supabase.auth.signUp({
           email, password,
           options: {
-            data: { role: defaultRole },
-            // Pass role through the confirmation link so callback can write it to profiles
-            emailRedirectTo: `${window.location.origin}/auth/callback?role=${defaultRole}`,
+            data: {
+              role: defaultRole,
+              org_name: verifiedOrgName ?? undefined,
+            },
+            emailRedirectTo: `${window.location.origin}/auth/callback?role=${defaultRole}${verifiedCodeId ? `&code_id=${verifiedCodeId}` : ''}`,
           },
         })
         if (error) throw error
+
+        // Consume invite code use
+        if (verifiedCodeId) {
+          await fetch('/api/invite/consume', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code_id: verifiedCodeId }),
+          })
+        }
+
         setError('Check your email to confirm your account.')
       }
     } catch (err: any) {
@@ -74,6 +135,8 @@ function LoginForm() {
       setLoading(false)
     }
   }
+
+  const canSubmit = email && password && (!needsCode || codeVerified)
 
   return (
     <main className="min-h-screen bg-ash-950 bg-noise flex items-center justify-center p-4">
@@ -91,13 +154,29 @@ function LoginForm() {
             <div className="text-ash-500 text-xs">Equity-driven evacuation intelligence</div>
           </div>
         </div>
+
         <div className="card p-8">
-          <h2 className="font-display text-2xl font-bold text-white mb-1">
-            {mode === 'login' ? 'Welcome back' : 'Create account'}
-          </h2>
-          <p className="text-ash-400 text-sm mb-8">
-            {mode === 'login' ? 'Sign in to access your dashboard.' : 'Join the WildfireAlert network.'}
-          </p>
+          <div className="flex items-center gap-2 mb-1">
+            <h2 className="font-display text-2xl font-bold text-white">
+              {mode === 'login' ? 'Welcome back' : 'Create account'}
+            </h2>
+          </div>
+
+          {/* Role badge */}
+          <div className="flex items-center gap-2 mb-6">
+            <span className="text-ash-500 text-sm">
+              {mode === 'login' ? 'Sign in to your dashboard.' : `Signing up as`}
+            </span>
+            {mode === 'signup' && (
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${
+                PROTECTED_ROLES.includes(defaultRole)
+                  ? 'bg-signal-warn/10 border-signal-warn/30 text-signal-warn'
+                  : 'bg-ember-500/10 border-ember-500/30 text-ember-400'
+              }`}>
+                {roleInfo.label}
+              </span>
+            )}
+          </div>
 
           {/* Google */}
           <button onClick={handleGoogleLogin} disabled={googleLoading}
@@ -137,11 +216,11 @@ function LoginForm() {
             </div>
           </div>
 
-          <div className="space-y-4 mb-6">
+          <div className="space-y-4 mb-4">
             <div>
               <label className="label">Email</label>
               <input type="email" className="input" placeholder="you@example.com"
-                value={email} onChange={e => setEmail(e.target.value)}
+                value={email} onChange={e => { setEmail(e.target.value); setCodeVerified(false) }}
                 onKeyDown={e => e.key === 'Enter' && handleSubmit()} />
             </div>
             <div>
@@ -157,6 +236,55 @@ function LoginForm() {
                 </button>
               </div>
             </div>
+
+            {/* Access code — only for protected roles on signup */}
+            {needsCode && (
+              <div>
+                <label className="label flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-signal-warn" />
+                  Access code
+                </label>
+                <p className="text-ash-500 text-xs mb-2">{roleInfo.hint}</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    className="input flex-1 font-mono uppercase tracking-wider"
+                    placeholder={defaultRole === 'data_analyst' ? 'DA-XXXX-XXXX' : 'ER-ORG-XXXX'}
+                    value={inviteCode}
+                    onChange={e => { setInviteCode(e.target.value.toUpperCase()); setCodeVerified(false) }}
+                    onKeyDown={e => e.key === 'Enter' && verifyCode()}
+                  />
+                  <button
+                    type="button"
+                    onClick={verifyCode}
+                    disabled={!inviteCode.trim() || codeLoading}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium border transition-all shrink-0 ${
+                      codeVerified
+                        ? 'bg-signal-safe/20 border-signal-safe/40 text-signal-safe'
+                        : 'bg-ash-800 border-ash-600 text-ash-300 hover:text-white hover:border-ash-500 disabled:opacity-40'
+                    }`}
+                  >
+                    {codeLoading ? (
+                      <div className="w-4 h-4 border border-ash-400/40 border-t-ash-300 rounded-full animate-spin" />
+                    ) : codeVerified ? (
+                      <Check className="w-4 h-4" />
+                    ) : (
+                      'Verify'
+                    )}
+                  </button>
+                </div>
+
+                {/* Verified state */}
+                {codeVerified && (
+                  <div className="flex items-center gap-2 mt-2 text-signal-safe text-xs">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    {verifiedOrgName
+                      ? `Verified — ${verifiedOrgName} access granted`
+                      : `Code verified — ${ROLE_LABELS[defaultRole]?.label} access granted`}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {error && (
@@ -167,7 +295,7 @@ function LoginForm() {
             }`}>{error}</div>
           )}
 
-          <button onClick={handleSubmit} disabled={loading || !email || !password} className="btn-primary w-full">
+          <button onClick={handleSubmit} disabled={loading || !canSubmit} className="btn-primary w-full">
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -178,7 +306,7 @@ function LoginForm() {
 
           <p className="text-center text-ash-500 text-sm mt-6">
             {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-            <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError('') }}
+            <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setCodeVerified(false) }}
               className="text-ember-400 hover:text-ember-300 transition-colors font-medium">
               {mode === 'login' ? 'Sign up' : 'Sign in'}
             </button>
