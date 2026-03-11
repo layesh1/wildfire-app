@@ -44,13 +44,26 @@ function LoginForm() {
     setError('')
     try {
       if (mode === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
+        // Ensure profile exists with correct role (covers email-confirmed users
+        // whose profile was never created, or users with no role set)
+        if (authData.user) {
+          const roleFromMeta = authData.user.user_metadata?.role || defaultRole
+          await supabase.from('profiles').upsert(
+            { id: authData.user.id, email: authData.user.email, role: roleFromMeta },
+            { onConflict: 'id', ignoreDuplicates: true }
+          )
+        }
         router.push('/dashboard')
       } else {
         const { error } = await supabase.auth.signUp({
           email, password,
-          options: { data: { role: defaultRole } }
+          options: {
+            data: { role: defaultRole },
+            // Pass role through the confirmation link so callback can write it to profiles
+            emailRedirectTo: `${window.location.origin}/auth/callback?role=${defaultRole}`,
+          },
         })
         if (error) throw error
         setError('Check your email to confirm your account.')

@@ -12,7 +12,13 @@ export default async function DashboardPage() {
     .eq('id', user.id)
     .single()
 
-  const role = profile?.role || 'caregiver'
+  // Fall back to role stored in auth user metadata (set during signUp)
+  const role = profile?.role || user.user_metadata?.role || 'caregiver'
+
+  // If profile exists but has no role, backfill it now
+  if (profile && !profile.role && role !== 'caregiver') {
+    await supabase.from('profiles').update({ role }).eq('id', user.id)
+  }
 
   if (role === 'emergency_responder') redirect('/dashboard/responder')
   if (role === 'data_analyst') redirect('/dashboard/analyst')
