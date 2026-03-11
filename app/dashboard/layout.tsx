@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import Sidebar from '@/components/Sidebar'
 import FlameoChat from '@/components/FlameoChat'
+import LanguageProvider from '@/components/LanguageProvider'
+import LanguageModal from '@/components/LanguageModal'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerSupabaseClient()
@@ -16,12 +18,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .single()
 
   return (
-    <div className="min-h-screen flex bg-ash-950">
-      <Sidebar user={user} profile={profile} />
-      <main className="flex-1 overflow-auto">
-        {children}
-      </main>
-      <FlameoChat />
-    </div>
+    <LanguageProvider initialLang={profile?.language_preference ?? null}>
+      <div className="min-h-screen flex bg-ash-950">
+        <Sidebar user={user} profile={profile} />
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
+        <FlameoChat />
+        <LanguageModal />
+      </div>
+    </LanguageProvider>
   )
 }
