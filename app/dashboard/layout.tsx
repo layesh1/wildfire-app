@@ -3,7 +3,6 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import Sidebar from '@/components/Sidebar'
 import FlameoChat from '@/components/FlameoChat'
 import LanguageProvider from '@/components/LanguageProvider'
-import LanguageModal from '@/components/LanguageModal'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerSupabaseClient()
@@ -25,7 +24,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
           {children}
         </main>
         <FlameoChat />
-        <LanguageModal />
       </div>
     </LanguageProvider>
   )

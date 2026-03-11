@@ -61,6 +61,7 @@ const ROLE_COLORS: Record<string, string> = {
 export default function Sidebar({ user, profile }: Props) {
   const [collapsed, setCollapsed] = useState(false)
   const [showLangPicker, setShowLangPicker] = useState(false)
+  const [langSearch, setLangSearch] = useState('')
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
@@ -150,7 +151,7 @@ export default function Sidebar({ user, profile }: Props) {
         {/* Language picker */}
         <div className="relative">
           <button
-            onClick={() => setShowLangPicker(v => !v)}
+            onClick={() => { setShowLangPicker(v => !v); setLangSearch('') }}
             className={`flex items-center gap-2 text-ash-400 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-ash-800 w-full mb-1
               ${collapsed ? 'justify-center' : ''}
             `}
@@ -164,14 +165,31 @@ export default function Sidebar({ user, profile }: Props) {
             )}
           </button>
 
-          {/* Mini language picker dropdown */}
+          {/* Language picker dropdown with search */}
           {showLangPicker && !collapsed && (
             <div className="absolute bottom-full left-0 right-0 mb-1 bg-ash-800 border border-ash-700 rounded-xl shadow-xl overflow-hidden z-50">
-              <div className="max-h-64 overflow-y-auto p-1">
-                {LANGUAGES_IMPORT.map(l => (
+              <div className="p-2 border-b border-ash-700">
+                <input
+                  autoFocus
+                  value={langSearch}
+                  onChange={e => setLangSearch(e.target.value)}
+                  placeholder="Search language…"
+                  className="w-full bg-ash-900 text-white text-xs rounded-lg px-2.5 py-1.5 border border-ash-600 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
+                />
+              </div>
+              <div className="max-h-56 overflow-y-auto p-1">
+                {LANGUAGES_IMPORT.filter(l =>
+                  !langSearch ||
+                  l.name.toLowerCase().includes(langSearch.toLowerCase()) ||
+                  l.native.toLowerCase().includes(langSearch.toLowerCase())
+                ).map(l => (
                   <button
                     key={l.code}
-                    onClick={async () => { setShowLangPicker(false); await setLanguage(l.code) }}
+                    onClick={async () => {
+                      setShowLangPicker(false)
+                      setLangSearch('')
+                      await setLanguage(l.code)
+                    }}
                     className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm text-left transition-colors ${
                       l.code === lang.code
                         ? 'bg-ember-500/20 text-ember-300'
@@ -179,9 +197,19 @@ export default function Sidebar({ user, profile }: Props) {
                     }`}
                   >
                     <span className="text-base shrink-0">{l.flag}</span>
-                    <span className="truncate">{l.native}</span>
+                    <div className="min-w-0">
+                      <div className="truncate text-xs">{l.native}</div>
+                      {l.code !== 'en' && <div className="truncate text-ash-500 text-xs">{l.name}</div>}
+                    </div>
                   </button>
                 ))}
+                {LANGUAGES_IMPORT.filter(l =>
+                  !langSearch ||
+                  l.name.toLowerCase().includes(langSearch.toLowerCase()) ||
+                  l.native.toLowerCase().includes(langSearch.toLowerCase())
+                ).length === 0 && (
+                  <div className="px-3 py-4 text-center text-ash-600 text-xs">No languages found</div>
+                )}
               </div>
             </div>
           )}

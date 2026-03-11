@@ -8,15 +8,11 @@ const LS_KEY = 'app_language'
 interface LangCtx {
   lang: Language
   setLanguage: (code: string) => Promise<void>
-  showModal: boolean
-  dismissModal: () => void
 }
 
 const Ctx = createContext<LangCtx>({
   lang: LANGUAGES[0],
   setLanguage: async () => {},
-  showModal: false,
-  dismissModal: () => {},
 })
 
 export function useLanguage() {
@@ -103,24 +99,16 @@ export default function LanguageProvider({ children, initialLang }: Props) {
     return getLang(ls ?? initialLang ?? 'en')
   })
 
-  // Show modal if this is first login (no language ever set)
-  const [showModal, setShowModal] = useState(false)
-
   useEffect(() => {
     const ls = localStorage.getItem(LS_KEY)
-    // Show modal if neither localStorage nor profile has a language set
-    if (!ls && !initialLang) {
-      setShowModal(true)
-    }
+    // Silently default to English — no popup
+    if (!ls) localStorage.setItem(LS_KEY, initialLang ?? 'en')
 
-    // Load Google Translate script
     loadGoogleTranslate()
 
-    // Apply translation if non-English
     const activeLang = ls ?? initialLang ?? 'en'
     if (activeLang !== 'en') {
       setGoogCookie(activeLang)
-      // Try to trigger without reload; Google Translate picks up cookie on script load
       setTimeout(() => triggerGT(activeLang), 1500)
     }
   }, [initialLang])
@@ -148,14 +136,8 @@ export default function LanguageProvider({ children, initialLang }: Props) {
     }
   }, [supabase])
 
-  function dismissModal() {
-    setShowModal(false)
-    // Default to English — save so modal doesn't re-appear
-    localStorage.setItem(LS_KEY, 'en')
-  }
-
   return (
-    <Ctx.Provider value={{ lang, setLanguage, showModal, dismissModal }}>
+    <Ctx.Provider value={{ lang, setLanguage }}>
       {children}
     </Ctx.Provider>
   )
