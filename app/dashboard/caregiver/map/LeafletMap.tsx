@@ -1,19 +1,7 @@
 'use client'
+import { useMemo } from 'react'
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
-
-export interface FireEvent {
-  id: string
-  incident_name?: string
-  latitude: number
-  longitude: number
-  county?: string
-  state?: string
-  acres_burned?: number
-  has_evacuation_order: boolean
-  signal_gap_hours?: number
-  svi_score?: number
-}
 
 export interface FirmsPoint {
   latitude: string
@@ -35,21 +23,57 @@ export interface NifcFire {
   source: 'nifc_perimeter' | 'nifc_incident'
 }
 
+// Kept for sidebar typing in page.tsx
+export interface FireEvent {
+  id: string
+  incident_name?: string
+  latitude: number
+  longitude: number
+  county?: string
+  state?: string
+  acres_burned?: number
+  has_evacuation_order: boolean
+  signal_gap_hours?: number
+  svi_score?: number
+}
+
+interface FirmsCluster {
+  lat: number
+  lng: number
+  count: number
+  avgFrp: number
+  date: string
+}
+
 interface Props {
-  fires: FireEvent[]
   firms: FirmsPoint[]
   nifc: NifcFire[]
+  showFirms: boolean
+  showNifc: boolean
   center: [number, number]
 }
 
-function sviColor(svi?: number) {
-  if (svi == null) return '#ff6a20'
-  if (svi > 0.75) return '#ef4444'
-  if (svi > 0.5) return '#f59e0b'
-  return '#22c55e'
+/** Cluster FIRMS detections into 0.3° grid cells to keep DOM count manageable */
+function clusterFirms(firms: FirmsPoint[]): FirmsCluster[] {
+  const GRID = 0.3
+  const cells: Record<string, FirmsCluster> = {}
+  for (const f of firms) {
+    const lat = parseFloat(f.latitude)
+    const lng = parseFloat(f.longitude)
+    if (isNaN(lat) || isNaN(lng)) continue
+    const key = `${Math.round(lat / GRID)},${Math.round(lng / GRID)}`
+    if (!cells[key]) {
+      cells[key] = { lat, lng, count: 0, avgFrp: 0, date: f.acq_date }
+    }
+    cells[key].count++
+    cells[key].avgFrp += parseFloat(f.frp) || 0
+  }
+  return Object.values(cells).map(c => ({ ...c, avgFrp: c.avgFrp / c.count }))
 }
 
-export default function LeafletMap({ fires, firms, nifc, center }: Props) {
+export default function LeafletMap({ firms, nifc, showFirms, showNifc, center }: Props) {
+  const firmsClusters = useMemo(() => clusterFirms(firms), [firms])
+
   return (
     <MapContainer center={center} zoom={5} style={{ height: '100%', width: '100%' }}>
       <TileLayer
@@ -57,28 +81,22 @@ export default function LeafletMap({ fires, firms, nifc, center }: Props) {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      {/* NASA FIRMS satellite hotspots */}
-      {firms.map((f, i) => {
-        const lat = parseFloat(f.latitude)
-        const lng = parseFloat(f.longitude)
-        if (isNaN(lat) || isNaN(lng)) return null
-        const frp = parseFloat(f.frp) || 0
-        const radius = Math.min(3 + frp / 20, 12)
+      {/* NASA FIRMS — clustered by 0.3° grid */}
+      {showFirms && firmsClusters.map((c, i) => {
+        const radius = Math.min(4 + Math.log1p(c.count) * 3 + c.avgFrp / 30, 18)
         return (
           <CircleMarker
             key={`firms-${i}`}
-            center={[lat, lng]}
+            center={[c.lat, c.lng]}
             radius={radius}
-            pathOptions={{ color: '#fbbf24', fillColor: '#fbbf24', fillOpacity: 0.7, weight: 0 }}
+            pathOptions={{ color: '#fbbf24', fillColor: '#f59e0b', fillOpacity: 0.75, weight: 0 }}
           >
             <Popup>
               <div style={{ fontFamily: 'sans-serif', fontSize: 12, lineHeight: 1.5 }}>
-                <strong>NASA FIRMS Hotspot</strong><br />
-                Satellite: {f.satellite}<br />
-                Detected: {f.acq_date}<br />
-                Brightness: {f.brightness}K<br />
-                Fire Power: {frp.toFixed(0)} MW<br />
-                Confidence: {f.confidence}
+                <strong>NASA FIRMS Cluster</strong><br />
+                Detections: {c.count}<br />
+                Avg Fire Power: {c.avgFrp.toFixed(0)} MW<br />
+                Latest: {c.date}
               </div>
             </Popup>
           </CircleMarker>
@@ -86,50 +104,20 @@ export default function LeafletMap({ fires, firms, nifc, center }: Props) {
       })}
 
       {/* NIFC current active fires */}
-      {nifc.map((f) => (
+      {showNifc && nifc.map((f) => (
         <CircleMarker
           key={f.id}
           center={[f.latitude, f.longitude]}
           radius={10}
-          pathOptions={{ color: '#ef4444', fillColor: '#dc2626', fillOpacity: 0.85, weight: 2 }}
+          pathOptions={{ color: '#ef4444', fillColor: '#dc2626', fillOpacity: 0.9, weight: 2 }}
         >
           <Popup>
             <div style={{ fontFamily: 'sans-serif', fontSize: 13, lineHeight: 1.6 }}>
               <strong style={{ color: '#dc2626' }}>🔴 {f.fire_name}</strong><br />
-              Source: {f.source === 'nifc_perimeter' ? 'NIFC Perimeter' : 'NIFC Incident'}<br />
+              {f.source === 'nifc_perimeter' ? 'NIFC Perimeter' : 'NIFC Incident'}<br />
               {f.acres != null && <>{f.acres.toLocaleString(undefined, { maximumFractionDigits: 0 })} acres<br /></>}
               {f.containment != null && <>Containment: {f.containment}%<br /></>}
               <span style={{ color: '#ef4444', fontWeight: 600 }}>⚠ ACTIVE FIRE</span>
-            </div>
-          </Popup>
-        </CircleMarker>
-      ))}
-
-      {/* WiDS dataset fire events */}
-      {fires.map(fire => (
-        <CircleMarker
-          key={fire.id}
-          center={[fire.latitude, fire.longitude]}
-          radius={fire.has_evacuation_order ? 8 : 5}
-          pathOptions={{
-            color: fire.has_evacuation_order ? '#ef4444' : sviColor(fire.svi_score),
-            fillColor: fire.has_evacuation_order ? '#ef4444' : sviColor(fire.svi_score),
-            fillOpacity: 0.6,
-            weight: fire.has_evacuation_order ? 2 : 0.5,
-          }}
-        >
-          <Popup>
-            <div style={{ fontFamily: 'sans-serif', fontSize: 13, lineHeight: 1.6 }}>
-              <strong>{fire.incident_name || 'Unnamed Fire'}</strong><br />
-              {fire.county && `${fire.county}, `}{fire.state}
-              {fire.acres_burned != null && <><br />{fire.acres_burned.toLocaleString()} acres</>}
-              {fire.svi_score != null && <><br />SVI: {fire.svi_score.toFixed(3)}</>}
-              {fire.has_evacuation_order && (
-                <><br /><span style={{ color: '#ef4444', fontWeight: 600 }}>⚠ EVACUATION ORDER</span></>
-              )}
-              {fire.signal_gap_hours != null && (
-                <><br />Alert delay: {fire.signal_gap_hours.toFixed(1)}h</>
-              )}
             </div>
           </Popup>
         </CircleMarker>
