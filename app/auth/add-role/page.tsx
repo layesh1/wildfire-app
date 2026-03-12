@@ -1,5 +1,5 @@
 'use client'
-import { Suspense, useState } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Flame, Lock, ShieldCheck, Check, ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
@@ -35,10 +35,15 @@ function AddRoleForm() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  if (!roleInfo) {
-    router.replace('/dashboard')
-    return null
-  }
+  useEffect(() => {
+    if (role && !roleInfo) router.replace('/dashboard')
+  }, [role, roleInfo])
+
+  if (!role || !roleInfo) return (
+    <main className="min-h-screen bg-ash-950 flex items-center justify-center">
+      <div className="w-6 h-6 border-2 border-ember-500/40 border-t-ember-400 rounded-full animate-spin" />
+    </main>
+  )
 
   async function verify() {
     setVerifying(true)
