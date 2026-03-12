@@ -26,14 +26,12 @@ const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> 
     { label: 'My Alerts', href: '/dashboard/caregiver', icon: Bell },
     { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: Map },
     { label: 'Check-In', href: '/dashboard/caregiver/checkin', icon: Users },
-    { label: 'My Profile', href: '/dashboard/caregiver/profile', icon: User },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
   evacuee: [
     { label: 'My Alerts', href: '/dashboard/caregiver', icon: Bell },
     { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: Map },
     { label: 'Check-In', href: '/dashboard/caregiver/checkin', icon: Users },
-    { label: 'My Profile', href: '/dashboard/caregiver/profile', icon: User },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
   data_analyst: [
