@@ -13,11 +13,7 @@ export default async function DashboardPage() {
     .eq('id', user.id)
     .single()
 
-  // Determine active role — fall back to user metadata from signup
-  const metaRole = user.user_metadata?.role
-  const activeRole = profile?.role || metaRole || 'caregiver'
-
-  // Build the full list of roles this user has access to
+  const activeRole = profile?.role || user.user_metadata?.role || 'caregiver'
   const allRoles: string[] = Array.isArray(profile?.roles) && profile.roles.length > 0
     ? profile.roles
     : [activeRole]
@@ -30,13 +26,6 @@ export default async function DashboardPage() {
     )
   }
 
-  // Multiple roles → show picker
-  if (allRoles.length > 1) {
-    return <RolePicker roles={allRoles} activeRole={activeRole} name={profile?.full_name} />
-  }
-
-  // Single role → route directly
-  if (activeRole === 'emergency_responder') redirect('/dashboard/responder')
-  if (activeRole === 'data_analyst') redirect('/dashboard/analyst')
-  redirect('/dashboard/caregiver')
+  // Always show the role picker — it lets users switch roles and request new ones
+  return <RolePicker roles={allRoles} activeRole={activeRole} name={profile?.full_name} />
 }
