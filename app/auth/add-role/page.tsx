@@ -92,8 +92,8 @@ function AddRoleForm() {
     setVerifying(false)
   }
 
-  async function proceed() {
-    router.push(ROLE_DESTINATIONS[role] ?? '/dashboard')
+  function proceed() {
+    window.location.href = ROLE_DESTINATIONS[role] ?? '/dashboard'
   }
 
   return (
