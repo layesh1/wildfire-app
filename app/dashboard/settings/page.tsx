@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation'
 import {
   Shield, Heart, BarChart3, Lock, Check, ShieldCheck, Globe,
   Settings, Plus, User, Bell, BellOff, Moon, Sun, Monitor, LogOut,
-  Trash2, Key, AlertTriangle, Save, CheckCircle, PawPrint, ShieldAlert
+  Trash2, Key, AlertTriangle, Save, CheckCircle, PawPrint, ShieldAlert,
+  Activity, Radio
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/components/LanguageProvider'
@@ -215,12 +216,13 @@ export default function SettingsPage() {
 
   async function claimRole() {
     if (!addingRole || !codeVerified) return
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const updatedRoles = [...new Set([...myRoles, addingRole])]
-    await supabase.from('profiles').update({ roles: updatedRoles, role: addingRole }).eq('id', user.id)
+    await fetch('/api/profile/role', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: addingRole }),
+    })
     if (codeId) await fetch('/api/invite/consume', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code_id: codeId }) })
-    router.push(ROLE_DESTINATIONS[addingRole] ?? '/dashboard')
+    window.location.href = ROLE_DESTINATIONS[addingRole] ?? '/dashboard'
   }
 
   function resetCode() { setAddingRole(null); setCode(''); setCodeVerified(false); setCodeError(''); setOrgName(null); setCodeId(null) }
@@ -257,7 +259,88 @@ export default function SettingsPage() {
       </div>
 
       {/* ── PROFILE TAB ── */}
-      {tab === 'profile' && (
+      {tab === 'profile' && activeRole === 'emergency_responder' && (
+        <div className="space-y-5">
+          <Section icon={Shield} title="Responder Information">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field label="Full name"><FInput value={profile.full_name} onChange={v => update('full_name', v)} placeholder="Chad Stephenson" /></Field>
+              <Field label="Badge / ID number"><FInput value={profile.phone} onChange={v => update('phone', v)} placeholder="e.g. 4821" /></Field>
+              <Field label="Station / Agency" hint="Your primary station assignment">
+                <FInput value={profile.address} onChange={v => update('address', v)} placeholder="e.g. Clayton Station #1, Johnston County Sheriff" />
+              </Field>
+              <Field label="Rank / Title"><FInput value={profile.notification_email} onChange={v => update('notification_email', v)} placeholder="e.g. Deputy Sheriff, Lt., FF/EMT" /></Field>
+              <Field label="Shift assignment"><FInput value={profile.notification_phone} onChange={v => update('notification_phone', v)} placeholder="e.g. A-Shift, Day shift" /></Field>
+              <Field label="Primary specialization"><FInput value={profile.household_languages} onChange={v => update('household_languages', v)} placeholder="e.g. Driver/Pump, EMS, Search & Rescue" /></Field>
+            </div>
+          </Section>
+
+          <Section icon={Radio} title="Deployment & Mutual Aid">
+            <div className="grid sm:grid-cols-2 gap-4 mb-4">
+              <Field label="Emergency contact (next of kin)" hint="Contacted if you are deployed or incapacitated">
+                <FInput value={profile.emergency_contact_name} onChange={v => update('emergency_contact_name', v)} placeholder="Contact name" />
+              </Field>
+              <Field label="Emergency contact phone">
+                <FInput value={profile.emergency_contact_phone} onChange={v => update('emergency_contact_phone', v)} placeholder="+1 (555) 000-0000" type="tel" />
+              </Field>
+            </div>
+            <Field label="FEMA deployment availability" hint="Are you available for state/federal deployment (e.g. Hurricane Helene roster)?">
+              <div className="flex flex-wrap gap-2 mt-1">
+                {['Available for deployment','On-call only','Not available','Available 72hr notice'].map(opt => {
+                  const active = profile.communication_needs.includes(opt)
+                  return (
+                    <button key={opt} type="button" onClick={() => toggleNeed(opt)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${active ? 'bg-ember-500/20 border-ember-500/50 text-ember-300' : 'bg-ash-800 border-ash-700 text-ash-400 hover:border-ash-500 hover:text-ash-200'}`}>
+                      {active ? '✓ ' : ''}{opt}
+                    </button>
+                  )
+                })}
+              </div>
+            </Field>
+            <div className="mt-4">
+              <Field label="Mutual aid organizations / agreements" hint="e.g. NC Forestry mutual aid, District 5 agreements">
+                <FTextarea value={profile.special_notes} onChange={v => update('special_notes', v)} placeholder="List mutual aid agencies and agreements your station participates in…" rows={2} />
+              </Field>
+            </div>
+          </Section>
+
+          <Section icon={Activity} title="Certifications & Training">
+            <Field label="Active certifications" hint="e.g. Firefighter I/II, EMT-Basic, HazMat Ops, Wildland S-130/S-190">
+              <FTextarea value={profile.household_languages} onChange={v => update('household_languages', v)} placeholder="List your active certifications and training…" rows={2} />
+            </Field>
+          </Section>
+
+          <Section icon={Bell} title="Incident Alerts">
+            <div className="space-y-4">
+              <div className={`flex items-start gap-3 p-4 rounded-xl border ${notifPermission === 'granted' ? 'border-signal-safe/30 bg-signal-safe/5' : 'border-ash-700 bg-ash-800/40'}`}>
+                <div className="mt-0.5">{notifPermission === 'granted' ? <Bell className="w-4 h-4 text-signal-safe" /> : <BellOff className="w-4 h-4 text-ash-500" />}</div>
+                <div className="flex-1">
+                  <div className="text-white text-sm font-medium">Incident notifications</div>
+                  <div className="text-ash-400 text-xs mt-0.5">
+                    {notifPermission === 'granted' ? "Enabled — you'll be notified of new incidents and escalations." : 'Get notified when new incidents are reported or status escalates.'}
+                  </div>
+                </div>
+                {notifPermission !== 'granted' && notifPermission !== 'denied' && (
+                  <button onClick={requestBrowserNotifications} className="shrink-0 px-3 py-1.5 rounded-lg text-xs bg-ember-500/20 border border-ember-500/40 text-ember-400 hover:bg-ember-500/30 transition-colors">Enable</button>
+                )}
+              </div>
+              <Field label="Notification email">
+                <FInput value={profile.notification_email} onChange={v => update('notification_email', v)} placeholder="your@agency.gov" type="email" />
+              </Field>
+            </div>
+          </Section>
+
+          <div className="flex items-center gap-4 pb-8">
+            <button onClick={save} disabled={saving}
+              className="flex items-center gap-2 px-6 py-3 bg-ember-500 hover:bg-ember-400 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors text-sm">
+              <Save className="w-4 h-4" />{saving ? 'Saving…' : 'Save profile'}
+            </button>
+            {saved && <div className="flex items-center gap-2 text-signal-safe text-sm"><CheckCircle className="w-4 h-4" /> Saved</div>}
+            {saveError && <div className="text-signal-danger text-sm">{saveError}</div>}
+          </div>
+        </div>
+      )}
+
+      {tab === 'profile' && activeRole !== 'emergency_responder' && (
         <div className="space-y-5">
           <Section icon={User} title="Your Information">
             <div className="grid sm:grid-cols-2 gap-4">
