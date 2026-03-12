@@ -5,10 +5,12 @@ import { Activity, Send, AlertTriangle } from 'lucide-react'
 interface Message { role: 'user' | 'assistant'; content: string }
 
 const STARTERS = [
-  'What are the highest-risk counties right now?',
-  'Which areas have the longest signal gaps?',
-  'Summarize evacuation order delays by state',
-  'What does high SVI mean for response planning?',
+  'What mutual aid resources are available near current high-risk incidents?',
+  'Run a Critical Task Analysis for a 50,000+ acre fire in a high-SVI county',
+  'Which counties have the worst signal gaps and need the most mutual aid?',
+  'What FEMA resource categories should I prioritize for a rural high-SVI fire?',
+  'Summarize evacuation order delays by state and which populations are most at risk',
+  'What does high SVI mean for resource deployment and press briefing priorities?',
 ]
 
 export default function CommandIntelPage() {
