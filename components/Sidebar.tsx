@@ -64,7 +64,12 @@ export default function Sidebar({ user, profile }: Props) {
   const router = useRouter()
   const supabase = createClient()
 
-  const role = profile?.role || 'caregiver'
+  // Infer role from URL path first (most reliable), fall back to DB
+  const urlRole = pathname.startsWith('/dashboard/responder') ? 'emergency_responder'
+    : pathname.startsWith('/dashboard/analyst') ? 'data_analyst'
+    : pathname.startsWith('/dashboard/caregiver') ? 'caregiver'
+    : profile?.role || 'caregiver'
+  const role = urlRole
   const nav = NAV_BY_ROLE[role] || NAV_BY_ROLE.caregiver
   const RoleIcon = ROLE_ICONS[role] || Heart
 
