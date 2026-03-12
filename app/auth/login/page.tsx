@@ -66,28 +66,28 @@ function LoginForm() {
   }
 
   return (
-    <main className="min-h-screen bg-ash-950 bg-noise flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-ember-radial pointer-events-none" />
+    <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-forest-radial pointer-events-none" />
       <div className="relative w-full max-w-md">
-        <button onClick={() => router.push('/')} className="flex items-center gap-2 text-ash-500 hover:text-ash-300 mb-8 transition-colors text-sm">
+        <button onClick={() => router.push('/')} className="flex items-center gap-2 text-gray-400 hover:text-gray-700 mb-8 transition-colors text-sm">
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
 
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-ember-500/20 border border-ember-500/40 flex items-center justify-center">
-            <Flame className="w-5 h-5 text-ember-400" />
+          <div className="w-10 h-10 rounded-xl bg-forest-50 border border-forest-200 flex items-center justify-center">
+            <Flame className="w-5 h-5 text-forest-600" />
           </div>
           <div>
-            <div className="font-display font-bold text-white text-xl leading-none">WildfireAlert</div>
-            <div className="text-ash-500 text-xs">Equity-driven evacuation intelligence</div>
+            <div className="font-display font-bold text-gray-900 text-xl leading-none">WildfireAlert</div>
+            <div className="text-gray-400 text-xs">Equity-driven evacuation intelligence</div>
           </div>
         </div>
 
         <div className="card p-8">
-          <h2 className="font-display text-2xl font-bold text-white mb-1">
+          <h2 className="font-display text-2xl font-bold text-gray-900 mb-1">
             {mode === 'login' ? 'Welcome back' : 'Create account'}
           </h2>
-          <p className="text-ash-400 text-sm mb-6">
+          <p className="text-gray-500 text-sm mb-6">
             {mode === 'login'
               ? 'Sign in to your dashboard. You can switch roles or request access after logging in.'
               : 'Create your account to get started.'}
@@ -95,9 +95,9 @@ function LoginForm() {
 
           {/* Google */}
           <button onClick={handleGoogleLogin} disabled={googleLoading}
-            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-gray-900 font-medium px-4 py-3 rounded-lg transition-all duration-200 mb-3 disabled:opacity-50">
+            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-gray-900 font-medium px-4 py-3 rounded-lg transition-all duration-200 mb-3 disabled:opacity-50 border border-gray-200 shadow-sm">
             {googleLoading ? (
-              <div className="w-5 h-5 border-2 border-gray-400 border-t-gray-800 rounded-full animate-spin" />
+              <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" />
             ) : (
               <svg className="w-5 h-5" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -124,10 +124,10 @@ function LoginForm() {
 
           <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-ash-700" />
+              <div className="w-full border-t border-gray-200" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="bg-ash-900 px-3 text-ash-500">or use password</span>
+              <span className="bg-white px-3 text-gray-400">or use password</span>
             </div>
           </div>
 
@@ -146,7 +146,7 @@ function LoginForm() {
                   onChange={e => setPassword(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSubmit()} />
                 <button type="button" onClick={() => setShowPw(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-ash-500 hover:text-ash-300 transition-colors">
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
                   {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
@@ -156,8 +156,8 @@ function LoginForm() {
           {(error || errorParam) && (
             <div className={`text-sm px-4 py-3 rounded-lg mb-4 ${
               error.includes('Check your email')
-                ? 'bg-signal-safe/10 text-signal-safe border border-signal-safe/30'
-                : 'bg-signal-danger/10 text-signal-danger border border-signal-danger/30'
+                ? 'bg-green-50 text-green-700 border border-green-200'
+                : 'bg-red-50 text-red-600 border border-red-200'
             }`}>{error || errorParam}</div>
           )}
 
@@ -170,10 +170,10 @@ function LoginForm() {
             ) : (mode === 'login' ? 'Sign in' : 'Create account')}
           </button>
 
-          <p className="text-center text-ash-500 text-sm mt-6">
+          <p className="text-center text-gray-500 text-sm mt-6">
             {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
             <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError('') }}
-              className="text-ember-400 hover:text-ember-300 transition-colors font-medium">
+              className="text-forest-600 hover:text-forest-700 transition-colors font-medium">
               {mode === 'login' ? 'Sign up' : 'Sign in'}
             </button>
           </p>

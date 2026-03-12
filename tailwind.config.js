@@ -1,6 +1,5 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  darkMode: 'class',
   content: [
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
@@ -9,6 +8,18 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        forest: {
+          50:  '#f0fdf4',
+          100: '#dcfce7',
+          200: '#bbf7d0',
+          300: '#86efac',
+          400: '#4ade80',
+          500: '#22c55e',
+          600: '#16a34a',
+          700: '#15803d',
+          800: '#166534',
+          900: '#14532d',
+        },
         ember: {
           50:  '#fff4ed',
           100: '#ffe6d0',
@@ -57,13 +68,13 @@ module.exports = {
           '100%': { opacity: 1, transform: 'translateY(0)' },
         },
         glow: {
-          '0%':   { boxShadow: '0 0 5px #ff6a2040' },
-          '100%': { boxShadow: '0 0 20px #ff6a2080, 0 0 40px #ff6a2020' },
+          '0%':   { boxShadow: '0 0 5px #16a34a30' },
+          '100%': { boxShadow: '0 0 20px #16a34a60, 0 0 40px #16a34a20' },
         }
       },
       backgroundImage: {
-        'ember-radial': 'radial-gradient(ellipse at top, #c9350010 0%, transparent 70%)',
-        'ash-gradient':  'linear-gradient(135deg, #141410 0%, #26251f 50%, #1a1917 100%)',
+        'forest-radial': 'radial-gradient(ellipse at top, #16a34a08 0%, transparent 70%)',
+        'hero-gradient':  'linear-gradient(135deg, #f0fdf4 0%, #ffffff 50%, #f0fdf4 100%)',
       }
     },
   },

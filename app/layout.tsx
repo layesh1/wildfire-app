@@ -34,31 +34,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${playfair.variable} ${dmSans.variable} ${dmMono.variable} dark`}>
-      <head>
-        {/* Apply theme before paint to avoid flash */}
-        <script dangerouslySetInnerHTML={{ __html: `
-          (function() {
-            try {
-              var t = localStorage.getItem('wfa_theme') || 'dark';
-              var html = document.documentElement;
-              if (t === 'dark') {
-                html.classList.add('dark');
-              } else if (t === 'light') {
-                html.classList.remove('dark');
-              } else {
-                // system
-                if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                  html.classList.add('dark');
-                } else {
-                  html.classList.remove('dark');
-                }
-              }
-            } catch(e) {}
-          })();
-        `}} />
-      </head>
-      <body className="bg-ash-950 text-ash-100 font-body antialiased dark:bg-ash-950 dark:text-ash-100">
+    <html lang="en" className={`${playfair.variable} ${dmSans.variable} ${dmMono.variable}`}>
+      <head />
+      <body className="bg-gray-50 text-gray-900 font-body antialiased">
         {children}
       </body>
     </html>
