@@ -1,6 +1,6 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Shield, Heart, BarChart3, Lock, Check, ShieldCheck, Globe,
   Settings, Plus, User, Bell, BellOff, Moon, Sun, Monitor, LogOut,
@@ -75,8 +75,9 @@ type Tab = 'profile' | 'account' | 'preferences'
 type Theme = 'dark' | 'light' | 'system'
 
 // ── Main page ──────────────────────────────────────────────────────────────
-export default function SettingsPage() {
+function SettingsInner() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const { lang, setLanguage } = useLanguage()
 
@@ -89,9 +90,9 @@ export default function SettingsPage() {
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | null>(null)
   const [email, setEmail] = useState('')
 
-  // Roles
+  // Roles — URL param takes priority so Settings knows which context opened it
   const [myRoles, setMyRoles] = useState<string[]>([])
-  const [activeRole, setActiveRole] = useState('')
+  const [activeRole, setActiveRole] = useState(searchParams.get('role') || '')
   const [savingRole, setSavingRole] = useState('')
   const [addingRole, setAddingRole] = useState<string | null>(null)
   const [code, setCode] = useState('')
@@ -128,7 +129,8 @@ export default function SettingsPage() {
         })
         const roles: string[] = Array.isArray(p.roles) && p.roles.length ? p.roles : p.role ? [p.role] : ['caregiver']
         setMyRoles(roles)
-        setActiveRole(p.role || 'caregiver')
+        // URL param takes priority — preserves which dashboard context opened Settings
+        if (!searchParams.get('role')) setActiveRole(p.role || 'caregiver')
       }
       setLoading(false)
     }
@@ -631,4 +633,8 @@ export default function SettingsPage() {
       )}
     </div>
   )
+}
+
+export default function SettingsPage() {
+  return <Suspense><SettingsInner /></Suspense>
 }
