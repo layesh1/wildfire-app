@@ -122,7 +122,7 @@ export default function Sidebar({ user, profile }: Props) {
           return (
             <button
               key={href}
-              onClick={() => router.push(href)}
+              onClick={() => router.push(href === '/dashboard/settings' ? `/dashboard/settings?role=${role}` : href)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left
                 ${active
                   ? 'bg-ash-800 text-white border-l-2 border-ember-500'
