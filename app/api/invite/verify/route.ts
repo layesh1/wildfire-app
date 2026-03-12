@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-// Uses service role key so it can read invite_codes (RLS: service role only)
 function adminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,17 +9,42 @@ function adminClient() {
 }
 
 export async function POST(req: NextRequest) {
-  const { code, email } = await req.json()
+  const { code, email, role: requestedRole } = await req.json()
 
   if (!code || typeof code !== 'string') {
     return NextResponse.json({ error: 'Code is required.' }, { status: 400 })
+  }
+
+  const upperCode = code.trim().toUpperCase()
+
+  // Admin bypass — lets admin/devs claim any role without invite_codes table
+  const bypassCode = process.env.ADMIN_BYPASS_CODE
+  if (bypassCode && upperCode === bypassCode.toUpperCase()) {
+    if (!requestedRole) {
+      return NextResponse.json({ error: 'Role is required with bypass code.' }, { status: 400 })
+    }
+    return NextResponse.json({
+      valid: true,
+      role: requestedRole,
+      org_name: 'Admin',
+      code_id: null, // no DB record to consume
+    })
+  }
+
+  // Normal invite code lookup
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!serviceKey || serviceKey === 'your_service_role_key_here') {
+    return NextResponse.json(
+      { error: 'Invite system not configured. Use the admin bypass code.' },
+      { status: 503 }
+    )
   }
 
   const supabase = adminClient()
   const { data, error } = await supabase
     .from('invite_codes')
     .select('*')
-    .eq('code', code.trim().toUpperCase())
+    .eq('code', upperCode)
     .single()
 
   if (error || !data) {
@@ -39,7 +63,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'This code has reached its maximum uses.' }, { status: 400 })
   }
 
-  // Email-specific checks
   if (data.specific_email && email) {
     if (email.toLowerCase() !== data.specific_email.toLowerCase()) {
       return NextResponse.json({ error: 'This code is not valid for your email address.' }, { status: 400 })
@@ -55,7 +78,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Valid — return role and org info (do NOT increment uses yet; do that on successful signup)
   return NextResponse.json({
     valid: true,
     role: data.role,

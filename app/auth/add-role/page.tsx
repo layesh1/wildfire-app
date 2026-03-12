@@ -49,7 +49,7 @@ function AddRoleForm() {
     const res = await fetch('/api/invite/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: code.trim(), email: user?.email }),
+      body: JSON.stringify({ code: code.trim(), email: user?.email, role }),
     })
     const data = await res.json()
 
