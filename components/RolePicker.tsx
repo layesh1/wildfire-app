@@ -62,8 +62,8 @@ export default function RolePicker({ roles, activeRole, name }: Props) {
   const otherRoles = ALL_ROLES.filter(r => !roles.includes(r))
 
   return (
-    <main className="min-h-screen bg-ash-950 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-ember-radial pointer-events-none" />
+    <main className="min-h-screen bg-ash-950 flex items-start justify-center p-4 py-12 overflow-y-auto">
+      <div className="fixed inset-0 bg-ember-radial pointer-events-none" />
       <div className="relative w-full max-w-lg">
         {/* Logo */}
         <div className="flex items-center gap-3 mb-8">
