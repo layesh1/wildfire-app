@@ -1,6 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { Flame, Shield, Heart, BarChart3, ChevronRight, Plus, Lock } from 'lucide-react'
+import { createClient } from '@/lib/supabase'
 
 const ALL_ROLES = ['caregiver', 'emergency_responder', 'data_analyst'] as const
 
@@ -58,8 +59,17 @@ interface Props {
 
 export default function RolePicker({ roles, activeRole, name }: Props) {
   const router = useRouter()
+  const supabase = createClient()
   const myRoles = roles.filter(r => ROLE_CONFIG[r])
   const otherRoles = ALL_ROLES.filter(r => !roles.includes(r))
+
+  async function selectRole(role: string, href: string) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      await supabase.from('profiles').update({ role }).eq('id', user.id)
+    }
+    window.location.href = href
+  }
 
   return (
     <main className="min-h-screen bg-ash-950 flex items-start justify-center p-4 py-12 overflow-y-auto">
@@ -95,7 +105,7 @@ export default function RolePicker({ roles, activeRole, name }: Props) {
               return (
                 <button
                   key={role}
-                  onClick={() => router.push(cfg.href)}
+                  onClick={() => selectRole(role, cfg.href)}
                   className={`w-full flex items-center gap-4 p-4 rounded-xl border bg-ash-900 transition-all text-left hover:bg-ash-800 ${
                     isActive ? cfg.activeBorder : cfg.border
                   }`}
