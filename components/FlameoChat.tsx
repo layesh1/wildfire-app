@@ -2,6 +2,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { X, Send } from 'lucide-react'
 
+function FlameoIcon({ size = 32 }: { size?: number }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/flameo.png" alt="Flameo" width={size} height={size} style={{ objectFit: 'contain' }} />
+  )
+}
+
 interface Message {
   role: 'user' | 'assistant'
   content: string
@@ -9,7 +16,7 @@ interface Message {
 
 const INTRO: Message = {
   role: 'assistant',
-  content: `Hi! I'm Flameo 🔥\n\nI'm your personal wildfire safety assistant — here to help you understand evacuation alerts, plan your escape route, protect the people and pets in your care, and stay calm when things feel overwhelming.\n\nYou can ask me things like:\n• "Is my area at risk?"\n• "What should be in a go-bag?"\n• "How do I evacuate with someone in a wheelchair?"\n\nWhat can I help you with?`,
+  content: `Hi! I'm Flameo!\n\nI'm your personal wildfire safety assistant — here to help you understand evacuation alerts, plan your escape route, protect the people and pets in your care, and stay calm when things feel overwhelming.\n\nYou can ask me things like:\n• "Is my area at risk?"\n• "What should be in a go-bag?"\n• "How do I evacuate with someone in a wheelchair?"\n\nWhat can I help you with?`,
 }
 
 export default function FlameoChat() {
@@ -63,8 +70,8 @@ export default function FlameoChat() {
         >
           {/* Header */}
           <div className="flex items-center gap-3 p-4 bg-ash-800 border-b border-ash-700 shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-ember-500/20 border border-ember-500/40 flex items-center justify-center text-lg select-none">
-              🔥
+            <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-300/40 flex items-center justify-center select-none">
+              <FlameoIcon size={28} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-white font-semibold text-sm">Flameo</div>
@@ -83,8 +90,8 @@ export default function FlameoChat() {
             {messages.map((msg, i) => (
               <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'assistant' && (
-                  <div className="w-6 h-6 rounded-lg bg-ember-500/20 border border-ember-500/30 flex items-center justify-center text-xs mt-0.5 shrink-0 select-none">
-                    🔥
+                  <div className="w-6 h-6 rounded-lg bg-blue-500/10 border border-blue-300/30 flex items-center justify-center mt-0.5 shrink-0 select-none">
+                    <FlameoIcon size={18} />
                   </div>
                 )}
                 <div
@@ -101,7 +108,7 @@ export default function FlameoChat() {
 
             {loading && (
               <div className="flex gap-2 justify-start">
-                <div className="w-6 h-6 rounded-lg bg-ember-500/20 border border-ember-500/30 flex items-center justify-center text-xs shrink-0 select-none">🔥</div>
+                <div className="w-6 h-6 rounded-lg bg-blue-500/10 border border-blue-300/30 flex items-center justify-center shrink-0 select-none"><FlameoIcon size={18} /></div>
                 <div className="bg-ash-800 rounded-2xl rounded-tl-sm px-3 py-2.5">
                   <div className="flex gap-1 items-center h-4">
                     {[0, 150, 300].map(delay => (
@@ -144,12 +151,12 @@ export default function FlameoChat() {
       {/* Floating button */}
       <button
         onClick={handleOpen}
-        className="fixed bottom-4 right-4 z-50 w-14 h-14 rounded-2xl bg-ember-500 hover:bg-ember-400 shadow-lg shadow-ember-500/40 flex items-center justify-center text-2xl transition-all duration-200 hover:scale-105 active:scale-95 select-none"
+        className="fixed bottom-4 right-4 z-50 w-14 h-14 rounded-2xl bg-blue-50 hover:bg-blue-100 border border-blue-200 shadow-lg shadow-blue-200/60 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 select-none"
         title="Chat with Flameo"
         aria-label="Open Flameo chat"
       >
-        <span className={`transition-all duration-200 ${open ? 'scale-75 opacity-0 absolute' : 'scale-100 opacity-100'}`}>🔥</span>
-        <X className={`w-5 h-5 text-white absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
+        <span className={`transition-all duration-200 ${open ? 'scale-75 opacity-0 absolute' : 'scale-100 opacity-100'}`}><FlameoIcon size={36} /></span>
+        <X className={`w-5 h-5 text-blue-500 absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
       </button>
 
       {/* Notification dot on first load */}
