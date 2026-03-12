@@ -107,9 +107,11 @@ function LoginForm() {
   const handleGoogleLogin = async () => {
     setGoogleLoading(true)
     setError('')
+    // Encode role in the redirect so the callback knows what role was requested
+    const redirectTo = `${window.location.origin}/auth/callback?role=${selectedRole}`
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback?role=${defaultRole}` },
+      options: { redirectTo },
     })
     if (error) { setError(error.message); setGoogleLoading(false) }
   }
@@ -117,11 +119,19 @@ function LoginForm() {
   const handleGithubLogin = async () => {
     setGithubLoading(true)
     setError('')
+    const redirectTo = `${window.location.origin}/auth/callback?role=${selectedRole}`
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'github',
-      options: { redirectTo: `${window.location.origin}/auth/callback?role=${defaultRole}` },
+      options: { redirectTo },
     })
     if (error) { setError(error.message); setGithubLoading(false) }
+  }
+
+  const ROLE_DESTINATIONS: Record<string, string> = {
+    emergency_responder: '/dashboard/responder',
+    data_analyst: '/dashboard/analyst',
+    caregiver: '/dashboard/caregiver',
+    evacuee: '/dashboard/caregiver',
   }
 
   const handleSubmit = async () => {
@@ -136,13 +146,36 @@ function LoginForm() {
         const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
         if (authData.user) {
-          const roleFromMeta = authData.user.user_metadata?.role || defaultRole
-          await supabase.from('profiles').upsert(
-            { id: authData.user.id, email: authData.user.email, role: roleFromMeta },
-            { onConflict: 'id', ignoreDuplicates: true }
-          )
+          // Fetch current profile to know what roles this user already has
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role, roles')
+            .eq('id', authData.user.id)
+            .single()
+
+          const existingRoles: string[] = Array.isArray(profile?.roles) && profile.roles.length
+            ? profile.roles
+            : profile?.role ? [profile.role] : ['caregiver']
+
+          const alreadyHasRole = existingRoles.includes(selectedRole)
+
+          if (alreadyHasRole) {
+            // Switch active role and go there
+            await supabase.from('profiles').update({ role: selectedRole }).eq('id', authData.user.id)
+            router.push(ROLE_DESTINATIONS[selectedRole] ?? '/dashboard')
+          } else if (PROTECTED_ROLES.includes(selectedRole)) {
+            // Needs invite verification (user is now logged in, add-role page handles it)
+            router.push(`/auth/add-role?role=${selectedRole}`)
+          } else {
+            // Open role — add it and go
+            const updatedRoles = [...new Set([...existingRoles, selectedRole])]
+            await supabase.from('profiles').upsert(
+              { id: authData.user.id, email: authData.user.email, role: selectedRole, roles: updatedRoles },
+              { onConflict: 'id' }
+            )
+            router.push(ROLE_DESTINATIONS[selectedRole] ?? '/dashboard')
+          }
         }
-        router.push('/dashboard')
       } else {
         const { data: signupData, error } = await supabase.auth.signUp({
           email, password,
