@@ -64,12 +64,18 @@ export default function Sidebar({ user, profile }: Props) {
   const router = useRouter()
   const supabase = createClient()
 
-  // Infer role from URL path first (most reliable), fall back to DB
+  // Infer role from URL path; for non-role-specific paths (like /settings),
+  // fall back to localStorage so the last active role is remembered
   const urlRole = pathname.startsWith('/dashboard/responder') ? 'emergency_responder'
     : pathname.startsWith('/dashboard/analyst') ? 'data_analyst'
     : pathname.startsWith('/dashboard/caregiver') ? 'caregiver'
-    : profile?.role || 'caregiver'
-  const role = urlRole
+    : null
+  // Sync to localStorage whenever URL tells us the role
+  if (urlRole && typeof window !== 'undefined') {
+    localStorage.setItem('wfa_active_role', urlRole)
+  }
+  const storedRole = typeof window !== 'undefined' ? localStorage.getItem('wfa_active_role') : null
+  const role = urlRole || storedRole || profile?.role || 'caregiver'
   const nav = NAV_BY_ROLE[role] || NAV_BY_ROLE.caregiver
   const RoleIcon = ROLE_ICONS[role] || Heart
 
