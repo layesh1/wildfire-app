@@ -12,7 +12,9 @@ const ROLE_DESTINATIONS: Record<string, string> = {
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const role = searchParams.get('role') || 'caregiver'
+  // Prefer query param; fall back to cookie set before OAuth redirect
+  const cookieRole = request.cookies.get('pending_role')?.value
+  const role = searchParams.get('role') || cookieRole || 'caregiver'
   const codeId = searchParams.get('code_id') // present for email signups with invite
 
   if (!code) {
