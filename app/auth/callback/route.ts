@@ -1,21 +1,12 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
 
-const PROTECTED_ROLES = ['data_analyst', 'emergency_responder']
-const ROLE_DESTINATIONS: Record<string, string> = {
-  emergency_responder: '/dashboard/responder',
-  data_analyst: '/dashboard/analyst',
-  caregiver: '/dashboard/caregiver',
-  evacuee: '/dashboard/caregiver',
-}
-
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  // Prefer query param; fall back to cookie set before OAuth redirect
-  const cookieRole = request.cookies.get('pending_role')?.value
-  const role = searchParams.get('role') || cookieRole || 'caregiver'
-  const codeId = searchParams.get('code_id') // present for email signups with invite
+  // role and code_id are passed for email confirmations; pass them through to post-login
+  const role = searchParams.get('role') || request.cookies.get('pending_role')?.value || ''
+  const codeId = searchParams.get('code_id') || ''
 
   if (!code) {
     return NextResponse.redirect(`${origin}/auth/login?error=no_code`)
@@ -23,60 +14,18 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = await createServerSupabaseClient()
-    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (error) {
       return NextResponse.redirect(`${origin}/auth/login?error=${encodeURIComponent(error.message)}`)
     }
 
-    if (!data.user) {
-      return NextResponse.redirect(`${origin}/auth/login?error=no_user`)
-    }
-
-    // Fetch existing profile
-    const { data: existing } = await supabase
-      .from('profiles')
-      .select('role, roles')
-      .eq('id', data.user.id)
-      .single()
-
-    const existingRoles: string[] = Array.isArray(existing?.roles) && existing.roles.length
-      ? existing.roles
-      : existing?.role ? [existing.role] : []
-
-    const alreadyHasRole = existingRoles.includes(role)
-
-    // Protected role requested via OAuth (no invite code in URL) and user doesn't have it yet
-    // → send to post-OAuth verification page
-    if (PROTECTED_ROLES.includes(role) && !alreadyHasRole && !codeId) {
-      return NextResponse.redirect(
-        `${origin}/auth/add-role?role=${role}`
-      )
-    }
-
-    if (!existing) {
-      // Brand new user — create profile
-      await supabase.from('profiles').insert({
-        id: data.user.id,
-        email: data.user.email,
-        full_name: data.user.user_metadata?.full_name ?? null,
-        role,
-        roles: [role],
-      })
-    } else if (!alreadyHasRole) {
-      // Existing user adding a new non-protected role (caregiver/evacuee)
-      const updatedRoles = [...new Set([...existingRoles, role])]
-      await supabase.from('profiles').update({
-        roles: updatedRoles,
-        role, // set as active role
-      }).eq('id', data.user.id)
-    } else {
-      // User already has this role — update active role so sidebar reflects it
-      await supabase.from('profiles').update({ role }).eq('id', data.user.id)
-    }
-
-    const destination = ROLE_DESTINATIONS[role] ?? '/dashboard'
-    return NextResponse.redirect(`${origin}${destination}`)
+    // Send to client-side post-login page which reads localStorage for the role
+    const params = new URLSearchParams()
+    if (role) params.set('role', role)
+    if (codeId) params.set('code_id', codeId)
+    const qs = params.toString()
+    return NextResponse.redirect(`${origin}/auth/post-login${qs ? `?${qs}` : ''}`)
   } catch (err: any) {
     return NextResponse.redirect(`${origin}/auth/login?error=${encodeURIComponent(err.message)}`)
   }
