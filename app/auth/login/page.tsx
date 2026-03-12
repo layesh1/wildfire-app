@@ -1,10 +1,40 @@
 'use client'
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Flame, Eye, EyeOff, ArrowLeft, ShieldCheck, Lock, Check } from 'lucide-react'
+import { Flame, Eye, EyeOff, ArrowLeft, ShieldCheck, Lock, Check, Heart, Shield, BarChart3 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 
 const PROTECTED_ROLES = ['data_analyst', 'emergency_responder']
+
+const ROLE_OPTIONS = [
+  {
+    value: 'caregiver',
+    label: 'Caregiver / Evacuee',
+    description: 'Evacuation alerts, safety check-ins',
+    icon: Heart,
+    color: 'text-amber-400',
+    border: 'border-amber-500/40 bg-amber-500/5',
+    activeBorder: 'border-amber-500 bg-amber-500/15',
+  },
+  {
+    value: 'emergency_responder',
+    label: 'Emergency Responder',
+    description: 'Live incident map, COMMAND-INTEL AI',
+    icon: Shield,
+    color: 'text-red-400',
+    border: 'border-red-500/40 bg-red-500/5',
+    activeBorder: 'border-red-500 bg-red-500/15',
+  },
+  {
+    value: 'data_analyst',
+    label: 'Data Analyst',
+    description: 'Signal gap analysis, equity metrics',
+    icon: BarChart3,
+    color: 'text-blue-400',
+    border: 'border-blue-500/40 bg-blue-500/5',
+    activeBorder: 'border-blue-500 bg-blue-500/15',
+  },
+]
 
 const ROLE_LABELS: Record<string, { label: string; hint: string }> = {
   data_analyst: {
@@ -22,10 +52,10 @@ const ROLE_LABELS: Record<string, { label: string; hint: string }> = {
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const defaultRole = searchParams.get('role') || 'caregiver'
   const supabase = createClient()
 
   const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [selectedRole, setSelectedRole] = useState(searchParams.get('role') || 'caregiver')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
@@ -41,8 +71,16 @@ function LoginForm() {
   const [verifiedCodeId, setVerifiedCodeId] = useState<string | null>(null)
   const [codeLoading, setCodeLoading] = useState(false)
 
-  const needsCode = mode === 'signup' && PROTECTED_ROLES.includes(defaultRole)
-  const roleInfo = ROLE_LABELS[defaultRole] ?? ROLE_LABELS.caregiver
+  const defaultRole = selectedRole
+  const needsCode = mode === 'signup' && PROTECTED_ROLES.includes(selectedRole)
+  const roleInfo = ROLE_LABELS[selectedRole] ?? ROLE_LABELS.caregiver
+
+  function pickRole(role: string) {
+    setSelectedRole(role)
+    setCodeVerified(false)
+    setInviteCode('')
+    setError('')
+  }
 
   async function verifyCode() {
     if (!inviteCode.trim()) return
@@ -161,21 +199,31 @@ function LoginForm() {
               {mode === 'login' ? 'Welcome back' : 'Create account'}
             </h2>
           </div>
+          <p className="text-ash-500 text-sm mb-5">Choose your role to continue.</p>
 
-          {/* Role badge */}
-          <div className="flex items-center gap-2 mb-6">
-            <span className="text-ash-500 text-sm">
-              {mode === 'login' ? 'Sign in to your dashboard.' : `Signing up as`}
-            </span>
-            {mode === 'signup' && (
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${
-                PROTECTED_ROLES.includes(defaultRole)
-                  ? 'bg-signal-warn/10 border-signal-warn/30 text-signal-warn'
-                  : 'bg-ember-500/10 border-ember-500/30 text-ember-400'
-              }`}>
-                {roleInfo.label}
-              </span>
-            )}
+          {/* Role picker */}
+          <div className="space-y-2 mb-6">
+            {ROLE_OPTIONS.map(({ value, label, description, icon: Icon, color, border, activeBorder }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => pickRole(value)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left ${
+                  selectedRole === value ? activeBorder : `${border} hover:border-ash-600`
+                }`}
+              >
+                <Icon className={`w-5 h-5 shrink-0 ${color}`} />
+                <div className="flex-1 min-w-0">
+                  <div className={`text-sm font-semibold ${selectedRole === value ? color : 'text-ash-300'}`}>{label}</div>
+                  <div className="text-ash-500 text-xs">{description}</div>
+                </div>
+                {selectedRole === value && (
+                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${color} border-current`}>
+                    <div className="w-2 h-2 rounded-full bg-current" />
+                  </div>
+                )}
+              </button>
+            ))}
           </div>
 
           {/* Google */}
