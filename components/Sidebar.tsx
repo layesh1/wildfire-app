@@ -4,11 +4,9 @@ import { useRouter, usePathname } from 'next/navigation'
 import {
   Flame, Shield, Heart, BarChart3, Map, AlertTriangle,
   Users, Brain, LogOut, ChevronLeft, ChevronRight,
-  Activity, TrendingUp, Bell, User, Globe, RefreshCw, Settings
+  Activity, TrendingUp, Bell, User, Settings
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
-import { useLanguage } from '@/components/LanguageProvider'
-import { LANGUAGES as LANGUAGES_IMPORT } from '@/lib/languages'
 
 interface Props {
   user: any
@@ -64,12 +62,9 @@ const ROLE_COLORS: Record<string, string> = {
 
 export default function Sidebar({ user, profile }: Props) {
   const [collapsed, setCollapsed] = useState(false)
-  const [showLangPicker, setShowLangPicker] = useState(false)
-  const [langSearch, setLangSearch] = useState('')
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
-  const { lang, setLanguage } = useLanguage()
 
   const role = profile?.role || 'caregiver'
   const nav = NAV_BY_ROLE[role] || NAV_BY_ROLE.caregiver
@@ -141,7 +136,7 @@ export default function Sidebar({ user, profile }: Props) {
         })}
       </nav>
 
-      {/* User + language + signout */}
+      {/* User + signout */}
       <div className={`p-3 border-t border-ash-800 ${collapsed ? 'flex flex-col items-center gap-1' : ''}`}>
         {!collapsed && (
           <div className="px-3 py-2 mb-1">
@@ -151,85 +146,6 @@ export default function Sidebar({ user, profile }: Props) {
             <div className="text-ash-500 text-xs truncate">{user?.email}</div>
           </div>
         )}
-
-        {/* Switch / add role */}
-        <button
-          onClick={() => router.push('/dashboard')}
-          className={`flex items-center gap-2 text-ash-400 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-ash-800 w-full mb-1
-            ${collapsed ? 'justify-center' : ''}
-          `}
-          title={collapsed ? 'Switch role' : undefined}
-        >
-          <RefreshCw className="w-4 h-4 shrink-0" />
-          {!collapsed && <span className="text-sm">Switch role</span>}
-        </button>
-
-        {/* Language picker */}
-        <div className="relative">
-          <button
-            onClick={() => { setShowLangPicker(v => !v); setLangSearch('') }}
-            className={`flex items-center gap-2 text-ash-400 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-ash-800 w-full mb-1
-              ${collapsed ? 'justify-center' : ''}
-            `}
-            title={collapsed ? `Language: ${lang.native}` : undefined}
-          >
-            <Globe className="w-4 h-4 shrink-0" />
-            {!collapsed && (
-              <>
-                <span className="text-sm flex-1 text-left">{lang.flag} {lang.native}</span>
-              </>
-            )}
-          </button>
-
-          {/* Language picker dropdown with search */}
-          {showLangPicker && !collapsed && (
-            <div className="absolute bottom-full left-0 right-0 mb-1 bg-ash-800 border border-ash-700 rounded-xl shadow-xl overflow-hidden z-50">
-              <div className="p-2 border-b border-ash-700">
-                <input
-                  autoFocus
-                  value={langSearch}
-                  onChange={e => setLangSearch(e.target.value)}
-                  placeholder="Search language…"
-                  className="w-full bg-ash-900 text-white text-xs rounded-lg px-2.5 py-1.5 border border-ash-600 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
-                />
-              </div>
-              <div className="max-h-56 overflow-y-auto p-1">
-                {LANGUAGES_IMPORT.filter(l =>
-                  !langSearch ||
-                  l.name.toLowerCase().includes(langSearch.toLowerCase()) ||
-                  l.native.toLowerCase().includes(langSearch.toLowerCase())
-                ).map(l => (
-                  <button
-                    key={l.code}
-                    onClick={async () => {
-                      setShowLangPicker(false)
-                      setLangSearch('')
-                      await setLanguage(l.code)
-                    }}
-                    className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm text-left transition-colors ${
-                      l.code === lang.code
-                        ? 'bg-ember-500/20 text-ember-300'
-                        : 'text-ash-300 hover:bg-ash-700 hover:text-white'
-                    }`}
-                  >
-                    <span className="text-base shrink-0">{l.flag}</span>
-                    <div className="min-w-0">
-                      <div className="truncate text-xs">{l.native}</div>
-                      {l.code !== 'en' && <div className="truncate text-ash-500 text-xs">{l.name}</div>}
-                    </div>
-                  </button>
-                ))}
-                {LANGUAGES_IMPORT.filter(l =>
-                  !langSearch ||
-                  l.name.toLowerCase().includes(langSearch.toLowerCase()) ||
-                  l.native.toLowerCase().includes(langSearch.toLowerCase())
-                ).length === 0 && (
-                  <div className="px-3 py-4 text-center text-ash-600 text-xs">No languages found</div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
 
         <button
           onClick={handleSignOut}
