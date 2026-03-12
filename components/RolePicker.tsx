@@ -58,7 +58,6 @@ interface Props {
 
 export default function RolePicker({ roles, activeRole, name }: Props) {
   const router = useRouter()
-  const supabase = createClient()
   const myRoles = roles.filter(r => ROLE_CONFIG[r])
   const otherRoles = ALL_ROLES.filter(r => !roles.includes(r))
 
