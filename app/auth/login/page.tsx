@@ -121,12 +121,11 @@ function LoginForm() {
   const handleGoogleLogin = async () => {
     setGoogleLoading(true)
     setError('')
-    // Also set a cookie so server-side callback can read the role reliably
-    document.cookie = `pending_role=${selectedRole};path=/;max-age=300`
-    const redirectTo = `${window.location.origin}/auth/callback?role=${selectedRole}`
+    // localStorage persists through OAuth redirects reliably
+    localStorage.setItem('wfa_pending_role', selectedRole)
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     })
     if (error) { setError(error.message); setGoogleLoading(false) }
   }
@@ -134,11 +133,10 @@ function LoginForm() {
   const handleGithubLogin = async () => {
     setGithubLoading(true)
     setError('')
-    document.cookie = `pending_role=${selectedRole};path=/;max-age=300`
-    const redirectTo = `${window.location.origin}/auth/callback?role=${selectedRole}`
+    localStorage.setItem('wfa_pending_role', selectedRole)
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'github',
-      options: { redirectTo },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     })
     if (error) { setError(error.message); setGithubLoading(false) }
   }
