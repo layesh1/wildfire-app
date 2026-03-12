@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import {
   Flame, Shield, Heart, BarChart3, Map, AlertTriangle,
   Users, Brain, LogOut, ChevronLeft, ChevronRight,
-  Activity, TrendingUp, Bell, User, Settings
+  Activity, TrendingUp, Bell, Settings
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 
@@ -52,10 +52,10 @@ const ROLE_ICONS: Record<string, any> = {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  emergency_responder: 'text-red-400 bg-red-500/20 border-red-500/30',
-  caregiver: 'text-amber-400 bg-amber-500/20 border-amber-500/30',
-  evacuee: 'text-amber-400 bg-amber-500/20 border-amber-500/30',
-  data_analyst: 'text-blue-400 bg-blue-500/20 border-blue-500/30',
+  emergency_responder: 'text-red-600 bg-red-50 border-red-200',
+  caregiver: 'text-forest-700 bg-forest-50 border-forest-200',
+  evacuee: 'text-forest-700 bg-forest-50 border-forest-200',
+  data_analyst: 'text-blue-600 bg-blue-50 border-blue-200',
 }
 
 export default function Sidebar({ user, profile }: Props) {
@@ -64,13 +64,10 @@ export default function Sidebar({ user, profile }: Props) {
   const router = useRouter()
   const supabase = createClient()
 
-  // Infer role from URL path; for non-role-specific paths (like /settings),
-  // fall back to localStorage so the last active role is remembered
   const urlRole = pathname.startsWith('/dashboard/responder') ? 'emergency_responder'
     : pathname.startsWith('/dashboard/analyst') ? 'data_analyst'
     : pathname.startsWith('/dashboard/caregiver') ? 'caregiver'
     : null
-  // Sync to localStorage whenever URL tells us the role
   if (urlRole && typeof window !== 'undefined') {
     localStorage.setItem('wfa_active_role', urlRole)
   }
@@ -86,34 +83,34 @@ export default function Sidebar({ user, profile }: Props) {
 
   return (
     <aside className={`
-      relative flex flex-col bg-ash-900 border-r border-ash-800
+      relative flex flex-col bg-white border-r border-gray-200
       transition-all duration-300 shrink-0
       ${collapsed ? 'w-16' : 'w-60'}
     `}>
       {/* Toggle */}
       <button
         onClick={() => setCollapsed(v => !v)}
-        className="absolute -right-3 top-20 w-6 h-6 bg-ash-800 border border-ash-700 rounded-full flex items-center justify-center text-ash-400 hover:text-white transition-colors z-10"
+        className="absolute -right-3 top-20 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 transition-colors z-10 shadow-sm"
       >
         {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
       </button>
 
       {/* Logo */}
-      <div className={`flex items-center gap-3 p-4 border-b border-ash-800 ${collapsed ? 'justify-center' : ''}`}>
-        <div className="w-8 h-8 rounded-lg bg-ember-500/20 border border-ember-500/40 flex items-center justify-center shrink-0">
-          <Flame className="w-4 h-4 text-ember-400" />
+      <div className={`flex items-center gap-3 p-4 border-b border-gray-100 ${collapsed ? 'justify-center' : ''}`}>
+        <div className="w-8 h-8 rounded-lg bg-forest-50 border border-forest-200 flex items-center justify-center shrink-0">
+          <Flame className="w-4 h-4 text-forest-600" />
         </div>
         {!collapsed && (
           <div>
-            <div className="font-display font-bold text-white text-sm leading-none">WildfireAlert</div>
-            <div className="text-ash-500 text-xs">v2.0</div>
+            <div className="font-display font-bold text-gray-900 text-sm leading-none">WildfireAlert</div>
+            <div className="text-gray-400 text-xs">v2.0</div>
           </div>
         )}
       </div>
 
       {/* Role badge */}
       {!collapsed && (
-        <div className="px-4 py-3 border-b border-ash-800">
+        <div className="px-4 py-3 border-b border-gray-100">
           <div className={`flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border ${ROLE_COLORS[role]}`}>
             <RoleIcon className="w-3.5 h-3.5" />
             <span className="font-medium capitalize">{role.replace('_', ' ')}</span>
@@ -131,8 +128,8 @@ export default function Sidebar({ user, profile }: Props) {
               onClick={() => router.push(href === '/dashboard/settings' ? `/dashboard/settings?role=${role}` : href)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left
                 ${active
-                  ? 'bg-ash-800 text-white border-l-2 border-ember-500'
-                  : 'text-ash-400 hover:text-white hover:bg-ash-800'
+                  ? 'bg-forest-50 text-forest-700 border-l-2 border-forest-600 font-medium'
+                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
                 }
                 ${collapsed ? 'justify-center' : ''}
               `}
@@ -146,19 +143,19 @@ export default function Sidebar({ user, profile }: Props) {
       </nav>
 
       {/* User + signout */}
-      <div className={`p-3 border-t border-ash-800 ${collapsed ? 'flex flex-col items-center gap-1' : ''}`}>
+      <div className={`p-3 border-t border-gray-100 ${collapsed ? 'flex flex-col items-center gap-1' : ''}`}>
         {!collapsed && (
           <div className="px-3 py-2 mb-1">
-            <div className="text-white text-sm font-medium truncate">
+            <div className="text-gray-900 text-sm font-medium truncate">
               {profile?.full_name || user?.email?.split('@')[0]}
             </div>
-            <div className="text-ash-500 text-xs truncate">{user?.email}</div>
+            <div className="text-gray-400 text-xs truncate">{user?.email}</div>
           </div>
         )}
 
         <button
           onClick={handleSignOut}
-          className={`flex items-center gap-2 text-ash-500 hover:text-signal-danger transition-colors px-3 py-2 rounded-lg hover:bg-signal-danger/10 w-full
+          className={`flex items-center gap-2 text-gray-400 hover:text-red-500 transition-colors px-3 py-2 rounded-lg hover:bg-red-50 w-full
             ${collapsed ? 'justify-center' : ''}
           `}
           title={collapsed ? 'Sign out' : undefined}
