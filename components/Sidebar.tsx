@@ -148,19 +148,17 @@ export default function Sidebar({ user, profile }: Props) {
           </div>
         )}
 
-        {/* Switch role — only shown when user has multiple roles */}
-        {Array.isArray(profile?.roles) && profile.roles.length > 1 && (
-          <button
-            onClick={() => router.push('/dashboard')}
-            className={`flex items-center gap-2 text-ash-400 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-ash-800 w-full mb-1
-              ${collapsed ? 'justify-center' : ''}
-            `}
-            title={collapsed ? 'Switch role' : undefined}
-          >
-            <RefreshCw className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="text-sm">Switch role</span>}
-          </button>
-        )}
+        {/* Switch / add role */}
+        <button
+          onClick={() => router.push('/dashboard')}
+          className={`flex items-center gap-2 text-ash-400 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-ash-800 w-full mb-1
+            ${collapsed ? 'justify-center' : ''}
+          `}
+          title={collapsed ? 'Switch role' : undefined}
+        >
+          <RefreshCw className="w-4 h-4 shrink-0" />
+          {!collapsed && <span className="text-sm">Switch role</span>}
+        </button>
 
         {/* Language picker */}
         <div className="relative">
