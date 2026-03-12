@@ -62,6 +62,7 @@ export default function RolePicker({ roles, activeRole, name }: Props) {
   const otherRoles = ALL_ROLES.filter(r => !roles.includes(r))
 
   async function selectRole(role: string, href: string) {
+    localStorage.setItem('wfa_active_role', role)
     await fetch('/api/profile/role', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

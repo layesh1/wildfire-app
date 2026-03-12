@@ -90,9 +90,14 @@ function SettingsInner() {
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | null>(null)
   const [email, setEmail] = useState('')
 
-  // Roles — URL param takes priority so Settings knows which context opened it
+  // Roles — localStorage takes priority so Settings knows which dashboard context opened it
   const [myRoles, setMyRoles] = useState<string[]>([])
-  const [activeRole, setActiveRole] = useState(searchParams.get('role') || '')
+  const [activeRole, setActiveRole] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return searchParams.get('role') || localStorage.getItem('wfa_active_role') || ''
+    }
+    return searchParams.get('role') || ''
+  })
   const [savingRole, setSavingRole] = useState('')
   const [addingRole, setAddingRole] = useState<string | null>(null)
   const [code, setCode] = useState('')
@@ -129,8 +134,10 @@ function SettingsInner() {
         })
         const roles: string[] = Array.isArray(p.roles) && p.roles.length ? p.roles : p.role ? [p.role] : ['caregiver']
         setMyRoles(roles)
-        // URL param takes priority — preserves which dashboard context opened Settings
-        if (!searchParams.get('role')) setActiveRole(p.role || 'caregiver')
+        // Only use DB role if nothing better is available
+        if (!searchParams.get('role') && !localStorage.getItem('wfa_active_role')) {
+          setActiveRole(p.role || 'caregiver')
+        }
       }
       setLoading(false)
     }
@@ -189,6 +196,7 @@ function SettingsInner() {
 
   async function switchActive(role: string) {
     setSavingRole(role)
+    localStorage.setItem('wfa_active_role', role)
     await fetch('/api/profile/role', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
