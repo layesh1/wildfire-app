@@ -1,7 +1,6 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { Flame, Shield, Heart, BarChart3, ChevronRight, Plus, Lock } from 'lucide-react'
-import { createClient } from '@/lib/supabase'
 
 const ALL_ROLES = ['caregiver', 'emergency_responder', 'data_analyst'] as const
 
@@ -64,10 +63,11 @@ export default function RolePicker({ roles, activeRole, name }: Props) {
   const otherRoles = ALL_ROLES.filter(r => !roles.includes(r))
 
   async function selectRole(role: string, href: string) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await supabase.from('profiles').update({ role }).eq('id', user.id)
-    }
+    await fetch('/api/profile/role', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role }),
+    })
     window.location.href = href
   }
 
