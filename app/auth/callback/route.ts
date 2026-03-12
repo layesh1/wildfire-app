@@ -66,11 +66,12 @@ export async function GET(request: NextRequest) {
       const updatedRoles = [...new Set([...existingRoles, role])]
       await supabase.from('profiles').update({
         roles: updatedRoles,
-        // Only update active role if current one is the default caregiver fallback
-        ...(existing.role === 'caregiver' && role !== 'caregiver' ? { role } : {}),
+        role, // set as active role
       }).eq('id', data.user.id)
+    } else {
+      // User already has this role — update active role so sidebar reflects it
+      await supabase.from('profiles').update({ role }).eq('id', data.user.id)
     }
-    // else: user already has this role → just send them to their dashboard
 
     const destination = ROLE_DESTINATIONS[role] ?? '/dashboard'
     return NextResponse.redirect(`${origin}${destination}`)
