@@ -37,6 +37,20 @@ export default function ResponderDashboard() {
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
 
+  const [weatherLocation, setWeatherLocation] = useState('')
+  const [weather, setWeather] = useState<any>(null)
+  const [weatherLoading, setWeatherLoading] = useState(false)
+
+  async function fetchWeather() {
+    if (!weatherLocation.trim()) return
+    setWeatherLoading(true)
+    try {
+      const res = await fetch(`/api/weather?location=${encodeURIComponent(weatherLocation)}`)
+      if (res.ok) setWeather(await res.json())
+    } catch {}
+    setWeatherLoading(false)
+  }
+
   useEffect(() => {
     async function load() {
       const { data } = await supabase
@@ -163,32 +177,56 @@ export default function ResponderDashboard() {
 
         {/* Weather Conditions */}
         <div className="card p-5">
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-3">
             <Wind className="w-4 h-4 text-signal-info" />
             <h2 className="text-white font-semibold text-sm">Current Conditions</h2>
-            <span className="ml-auto text-ash-600 text-xs">NOAA feed</span>
+            <span className="ml-auto text-ash-600 text-xs">NOAA live</span>
           </div>
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            {[
-              { label: 'Wind Speed', value: '22 mph', icon: Wind, color: 'text-signal-warn', note: 'SW at gusts 35mph' },
-              { label: 'Humidity', value: '18%', icon: Droplets, color: 'text-signal-danger', note: 'Critical — below 25%' },
-              { label: 'Temp', value: '94°F', icon: Flame, color: 'text-ember-400', note: 'Heat advisory active' },
-              { label: 'Visibility', value: '4 mi', icon: Map, color: 'text-ash-300', note: 'Smoke reducing vis.' },
-            ].map(c => (
-              <div key={c.label} className="bg-ash-900 rounded-lg p-3 border border-ash-800">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <c.icon className={`w-3.5 h-3.5 ${c.color}`} />
-                  <span className="text-ash-500 text-xs">{c.label}</span>
-                </div>
-                <div className={`font-mono text-lg font-bold ${c.color}`}>{c.value}</div>
-                <div className="text-ash-600 text-xs mt-0.5">{c.note}</div>
+          <div className="flex gap-2 mb-4">
+            <input
+              type="text"
+              value={weatherLocation}
+              onChange={e => setWeatherLocation(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && fetchWeather()}
+              placeholder="City, zip, or county…"
+              className="flex-1 bg-ash-800 border border-ash-700 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-signal-info/60 placeholder:text-ash-600"
+            />
+            <button onClick={fetchWeather} disabled={weatherLoading}
+              className="px-3 py-1.5 rounded-lg text-xs bg-signal-info/20 border border-signal-info/30 text-signal-info hover:bg-signal-info/30 transition-colors disabled:opacity-50">
+              {weatherLoading ? '…' : 'Fetch'}
+            </button>
+          </div>
+          {weather ? (
+            <>
+              <div className="text-ash-500 text-xs mb-3 truncate">{weather.location}</div>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                {[
+                  { label: 'Temp', value: weather.temp_f != null ? `${weather.temp_f}°F` : '—', icon: Flame, color: weather.temp_f != null && weather.temp_f > 90 ? 'text-ember-400' : 'text-ash-300' },
+                  { label: 'Wind', value: weather.wind_mph != null ? `${weather.wind_mph} mph${weather.wind_dir ? ' ' + weather.wind_dir : ''}` : '—', icon: Wind, color: weather.wind_mph != null && weather.wind_mph > 20 ? 'text-signal-warn' : 'text-ash-300' },
+                  { label: 'Humidity', value: weather.humidity_pct != null ? `${weather.humidity_pct}%` : '—', icon: Droplets, color: weather.humidity_pct != null && weather.humidity_pct < 20 ? 'text-signal-danger' : 'text-ash-300' },
+                  { label: 'Visibility', value: weather.visibility_miles != null ? `${weather.visibility_miles} mi` : '—', icon: Map, color: 'text-ash-300' },
+                ].map(c => (
+                  <div key={c.label} className="bg-ash-900 rounded-lg p-2.5 border border-ash-800">
+                    <div className="flex items-center gap-1 mb-1">
+                      <c.icon className={`w-3 h-3 ${c.color}`} />
+                      <span className="text-ash-500 text-xs">{c.label}</span>
+                    </div>
+                    <div className={`font-mono text-sm font-bold ${c.color}`}>{c.value}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <div className="flex items-center gap-2 px-3 py-2 bg-signal-danger/10 border border-signal-danger/30 rounded-lg">
-            <AlertTriangle className="w-3.5 h-3.5 text-signal-danger shrink-0" />
-            <span className="text-signal-danger text-xs font-medium">Red Flag Warning in effect — extreme fire spread risk</span>
-          </div>
+              <div className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-xs font-medium ${
+                weather.fire_risk_color === 'signal-danger' ? 'bg-signal-danger/10 border-signal-danger/30 text-signal-danger' :
+                weather.fire_risk_color === 'signal-warn' ? 'bg-signal-warn/10 border-signal-warn/30 text-signal-warn' :
+                'bg-signal-safe/10 border-signal-safe/30 text-signal-safe'
+              }`}>
+                <AlertTriangle className="w-3 h-3 shrink-0" />
+                Fire risk: {weather.fire_risk}{weather.red_flag ? ' · Red Flag Warning' : ''}
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-6 text-ash-600 text-xs">Enter a location to see live NOAA conditions</div>
+          )}
         </div>
       </div>
 
