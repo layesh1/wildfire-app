@@ -167,19 +167,31 @@ export default function SettingsPage() {
   }
 
   function applyTheme(t: Theme) {
-    setThemeState(t); localStorage.setItem('wfa_theme', t)
-    document.documentElement.classList.toggle('light', t === 'light')
+    setThemeState(t)
+    localStorage.setItem('wfa_theme', t)
+    const html = document.documentElement
+    if (t === 'dark') {
+      html.classList.add('dark')
+    } else if (t === 'light') {
+      html.classList.remove('dark')
+    } else {
+      // system
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        html.classList.add('dark')
+      } else {
+        html.classList.remove('dark')
+      }
+    }
   }
 
   async function switchActive(role: string) {
     setSavingRole(role)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await supabase.from('profiles').update({ role }).eq('id', user.id)
-      // Full navigation so layout re-renders with new role
-      router.push(ROLE_DESTINATIONS[role] ?? '/dashboard')
-    }
-    setSavingRole('')
+    await fetch('/api/profile/role', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role }),
+    })
+    window.location.href = ROLE_DESTINATIONS[role] ?? '/dashboard'
   }
 
   async function verifyCode() {
