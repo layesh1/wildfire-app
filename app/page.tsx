@@ -22,7 +22,7 @@ function HomepageChat() {
           <div className="flex items-center gap-3 p-4 border-b border-gray-100 shrink-0" style={{ background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)' }}>
             <div className="w-9 h-9 rounded-xl bg-white border border-green-200 flex items-center justify-center shadow-sm">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/flameo.png" alt="Flameo" width={28} height={28} style={{ objectFit: 'contain' }} />
+              <img src="/flameo1.png" alt="Flameo" width={28} height={28} style={{ objectFit: 'contain' }} />
             </div>
             <div className="flex-1">
               <div className="text-gray-900 font-semibold text-sm">Flameo</div>
@@ -36,7 +36,7 @@ function HomepageChat() {
             <div className="flex gap-2 items-start">
               <div className="w-6 h-6 rounded-lg bg-white border border-green-200 flex items-center justify-center shrink-0 shadow-sm">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/flameo.png" alt="" width={16} height={16} style={{ objectFit: 'contain' }} />
+                <img src="/flameo1.png" alt="" width={16} height={16} style={{ objectFit: 'contain' }} />
               </div>
               <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-sm px-3 py-2 text-sm text-gray-700 leading-relaxed max-w-[85%]">
                 Hi! I'm Flameo, your wildfire safety assistant. I can help with evacuation plans, go-bag tips, and more.
@@ -46,7 +46,7 @@ function HomepageChat() {
               <div className="flex gap-2 items-start">
                 <div className="w-6 h-6 rounded-lg bg-white border border-green-200 flex items-center justify-center shrink-0 shadow-sm">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/flameo.png" alt="" width={16} height={16} style={{ objectFit: 'contain' }} />
+                  <img src="/flameo1.png" alt="" width={16} height={16} style={{ objectFit: 'contain' }} />
                 </div>
                 <div className="flex flex-col gap-2 max-w-[85%]">
                   <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-sm px-3 py-2 text-sm text-gray-700">
@@ -86,7 +86,7 @@ function HomepageChat() {
         title="Chat with Flameo">
         <span className={`transition-all duration-200 ${open ? 'scale-75 opacity-0 absolute' : 'scale-100 opacity-100'}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/flameo.png" alt="Flameo" width={36} height={36} style={{ objectFit: 'contain' }} />
+          <img src="/flameo1.png" alt="Flameo" width={36} height={36} style={{ objectFit: 'contain' }} />
         </span>
         <X className={`w-5 h-5 text-gray-500 absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
       </button>
