@@ -1,6 +1,90 @@
 'use client'
 import { useState } from 'react'
-import { Activity, Wind, Thermometer, Droplets, TrendingUp, AlertTriangle } from 'lucide-react'
+import { Activity, Wind, Thermometer, Droplets, TrendingUp, AlertTriangle, MapPin, Loader2 } from 'lucide-react'
+
+const COUNTY_SVI: Record<string, number> = {
+  'trinity': 0.72, 'mohave': 0.85, 'la paz': 0.92, 'humboldt': 0.83,
+  'klamath': 0.84, 'siskiyou': 0.79, 'del norte': 0.90, 'shasta': 0.76,
+  'plumas': 0.69, 'fresno': 0.72, 'el dorado': 0.61, 'catron': 0.78,
+  'apache': 0.82, 'greenlee': 0.74, 'mckinley': 0.78, 'owyhee': 0.71,
+  'presidio': 0.68, 'glacier': 0.63, 'okanogan': 0.61, 'curry': 0.61,
+}
+
+function detectSVI(location: string): number | null {
+  const lower = location.toLowerCase()
+  for (const [county, svi] of Object.entries(COUNTY_SVI)) {
+    if (lower.includes(county)) return svi
+  }
+  return null
+}
+
+function FireShapeViz({ spread, windSpeed }: { spread: number; windSpeed: number }) {
+  const LW = Math.max(1.0, 0.936 * Math.exp(0.2566 * windSpeed) + 0.461 * Math.exp(-0.1548 * windSpeed) - 0.397)
+  const e = Math.sqrt(Math.max(0, 1 - 1 / (LW * LW)))
+  const TIME_HORIZONS = [1, 3, 6, 12, 24]
+  const LABELS = ['1h', '3h', '6h', '12h', '24h']
+  const COLORS = ['#FFF176', '#FFB300', '#FF6F00', '#FF3D00', '#AA0000']
+  const SVG_W = 300, SVG_H = 220
+  const CX = SVG_W * 0.38, CY = SVG_H * 0.5
+
+  const ellipses = TIME_HORIZONS.map((t, i) => {
+    const area_m2 = spread * (t / 24) * 4047
+    const b_m = Math.sqrt(Math.max(area_m2 / (Math.PI * LW), 1))
+    const a_m = b_m * LW
+    return { t, a_m, b_m, color: COLORS[i], label: LABELS[i] }
+  })
+
+  const maxA = ellipses[4].a_m
+  const maxPx = Math.min(SVG_W * 0.58, SVG_H * 0.44 * LW)
+  const scale = maxA > 0 ? maxPx / maxA : 1
+
+  return (
+    <div className="card p-4">
+      <div className="text-white text-sm font-semibold mb-1 flex items-center gap-2">
+        <span className="text-ember-400">◎</span> Fire Growth Shape — Technical View
+      </div>
+      <p className="text-ash-500 text-xs mb-3">
+        Van Wagner (1969) ellipse · Wind → right · L/W = {LW.toFixed(1)}:1 · Origin = ignition
+      </p>
+      <svg width="100%" viewBox={`0 0 ${SVG_W} ${SVG_H}`} style={{ background: '#0d1117', borderRadius: 8 }}>
+        <defs>
+          <marker id="arr-r" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
+            <polygon points="0 0, 6 2, 0 4" fill="#00BFFF" />
+          </marker>
+        </defs>
+        <line x1={CX} y1={4} x2={CX} y2={SVG_H - 4} stroke="#1e2738" strokeWidth={1} strokeDasharray="3 3" />
+        <line x1={4} y1={CY} x2={SVG_W - 4} y2={CY} stroke="#1e2738" strokeWidth={1} strokeDasharray="3 3" />
+        <text x={CX + 3} y={13} fill="#404050" fontSize={8} fontFamily="monospace">N</text>
+        <text x={SVG_W - 11} y={CY + 4} fill="#404050" fontSize={8} fontFamily="monospace">E</text>
+        <text x={CX + 3} y={SVG_H - 3} fill="#404050" fontSize={8} fontFamily="monospace">S</text>
+        <text x={3} y={CY + 4} fill="#404050" fontSize={8} fontFamily="monospace">W</text>
+        {[...ellipses].reverse().map(({ t, a_m, b_m, color }) => {
+          const sa = a_m * scale, sb = b_m * scale
+          const coff = a_m * e * scale
+          return (
+            <ellipse key={t} cx={CX + coff} cy={CY} rx={sa} ry={sb}
+              fill={color + '28'} stroke={color} strokeWidth={1.5} />
+          )
+        })}
+        <circle cx={CX} cy={CY} r={3.5} fill="#FF3333" />
+        <line x1={CX - 7} y1={CY} x2={CX + 7} y2={CY} stroke="#FF5555" strokeWidth={1.5} />
+        <line x1={CX} y1={CY - 7} x2={CX} y2={CY + 7} stroke="#FF5555" strokeWidth={1.5} />
+        <line x1={CX + 10} y1={CY - 26} x2={CX + 36} y2={CY - 26}
+          stroke="#00BFFF" strokeWidth={2} markerEnd="url(#arr-r)" />
+        <text x={CX + 10} y={CY - 29} fill="#00BFFF" fontSize={7} fontFamily="monospace">wind →</text>
+        {ellipses.map(({ label, color }, i) => (
+          <g key={label}>
+            <circle cx={12} cy={14 + i * 13} r={3.5} fill={color + '40'} stroke={color} strokeWidth={1} />
+            <text x={20} y={18 + i * 13} fill={color} fontSize={8} fontFamily="monospace">{label}</text>
+          </g>
+        ))}
+      </svg>
+      <p className="text-ash-600 text-xs mt-2">
+        Perimeter at each time step · 24h projected area: {spread.toLocaleString()} ac
+      </p>
+    </div>
+  )
+}
 
 const RISK_LEVELS = [
   { label: 'Low', color: 'text-signal-safe', bg: 'bg-signal-safe/10 border-signal-safe/30' },
@@ -10,6 +94,9 @@ const RISK_LEVELS = [
 ]
 
 export default function MLPredictorPage() {
+  const [location, setLocation] = useState('')
+  const [locationLoading, setLocationLoading] = useState(false)
+  const [detectedCounty, setDetectedCounty] = useState<string | null>(null)
   const [windSpeed, setWindSpeed] = useState(15)
   const [humidity, setHumidity] = useState(20)
   const [temp, setTemp] = useState(85)
@@ -17,9 +104,30 @@ export default function MLPredictorPage() {
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<null | { risk: number; spread_acres_24h: number; evac_probability: number }>(null)
 
+  async function fetchLocation() {
+    if (!location.trim()) return
+    setLocationLoading(true)
+    try {
+      const res = await fetch(`/api/weather?location=${encodeURIComponent(location)}`)
+      if (res.ok) {
+        const w = await res.json()
+        if (w.wind_mph != null) setWindSpeed(Math.min(80, Math.round(w.wind_mph)))
+        if (w.humidity_pct != null) setHumidity(Math.round(w.humidity_pct))
+        if (w.temp_f != null) setTemp(Math.min(120, Math.max(40, Math.round(w.temp_f))))
+        setResult(null)
+      }
+    } catch {}
+    const autoSVI = detectSVI(location)
+    if (autoSVI !== null) {
+      setSvi(autoSVI)
+      const county = Object.entries(COUNTY_SVI).find(([k]) => location.toLowerCase().includes(k))?.[0]
+      setDetectedCounty(county ? county.replace(/\b\w/g, c => c.toUpperCase()) : null)
+    }
+    setLocationLoading(false)
+  }
+
   async function runPrediction() {
     setRunning(true)
-    // Rule-based prediction (ML service optional)
     await new Promise(r => setTimeout(r, 1200))
     const risk = Math.min(
       ((windSpeed / 60) * 0.35) + ((1 - humidity / 100) * 0.3) + ((temp / 120) * 0.2) + (svi * 0.15),
@@ -45,6 +153,35 @@ export default function MLPredictorPage() {
         </div>
         <h1 className="font-display text-3xl font-bold text-white mb-2">Fire Spread Prediction</h1>
         <p className="text-ash-400 text-sm">Enter current conditions to predict 24-hour fire spread and evacuation probability.</p>
+      </div>
+
+      {/* Location auto-fill */}
+      <div className="card p-4 mb-6">
+        <div className="flex items-center gap-2 mb-2">
+          <MapPin className="w-4 h-4 text-signal-info" />
+          <span className="text-white text-sm font-medium">Auto-fill from location</span>
+          <span className="text-ash-600 text-xs ml-auto">Weather via NOAA · SVI from WiDS</span>
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={location}
+            onChange={e => setLocation(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && fetchLocation()}
+            placeholder="City, county, or zip — e.g. Klamath, OR"
+            className="flex-1 bg-ash-800 border border-ash-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-signal-info/60 placeholder:text-ash-600"
+          />
+          <button onClick={fetchLocation} disabled={locationLoading}
+            className="px-4 py-2 rounded-lg text-sm bg-signal-info/20 border border-signal-info/30 text-signal-info hover:bg-signal-info/30 transition-colors disabled:opacity-50 flex items-center gap-1.5">
+            {locationLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MapPin className="w-3.5 h-3.5" />}
+            Fetch
+          </button>
+        </div>
+        {detectedCounty && (
+          <p className="text-signal-info text-xs mt-2">
+            SVI auto-detected for {detectedCounty} County · Adjust sliders if needed
+          </p>
+        )}
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
@@ -132,6 +269,34 @@ export default function MLPredictorPage() {
           )}
         </div>
       </div>
+
+      {/* Fire shape + explainer — shown after running */}
+      {result && (
+        <div className="mt-6 grid md:grid-cols-2 gap-4">
+          <FireShapeViz spread={result.spread_acres_24h} windSpeed={windSpeed} />
+          <div className="card p-4">
+            <div className="text-white text-sm font-semibold mb-3">How to Read the Shape</div>
+            <div className="space-y-2 text-ash-400 text-xs">
+              <p>The fire ellipse elongates in the wind direction. Higher wind speed = more elongated shape (higher L/W ratio).</p>
+              <p><span className="text-signal-safe font-medium">L/W = {(Math.max(1.0, 0.936 * Math.exp(0.2566 * windSpeed) + 0.461 * Math.exp(-0.1548 * windSpeed) - 0.397)).toFixed(1)}:1</span> at {windSpeed} mph — {windSpeed > 30 ? 'highly elongated, fast head spread' : windSpeed > 15 ? 'moderate elongation' : 'nearly circular spread'}</p>
+              <p>The ignition point (red cross) is offset from the ellipse center — backing fire burns slowly upwind while head fire races downwind.</p>
+              <p className="text-ash-600">Van Wagner (1969) · Forestry Chronicle 45(2):103</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {result && (
+        <div className={`mt-4 card p-4 border-l-4 ${svi >= 0.75 ? 'border-signal-danger' : svi >= 0.5 ? 'border-signal-warn' : 'border-signal-safe'}`}>
+          <p className="text-ash-400 text-xs">
+            <span className={`font-semibold ${svi >= 0.75 ? 'text-signal-danger' : svi >= 0.5 ? 'text-signal-warn' : 'text-signal-safe'}`}>
+              County SVI = {svi.toFixed(2)} ({svi >= 0.75 ? 'High' : svi >= 0.5 ? 'Moderate' : 'Low'} vulnerability)
+            </span>
+            {detectedCounty ? ` — ${detectedCounty} County` : ''}{' · '}
+            WiDS data: high-SVI counties experience evacuation orders up to <strong>11.5 hours later</strong>.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
