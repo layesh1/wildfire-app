@@ -5,7 +5,7 @@ import { X, Send } from 'lucide-react'
 function FlameoIcon({ size = 32 }: { size?: number }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src="/flameo.png" alt="Flameo" width={size} height={size} style={{ objectFit: 'contain' }} />
+    <img src="/flameo1.png" alt="Flameo" width={size} height={size} style={{ objectFit: 'contain' }} />
   )
 }
 
