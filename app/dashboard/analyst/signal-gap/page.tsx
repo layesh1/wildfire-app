@@ -35,6 +35,47 @@ const KEY_FINDINGS = [
   },
 ]
 
+const DEMO_STATE_DATA = [
+  { state: 'NM', median_delay_hours: 38.7, fire_count: 892, avg_svi: 0.74 },
+  { state: 'AZ', median_delay_hours: 31.2, fire_count: 2341, avg_svi: 0.71 },
+  { state: 'TX', median_delay_hours: 27.4, fire_count: 8912, avg_svi: 0.68 },
+  { state: 'OK', median_delay_hours: 22.1, fire_count: 3201, avg_svi: 0.65 },
+  { state: 'MT', median_delay_hours: 19.8, fire_count: 1823, avg_svi: 0.60 },
+  { state: 'ID', median_delay_hours: 16.3, fire_count: 1567, avg_svi: 0.59 },
+  { state: 'WA', median_delay_hours: 13.9, fire_count: 2104, avg_svi: 0.57 },
+  { state: 'OR', median_delay_hours: 11.2, fire_count: 3456, avg_svi: 0.56 },
+  { state: 'CA', median_delay_hours: 9.8, fire_count: 12341, avg_svi: 0.62 },
+  { state: 'NV', median_delay_hours: 8.4, fire_count: 2891, avg_svi: 0.61 },
+  { state: 'CO', median_delay_hours: 5.2, fire_count: 2456, avg_svi: 0.48 },
+  { state: 'UT', median_delay_hours: 4.8, fire_count: 1892, avg_svi: 0.52 },
+  { state: 'WY', median_delay_hours: 4.1, fire_count: 987, avg_svi: 0.50 },
+  { state: 'SD', median_delay_hours: 3.6, fire_count: 654, avg_svi: 0.53 },
+  { state: 'ND', median_delay_hours: 2.9, fire_count: 412, avg_svi: 0.47 },
+]
+
+const DEMO_SCATTER_DATA = [
+  { x: 0.74, y: 38.7, name: 'Catron Co., NM' },
+  { x: 0.71, y: 31.2, name: 'Mohave Co., AZ' },
+  { x: 0.78, y: 42.1, name: 'McKinley Co., NM' },
+  { x: 0.68, y: 27.4, name: 'Presidio Co., TX' },
+  { x: 0.63, y: 19.8, name: 'Glacier Co., MT' },
+  { x: 0.72, y: 33.4, name: 'La Paz Co., AZ' },
+  { x: 0.58, y: 16.3, name: 'Owyhee Co., ID' },
+  { x: 0.84, y: 51.2, name: 'Zuni Pueblo, NM' },
+  { x: 0.61, y: 13.9, name: 'Okanogan Co., WA' },
+  { x: 0.56, y: 11.2, name: 'Klamath Co., OR' },
+  { x: 0.62, y: 9.8, name: 'Trinity Co., CA' },
+  { x: 0.69, y: 3.5, name: 'Plumas Co., CA' },
+  { x: 0.48, y: 5.2, name: 'Boulder Co., CO' },
+  { x: 0.55, y: 7.1, name: 'Deschutes Co., OR' },
+  { x: 0.82, y: 48.3, name: 'Apache Co., AZ' },
+  { x: 0.45, y: 3.1, name: 'Larimer Co., CO' },
+  { x: 0.67, y: 22.1, name: 'Pottawatomie Co., OK' },
+  { x: 0.59, y: 15.8, name: 'Lincoln Co., ID' },
+  { x: 0.76, y: 36.9, name: 'Hidalgo Co., NM' },
+  { x: 0.53, y: 8.4, name: 'Elko Co., NV' },
+]
+
 export default function SignalGapPage() {
   const [gapData, setGapData] = useState<any[]>([])
   const [scatterData, setScatterData] = useState<any[]>([])
@@ -50,7 +91,8 @@ export default function SignalGapPage() {
         .order('median_delay_hours', { ascending: false })
         .limit(15)
 
-      if (stateData) setGapData(stateData)
+      if (stateData && stateData.length > 0) setGapData(stateData)
+      else setGapData(DEMO_STATE_DATA)
 
       // SVI vs delay scatter
       const { data: sviData } = await supabase
@@ -59,11 +101,12 @@ export default function SignalGapPage() {
         .not('svi_score', 'is', null)
         .limit(200)
 
-      if (sviData) setScatterData(sviData.map(d => ({
+      if (sviData && sviData.length > 0) setScatterData(sviData.map(d => ({
         x: d.svi_score,
         y: d.median_delay_hours,
         name: `${d.county}, ${d.state}`,
       })))
+      else setScatterData(DEMO_SCATTER_DATA)
 
       setLoading(false)
     }

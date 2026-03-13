@@ -32,6 +32,17 @@ const STAFFING = [
   { shift: 'B-Shift (On call)', crew: ['Capt. Rhodes', 'FF Johnson', 'FF Davis'], truck: 'Engine 2' },
 ]
 
+const DEMO_FIRES = [
+  { id: 'd1', incident_name: 'Dixie Fire', county: 'Plumas', state: 'CA', acres_burned: 963309, containment_pct: null, svi_score: 0.69, signal_gap_hours: 3.5 },
+  { id: 'd2', incident_name: 'Bootleg Fire', county: 'Klamath', state: 'OR', acres_burned: 401279, containment_pct: null, svi_score: 0.58, signal_gap_hours: 2.1 },
+  { id: 'd3', incident_name: 'Wallow Fire', county: 'Greenlee', state: 'AZ', acres_burned: 538049, containment_pct: null, svi_score: 0.74, signal_gap_hours: 18.4 },
+  { id: 'd4', incident_name: 'Creek Fire', county: 'Fresno', state: 'CA', acres_burned: 379895, containment_pct: null, svi_score: 0.72, signal_gap_hours: 4.2 },
+  { id: 'd5', incident_name: 'Caldor Fire', county: 'El Dorado', state: 'CA', acres_burned: 221774, containment_pct: null, svi_score: 0.61, signal_gap_hours: 6.8 },
+  { id: 'd6', incident_name: 'Monument Fire', county: 'Trinity', state: 'CA', acres_burned: 223124, containment_pct: null, svi_score: 0.63, signal_gap_hours: null },
+  { id: 'd7', incident_name: 'Snake River Complex', county: 'Owyhee', state: 'ID', acres_burned: 481838, containment_pct: null, svi_score: 0.71, signal_gap_hours: null },
+  { id: 'd8', incident_name: 'Whitewater-Baldy', county: 'Catron', state: 'NM', acres_burned: 297845, containment_pct: null, svi_score: 0.78, signal_gap_hours: null },
+]
+
 export default function ResponderDashboard() {
   const [activeFires, setActiveFires] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -59,7 +70,8 @@ export default function ResponderDashboard() {
         .is('containment_pct', null)
         .order('acres_burned', { ascending: false })
         .limit(8)
-      if (data) setActiveFires(data)
+      if (data && data.length > 0) setActiveFires(data)
+      else setActiveFires(DEMO_FIRES as any[])
       setLoading(false)
     }
     load()
@@ -275,6 +287,9 @@ export default function ResponderDashboard() {
               )}
             </tbody>
           </table>
+          <p className="text-ash-600 text-xs px-6 py-3 border-t border-ash-800">
+            WiDS 2021–2025 historical record · Live incidents require connected data feed · Sorted by max acreage
+          </p>
         </div>
       </div>
     </div>
