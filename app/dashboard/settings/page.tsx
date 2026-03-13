@@ -112,10 +112,26 @@ function SettingsInner() {
   const [langSearch, setLangSearch] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState(false)
 
+  // Analyst-specific prefs (localStorage only — no DB needed)
+  const [analystSviThreshold, setAnalystSviThreshold] = useState(0.7)
+  const [analystDelayThreshold, setAnalystDelayThreshold] = useState(12)
+  const [analystExportFormat, setAnalystExportFormat] = useState<'csv' | 'json'>('csv')
+  const [analystDefaultRegion, setAnalystDefaultRegion] = useState('all')
+  const [analystPrefsLoaded, setAnalystPrefsLoaded] = useState(false)
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setThemeState((localStorage.getItem('wfa_theme') as Theme) || 'dark')
       if ('Notification' in window) setNotifPermission(Notification.permission)
+      // Load analyst prefs
+      try {
+        const ap = JSON.parse(localStorage.getItem('wfa_analyst_prefs') || '{}')
+        if (ap.sviThreshold != null) setAnalystSviThreshold(ap.sviThreshold)
+        if (ap.delayThreshold != null) setAnalystDelayThreshold(ap.delayThreshold)
+        if (ap.exportFormat) setAnalystExportFormat(ap.exportFormat)
+        if (ap.defaultRegion) setAnalystDefaultRegion(ap.defaultRegion)
+      } catch {}
+      setAnalystPrefsLoaded(true)
     }
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -238,11 +254,25 @@ function SettingsInner() {
   function resetCode() { setAddingRole(null); setCode(''); setCodeVerified(false); setCodeError(''); setOrgName(null); setCodeId(null) }
 
   const otherRoles = ALL_ROLES.filter(r => !myRoles.includes(r))
+  const profileTabLabel = activeRole === 'data_analyst' ? 'Analyst Profile'
+    : activeRole === 'emergency_responder' ? 'Responder Profile'
+    : 'Emergency Profile'
   const TABS: { id: Tab; label: string }[] = [
-    { id: 'profile', label: 'Emergency Profile' },
+    { id: 'profile', label: profileTabLabel },
     { id: 'account', label: 'Account & Roles' },
     { id: 'preferences', label: 'Preferences' },
   ]
+
+  function saveAnalystPrefs() {
+    if (typeof window === 'undefined') return
+    localStorage.setItem('wfa_analyst_prefs', JSON.stringify({
+      sviThreshold: analystSviThreshold,
+      delayThreshold: analystDelayThreshold,
+      exportFormat: analystExportFormat,
+      defaultRegion: analystDefaultRegion,
+    }))
+    setSaved(true)
+  }
 
   if (loading) return (
     <div className="p-8 flex items-center justify-center min-h-[40vh]">
@@ -350,7 +380,116 @@ function SettingsInner() {
         </div>
       )}
 
-      {tab === 'profile' && activeRole !== 'emergency_responder' && (
+      {/* ── ANALYST PROFILE TAB ── */}
+      {tab === 'profile' && activeRole === 'data_analyst' && (
+        <div className="space-y-5">
+          <Section icon={BarChart3} title="Researcher Identity">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field label="Full name"><FInput value={profile.full_name} onChange={v => update('full_name', v)} placeholder="Dr. Jane Smith" /></Field>
+              <Field label="Institution / Organization"><FInput value={profile.phone} onChange={v => update('phone', v)} placeholder="e.g. Stanford University, USGS" /></Field>
+              <Field label="Role / Title" hint="e.g. Research Scientist, Data Engineer, Policy Analyst">
+                <FInput value={profile.address} onChange={v => update('address', v)} placeholder="Your research role" />
+              </Field>
+              <Field label="ORCID or professional ID (optional)">
+                <FInput value={profile.household_languages} onChange={v => update('household_languages', v)} placeholder="e.g. 0000-0002-1825-0097" />
+              </Field>
+              <Field label="Analysis notification email" hint="Receive alerts when new WiDS data is released or anomalies are detected">
+                <FInput value={profile.notification_email} onChange={v => update('notification_email', v)} placeholder="analyst@org.edu" type="email" />
+              </Field>
+            </div>
+            <div className="mt-4">
+              <Field label="Research focus / notes" hint="e.g. SVI-evacuation equity in tribal lands, WUI fire prediction modeling">
+                <FTextarea value={profile.special_notes} onChange={v => update('special_notes', v)} placeholder="Describe your research focus or any notes about how you use this platform…" rows={3} />
+              </Field>
+            </div>
+          </Section>
+
+          <Section icon={Activity} title="Dashboard Defaults">
+            <div className="grid sm:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-ash-300 text-xs font-medium mb-1">Default region / state filter</label>
+                <select
+                  value={analystDefaultRegion}
+                  onChange={e => setAnalystDefaultRegion(e.target.value)}
+                  className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60"
+                >
+                  <option value="all">All states (no filter)</option>
+                  {['CA','TX','AZ','NM','OR','WA','MT','CO','ID','NV','UT','WY','OK','FL','AK'].map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-ash-300 text-xs font-medium mb-1">Preferred export format</label>
+                <div className="flex gap-2">
+                  {(['csv', 'json'] as const).map(fmt => (
+                    <button key={fmt} type="button" onClick={() => setAnalystExportFormat(fmt)}
+                      className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${analystExportFormat === fmt ? 'bg-ember-500/20 border-ember-500/50 text-ember-300' : 'bg-ash-800 border-ash-700 text-ash-400 hover:border-ash-500 hover:text-ash-200'}`}>
+                      .{fmt.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-ash-300 text-xs font-medium">SVI vulnerability threshold</label>
+                  <span className="text-white font-mono text-xs">{analystSviThreshold.toFixed(2)}</span>
+                </div>
+                <input type="range" min={0.4} max={0.95} step={0.05} value={analystSviThreshold}
+                  onChange={e => setAnalystSviThreshold(Number(e.target.value))}
+                  className="w-full accent-ember-500" />
+                <div className="flex justify-between text-ash-600 text-xs mt-1">
+                  <span>0.40 — Low risk flag</span><span>0.95 — High risk only</span>
+                </div>
+                <p className="text-ash-600 text-xs mt-1">Counties above this SVI score are flagged as high-vulnerability in your reports.</p>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-ash-300 text-xs font-medium">Critical delay threshold</label>
+                  <span className="text-white font-mono text-xs">{analystDelayThreshold}h</span>
+                </div>
+                <input type="range" min={2} max={48} step={1} value={analystDelayThreshold}
+                  onChange={e => setAnalystDelayThreshold(Number(e.target.value))}
+                  className="w-full accent-ember-500" />
+                <div className="flex justify-between text-ash-600 text-xs mt-1">
+                  <span>2h</span><span>48h</span>
+                </div>
+                <p className="text-ash-600 text-xs mt-1">Delays above this threshold are colored red in charts and flagged in the signal gap analysis.</p>
+              </div>
+            </div>
+          </Section>
+
+          <Section icon={Bell} title="Data Alerts">
+            <div className={`flex items-start gap-3 p-4 rounded-xl border ${notifPermission === 'granted' ? 'border-signal-safe/30 bg-signal-safe/5' : 'border-ash-700 bg-ash-800/40'}`}>
+              <div className="mt-0.5">{notifPermission === 'granted' ? <Bell className="w-4 h-4 text-signal-safe" /> : <BellOff className="w-4 h-4 text-ash-500" />}</div>
+              <div className="flex-1">
+                <div className="text-white text-sm font-medium">Dataset update notifications</div>
+                <div className="text-ash-400 text-xs mt-0.5">
+                  {notifPermission === 'granted' ? 'Enabled — you\'ll be notified when new WiDS incident data is available.' : 'Get notified when new fire incident data is loaded or model anomalies are detected.'}
+                </div>
+              </div>
+              {notifPermission !== 'granted' && notifPermission !== 'denied' && (
+                <button onClick={requestBrowserNotifications} className="shrink-0 px-3 py-1.5 rounded-lg text-xs bg-ember-500/20 border border-ember-500/40 text-ember-400 hover:bg-ember-500/30 transition-colors">Enable</button>
+              )}
+            </div>
+          </Section>
+
+          <div className="flex items-center gap-4 pb-8">
+            <button onClick={async () => { await save(); saveAnalystPrefs() }} disabled={saving}
+              className="flex items-center gap-2 px-6 py-3 bg-ember-500 hover:bg-ember-400 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors text-sm">
+              <Save className="w-4 h-4" />{saving ? 'Saving…' : 'Save analyst profile'}
+            </button>
+            {saved && <div className="flex items-center gap-2 text-signal-safe text-sm"><CheckCircle className="w-4 h-4" /> Saved</div>}
+            {saveError && <div className="text-signal-danger text-sm">{saveError}</div>}
+          </div>
+        </div>
+      )}
+
+      {tab === 'profile' && activeRole !== 'emergency_responder' && activeRole !== 'data_analyst' && (
         <div className="space-y-5">
           <Section icon={User} title="Your Information">
             <div className="grid sm:grid-cols-2 gap-4">
