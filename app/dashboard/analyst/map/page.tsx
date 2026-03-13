@@ -184,24 +184,29 @@ export default function AnalystMapPage() {
       </div>
 
       {/* Analytics row */}
-      <div className="grid grid-cols-4 gap-3 mb-4">
-        {tab === 'live' ? [
+      {(() => {
+        const stats = tab === 'live' ? [
           { v: liveLoading ? '…' : String(liveStats.count), l: 'Active incidents', c: 'text-signal-danger' },
           { v: liveLoading ? '…' : `${(liveStats.totalAcres / 1000).toFixed(0)}k`, l: 'Total acres (active)', c: 'text-signal-warn' },
           { v: liveLoading ? '…' : `${liveStats.avgContained}%`, l: 'Avg containment', c: 'text-signal-safe' },
           { v: liveLoading ? '…' : String(liveStats.uncontained), l: '<10% contained', c: 'text-signal-danger' },
         ] : [
-          { v: String(widsStats.shown), l: `Incidents shown (sample)`, c: 'text-signal-info' },
+          { v: String(widsStats.shown), l: 'Incidents shown (sample)', c: 'text-signal-info' },
           { v: String(widsStats.noOrder), l: 'No evacuation order', c: 'text-signal-danger' },
-          { v: String(widsStats.highSvi), l: 'High-SVI fires (≥0.7)', c: 'text-signal-warn' },
+          { v: String(widsStats.highSvi), l: 'High-SVI fires (\u22650.7)', c: 'text-signal-warn' },
           { v: String(widsStats.extremeSpread), l: 'Extreme spread rate', c: 'text-signal-danger' },
-        ]}.map(s => (
-          <div key={s.l} className="card p-4">
-            <div className={`font-display text-2xl font-bold ${s.c}`}>{s.v}</div>
-            <div className="text-ash-400 text-xs mt-1">{s.l}</div>
+        ]
+        return (
+          <div className="grid grid-cols-4 gap-3 mb-4">
+            {stats.map(s => (
+              <div key={s.l} className="card p-4">
+                <div className={`font-display text-2xl font-bold ${s.c}`}>{s.v}</div>
+                <div className="text-ash-400 text-xs mt-1">{s.l}</div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        )
+      })()}
 
       {/* Main layout: map + sidebar */}
       <div className="grid md:grid-cols-3 gap-4">
