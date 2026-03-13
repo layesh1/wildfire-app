@@ -116,6 +116,9 @@ export default function MLPredictorPage() {
   const [svi, setSvi] = useState(0.65)
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<null | { risk: number; spread_acres_24h: number; evac_probability: number }>(null)
+  const [fireMode, setFireMode] = useState<'scenario' | 'active'>('scenario')
+  const [currentAcres, setCurrentAcres] = useState(500)
+  const [containmentPct, setContainmentPct] = useState(0)
 
   async function fetchLocation() {
     if (!location.trim()) return
@@ -154,9 +157,13 @@ export default function MLPredictorPage() {
       ((windSpeed / 60) * 0.35) + ((1 - humidity / 100) * 0.3) + ((temp / 120) * 0.2) + (svi * 0.15),
       0.99
     )
+    const baseSpread = Math.round(risk * 15000 + windSpeed * 80)
+    const spread_acres_24h = fireMode === 'active'
+      ? Math.round(baseSpread * Math.max(0.05, 1 - containmentPct / 100))
+      : baseSpread
     setResult({
       risk,
-      spread_acres_24h: Math.round(risk * 15000 + windSpeed * 80),
+      spread_acres_24h,
       evac_probability: Math.min(risk * 1.3, 0.99),
     })
     setRunning(false)
@@ -203,6 +210,52 @@ export default function MLPredictorPage() {
           <p className="text-signal-info text-xs mt-2">
             SVI auto-detected for {detectedCounty} County · Adjust sliders if needed
           </p>
+        )}
+      </div>
+
+      <div className="card p-4 mb-6">
+        <div className="text-white text-sm font-medium mb-3">Fire Mode</div>
+        <div className="grid grid-cols-2 gap-2">
+          {(['scenario', 'active'] as const).map(mode => (
+            <button key={mode} onClick={() => { setFireMode(mode); setResult(null) }}
+              className={`px-4 py-3 rounded-lg text-sm font-medium border transition-all text-left ${
+                fireMode === mode
+                  ? mode === 'active'
+                    ? 'bg-signal-danger/10 border-signal-danger/40 text-signal-danger'
+                    : 'bg-signal-info/10 border-signal-info/40 text-signal-info'
+                  : 'border-ash-700 text-ash-400 hover:text-white hover:border-ash-600'
+              }`}>
+              <div className="font-semibold">{mode === 'scenario' ? 'Scenario Planning' : 'Active Fire'}</div>
+              <div className="text-xs mt-0.5 opacity-75">
+                {mode === 'scenario' ? 'No fire yet — predict from scratch' : 'Fire is burning — adjust for containment'}
+              </div>
+            </button>
+          ))}
+        </div>
+        {fireMode === 'active' && (
+          <div className="mt-4 grid grid-cols-2 gap-4 pt-4 border-t border-ash-800">
+            <div>
+              <div className="flex justify-between mb-1.5">
+                <span className="text-ash-300 text-sm">Current Burned Acres</span>
+                <span className="text-white font-mono text-sm">{currentAcres.toLocaleString()} ac</span>
+              </div>
+              <input type="range" min={10} max={100000} step={10} value={currentAcres}
+                onChange={e => { setCurrentAcres(Number(e.target.value)); setResult(null) }}
+                className="w-full accent-orange-500" />
+            </div>
+            <div>
+              <div className="flex justify-between mb-1.5">
+                <span className="text-ash-300 text-sm">Containment</span>
+                <span className="text-white font-mono text-sm">{containmentPct}%</span>
+              </div>
+              <input type="range" min={0} max={100} step={1} value={containmentPct}
+                onChange={e => { setContainmentPct(Number(e.target.value)); setResult(null) }}
+                className="w-full accent-signal-safe" />
+            </div>
+            <p className="col-span-2 text-ash-500 text-xs">
+              At {containmentPct}% containment — projected additional spread reduced by {containmentPct}%. Current burn perimeter shown on map.
+            </p>
+          </div>
         )}
       </div>
 
@@ -253,7 +306,7 @@ export default function MLPredictorPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="card p-5">
-                  <div className="text-ash-400 text-xs mb-1">Projected spread (24h)</div>
+                  <div className="text-ash-400 text-xs mb-1">{fireMode === 'active' ? 'Projected additional spread' : 'Projected spread (24h)'}</div>
                   <div className="font-display text-2xl font-bold text-signal-warn">{result.spread_acres_24h.toLocaleString()}</div>
                   <div className="text-ash-500 text-xs">acres</div>
                 </div>
@@ -322,9 +375,12 @@ export default function MLPredictorPage() {
                 spreadAcres24h={result.spread_acres_24h}
                 windSpeedMph={windSpeed}
                 windDirDeg={windDirDeg}
+                currentAcres={fireMode === 'active' ? currentAcres : undefined}
               />
               <p className="text-ash-600 text-xs mt-2">
-                Yellow = 1h · Orange = 3h/6h · Red = 12h/24h perimeter · Click ellipses for time horizon
+                {fireMode === 'active'
+                  ? 'Dashed orange = current burn perimeter · Yellow→Red = projected additional growth at 1h/3h/6h/12h/24h'
+                  : 'Yellow = 1h · Orange = 3h/6h · Red = 12h/24h perimeter · Click ellipses for time horizon'}
               </p>
             </div>
           )}

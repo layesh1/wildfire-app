@@ -108,6 +108,9 @@ export default function AnalystMLPage() {
   const [humidity, setHumidity] = useState(20)
   const [temp, setTemp] = useState(85)
   const [svi, setSvi] = useState(0.65)
+  const [fireMode, setFireMode] = useState<'scenario' | 'active'>('scenario')
+  const [currentAcres, setCurrentAcres] = useState(500)
+  const [containmentPct, setContainmentPct] = useState(0)
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<null | { risk: number; spread: number; evac_prob: number; signal_gap_pred: number }>(null)
 
@@ -145,9 +148,13 @@ export default function AnalystMLPage() {
     setRunning(true)
     await new Promise(r => setTimeout(r, 1200))
     const risk = Math.min(((windSpeed / 60) * 0.35) + ((1 - humidity / 100) * 0.3) + ((temp / 120) * 0.2) + (svi * 0.15), 0.99)
+    const baseSpread = Math.round(risk * 15000 + windSpeed * 80)
+    const adjustedSpread = fireMode === 'active'
+      ? Math.round(baseSpread * Math.max(0.05, 1 - containmentPct / 100))
+      : baseSpread
     setResult({
       risk,
-      spread: Math.round(risk * 15000 + windSpeed * 80),
+      spread: adjustedSpread,
       evac_prob: Math.min(risk * 1.3, 0.99),
       signal_gap_pred: Math.round((1 - risk) * 24 + svi * 18),
     })
@@ -194,6 +201,53 @@ export default function AnalystMLPage() {
         )}
       </div>
 
+      {/* Fire Mode toggle */}
+      <div className="card p-4 mb-6">
+        <div className="text-white text-sm font-medium mb-3">Fire Mode</div>
+        <div className="grid grid-cols-2 gap-2">
+          {(['scenario', 'active'] as const).map(mode => (
+            <button key={mode} onClick={() => { setFireMode(mode); setResult(null) }}
+              className={`px-4 py-3 rounded-lg text-sm font-medium border transition-all text-left ${
+                fireMode === mode
+                  ? mode === 'active'
+                    ? 'bg-signal-danger/10 border-signal-danger/40 text-signal-danger'
+                    : 'bg-signal-info/10 border-signal-info/40 text-signal-info'
+                  : 'border-ash-700 text-ash-400 hover:text-white hover:border-ash-600'
+              }`}>
+              <div className="font-semibold">{mode === 'scenario' ? 'Scenario Planning' : 'Active Fire'}</div>
+              <div className="text-xs mt-0.5 opacity-75">
+                {mode === 'scenario' ? 'No fire yet — predict from scratch' : 'Fire is burning — adjust for containment'}
+              </div>
+            </button>
+          ))}
+        </div>
+        {fireMode === 'active' && (
+          <div className="mt-4 grid grid-cols-2 gap-4 pt-4 border-t border-ash-800">
+            <div>
+              <div className="flex justify-between mb-1.5">
+                <span className="text-ash-300 text-sm">Current Burned Acres</span>
+                <span className="text-white font-mono text-sm">{currentAcres.toLocaleString()} ac</span>
+              </div>
+              <input type="range" min={10} max={100000} step={10} value={currentAcres}
+                onChange={e => { setCurrentAcres(Number(e.target.value)); setResult(null) }}
+                className="w-full accent-orange-500" />
+            </div>
+            <div>
+              <div className="flex justify-between mb-1.5">
+                <span className="text-ash-300 text-sm">Containment</span>
+                <span className="text-white font-mono text-sm">{containmentPct}%</span>
+              </div>
+              <input type="range" min={0} max={100} step={1} value={containmentPct}
+                onChange={e => { setContainmentPct(Number(e.target.value)); setResult(null) }}
+                className="w-full accent-signal-safe" />
+            </div>
+            <p className="col-span-2 text-ash-500 text-xs">
+              At {containmentPct}% containment — projected additional spread reduced by {containmentPct}%. Current burn perimeter shown on map.
+            </p>
+          </div>
+        )}
+      </div>
+
       <div className="grid md:grid-cols-2 gap-6">
         <div className="card p-6 space-y-5">
           <h2 className="text-white font-semibold flex items-center gap-2"><BarChart3 className="w-4 h-4 text-ash-400" /> Feature Inputs</h2>
@@ -224,7 +278,7 @@ export default function AnalystMLPage() {
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { label: 'Fire risk score', value: `${(result.risk * 100).toFixed(1)}%`, color: result.risk > 0.75 ? 'text-signal-danger' : result.risk > 0.5 ? 'text-signal-warn' : 'text-signal-safe' },
-                  { label: 'Projected spread (24h)', value: `${result.spread.toLocaleString()} ac`, color: 'text-signal-warn' },
+                  { label: fireMode === 'active' ? 'Projected additional spread' : 'Projected spread (24h)', value: `${result.spread.toLocaleString()} ac`, color: 'text-signal-warn' },
                   { label: 'Evacuation probability', value: `${(result.evac_prob * 100).toFixed(0)}%`, color: result.evac_prob > 0.7 ? 'text-signal-danger' : 'text-signal-warn' },
                   { label: 'Est. signal gap', value: `${result.signal_gap_pred}h`, color: result.signal_gap_pred > 12 ? 'text-signal-danger' : 'text-ash-300' },
                 ].map(s => (
@@ -282,9 +336,12 @@ export default function AnalystMLPage() {
                 spreadAcres24h={result.spread}
                 windSpeedMph={windSpeed}
                 windDirDeg={windDirDeg}
+                currentAcres={fireMode === 'active' ? currentAcres : undefined}
               />
               <p className="text-ash-600 text-xs mt-2">
-                Yellow = 1h · Orange = 3h/6h · Red = 12h/24h perimeter · Click ellipses for info
+                {fireMode === 'active'
+                  ? 'Dashed orange = current burn perimeter · Yellow→Red = projected additional growth at 1h/3h/6h/12h/24h'
+                  : 'Yellow = 1h · Orange = 3h/6h · Red = 12h/24h perimeter · Click ellipses for info'}
               </p>
             </div>
           )}
