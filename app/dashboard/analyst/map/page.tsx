@@ -1,6 +1,9 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { Map, Flame, AlertTriangle, Layers } from 'lucide-react'
+import { useState } from 'react'
+import dynamic from 'next/dynamic'
+import { Map, Flame, AlertTriangle } from 'lucide-react'
+
+const FirePointMap = dynamic(() => import('@/components/FirePointMap'), { ssr: false })
 
 interface FirePoint {
   id: string
@@ -15,7 +18,6 @@ interface FirePoint {
   gap_hours: number | null
 }
 
-// Representative sample for analyst map (actual data from WiDS dataset coordinates)
 const SAMPLE_FIRES: FirePoint[] = [
   { id: '1', name: 'Creek Fire', state: 'CA', county: 'Fresno', acres: 379895, svi: 0.72, lat: 37.12, lng: -119.25, has_order: true, gap_hours: 4.2 },
   { id: '2', name: 'Bootleg Fire', state: 'OR', county: 'Klamath', acres: 401279, svi: 0.58, lat: 42.51, lng: -121.38, has_order: true, gap_hours: 2.1 },
@@ -51,7 +53,7 @@ export default function AnalystMapPage() {
           <Map className="w-4 h-4" /> FIRE MAP · ANALYST
         </div>
         <h1 className="font-display text-3xl font-bold text-white mb-2">Fire Incident Map</h1>
-        <p className="text-ash-400 text-sm">Spatial distribution of WiDS wildfire incidents with SVI overlay and evacuation order coverage analysis.</p>
+        <p className="text-ash-400 text-sm">Spatial distribution of WiDS wildfire incidents with SVI overlay and evacuation order coverage analysis. Click markers for details.</p>
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-6">
@@ -78,60 +80,16 @@ export default function AnalystMapPage() {
             {f.label}
           </button>
         ))}
+        <div className="ml-auto flex gap-3 items-center text-xs text-ash-500">
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: '#ef4444' }} /> No order</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: '#f59e0b' }} /> High SVI</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: '#22c55e' }} /> Order issued</span>
+        </div>
       </div>
 
       <div className="grid md:grid-cols-3 gap-4">
         <div className="md:col-span-2 card p-0 overflow-hidden">
-          {/* Schematic US map representation */}
-          <div className="relative w-full bg-ash-900" style={{ paddingBottom: '62%' }}>
-            <div className="absolute inset-0 p-4">
-              <div className="text-ash-700 text-xs mb-2 flex items-center gap-1.5">
-                <Layers className="w-3 h-3" /> Approximate US West spatial distribution
-              </div>
-              <div className="relative w-full h-full">
-                {filtered.map(fire => {
-                  // Map lat/lng to approximate x/y within the western US bounding box
-                  // lat range 32-47, lng range -124 to -107
-                  const x = ((fire.lng - (-124)) / ((-107) - (-124))) * 100
-                  const y = ((47 - fire.lat) / (47 - 32)) * 100
-                  const size = Math.max(8, Math.min(24, fire.acres / 25000))
-                  const color = !fire.has_order
-                    ? 'bg-signal-danger border-signal-danger'
-                    : fire.svi >= 0.7
-                    ? 'bg-signal-warn border-signal-warn'
-                    : 'bg-signal-safe border-signal-safe'
-                  return (
-                    <button
-                      key={fire.id}
-                      onClick={() => setSelected(fire === selected ? null : fire)}
-                      className={`absolute rounded-full border-2 opacity-80 hover:opacity-100 transition-all hover:scale-125 ${color} ${selected?.id === fire.id ? 'scale-125 opacity-100 ring-2 ring-white/50' : ''}`}
-                      style={{
-                        left: `${Math.max(2, Math.min(95, x))}%`,
-                        top: `${Math.max(2, Math.min(92, y))}%`,
-                        width: size,
-                        height: size,
-                        transform: 'translate(-50%, -50%)',
-                      }}
-                      title={fire.name}
-                    />
-                  )
-                })}
-              </div>
-              {/* Legend */}
-              <div className="absolute bottom-3 left-4 flex flex-col gap-1">
-                {[
-                  { color: 'bg-signal-danger', label: 'No evac order' },
-                  { color: 'bg-signal-warn', label: 'High SVI (≥0.7)' },
-                  { color: 'bg-signal-safe', label: 'Order issued' },
-                ].map(l => (
-                  <div key={l.label} className="flex items-center gap-1.5">
-                    <div className={`w-2.5 h-2.5 rounded-full ${l.color}`} />
-                    <span className="text-ash-500 text-xs">{l.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <FirePointMap fires={filtered} selected={selected} onSelect={setSelected} />
         </div>
 
         <div className="space-y-3">
@@ -169,6 +127,10 @@ export default function AnalystMapPage() {
                     </span>
                   </div>
                 )}
+                <div className="flex justify-between">
+                  <span className="text-ash-400">Coordinates</span>
+                  <span className="text-ash-400 text-xs font-mono">{selected.lat.toFixed(2)}, {selected.lng.toFixed(2)}</span>
+                </div>
               </div>
               {!selected.has_order && selected.svi >= 0.7 && (
                 <div className="mt-3 flex items-center gap-1.5 text-xs text-signal-danger">
@@ -176,11 +138,14 @@ export default function AnalystMapPage() {
                   High-vulnerability area with no formal order
                 </div>
               )}
+              <button onClick={() => setSelected(null)} className="mt-3 text-ash-600 hover:text-ash-400 text-xs">
+                clear selection ✕
+              </button>
             </div>
           ) : (
             <div className="card p-4 text-center">
               <Map className="w-8 h-8 text-ash-700 mx-auto mb-2" />
-              <div className="text-ash-500 text-xs">Click a fire point to see details</div>
+              <div className="text-ash-500 text-xs">Click a marker on the map to see details</div>
             </div>
           )}
 
@@ -191,7 +156,7 @@ export default function AnalystMapPage() {
                 <button key={fire.id} onClick={() => setSelected(fire === selected ? null : fire)}
                   className={`w-full text-left px-2.5 py-2 rounded-lg transition-colors text-xs ${selected?.id === fire.id ? 'bg-ash-700' : 'hover:bg-ash-800'}`}>
                   <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${!fire.has_order ? 'bg-signal-danger' : fire.svi >= 0.7 ? 'bg-signal-warn' : 'bg-signal-safe'}`} />
+                    <div className="w-2 h-2 rounded-full shrink-0" style={{ background: !fire.has_order ? '#ef4444' : fire.svi >= 0.7 ? '#f59e0b' : '#22c55e' }} />
                     <span className="text-white truncate">{fire.name}</span>
                     <span className="text-ash-500 ml-auto shrink-0">{(fire.acres / 1000).toFixed(0)}k ac</span>
                   </div>
@@ -204,7 +169,7 @@ export default function AnalystMapPage() {
 
       <div className="card p-4 mt-4 border border-signal-info/20 bg-signal-info/5">
         <p className="text-ash-400 text-xs leading-relaxed">
-          <span className="text-signal-info font-medium">Note:</span> This view shows a curated sample of major incidents for spatial analysis. Full dataset of 62,696 incidents is available via the ML Predictor and Signal Gap tools. Interactive Leaflet map with real-time FIRMS satellite data is available on the Evacuation Map (caregiver dashboard).
+          <span className="text-signal-info font-medium">Note:</span> This view shows a curated sample of major incidents for spatial analysis. Full dataset of 62,696 incidents is available via the ML Predictor and Signal Gap tools. Marker size scales with fire acreage.
         </p>
       </div>
     </div>

@@ -1,6 +1,9 @@
 'use client'
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { Activity, Wind, Thermometer, Droplets, TrendingUp, AlertTriangle, MapPin, Loader2 } from 'lucide-react'
+
+const FireSpreadMap = dynamic(() => import('@/components/FireSpreadMap'), { ssr: false })
 
 const COUNTY_SVI: Record<string, number> = {
   'trinity': 0.72, 'mohave': 0.85, 'la paz': 0.92, 'humboldt': 0.83,
@@ -18,8 +21,14 @@ function detectSVI(location: string): number | null {
   return null
 }
 
+// Van Wagner (1969) — wind speed must be in m/s, NOT mph
+function vanWagnerLW(windSpeedMph: number): number {
+  const u_ms = windSpeedMph * 0.44704
+  return Math.min(8, Math.max(1.0, 0.936 * Math.exp(0.2566 * u_ms) + 0.461 * Math.exp(-0.1548 * u_ms) - 0.397))
+}
+
 function FireShapeViz({ spread, windSpeed }: { spread: number; windSpeed: number }) {
-  const LW = Math.max(1.0, 0.936 * Math.exp(0.2566 * windSpeed) + 0.461 * Math.exp(-0.1548 * windSpeed) - 0.397)
+  const LW = vanWagnerLW(windSpeed)
   const e = Math.sqrt(Math.max(0, 1 - 1 / (LW * LW)))
   const TIME_HORIZONS = [1, 3, 6, 12, 24]
   const LABELS = ['1h', '3h', '6h', '12h', '24h']
@@ -96,7 +105,11 @@ const RISK_LEVELS = [
 export default function MLPredictorPage() {
   const [location, setLocation] = useState('')
   const [locationLoading, setLocationLoading] = useState(false)
+  const [locationError, setLocationError] = useState<string | null>(null)
   const [detectedCounty, setDetectedCounty] = useState<string | null>(null)
+  const [lat, setLat] = useState<number | null>(null)
+  const [lon, setLon] = useState<number | null>(null)
+  const [windDirDeg, setWindDirDeg] = useState<number>(270)
   const [windSpeed, setWindSpeed] = useState(15)
   const [humidity, setHumidity] = useState(20)
   const [temp, setTemp] = useState(85)
@@ -107,16 +120,24 @@ export default function MLPredictorPage() {
   async function fetchLocation() {
     if (!location.trim()) return
     setLocationLoading(true)
+    setLocationError(null)
     try {
       const res = await fetch(`/api/weather?location=${encodeURIComponent(location)}`)
-      if (res.ok) {
-        const w = await res.json()
+      const w = await res.json()
+      if (!res.ok) {
+        setLocationError(w.error ?? 'Location not found')
+      } else {
         if (w.wind_mph != null) setWindSpeed(Math.min(80, Math.round(w.wind_mph)))
         if (w.humidity_pct != null) setHumidity(Math.round(w.humidity_pct))
         if (w.temp_f != null) setTemp(Math.min(120, Math.max(40, Math.round(w.temp_f))))
+        if (w.wind_dir_deg != null) setWindDirDeg(w.wind_dir_deg)
+        if (w.lat != null) setLat(w.lat)
+        if (w.lon != null) setLon(w.lon)
         setResult(null)
       }
-    } catch {}
+    } catch {
+      setLocationError('Network error — check connection')
+    }
     const autoSVI = detectSVI(location)
     if (autoSVI !== null) {
       setSvi(autoSVI)
@@ -160,13 +181,13 @@ export default function MLPredictorPage() {
         <div className="flex items-center gap-2 mb-2">
           <MapPin className="w-4 h-4 text-signal-info" />
           <span className="text-white text-sm font-medium">Auto-fill from location</span>
-          <span className="text-ash-600 text-xs ml-auto">Weather via NOAA · SVI from WiDS</span>
+          <span className="text-ash-600 text-xs ml-auto">Weather via Open-Meteo · SVI from WiDS</span>
         </div>
         <div className="flex gap-2">
           <input
             type="text"
             value={location}
-            onChange={e => setLocation(e.target.value)}
+            onChange={e => { setLocation(e.target.value); setLocationError(null) }}
             onKeyDown={e => e.key === 'Enter' && fetchLocation()}
             placeholder="City, county, or zip — e.g. Klamath, OR"
             className="flex-1 bg-ash-800 border border-ash-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-signal-info/60 placeholder:text-ash-600"
@@ -177,7 +198,8 @@ export default function MLPredictorPage() {
             Fetch
           </button>
         </div>
-        {detectedCounty && (
+        {locationError && <p className="text-signal-danger text-xs mt-2">{locationError}</p>}
+        {detectedCounty && !locationError && (
           <p className="text-signal-info text-xs mt-2">
             SVI auto-detected for {detectedCounty} County · Adjust sliders if needed
           </p>
@@ -187,20 +209,19 @@ export default function MLPredictorPage() {
       <div className="grid md:grid-cols-2 gap-6">
         <div className="card p-6 space-y-6">
           <h2 className="text-white font-semibold">Conditions Input</h2>
-
           {[
-            { label: 'Wind Speed', icon: Wind, value: windSpeed, set: setWindSpeed, min: 0, max: 80, unit: 'mph', color: 'ember' },
-            { label: 'Relative Humidity', icon: Droplets, value: humidity, set: setHumidity, min: 0, max: 100, unit: '%', color: 'blue' },
-            { label: 'Temperature', icon: Thermometer, value: temp, set: setTemp, min: 40, max: 120, unit: '°F', color: 'orange' },
-            { label: 'SVI Score (community vulnerability)', icon: TrendingUp, value: svi, set: setSvi, min: 0, max: 1, step: 0.01, unit: '', color: 'red' },
-          ].map(({ label, icon: Icon, value, set, min, max, unit, color, step }) => (
+            { label: 'Wind Speed', icon: Wind, value: windSpeed, set: setWindSpeed, min: 0, max: 80, unit: 'mph' },
+            { label: 'Relative Humidity', icon: Droplets, value: humidity, set: setHumidity, min: 0, max: 100, unit: '%' },
+            { label: 'Temperature', icon: Thermometer, value: temp, set: setTemp, min: 40, max: 120, unit: '°F' },
+            { label: 'SVI Score (community vulnerability)', icon: TrendingUp, value: svi, set: setSvi, min: 0, max: 1, step: 0.01, unit: '' },
+          ].map(({ label, icon: Icon, value, set, min, max, unit, step }) => (
             <div key={label}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Icon className="w-4 h-4 text-ash-400" />
                   <label className="text-ash-300 text-sm">{label}</label>
                 </div>
-                <span className="text-white font-mono text-sm font-bold">{typeof value === 'number' && step === 0.01 ? value.toFixed(2) : value}{unit}</span>
+                <span className="text-white font-mono text-sm font-bold">{step === 0.01 ? Number(value).toFixed(2) : value}{unit}</span>
               </div>
               <input type="range" min={min} max={max} step={step ?? 1} value={value}
                 onChange={e => { set(Number(e.target.value)); setResult(null) }}
@@ -210,7 +231,6 @@ export default function MLPredictorPage() {
               </div>
             </div>
           ))}
-
           <button onClick={runPrediction} disabled={running}
             className="btn-primary w-full flex items-center justify-center gap-2">
             {running ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Running model…</> : <><Activity className="w-4 h-4" /> Run Prediction</>}
@@ -231,7 +251,6 @@ export default function MLPredictorPage() {
                     style={{ width: `${result.risk * 100}%` }} />
                 </div>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="card p-5">
                   <div className="text-ash-400 text-xs mb-1">Projected spread (24h)</div>
@@ -246,7 +265,6 @@ export default function MLPredictorPage() {
                   <div className="text-ash-500 text-xs">confidence</div>
                 </div>
               </div>
-
               {riskLevel >= 2 && (
                 <div className="card p-4 border border-signal-danger/30 bg-signal-danger/5">
                   <div className="flex items-start gap-2">
@@ -254,7 +272,7 @@ export default function MLPredictorPage() {
                     <div>
                       <div className="text-signal-danger text-sm font-semibold">Immediate action recommended</div>
                       <div className="text-ash-400 text-xs mt-0.5">
-                        High wind + low humidity combination creates extreme spread risk. Consider pre-emptive evacuation orders for SVI &gt; 0.7 zones.
+                        High wind + low humidity creates extreme spread risk. Consider pre-emptive evacuation orders for SVI &gt; 0.7 zones.
                       </div>
                     </div>
                   </div>
@@ -270,20 +288,47 @@ export default function MLPredictorPage() {
         </div>
       </div>
 
-      {/* Fire shape + explainer — shown after running */}
+      {/* Fire shape + map + explainer — shown after running */}
       {result && (
-        <div className="mt-6 grid md:grid-cols-2 gap-4">
-          <FireShapeViz spread={result.spread_acres_24h} windSpeed={windSpeed} />
-          <div className="card p-4">
-            <div className="text-white text-sm font-semibold mb-3">How to Read the Shape</div>
-            <div className="space-y-2 text-ash-400 text-xs">
-              <p>The fire ellipse elongates in the wind direction. Higher wind speed = more elongated shape (higher L/W ratio).</p>
-              <p><span className="text-signal-safe font-medium">L/W = {(Math.max(1.0, 0.936 * Math.exp(0.2566 * windSpeed) + 0.461 * Math.exp(-0.1548 * windSpeed) - 0.397)).toFixed(1)}:1</span> at {windSpeed} mph — {windSpeed > 30 ? 'highly elongated, fast head spread' : windSpeed > 15 ? 'moderate elongation' : 'nearly circular spread'}</p>
-              <p>The ignition point (red cross) is offset from the ellipse center — backing fire burns slowly upwind while head fire races downwind.</p>
-              <p className="text-ash-600">Van Wagner (1969) · Forestry Chronicle 45(2):103</p>
+        <>
+          <div className="mt-6 grid md:grid-cols-2 gap-4">
+            <FireShapeViz spread={result.spread_acres_24h} windSpeed={windSpeed} />
+            <div className="card p-4">
+              <div className="text-white text-sm font-semibold mb-3">How to Read the Shape</div>
+              <div className="space-y-2 text-ash-400 text-xs">
+                <p>The fire ellipse elongates in the downwind direction. Higher wind speed = more elongated shape (higher L/W ratio).</p>
+                <p>
+                  <span className="text-signal-safe font-medium">L/W = {vanWagnerLW(windSpeed).toFixed(1)}:1</span>{' '}
+                  at {windSpeed} mph —{' '}
+                  {vanWagnerLW(windSpeed) > 5 ? 'highly elongated, fast head fire' : vanWagnerLW(windSpeed) > 2.5 ? 'moderate elongation' : 'nearly circular spread'}
+                </p>
+                <p>The ignition point (red cross) sits at one focus — backing fire burns slowly upwind while the head fire races downwind.</p>
+                <p className="text-ash-600">Van Wagner (1969) · Forestry Chronicle 45(2):103</p>
+              </div>
             </div>
           </div>
-        </div>
+
+          {lat != null && lon != null && (
+            <div className="mt-4 card p-4">
+              <div className="text-white text-sm font-semibold mb-1 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-ember-400" /> Projected Fire Growth on Map
+              </div>
+              <p className="text-ash-500 text-xs mb-3">
+                Predicted perimeters overlaid on real map — shows roads, buildings, and communities that may be affected.
+              </p>
+              <FireSpreadMap
+                lat={lat}
+                lon={lon}
+                spreadAcres24h={result.spread_acres_24h}
+                windSpeedMph={windSpeed}
+                windDirDeg={windDirDeg}
+              />
+              <p className="text-ash-600 text-xs mt-2">
+                Yellow = 1h · Orange = 3h/6h · Red = 12h/24h perimeter · Click ellipses for time horizon
+              </p>
+            </div>
+          )}
+        </>
       )}
 
       {result && (

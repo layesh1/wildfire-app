@@ -21,38 +21,23 @@ export async function GET(request: Request) {
   if (!geo) return NextResponse.json({ error: 'Location not found' }, { status: 404 })
 
   try {
-    const pointsRes = await fetch(
-      `https://api.weather.gov/points/${geo.lat.toFixed(4)},${geo.lon.toFixed(4)}`,
-      { headers: { 'User-Agent': 'WildfireAlert/2.0', Accept: 'application/geo+json' } }
-    )
-    if (!pointsRes.ok) throw new Error(`NOAA points failed: ${pointsRes.status}`)
-    const points = await pointsRes.json()
+    // Open-Meteo — free, no API key, no multi-hop failures like NOAA
+    const omUrl = [
+      `https://api.open-meteo.com/v1/forecast`,
+      `?latitude=${geo.lat.toFixed(4)}&longitude=${geo.lon.toFixed(4)}`,
+      `&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m`,
+      `&wind_speed_unit=mph&temperature_unit=fahrenheit&timezone=auto`,
+    ].join('')
 
-    const stationsUrl = points.properties?.observationStations
-    if (!stationsUrl) throw new Error('No observation stations URL')
+    const omRes = await fetch(omUrl)
+    if (!omRes.ok) throw new Error(`Open-Meteo failed: ${omRes.status}`)
+    const om = await omRes.json()
+    const c = om.current
 
-    const stationsRes = await fetch(stationsUrl, {
-      headers: { 'User-Agent': 'WildfireAlert/2.0', Accept: 'application/geo+json' },
-    })
-    const stations = await stationsRes.json()
-    const stationId = stations.features?.[0]?.properties?.stationIdentifier
-    if (!stationId) throw new Error('No station found')
-
-    const obsRes = await fetch(
-      `https://api.weather.gov/stations/${stationId}/observations/latest`,
-      { headers: { 'User-Agent': 'WildfireAlert/2.0', Accept: 'application/geo+json' } }
-    )
-    if (!obsRes.ok) throw new Error('Observations failed')
-    const obs = await obsRes.json()
-    const p = obs.properties
-
-    const tempC = p.temperature?.value
-    const tempF = tempC != null ? Math.round(tempC * 9 / 5 + 32) : null
-    const windMph = p.windSpeed?.value != null ? Math.round(p.windSpeed.value * 0.621371) : null
-    const windGustMph = p.windGust?.value != null ? Math.round(p.windGust.value * 0.621371) : null
-    const humidityPct = p.relativeHumidity?.value != null ? Math.round(p.relativeHumidity.value) : null
-    const visibilityMiles = p.visibility?.value != null ? Math.round(p.visibility.value * 0.000621371 * 10) / 10 : null
-    const windDirDeg = p.windDirection?.value
+    const tempF = c.temperature_2m != null ? Math.round(c.temperature_2m) : null
+    const windMph = c.wind_speed_10m != null ? Math.round(c.wind_speed_10m) : null
+    const humidityPct = c.relative_humidity_2m != null ? Math.round(c.relative_humidity_2m) : null
+    const windDirDeg: number | null = c.wind_direction_10m ?? null
     const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
     const windDir = windDirDeg != null ? dirs[Math.round(windDirDeg / 45) % 8] : null
 
@@ -68,15 +53,13 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       location: geo.display.split(',').slice(0, 2).join(',').trim(),
-      station: stationId,
-      observed_at: p.timestamp,
+      lat: geo.lat,
+      lon: geo.lon,
       temp_f: tempF,
       wind_mph: windMph,
-      wind_gust_mph: windGustMph,
       wind_dir: windDir,
+      wind_dir_deg: windDirDeg,
       humidity_pct: humidityPct,
-      visibility_miles: visibilityMiles,
-      description: p.textDescription,
       fire_risk: fireRisk,
       fire_risk_color: fireRiskColor,
       red_flag: redFlag,
