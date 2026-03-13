@@ -22,11 +22,11 @@ const dmMono = DM_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'WildfireAlert | Equity-Driven Evacuation Intelligence',
+  title: 'Minutes Matter | Wildfire Evacuation Intelligence',
   description: 'Real-time wildfire signal gap analysis and caregiver alert system. WiDS Datathon 2025.',
   keywords: ['wildfire', 'evacuation', 'alert', 'equity', 'SVI', 'emergency'],
   openGraph: {
-    title: 'WildfireAlert',
+    title: 'Minutes Matter',
     description: 'Equity-driven wildfire evacuation intelligence',
     type: 'website',
   },

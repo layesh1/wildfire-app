@@ -78,7 +78,7 @@ function LoginForm() {
             <Flame className="w-5 h-5 text-forest-600" />
           </div>
           <div>
-            <div className="font-display font-bold text-gray-900 text-xl leading-none">WildfireAlert</div>
+            <div className="font-display font-bold text-gray-900 text-xl leading-none">Minutes Matter</div>
             <div className="text-gray-400 text-xs">Equity-driven evacuation intelligence</div>
           </div>
         </div>
