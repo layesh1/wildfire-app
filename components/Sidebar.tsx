@@ -102,7 +102,7 @@ export default function Sidebar({ user, profile }: Props) {
         </div>
         {!collapsed && (
           <div>
-            <div className="font-display font-bold text-gray-900 text-sm leading-none">WildfireAlert</div>
+            <div className="font-display font-bold text-gray-900 text-sm leading-none">Minutes Matter</div>
             <div className="text-gray-400 text-xs">v2.0</div>
           </div>
         )}
