@@ -161,9 +161,9 @@ export default function AnalystMapPage() {
             <button onClick={fetchLive} disabled={liveLoading}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-ash-800 border border-ash-700 text-ash-400 hover:text-white transition-colors disabled:opacity-50">
               <RefreshCw className={`w-3 h-3 ${liveLoading ? 'animate-spin' : ''}`} />
-              Refresh NIFC
+              Refresh
             </button>
-            <span className="ml-auto text-xs text-ash-600">Data refreshes every 15 min · Source: NIFC ArcGIS</span>
+            <span className="ml-auto text-xs text-ash-600">Data refreshes every 15 min · Source: NASA EONET</span>
           </>
         ) : (
           <>
@@ -430,8 +430,8 @@ export default function AnalystMapPage() {
         <div className="card p-4 mt-4 border border-signal-danger/20 bg-signal-danger/5">
           <p className="text-ash-400 text-xs">
             <span className="text-signal-danger font-medium">Live data:</span>{' '}
-            {liveFires.length} active incidents from NIFC public ArcGIS service · Cached 15 min ·
-            Data includes all incident types (wildfire, prescribed burn, complex). Marker color = containment level.
+            {liveFires.length} active wildfire incidents from NASA EONET · Cached 15 min ·
+            Acreage shown where available. Containment data not available from EONET — use InciWeb for details.
           </p>
         </div>
       )}
