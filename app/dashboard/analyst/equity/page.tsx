@@ -1,7 +1,6 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Scale, AlertTriangle, TrendingUp, Users } from 'lucide-react'
-import { createClient } from '@/lib/supabase'
 
 const EQUITY_DATA = [
   { state: 'CA', avg_svi: 0.61, fires: 18234, pct_with_order: 0.8, median_gap: 8.2, high_svi_fires: 6821 },
@@ -15,6 +14,9 @@ const EQUITY_DATA = [
   { state: 'ID', avg_svi: 0.58, fires: 1987, pct_with_order: 0.6, median_gap: 12.3, high_svi_fires: 734 },
   { state: 'NV', avg_svi: 0.62, fires: 1654, pct_with_order: 0.3, median_gap: 24.8, high_svi_fires: 721 },
 ]
+
+const MAX_GAP = 40 // hours, for chart scale
+const BAR_MAX_PX = 96 // pixels — leaves room for label below
 
 export default function EquityMetricsPage() {
   const [sort, setSort] = useState<'svi' | 'gap' | 'order'>('gap')
@@ -34,7 +36,7 @@ export default function EquityMetricsPage() {
         <div className="flex items-center gap-2 text-signal-info text-sm font-medium mb-3">
           <Scale className="w-4 h-4" /> EQUITY METRICS · ANALYST
         </div>
-        <h1 className="font-display text-3xl font-bold text-white mb-2">Equity & Vulnerability Analysis</h1>
+        <h1 className="font-display text-3xl font-bold text-white mb-2">Equity &amp; Vulnerability Analysis</h1>
         <p className="text-ash-400 text-sm">Correlating Social Vulnerability Index (SVI) with evacuation order rates and signal gaps across states.</p>
       </div>
 
@@ -58,24 +60,28 @@ export default function EquityMetricsPage() {
           <h2 className="text-white font-semibold text-sm">SVI vs Signal Gap Correlation</h2>
           <span className="ml-auto text-ash-500 text-xs">Pearson r ≈ 0.74 (strong positive)</span>
         </div>
-        <div className="flex items-end gap-1.5 h-32">
+        {/* Bar chart — use inline px heights to avoid Tailwind % height issues */}
+        <div className="flex gap-1.5" style={{ height: 120 }}>
           {sorted.map(row => {
-            const h = Math.round((row.median_gap / 40) * 100)
-            const color = row.avg_svi > 0.7 ? 'bg-signal-danger' : row.avg_svi > 0.6 ? 'bg-signal-warn' : 'bg-signal-safe'
+            const barH = Math.max(4, Math.round((row.median_gap / MAX_GAP) * BAR_MAX_PX))
+            const bg = row.avg_svi > 0.7 ? '#ef4444' : row.avg_svi > 0.6 ? '#f59e0b' : '#22c55e'
             return (
-              <div key={row.state} className="flex-1 flex flex-col items-center gap-1">
-                <div className="w-full rounded-t-sm transition-all" style={{ height: `${h}%`, backgroundColor: undefined }}
-                  title={`${row.state}: ${row.median_gap}h gap, SVI ${row.avg_svi}`}>
-                  <div className={`w-full h-full rounded-t-sm ${color} opacity-80`} />
-                </div>
-                <span className="text-ash-500 text-xs">{row.state}</span>
+              <div key={row.state} className="flex-1 flex flex-col items-center">
+                {/* spacer pushes bar to bottom */}
+                <div className="flex-1" />
+                <div
+                  className="w-full rounded-t-sm transition-all"
+                  style={{ height: barH, background: bg, opacity: 0.85 }}
+                  title={`${row.state}: ${row.median_gap}h gap, SVI ${row.avg_svi}`}
+                />
+                <span className="text-ash-500 text-xs mt-1">{row.state}</span>
               </div>
             )
           })}
         </div>
         <div className="flex justify-between text-ash-600 text-xs mt-2">
-          <span>Color = SVI level (green &lt;0.6 / yellow 0.6–0.7 / red &gt;0.7)</span>
-          <span>Height = median signal gap (hours)</span>
+          <span>Color: <span style={{ color: '#22c55e' }}>■</span> SVI &lt;0.6 &nbsp; <span style={{ color: '#f59e0b' }}>■</span> 0.6–0.7 &nbsp; <span style={{ color: '#ef4444' }}>■</span> &gt;0.7</span>
+          <span>Bar height = median signal gap (hours)</span>
         </div>
       </div>
 

@@ -1,8 +1,11 @@
 'use client'
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { Brain, Wind, Thermometer, Droplets, TrendingUp, BarChart3, MapPin, Loader2 } from 'lucide-react'
 
-// Simple county→SVI lookup for auto-detection (top WiDS fire counties)
+const FireSpreadMap = dynamic(() => import('@/components/FireSpreadMap'), { ssr: false })
+
+// County→SVI lookup for auto-detection (top WiDS fire counties)
 const COUNTY_SVI: Record<string, number> = {
   'trinity': 0.72, 'mohave': 0.85, 'la paz': 0.92, 'humboldt': 0.83,
   'klamath': 0.84, 'siskiyou': 0.79, 'del norte': 0.90, 'shasta': 0.76,
@@ -19,8 +22,14 @@ function detectSVI(location: string): number | null {
   return null
 }
 
+// Van Wagner (1969) — expects wind in m/s, NOT mph
+function vanWagnerLW(windSpeedMph: number): number {
+  const u_ms = windSpeedMph * 0.44704
+  return Math.min(8, Math.max(1.0, 0.936 * Math.exp(0.2566 * u_ms) + 0.461 * Math.exp(-0.1548 * u_ms) - 0.397))
+}
+
 function FireShapeViz({ spread, windSpeed }: { spread: number; windSpeed: number }) {
-  const LW = Math.max(1.0, 0.936 * Math.exp(0.2566 * windSpeed) + 0.461 * Math.exp(-0.1548 * windSpeed) - 0.397)
+  const LW = vanWagnerLW(windSpeed)
   const e = Math.sqrt(Math.max(0, 1 - 1 / (LW * LW)))
   const TIME_HORIZONS = [1, 3, 6, 12, 24]
   const LABELS = ['1h', '3h', '6h', '12h', '24h']
@@ -53,15 +62,12 @@ function FireShapeViz({ spread, windSpeed }: { spread: number; windSpeed: number
             <polygon points="0 0, 6 2, 0 4" fill="#00BFFF" />
           </marker>
         </defs>
-        {/* Grid lines */}
         <line x1={CX} y1={4} x2={CX} y2={SVG_H - 4} stroke="#1e2738" strokeWidth={1} strokeDasharray="3 3" />
         <line x1={4} y1={CY} x2={SVG_W - 4} y2={CY} stroke="#1e2738" strokeWidth={1} strokeDasharray="3 3" />
-        {/* Compass labels */}
         <text x={CX + 3} y={13} fill="#404050" fontSize={8} fontFamily="monospace">N</text>
         <text x={SVG_W - 11} y={CY + 4} fill="#404050" fontSize={8} fontFamily="monospace">E</text>
         <text x={CX + 3} y={SVG_H - 3} fill="#404050" fontSize={8} fontFamily="monospace">S</text>
         <text x={3} y={CY + 4} fill="#404050" fontSize={8} fontFamily="monospace">W</text>
-        {/* Ellipses — outermost first */}
         {[...ellipses].reverse().map(({ t, a_m, b_m, color }) => {
           const sa = a_m * scale, sb = b_m * scale
           const coff = a_m * e * scale
@@ -70,15 +76,12 @@ function FireShapeViz({ spread, windSpeed }: { spread: number; windSpeed: number
               fill={color + '28'} stroke={color} strokeWidth={1.5} />
           )
         })}
-        {/* Ignition crosshair */}
         <circle cx={CX} cy={CY} r={3.5} fill="#FF3333" />
         <line x1={CX - 7} y1={CY} x2={CX + 7} y2={CY} stroke="#FF5555" strokeWidth={1.5} />
         <line x1={CX} y1={CY - 7} x2={CX} y2={CY + 7} stroke="#FF5555" strokeWidth={1.5} />
-        {/* Wind arrow */}
         <line x1={CX + 10} y1={CY - 26} x2={CX + 36} y2={CY - 26}
           stroke="#00BFFF" strokeWidth={2} markerEnd="url(#arr-a)" />
         <text x={CX + 10} y={CY - 29} fill="#00BFFF" fontSize={7} fontFamily="monospace">wind →</text>
-        {/* Legend */}
         {ellipses.map(({ label, color }, i) => (
           <g key={label}>
             <circle cx={12} cy={14 + i * 13} r={3.5} fill={color + '40'} stroke={color} strokeWidth={1} />
@@ -97,6 +100,10 @@ export default function AnalystMLPage() {
   const [location, setLocation] = useState('')
   const [locationLoading, setLocationLoading] = useState(false)
   const [detectedCounty, setDetectedCounty] = useState<string | null>(null)
+  const [locationError, setLocationError] = useState<string | null>(null)
+  const [lat, setLat] = useState<number | null>(null)
+  const [lon, setLon] = useState<number | null>(null)
+  const [windDirDeg, setWindDirDeg] = useState<number>(270)
   const [windSpeed, setWindSpeed] = useState(15)
   const [humidity, setHumidity] = useState(20)
   const [temp, setTemp] = useState(85)
@@ -107,16 +114,24 @@ export default function AnalystMLPage() {
   async function fetchLocation() {
     if (!location.trim()) return
     setLocationLoading(true)
+    setLocationError(null)
     try {
       const res = await fetch(`/api/weather?location=${encodeURIComponent(location)}`)
-      if (res.ok) {
-        const w = await res.json()
+      const w = await res.json()
+      if (!res.ok) {
+        setLocationError(w.error ?? 'Location not found')
+      } else {
         if (w.wind_mph != null) setWindSpeed(Math.min(80, Math.round(w.wind_mph)))
         if (w.humidity_pct != null) setHumidity(Math.round(w.humidity_pct))
         if (w.temp_f != null) setTemp(Math.min(120, Math.max(40, Math.round(w.temp_f))))
+        if (w.wind_dir_deg != null) setWindDirDeg(w.wind_dir_deg)
+        if (w.lat != null) setLat(w.lat)
+        if (w.lon != null) setLon(w.lon)
         setResult(null)
       }
-    } catch {}
+    } catch {
+      setLocationError('Network error — check connection')
+    }
     const autoSVI = detectSVI(location)
     if (autoSVI !== null) {
       setSvi(autoSVI)
@@ -154,13 +169,13 @@ export default function AnalystMLPage() {
         <div className="flex items-center gap-2 mb-2">
           <MapPin className="w-4 h-4 text-signal-info" />
           <span className="text-white text-sm font-medium">Auto-fill conditions from location</span>
-          <span className="text-ash-600 text-xs ml-auto">Weather via NOAA · SVI from WiDS dataset</span>
+          <span className="text-ash-600 text-xs ml-auto">Weather via Open-Meteo · SVI from WiDS dataset</span>
         </div>
         <div className="flex gap-2">
           <input
             type="text"
             value={location}
-            onChange={e => setLocation(e.target.value)}
+            onChange={e => { setLocation(e.target.value); setLocationError(null) }}
             onKeyDown={e => e.key === 'Enter' && fetchLocation()}
             placeholder="City, county, or zip — e.g. Paradise, CA"
             className="flex-1 bg-ash-800 border border-ash-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-signal-info/60 placeholder:text-ash-600"
@@ -171,7 +186,8 @@ export default function AnalystMLPage() {
             Fetch
           </button>
         </div>
-        {detectedCounty && (
+        {locationError && <p className="text-signal-danger text-xs mt-2">{locationError}</p>}
+        {detectedCounty && !locationError && (
           <p className="text-signal-info text-xs mt-2">
             SVI auto-detected for {detectedCounty} County · Adjust sliders if needed
           </p>
@@ -221,8 +237,8 @@ export default function AnalystMLPage() {
               <div className="card p-4">
                 <div className="text-ash-400 text-xs font-medium mb-3">Feature importance (this run)</div>
                 {[
-                  { label: 'Wind speed', weight: windSpeed / 80 * 0.35 / 0.35 },
-                  { label: 'Humidity (inverse)', weight: (1 - humidity / 100) },
+                  { label: 'Wind speed', weight: windSpeed / 80 },
+                  { label: 'Humidity (inverse)', weight: 1 - humidity / 100 },
                   { label: 'Temperature', weight: temp / 120 },
                   { label: 'SVI vulnerability', weight: svi },
                 ].map(f => (
@@ -245,11 +261,34 @@ export default function AnalystMLPage() {
         </div>
       </div>
 
-      {/* Fire shape visualization — shown after running */}
+      {/* Fire shape + map — shown after running */}
       {result && (
-        <div className="mt-6">
-          <FireShapeViz spread={result.spread} windSpeed={windSpeed} />
-        </div>
+        <>
+          <div className="mt-6">
+            <FireShapeViz spread={result.spread} windSpeed={windSpeed} />
+          </div>
+
+          {lat != null && lon != null && (
+            <div className="mt-4 card p-4">
+              <div className="text-white text-sm font-semibold mb-1 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-ember-400" /> Fire Growth on Map
+              </div>
+              <p className="text-ash-500 text-xs mb-3">
+                Predicted perimeters overlaid on real map — shows buildings and roads that may be affected. Wind from {windDirDeg}°.
+              </p>
+              <FireSpreadMap
+                lat={lat}
+                lon={lon}
+                spreadAcres24h={result.spread}
+                windSpeedMph={windSpeed}
+                windDirDeg={windDirDeg}
+              />
+              <p className="text-ash-600 text-xs mt-2">
+                Yellow = 1h · Orange = 3h/6h · Red = 12h/24h perimeter · Click ellipses for info
+              </p>
+            </div>
+          )}
+        </>
       )}
 
       {/* SVI context */}
