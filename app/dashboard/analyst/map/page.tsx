@@ -163,7 +163,7 @@ export default function AnalystMapPage() {
               <RefreshCw className={`w-3 h-3 ${liveLoading ? 'animate-spin' : ''}`} />
               Refresh
             </button>
-            <span className="ml-auto text-xs text-ash-600">Data refreshes every 15 min · Source: NASA EONET</span>
+            <span className="ml-auto text-xs text-ash-600">Data refreshes every 10 min · Source: NIFC EGP</span>
           </>
         ) : (
           <>
@@ -430,8 +430,8 @@ export default function AnalystMapPage() {
         <div className="card p-4 mt-4 border border-signal-danger/20 bg-signal-danger/5">
           <p className="text-ash-400 text-xs">
             <span className="text-signal-danger font-medium">Live data:</span>{' '}
-            {liveFires.length} active wildfire incidents from NASA EONET · Cached 15 min ·
-            Acreage shown where available. Containment data not available from EONET — use InciWeb for details.
+            {liveFires.length} active incidents from NIFC EGP (public view) · Cached 10 min ·
+            Includes containment %, cause, and daily acreage. Marker color = containment level.
           </p>
         </div>
       )}
