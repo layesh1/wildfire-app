@@ -98,7 +98,7 @@ export default function FlameoChat() {
                   className={`max-w-[82%] rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words ${
                     msg.role === 'user'
                       ? 'text-white rounded-tr-sm'
-                      : 'bg-white text-gray-700 border border-gray-200 rounded-tl-sm'
+                      : 'bg-white text-gray-900 border border-gray-200 rounded-tl-sm'
                   }`}
                   style={msg.role === 'user' ? { background: 'linear-gradient(135deg, #16a34a, #15803d)' } : undefined}
                 >
@@ -135,7 +135,7 @@ export default function FlameoChat() {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
                 placeholder="Ask Flameo anything…"
-                className="flex-1 bg-gray-50 text-gray-900 text-sm rounded-xl px-3 py-2 border border-gray-200 focus:outline-none focus:border-forest-400 placeholder:text-gray-400"
+                className="flex-1 bg-white text-gray-900 text-sm rounded-xl px-3 py-2 border border-gray-200 focus:outline-none focus:border-forest-400 placeholder:text-gray-500"
               />
               <button
                 onClick={send}
