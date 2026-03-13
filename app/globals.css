@@ -27,6 +27,49 @@
   ::-webkit-scrollbar-track { background: #26251f; }
   ::-webkit-scrollbar-thumb { background: #5e5b53; border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: #ff6a20; }
+
+  /* ── Light mode overrides ─────────────────────────────────────────────── */
+  html:not(.dark) body {
+    background: #f5f4f0;
+    color: #26251f;
+  }
+  html:not(.dark) ::-webkit-scrollbar-track { background: #e8e8e5; }
+  html:not(.dark) ::-webkit-scrollbar-thumb { background: #b3b1aa; }
+
+  /* Cards & panels */
+  html:not(.dark) .card,
+  html:not(.dark) [class*="bg-ash-900"] { background: #ffffff !important; border-color: #e5e4de !important; }
+  html:not(.dark) [class*="bg-ash-800"] { background: #f0efe9 !important; }
+  html:not(.dark) [class*="bg-ash-950"] { background: #f5f4f0 !important; }
+  html:not(.dark) aside { background: #ffffff !important; border-right-color: #e5e4de !important; }
+
+  /* Border colors */
+  html:not(.dark) [class*="border-ash-800"] { border-color: #e5e4de !important; }
+  html:not(.dark) [class*="border-ash-700"] { border-color: #d1d0cb !important; }
+
+  /* Text colors — flip whites and darks */
+  html:not(.dark) .text-white { color: #26251f !important; }
+  html:not(.dark) .text-ash-100 { color: #3f3e38 !important; }
+  html:not(.dark) .text-ash-300 { color: #4c4a43 !important; }
+  html:not(.dark) .text-ash-400 { color: #5e5b53 !important; }
+  html:not(.dark) .text-ash-500 { color: #737068 !important; }
+  html:not(.dark) .text-ash-600 { color: #8e8b82 !important; }
+  html:not(.dark) .text-ash-700 { color: #b3b1aa !important; }
+
+  /* Inputs */
+  html:not(.dark) input[type=text],
+  html:not(.dark) input[type=email],
+  html:not(.dark) input[type=tel],
+  html:not(.dark) input[type=number],
+  html:not(.dark) textarea,
+  html:not(.dark) .input {
+    background: #f0efe9 !important;
+    border-color: #d1d0cb !important;
+    color: #26251f !important;
+  }
+
+  /* Dividers */
+  html:not(.dark) [class*="divide-ash-800"] > * + * { border-color: #e5e4de !important; }
 }
 
 @layer components {
