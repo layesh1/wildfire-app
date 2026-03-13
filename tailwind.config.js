@@ -61,6 +61,7 @@ module.exports = {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'fade-up':    'fadeUp 0.5s ease forwards',
         'glow':       'glow 2s ease-in-out infinite alternate',
+        'marquee':    'marquee 30s linear infinite',
       },
       keyframes: {
         fadeUp: {
@@ -70,7 +71,11 @@ module.exports = {
         glow: {
           '0%':   { boxShadow: '0 0 5px #16a34a30' },
           '100%': { boxShadow: '0 0 20px #16a34a60, 0 0 40px #16a34a20' },
-        }
+        },
+        marquee: {
+          '0%':   { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-50%)' },
+        },
       },
       backgroundImage: {
         'forest-radial': 'radial-gradient(ellipse at top, #16a34a08 0%, transparent 70%)',
