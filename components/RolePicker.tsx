@@ -1,5 +1,6 @@
 'use client'
 import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { Flame, Shield, Heart, BarChart3, ChevronRight, Plus, Lock } from 'lucide-react'
 
 const ALL_ROLES = ['caregiver', 'emergency_responder', 'data_analyst'] as const
@@ -50,6 +51,9 @@ const ROLE_CONFIG: Record<string, {
   },
 }
 
+const LS_ROLES_KEY = 'wfa_roles'
+const LS_ACTIVE_KEY = 'wfa_active_role'
+
 interface Props {
   roles: string[]
   activeRole: string
@@ -58,16 +62,39 @@ interface Props {
 
 export default function RolePicker({ roles, activeRole, name }: Props) {
   const router = useRouter()
-  const myRoles = roles.filter(r => ROLE_CONFIG[r])
-  const otherRoles = ALL_ROLES.filter(r => !roles.includes(r))
+  // Start with server-provided roles; merge localStorage on mount
+  const [myRoles, setMyRoles] = useState<string[]>(roles.filter(r => ROLE_CONFIG[r]))
+
+  useEffect(() => {
+    // Merge server roles with localStorage roles (localStorage wins on additions)
+    try {
+      const stored = localStorage.getItem(LS_ROLES_KEY)
+      const localRoles: string[] = stored ? JSON.parse(stored) : []
+      const valid = localRoles.filter((r: string) => ROLE_CONFIG[r])
+      const merged = [...new Set([...roles.filter(r => ROLE_CONFIG[r]), ...valid])]
+      setMyRoles(merged)
+      // Keep localStorage in sync
+      localStorage.setItem(LS_ROLES_KEY, JSON.stringify(merged))
+    } catch {
+      // ignore parse errors
+    }
+  }, []) // eslint-disable-line
+
+  const otherRoles = ALL_ROLES.filter(r => !myRoles.includes(r))
 
   async function selectRole(role: string, href: string) {
-    localStorage.setItem('wfa_active_role', role)
-    await fetch('/api/profile/role', {
+    // Always persist to localStorage — this is the reliable source of truth
+    const updated = [...new Set([...myRoles, role])]
+    localStorage.setItem(LS_ACTIVE_KEY, role)
+    localStorage.setItem(LS_ROLES_KEY, JSON.stringify(updated))
+
+    // Also try Supabase (best-effort — if the roles column is missing this will fail silently)
+    fetch('/api/profile/role', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ role }),
-    })
+    }).catch(() => {/* localStorage is the fallback */})
+
     window.location.href = href
   }
 
