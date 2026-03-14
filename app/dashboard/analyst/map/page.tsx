@@ -72,10 +72,9 @@ export default function AnalystMapPage() {
       if (data.fires && data.fires.length > 0) {
         setLiveFires(data.fires.map((f: FirePoint) => ({ ...f, is_live: true as const })))
       } else if (data.total_features > 0) {
-        // API returned features but none had valid coordinates
-        setLiveError(`NIFC returned ${data.total_features} incidents but none had mappable coordinates. Try again later.`)
+        setLiveError(`NIFC: ${data.total_features} features but no coordinates. ${data.raw_snippet ?? ''}`)
       } else {
-        setLiveError('NIFC reports no active wildfire incidents at this time.')
+        setLiveError(`No data — ${data.error ?? 'unknown error'} · ${data.raw_snippet ?? 'empty response'}`)
       }
     } catch {
       setLiveError('Could not reach NIFC. Check network connection.')
