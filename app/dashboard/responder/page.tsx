@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Shield, Flame, AlertTriangle, Activity, TrendingUp, Clock, ChevronRight, Wind, Droplets, Users, Truck, Radio, Map } from 'lucide-react'
+import { Shield, Flame, AlertTriangle, Activity, TrendingUp, Clock, ChevronRight, Wind, Droplets, Users, Truck, Radio, Map, ChevronDown, ChevronUp, Building2, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
@@ -42,6 +42,400 @@ const DEMO_FIRES = [
   { id: 'd7', incident_name: 'Snake River Complex', county: 'Owyhee', state: 'ID', acres_burned: 481838, containment_pct: null, svi_score: 0.71, signal_gap_hours: null },
   { id: 'd8', incident_name: 'Whitewater-Baldy', county: 'Catron', state: 'NM', acres_burned: 297845, containment_pct: null, svi_score: 0.78, signal_gap_hours: null },
 ]
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface RedFlagWarning {
+  zone: string
+  headline: string
+  onset: string
+  expires: string
+  lat: number
+  lon: number
+  description: string
+}
+
+interface NifcFire {
+  id: string
+  fire_name: string
+  latitude: number
+  longitude: number
+  acres: number | null
+  containment: number | null
+  source: string
+}
+
+interface Shelter {
+  name: string
+  county: string
+  state: string
+  lat: number
+  lon: number
+  capacity: number | null
+  occupancy: number | null
+  pct_full: number | null
+}
+
+// ─── Helper: format ISO date ──────────────────────────────────────────────────
+
+function fmtDate(iso: string): string {
+  if (!iso) return '—'
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+    }).format(new Date(iso))
+  } catch {
+    return iso
+  }
+}
+
+// ─── Sub-component: Red Flag Warnings ────────────────────────────────────────
+
+function RedFlagSection() {
+  const [warnings, setWarnings] = useState<RedFlagWarning[]>([])
+  const [count, setCount] = useState<number | null>(null)
+  const [error, setError] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [expanded, setExpanded] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/fires/redflags')
+      .then(r => r.json())
+      .then(d => {
+        if (d.error) { setError(true); setCount(0) }
+        else { setWarnings(d.warnings ?? []); setCount(d.count ?? 0) }
+      })
+      .catch(() => { setError(true); setCount(0) })
+      .finally(() => setLoading(false))
+  }, [])
+
+  const SHOW_LIMIT = 3
+  const shown = warnings.slice(0, SHOW_LIMIT)
+  const overflow = warnings.length - SHOW_LIMIT
+
+  if (loading) {
+    return (
+      <div className="card p-4 mb-6 animate-pulse">
+        <div className="h-4 bg-ash-800 rounded w-48" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="mb-8">
+      {/* Banner */}
+      {error || count === 0 ? (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-green-500/30 bg-green-500/10 text-green-400 text-sm font-medium mb-4">
+          <Shield className="w-4 h-4 shrink-0" />
+          No active Red Flag Warnings
+        </div>
+      ) : (
+        <div className="px-4 py-3 rounded-lg border border-red-500/40 bg-red-500/10 mb-4">
+          <div className="flex items-center gap-2 text-red-400 font-semibold text-sm mb-2">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            ⚠️ {count} Active Red Flag Warning{count !== 1 ? 's' : ''}
+          </div>
+          <div className="flex flex-wrap gap-1.5 text-xs">
+            {shown.map((w, i) => (
+              <span key={i} className="px-2 py-0.5 rounded bg-red-500/20 border border-red-500/30 text-red-300 truncate max-w-[200px]" title={w.zone}>
+                {w.zone || 'Unknown zone'}
+              </span>
+            ))}
+            {overflow > 0 && (
+              <span className="px-2 py-0.5 rounded bg-ash-800 border border-ash-700 text-ash-400 text-xs">
+                +{overflow} more
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Collapsible detail table */}
+      {warnings.length > 0 && (
+        <div className="card overflow-hidden">
+          <button
+            onClick={() => setExpanded(v => !v)}
+            className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-ash-800/50 transition-colors"
+          >
+            <span className="text-white text-sm font-medium">Red Flag Warning Details</span>
+            {expanded
+              ? <ChevronUp className="w-4 h-4 text-ash-400" />
+              : <ChevronDown className="w-4 h-4 text-ash-400" />}
+          </button>
+          {expanded && (
+            <div className="overflow-x-auto border-t border-ash-800">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-ash-800 text-left">
+                    <th className="px-5 py-3 text-ash-400 font-medium uppercase tracking-wider">Zone</th>
+                    <th className="px-5 py-3 text-ash-400 font-medium uppercase tracking-wider">Headline</th>
+                    <th className="px-5 py-3 text-ash-400 font-medium uppercase tracking-wider">Expires</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-ash-800">
+                  {warnings.map((w, i) => (
+                    <tr key={i} className="hover:bg-ash-800/40 transition-colors">
+                      <td className="px-5 py-3 text-ash-300 max-w-[200px]">
+                        <span className="truncate block" title={w.zone}>{w.zone || '—'}</span>
+                      </td>
+                      <td className="px-5 py-3 text-white max-w-[320px]">
+                        <span className="truncate block" title={w.headline}>{w.headline || '—'}</span>
+                      </td>
+                      <td className="px-5 py-3 text-ash-400 font-mono whitespace-nowrap">{fmtDate(w.expires)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Sub-component: Live NIFC Incidents ──────────────────────────────────────
+
+function NifcSection() {
+  const [fires, setFires] = useState<NifcFire[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/fires/nifc')
+      .then(r => r.json())
+      .then(d => {
+        if (d.error) setError(true)
+        else setFires(d.data ?? [])
+      })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const totalAcres = fires.reduce((s, f) => s + (f.acres ?? 0), 0)
+  const withContainment = fires.filter(f => f.containment !== null)
+  const avgContainment =
+    withContainment.length > 0
+      ? Math.round(withContainment.reduce((s, f) => s + (f.containment ?? 0), 0) / withContainment.length)
+      : null
+
+  const tableRows = fires.slice(0, 10)
+
+  return (
+    <div className="card p-5 mb-8">
+      <div className="flex items-center gap-2 mb-5">
+        <Flame className="w-4 h-4 text-ember-400" />
+        <h2 className="text-white font-semibold text-sm">Live NIFC Incidents</h2>
+        <span className="ml-auto text-ash-600 text-xs">NIFC ArcGIS live</span>
+      </div>
+
+      {/* 3 KPI metrics */}
+      <div className="grid grid-cols-3 gap-3 mb-5">
+        <div className="bg-ash-900 rounded-lg p-3 border border-ash-800 text-center">
+          <div className="font-display text-2xl font-bold text-signal-danger">
+            {loading ? '…' : error ? '—' : fires.length.toLocaleString()}
+          </div>
+          <div className="text-ash-500 text-xs mt-0.5">Active incidents</div>
+        </div>
+        <div className="bg-ash-900 rounded-lg p-3 border border-ash-800 text-center">
+          <div className="font-display text-2xl font-bold text-ember-400">
+            {loading ? '…' : error ? '—' : totalAcres > 0 ? `${(totalAcres / 1000).toFixed(1)}K` : '0'}
+          </div>
+          <div className="text-ash-500 text-xs mt-0.5">Total acres</div>
+        </div>
+        <div className="bg-ash-900 rounded-lg p-3 border border-ash-800 text-center">
+          <div className="font-display text-2xl font-bold text-signal-info">
+            {loading ? '…' : error ? '—' : avgContainment !== null ? `${avgContainment}%` : '—'}
+          </div>
+          <div className="text-ash-500 text-xs mt-0.5">Avg containment</div>
+        </div>
+      </div>
+
+      {/* Table */}
+      {loading ? (
+        <div className="space-y-2">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-8 bg-ash-800 rounded animate-pulse" />
+          ))}
+        </div>
+      ) : error ? (
+        <div className="text-center py-6 text-ash-600 text-xs">NIFC data unavailable</div>
+      ) : tableRows.length === 0 ? (
+        <div className="text-center py-6 text-ash-600 text-xs">No active incidents reported</div>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-ash-800">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-ash-800 text-left">
+                <th className="px-4 py-2.5 text-ash-400 font-medium uppercase tracking-wider">Incident</th>
+                <th className="px-4 py-2.5 text-ash-400 font-medium uppercase tracking-wider">State</th>
+                <th className="px-4 py-2.5 text-ash-400 font-medium uppercase tracking-wider">Acres</th>
+                <th className="px-4 py-2.5 text-ash-400 font-medium uppercase tracking-wider">Containment</th>
+                <th className="px-4 py-2.5 text-ash-400 font-medium uppercase tracking-wider">Source</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-ash-800">
+              {tableRows.map(fire => (
+                <tr key={fire.id} className="hover:bg-ash-800/40 transition-colors">
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-ember-400 shrink-0" />
+                      <span className="text-white truncate max-w-[160px]" title={fire.fire_name}>{fire.fire_name}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5 text-ash-400 font-mono">
+                    {/* latitude/longitude present but no state field — show coords */}
+                    {`${fire.latitude.toFixed(1)}°N`}
+                  </td>
+                  <td className="px-4 py-2.5 text-ash-300 font-mono">
+                    {fire.acres != null ? fire.acres.toLocaleString() : '—'}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    {fire.containment != null ? (
+                      <span className={`font-mono font-bold ${fire.containment >= 75 ? 'text-signal-safe' : fire.containment >= 30 ? 'text-signal-warn' : 'text-signal-danger'}`}>
+                        {fire.containment}%
+                      </span>
+                    ) : (
+                      <span className="text-ash-600">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <span className="px-1.5 py-0.5 rounded bg-ash-800 border border-ash-700 text-ash-500 text-xs">
+                      {fire.source === 'nifc_perimeter' ? 'perimeter' : 'incident'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="mt-3 flex items-center justify-between">
+        <p className="text-ash-600 text-xs">
+          {fires.length > 10 ? `Showing 10 of ${fires.length} incidents` : `${fires.length} incident${fires.length !== 1 ? 's' : ''} total`}
+        </p>
+        <Link href="/dashboard/responder/signals" className="flex items-center gap-1 text-xs text-signal-info hover:text-signal-info/80 transition-colors">
+          View all on map <ExternalLink className="w-3 h-3" />
+        </Link>
+      </div>
+    </div>
+  )
+}
+
+// ─── Sub-component: Shelter Capacity ─────────────────────────────────────────
+
+function ShelterSection() {
+  const [shelters, setShelters] = useState<Shelter[]>([])
+  const [nearCapacity, setNearCapacity] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/shelters')
+      .then(r => r.json())
+      .then(d => {
+        if (d.error) setError(true)
+        else {
+          setShelters(d.shelters ?? [])
+          setNearCapacity(d.near_capacity ?? 0)
+        }
+      })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false))
+  }, [])
+
+  function pctColor(pct: number | null): string {
+    if (pct === null) return 'text-ash-500'
+    if (pct >= 80) return 'text-signal-danger'
+    if (pct >= 60) return 'text-signal-warn'
+    return 'text-signal-safe'
+  }
+
+  function pctBg(pct: number | null): string {
+    if (pct === null) return 'bg-ash-800'
+    if (pct >= 80) return 'bg-signal-danger/20 border border-signal-danger/30'
+    if (pct >= 60) return 'bg-signal-warn/20 border border-signal-warn/30'
+    return 'bg-signal-safe/20 border border-signal-safe/30'
+  }
+
+  return (
+    <div className="mt-8">
+      <div className="flex items-center gap-2 mb-4">
+        <Building2 className="w-4 h-4 text-ash-400" />
+        <h2 className="section-title">FEMA Shelter Capacity</h2>
+      </div>
+
+      {/* Near-capacity warning */}
+      {!loading && !error && nearCapacity > 0 && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-lg border border-yellow-500/40 bg-yellow-500/10 text-yellow-400 text-sm font-medium mb-4">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          {nearCapacity} shelter{nearCapacity !== 1 ? 's' : ''} near capacity (&gt;80%)
+        </div>
+      )}
+
+      <div className="card overflow-hidden">
+        {loading ? (
+          <div className="p-6 space-y-2">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-8 bg-ash-800 rounded animate-pulse" />
+            ))}
+          </div>
+        ) : error ? (
+          <div className="text-center py-8 text-ash-600 text-sm">Shelter data unavailable</div>
+        ) : shelters.length === 0 ? (
+          <div className="text-center py-8 text-ash-600 text-sm">No shelter data reported</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-ash-800 text-left">
+                  <th className="px-5 py-3 text-ash-400 font-medium uppercase tracking-wider">Shelter</th>
+                  <th className="px-5 py-3 text-ash-400 font-medium uppercase tracking-wider">County</th>
+                  <th className="px-5 py-3 text-ash-400 font-medium uppercase tracking-wider">State</th>
+                  <th className="px-5 py-3 text-ash-400 font-medium uppercase tracking-wider text-right">Capacity</th>
+                  <th className="px-5 py-3 text-ash-400 font-medium uppercase tracking-wider text-right">Occupancy</th>
+                  <th className="px-5 py-3 text-ash-400 font-medium uppercase tracking-wider text-right">% Full</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ash-800">
+                {shelters.map((s, i) => (
+                  <tr key={i} className="hover:bg-ash-800/40 transition-colors">
+                    <td className="px-5 py-3 text-white max-w-[200px]">
+                      <span className="truncate block" title={s.name}>{s.name}</span>
+                    </td>
+                    <td className="px-5 py-3 text-ash-400">{s.county || '—'}</td>
+                    <td className="px-5 py-3 text-ash-400 font-mono">{s.state || '—'}</td>
+                    <td className="px-5 py-3 text-ash-300 font-mono text-right">
+                      {s.capacity != null ? s.capacity.toLocaleString() : '—'}
+                    </td>
+                    <td className="px-5 py-3 text-ash-300 font-mono text-right">
+                      {s.occupancy != null ? s.occupancy.toLocaleString() : '—'}
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      {s.pct_full != null ? (
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-mono font-bold ${pctBg(s.pct_full)} ${pctColor(s.pct_full)}`}>
+                          {s.pct_full}%
+                        </span>
+                      ) : (
+                        <span className="text-ash-600">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="text-ash-600 text-xs px-5 py-3 border-t border-ash-800">
+          FEMA National Shelter System · Green &lt;60% · Amber 60–80% · Red &gt;80% · CONUS only
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ResponderDashboard() {
   const [activeFires, setActiveFires] = useState<any[]>([])
@@ -116,6 +510,9 @@ export default function ResponderDashboard() {
           </Link>
         ))}
       </div>
+
+      {/* Red Flag Warnings — added section */}
+      <RedFlagSection />
 
       <div className="grid md:grid-cols-2 gap-6 mb-8">
         {/* NFDRS Risk Scale */}
@@ -242,6 +639,9 @@ export default function ResponderDashboard() {
         </div>
       </div>
 
+      {/* Live NIFC Incidents — added section */}
+      <NifcSection />
+
       {/* Active fires table */}
       <div>
         <h2 className="section-title mb-4">Largest Active Incidents</h2>
@@ -292,6 +692,9 @@ export default function ResponderDashboard() {
           </p>
         </div>
       </div>
+
+      {/* Shelter Capacity — added section */}
+      <ShelterSection />
     </div>
   )
 }
