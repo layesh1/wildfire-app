@@ -70,7 +70,7 @@ export default function FlameoChat() {
         >
           {/* Header */}
           <div className="flex items-center gap-3 p-4 bg-ash-800 border-b border-ash-700 shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-300/40 flex items-center justify-center select-none">
+            <div className="w-9 h-9 rounded-xl bg-ember-500/10 border border-ember-500/40 flex items-center justify-center select-none">
               <FlameoIcon size={28} />
             </div>
             <div className="flex-1 min-w-0">
@@ -90,7 +90,7 @@ export default function FlameoChat() {
             {messages.map((msg, i) => (
               <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'assistant' && (
-                  <div className="w-6 h-6 rounded-lg bg-blue-500/10 border border-blue-300/30 flex items-center justify-center mt-0.5 shrink-0 select-none">
+                  <div className="w-6 h-6 rounded-lg bg-ember-500/10 border border-ember-500/30 flex items-center justify-center mt-0.5 shrink-0 select-none">
                     <FlameoIcon size={18} />
                   </div>
                 )}
@@ -108,7 +108,7 @@ export default function FlameoChat() {
 
             {loading && (
               <div className="flex gap-2 justify-start">
-                <div className="w-6 h-6 rounded-lg bg-blue-500/10 border border-blue-300/30 flex items-center justify-center shrink-0 select-none"><FlameoIcon size={18} /></div>
+                <div className="w-6 h-6 rounded-lg bg-ember-500/10 border border-ember-500/30 flex items-center justify-center shrink-0 select-none"><FlameoIcon size={18} /></div>
                 <div className="bg-ash-800 rounded-2xl rounded-tl-sm px-3 py-2.5">
                   <div className="flex gap-1 items-center h-4">
                     {[0, 150, 300].map(delay => (
@@ -151,17 +151,22 @@ export default function FlameoChat() {
       {/* Floating button */}
       <button
         onClick={handleOpen}
-        className="fixed bottom-4 right-4 z-50 w-14 h-14 rounded-2xl bg-blue-50 hover:bg-blue-100 border border-blue-200 shadow-lg shadow-blue-200/60 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 select-none"
+        className="fixed bottom-4 right-4 z-50 w-14 h-14 rounded-2xl bg-ember-500/15 hover:bg-ember-500/25 border border-ember-500/40 shadow-lg shadow-ember-500/20 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 select-none"
         title="Chat with Flameo"
         aria-label="Open Flameo chat"
       >
         <span className={`transition-all duration-200 ${open ? 'scale-75 opacity-0 absolute' : 'scale-100 opacity-100'}`}><FlameoIcon size={36} /></span>
-        <X className={`w-5 h-5 text-blue-500 absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
+        <X className={`w-5 h-5 text-ember-400 absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
       </button>
 
-      {/* Notification dot on first load */}
+      {/* Chat intro tooltip on first load */}
       {!hasOpened && (
-        <div className="fixed bottom-[62px] right-3 z-50 w-4 h-4 rounded-full bg-signal-danger border-2 border-ash-950 animate-pulse pointer-events-none" />
+        <div className="fixed bottom-20 right-4 z-50 flex items-center gap-2 pointer-events-none animate-fade-up">
+          <div className="bg-ash-800 border border-ash-700 rounded-xl px-3 py-2 shadow-lg max-w-[180px]">
+            <p className="text-white text-xs font-medium leading-snug">Ask Flameo about fire safety &amp; evacuation</p>
+            <div className="absolute right-3 -bottom-1.5 w-3 h-3 bg-ash-800 border-r border-b border-ash-700 rotate-45" />
+          </div>
+        </div>
       )}
     </>
   )

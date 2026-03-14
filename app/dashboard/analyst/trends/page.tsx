@@ -64,7 +64,7 @@ function SignalGapTooltip({ active, payload, label }: any) {
     <div className="bg-ash-900 border border-ash-700 rounded-lg px-3 py-2 text-xs shadow-lg">
       <p className="text-white font-semibold mb-1">{label}</p>
       <p className="text-ash-400">{row?.total_fires?.toLocaleString()} total fires</p>
-      {silent && <p style={{ color: '#f04a00' }}>{silent.value?.toFixed(1)}% silent fires</p>}
+      {silent && <p style={{ color: '#f59e0b' }}>{silent.value?.toFixed(1)}% silent fires</p>}
       {noAction && <p style={{ color: '#ef4444' }}>{noAction.value?.toFixed(1)}% no evac action</p>}
     </div>
   )
@@ -194,7 +194,7 @@ export default function TrendsPage() {
           </div>
           <div className="flex gap-4 mb-4 mt-3">
             {[
-              ['#f04a00', 'Silent fires (%)'],
+              ['#f59e0b', 'Silent fires (%)'],
               ['#ef4444', 'No evac action (%)'],
             ].map(([c, l]) => (
               <span key={l} className="text-xs flex items-center gap-1.5 text-ash-400">
@@ -214,7 +214,7 @@ export default function TrendsPage() {
                 width={40}
               />
               <Tooltip content={<SignalGapTooltip />} />
-              <Bar dataKey="pct_silent" name="Silent fires (%)" fill="#f04a00" opacity={0.75} radius={[4, 4, 0, 0]} barSize={36} />
+              <Bar dataKey="pct_silent" name="Silent fires (%)" fill="#f59e0b" opacity={0.75} radius={[4, 4, 0, 0]} barSize={36} />
               <Line
                 type="monotone"
                 dataKey="pct_no_action"

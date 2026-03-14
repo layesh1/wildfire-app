@@ -1,13 +1,11 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Shield, Flame, AlertTriangle, Activity, TrendingUp, Clock, ChevronRight, Wind, Droplets, Users, Truck, Radio, Map, ChevronDown, ChevronUp, Building2, ExternalLink, ClipboardList } from 'lucide-react'
+import { Shield, Flame, AlertTriangle, Activity, TrendingUp, Clock, ChevronRight, Wind, Droplets, Users, Truck, Radio, Map, ChevronDown, ChevronUp, Building2, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
 const QUICK_NAV = [
-  { label: 'Signal Gap Analysis', href: '/dashboard/responder/signals', icon: AlertTriangle, badge: 'CRITICAL', badgeColor: 'badge-danger' },
   { label: 'ML Spread Predictor', href: '/dashboard/responder/ml', icon: Activity, badge: 'AI', badgeColor: 'badge-info' },
-  { label: 'Agency Coverage Map', href: '/dashboard/responder/coverage', icon: Shield, badge: 'GAPS', badgeColor: 'badge-warn' },
   { label: 'COMMAND-INTEL AI', href: '/dashboard/responder/ai', icon: Activity, badge: 'LIVE', badgeColor: 'badge-safe' },
 ]
 
@@ -618,18 +616,15 @@ export default function ResponderDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        {[
-          { value: '—', label: 'Active incidents', color: 'text-signal-danger' },
-          { value: '9×', label: 'Max state disparity', color: 'text-signal-warn' },
-          { value: '99.74%', label: 'No-order gap rate', color: 'text-ember-400' },
-          { value: '11.5h', label: 'Median delay', color: 'text-signal-info' },
-        ].map(s => (
-          <div key={s.label} className="card p-5">
-            <div className={`font-display text-3xl font-bold ${s.color}`}>{s.value}</div>
-            <div className="text-ash-400 text-sm mt-1">{s.label}</div>
-          </div>
-        ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <div className="card p-5">
+          <div className="text-signal-danger font-display text-3xl font-bold">—</div>
+          <div className="text-ash-400 text-sm mt-1">Active incidents in jurisdiction</div>
+        </div>
+        <Link href="/dashboard/responder/ics" className="card p-5 hover:bg-ash-800 transition-colors">
+          <div className="text-ember-400 font-display text-3xl font-bold">ICS</div>
+          <div className="text-ash-400 text-sm mt-1">Open Incident Board</div>
+        </Link>
       </div>
 
       {/* Quick nav */}
@@ -645,15 +640,6 @@ export default function ResponderDashboard() {
           </Link>
         ))}
       </div>
-
-      {/* ICS Board CTA */}
-      <Link href="/dashboard/responder/ics" className="block w-full p-4 bg-ember-500/10 border border-ember-500/30 rounded-xl hover:bg-ember-500/20 transition-colors text-center mb-8">
-        <span className="text-ember-400 font-semibold flex items-center justify-center gap-2">
-          <ClipboardList className="w-4 h-4" />
-          Open ICS Incident Board →
-        </span>
-        <p className="text-ash-400 text-sm mt-1">Track sectors, personnel, apparatus, and resource requests</p>
-      </Link>
 
       {/* Red Flag Warnings — TIME-CRITICAL: shown above NFDRS scale */}
       <RedFlagSection />

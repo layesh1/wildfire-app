@@ -456,13 +456,35 @@ export default function ICSBoardPage() {
       {/* Incident Name input */}
       <div className="card p-4">
         <label className="text-ash-500 text-xs uppercase tracking-wider block mb-2">Active Incident</label>
-        <input
-          type="text"
-          value={board.incidentName}
-          onChange={e => update({ incidentName: e.target.value })}
-          placeholder="Enter incident name…"
-          className="w-full bg-ash-800 border border-ash-700 rounded-lg px-4 py-2.5 text-white text-lg font-semibold focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600 transition-colors"
-        />
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={board.incidentName}
+            onChange={e => update({ incidentName: e.target.value })}
+            onKeyDown={e => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+            placeholder="Enter incident name…"
+            list="incident-suggestions"
+            className="flex-1 bg-ash-800 border border-ash-700 rounded-lg px-4 py-2.5 text-white text-lg font-semibold focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600 transition-colors"
+          />
+          <button
+            onClick={() => {}}
+            className="px-4 py-2.5 bg-ember-500/20 border border-ember-500/40 rounded-lg text-ember-400 font-semibold text-sm hover:bg-ember-500/30 transition-colors shrink-0"
+          >
+            Enter
+          </button>
+          <datalist id="incident-suggestions">
+            <option value="Caldor Fire" />
+            <option value="Dixie Fire" />
+            <option value="Creek Fire" />
+            <option value="Bootleg Fire" />
+            <option value="Monument Fire" />
+            <option value="Complex Fire" />
+            <option value="Rim Fire" />
+            <option value="King Fire" />
+            <option value="Mosquito Fire" />
+            <option value="Park Fire" />
+          </datalist>
+        </div>
       </div>
 
       {/* ── Section 1: Situation Status ────────────────────────────────────── */}
@@ -856,13 +878,28 @@ export default function ICSBoardPage() {
               />
             </div>
           </div>
-          <button
-            onClick={logRequest}
-            className="flex items-center gap-2 px-4 py-2 bg-ember-500/10 border border-ember-500/30 rounded-lg hover:bg-ember-500/20 transition-colors text-ember-400 text-xs font-medium"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Log Request
-          </button>
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={logRequest}
+              className="flex items-center gap-2 px-4 py-2 bg-ember-500/10 border border-ember-500/30 rounded-lg hover:bg-ember-500/20 transition-colors text-ember-400 text-xs font-medium"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Log Request
+            </button>
+            <button
+              onClick={() => {
+                const msg = window.prompt('Request resources from another precinct — describe what you need (type, quantity, urgency):')
+                if (msg) {
+                  const entry: ResourceRequest = { id: newId(), resourceType: 'Other', quantity: 1, priority: 'Immediate', notes: `INTER-AGENCY REQUEST: ${msg}`, timestamp: now(), fulfilled: false }
+                  update({ resourceRequests: [entry, ...board.resourceRequests] })
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-signal-info/10 border border-signal-info/30 rounded-lg hover:bg-signal-info/20 transition-colors text-signal-info text-xs font-medium"
+            >
+              <Radio className="w-3.5 h-3.5" />
+              Request from Other Precinct
+            </button>
+          </div>
         </div>
 
         {/* Request list */}
@@ -901,6 +938,57 @@ export default function ICSBoardPage() {
             ))}
           </div>
         )}
+      </section>
+
+      {/* ── Section 5b: Roster Import ──────────────────────────────────────────── */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <Users className="w-4 h-4 text-signal-warn" />
+          <h2 className="text-white font-semibold text-sm uppercase tracking-wider">Bulk Roster Import</h2>
+        </div>
+        <div className="card p-5">
+          <p className="text-ash-400 text-sm mb-4">Upload a roster file (CSV, Excel, or PDF) to automatically populate personnel. Expected columns: Name, Role, Assignment, Status.</p>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 px-4 py-2.5 bg-ash-800 border border-ash-700 rounded-lg hover:bg-ash-700 transition-colors cursor-pointer text-ash-300 text-sm font-medium">
+              <FileText className="w-4 h-4" />
+              Choose File (CSV / Excel / PDF)
+              <input
+                type="file"
+                accept=".csv,.xlsx,.xls,.pdf"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  const text = await file.text().catch(() => '')
+                  const lines = text.split('\n').filter(l => l.trim())
+                  const newPersonnel: Personnel[] = []
+                  for (let i = 1; i < Math.min(lines.length, 101); i++) {
+                    const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''))
+                    if (cols[0]) {
+                      newPersonnel.push({
+                        id: newId(),
+                        name: cols[0] || '',
+                        role: (['IC','Operations','Safety Officer','Division Supervisor','Crew Member','Logistics','Medical'].includes(cols[1]) ? cols[1] : 'Crew Member') as PersonnelRole,
+                        assignment: cols[2] || '',
+                        status: (['Assigned','On Scene','Evacuated','Unaccounted'].includes(cols[3]) ? cols[3] : 'Assigned') as PersonnelStatus,
+                        lastCheckin: now(),
+                      })
+                    }
+                  }
+                  if (newPersonnel.length > 0) {
+                    update({ personnel: [...board.personnel, ...newPersonnel] })
+                    alert(`Imported ${newPersonnel.length} personnel from ${file.name}`)
+                  } else {
+                    alert('No personnel data found. Ensure your CSV has columns: Name, Role, Assignment, Status')
+                  }
+                  e.target.value = ''
+                }}
+              />
+            </label>
+            <span className="text-ash-600 text-xs">Supports up to 100 personnel per import</span>
+          </div>
+          <p className="text-ash-600 text-xs mt-3">CSV format: Name, Role, Assignment, Status (one per row, header row optional). Excel and PDF support coming soon.</p>
+        </div>
       </section>
 
       {/* ── Section 6: Incident Notes / SITREP ─────────────────────────────── */}

@@ -1,6 +1,6 @@
 'use client'
 import { useRouter } from 'next/navigation'
-import { Flame, Shield, Heart, BarChart3, ChevronRight, AlertTriangle } from 'lucide-react'
+import { Flame, Shield, Heart, BarChart3, ChevronRight } from 'lucide-react'
 
 const roles = [
   {
@@ -29,7 +29,7 @@ const roles = [
     id: 'data_analyst',
     title: 'Data Analyst',
     subtitle: 'Full dataset access',
-    description: 'Signal gap analysis, SVI equity metrics, 62,696 fire incidents, export tools.',
+    description: 'Signal gap analysis, SVI equity metrics, 62,000+ fire incidents, export tools.',
     icon: BarChart3,
     color: 'from-blue-500/20 to-transparent',
     border: 'border-blue-500/40 hover:border-blue-400',
@@ -76,15 +76,6 @@ export default function Home() {
       </header>
 
       <div className="relative max-w-7xl mx-auto px-6 py-20">
-        {/* Alert banner */}
-        <div className="flex items-center gap-3 bg-signal-danger/10 border border-signal-danger/30 rounded-lg px-4 py-3 mb-12 max-w-2xl mx-auto animate-fade-up">
-          <AlertTriangle className="w-4 h-4 text-signal-danger shrink-0" />
-          <p className="text-sm text-ash-300">
-            <span className="text-signal-danger font-medium">Research Finding: </span>
-            High-vulnerability counties experience significantly longer evacuation delays.
-          </p>
-        </div>
-
         {/* Hero */}
         <div className="text-center mb-20">
           <h1 className="font-display text-6xl md:text-7xl font-bold text-white leading-tight mb-6 animate-fade-up">
@@ -92,7 +83,7 @@ export default function Home() {
             <span className="text-gradient-ember">reach everyone.</span>
           </h1>
           <p className="text-ash-400 text-xl max-w-2xl mx-auto animate-fade-up animate-delay-100">
-            Equity-driven evacuation intelligence system analyzing signal gaps in underserved communities across 62,696 wildfire incidents.
+            Equity-driven evacuation intelligence system analyzing signal gaps in underserved communities across 62,000+ wildfire incidents.
           </p>
         </div>
 
