@@ -22,7 +22,7 @@ function normalizeState(raw: string): string {
 
 export async function GET() {
   const params = new URLSearchParams({
-    where: '1=1',
+    where: 'PercentContained < 100 OR PercentContained IS NULL',
     outFields: 'Name,POOState,County,PercentContained,Cause,DailyAcres,CalculatedAcres,DiscoveryAcres,UniqueFireIdentifier,Last_Time_Information_Modified',
     returnGeometry: 'true',
     outSR: '4326',

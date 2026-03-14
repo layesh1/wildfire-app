@@ -1,8 +1,10 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import { Map, Flame, AlertTriangle, Loader2, ExternalLink, RefreshCw, Filter } from 'lucide-react'
 import type { FirePoint } from '@/components/FirePointMap'
+
+const REFRESH_INTERVAL_MS = 5 * 60 * 1000 // 5 minutes
 
 const FirePointMap = dynamic(() => import('@/components/FirePointMap'), { ssr: false })
 
@@ -60,10 +62,12 @@ export default function AnalystMapPage() {
   const [liveFires, setLiveFires] = useState<LiveFire[]>([])
   const [liveLoading, setLiveLoading] = useState(false)
   const [liveError, setLiveError] = useState<string | null>(null)
-  const [liveFetched, setLiveFetched] = useState(false)
   const [liveStateFilter, setLiveStateFilter] = useState('All')
+  const [lastFetchedAt, setLastFetchedAt] = useState<Date | null>(null)
+  const [secondsAgo, setSecondsAgo] = useState(0)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  async function fetchLive() {
+  const fetchLive = useCallback(async () => {
     setLiveLoading(true)
     setLiveError(null)
     try {
@@ -71,22 +75,34 @@ export default function AnalystMapPage() {
       const data = await res.json()
       if (data.fires && data.fires.length > 0) {
         setLiveFires(data.fires.map((f: FirePoint) => ({ ...f, is_live: true as const })))
+        setLastFetchedAt(new Date())
+        setSecondsAgo(0)
       } else if (data.total_features > 0) {
-        setLiveError(`NIFC: ${data.total_features} features but no coordinates. ${data.raw_snippet ?? ''}`)
+        setLiveError(`NIFC: ${data.total_features} features returned but no valid coordinates.`)
       } else {
-        setLiveError(`No data — ${data.error ?? 'unknown error'} · ${data.raw_snippet ?? 'empty response'}`)
+        setLiveError(`No active incidents. ${data.error ?? ''} ${data.raw_snippet ?? ''}`.trim())
       }
     } catch {
       setLiveError('Could not reach NIFC. Check network connection.')
     }
     setLiveLoading(false)
-    setLiveFetched(true)
-  }
+  }, [])
 
-  // Fetch live fires on mount (tab defaults to 'live')
+  // Fetch on mount, then poll every 5 minutes
   useEffect(() => {
     void fetchLive()
-  }, []) // eslint-disable-line
+    intervalRef.current = setInterval(() => void fetchLive(), REFRESH_INTERVAL_MS)
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [fetchLive])
+
+  // Tick "X seconds ago" counter
+  useEffect(() => {
+    if (!lastFetchedAt) return
+    const tick = setInterval(() => {
+      setSecondsAgo(Math.floor((Date.now() - lastFetchedAt.getTime()) / 1000))
+    }, 10000)
+    return () => clearInterval(tick)
+  }, [lastFetchedAt])
 
   const liveStates = ['All', ...Array.from(new Set(liveFires.map(f => f.state))).sort()]
   const filteredLive = liveFires.filter(f => liveStateFilter === 'All' || f.state === liveStateFilter)
@@ -158,12 +174,20 @@ export default function AnalystMapPage() {
               className="bg-ash-800 border border-ash-700 rounded-lg px-3 py-1.5 text-xs text-ash-300 focus:outline-none">
               {liveStates.map(s => <option key={s}>{s}</option>)}
             </select>
-            <button onClick={fetchLive} disabled={liveLoading}
+            <button onClick={() => void fetchLive()} disabled={liveLoading}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-ash-800 border border-ash-700 text-ash-400 hover:text-white transition-colors disabled:opacity-50">
               <RefreshCw className={`w-3 h-3 ${liveLoading ? 'animate-spin' : ''}`} />
               Refresh
             </button>
-            <span className="ml-auto text-xs text-ash-600">Data refreshes every 10 min · Source: NIFC EGP</span>
+            <div className="ml-auto flex items-center gap-2 text-xs text-ash-600">
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-signal-safe animate-pulse inline-block" />
+                Live · auto-refreshes every 5 min
+              </span>
+              {lastFetchedAt && (
+                <span>· updated {secondsAgo < 60 ? 'just now' : `${Math.floor(secondsAgo / 60)}m ago`}</span>
+              )}
+            </div>
           </>
         ) : (
           <>
