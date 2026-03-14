@@ -502,6 +502,17 @@ function SettingsInner() {
           </Section>
 
           <Section icon={Heart} title="People in Your Care">
+            <div className="mb-4 p-3 rounded-lg bg-signal-safe/10 border border-signal-safe/30 flex items-start gap-3">
+              <span className="text-signal-safe mt-0.5">✓</span>
+              <div>
+                <p className="text-sm font-medium">Real-time tracking available</p>
+                <p className="text-xs text-ash-400 mt-0.5">
+                  During an active emergency, use{' '}
+                  <a href="/dashboard/caregiver/persons" className="text-ember-400 hover:underline">My Persons</a>
+                  {' '}to ping your dependents and confirm they're safe in real time.
+                </p>
+              </div>
+            </div>
             <p className="text-ash-500 text-xs mb-4">Helps emergency responders prioritize and provide appropriate support.</p>
             <div className="space-y-3">
               {profile.dependents.map((dep, i) => (

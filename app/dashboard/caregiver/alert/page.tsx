@@ -3,16 +3,12 @@ import { useState, useCallback } from 'react'
 import {
   AlertTriangle,
   MapPin,
-  Wind,
   CheckCircle,
   RefreshCw,
-  Clock,
   Navigation,
 } from 'lucide-react'
 
 // ── Types ────────────────────────────────────────────────────────────────────
-
-type Lang = 'en' | 'es'
 
 interface WeatherData {
   lat: number
@@ -45,123 +41,14 @@ interface AlertResult {
   isMockData: boolean
 }
 
-// ── String tables ─────────────────────────────────────────────────────────────
-
-const STRINGS = {
-  en: {
-    pageLabel: 'CAREGIVER · EARLY ALERT',
-    title: 'Early Fire Alert',
-    subtitle: 'Get warned before official orders',
-    addressLabel: 'Your address or zip code',
-    addressPlaceholder: 'e.g. 95003, Paradise CA, 123 Oak St Chico CA',
-    monitoredLabel: "Monitored person's address (if different)",
-    monitoredPlaceholder: 'Leave blank to use your address',
-    mobilityLabel: 'Mobility level',
-    checkBtn: 'Check for Fires',
-    checkingBtn: 'Checking…',
-    distanceCard: 'Distance',
-    arrivalCard: 'Est. Arrival',
-    windCard: 'Wind',
-    orderEtaCard: 'Official Order ETA',
-    orderEtaValue: '~1.1h from signal',
-    orderEtaNote: 'historical avg (WiDS data)',
-    leaveBy: 'LEAVE BY',
-    nowLabel: 'NOW',
-    orderLabel: '+1.1h order',
-    arrivalLabel: 'fire arrival',
-    mockWarning: 'Demo mode — NASA FIRMS unavailable. Showing example scenario (25 km, 18 mph wind).',
-    mobiles: {
-      mobile: 'Mobile Adult (0.5h)',
-      elderly: 'Elderly (1.5h)',
-      disabled: 'Disabled (2h)',
-      novehicle: 'No Vehicle (3h)',
-      medical: 'Medical Equipment (4h)',
-    },
-    levels: {
-      CRITICAL: {
-        headline: 'EVACUATE NOW',
-        body: 'Fire estimated within 1 hour of your location. Leave immediately.',
-      },
-      HIGH: {
-        headline: 'Pre-Order Window',
-        body: 'Leave within {{hours}}. Official order may not arrive in time.',
-      },
-      ELEVATED: {
-        headline: 'Begin Preparation',
-        body: 'Fire detected. Pack essentials and identify your route now.',
-      },
-      WATCH: {
-        headline: 'Fire Detected in Region',
-        body: 'Active fire within 50 km. Stay alert and monitor local emergency channels.',
-      },
-      CLEAR: {
-        headline: 'No Active Fires',
-        body: 'No fires detected within 50 km of your address.',
-      },
-    },
-  },
-  es: {
-    pageLabel: 'CUIDADOR · ALERTA TEMPRANA',
-    title: 'Alerta Temprana de Incendio',
-    subtitle: 'Alertas antes de órdenes oficiales',
-    addressLabel: 'Tu dirección o código postal',
-    addressPlaceholder: 'ej. 95003, Paradise CA, 123 Oak St Chico CA',
-    monitoredLabel: 'Dirección de la persona monitoreada (si es diferente)',
-    monitoredPlaceholder: 'Dejar en blanco para usar tu dirección',
-    mobilityLabel: 'Nivel de movilidad',
-    checkBtn: 'Buscar Incendios',
-    checkingBtn: 'Buscando…',
-    distanceCard: 'Distancia',
-    arrivalCard: 'Llegada Estimada',
-    windCard: 'Viento',
-    orderEtaCard: 'ETA de Orden Oficial',
-    orderEtaValue: '~1.1h desde señal',
-    orderEtaNote: 'promedio histórico (datos WiDS)',
-    leaveBy: 'SALIR ANTES DE',
-    nowLabel: 'AHORA',
-    orderLabel: '+1.1h orden',
-    arrivalLabel: 'llegada del fuego',
-    mockWarning: 'Modo demo — NASA FIRMS no disponible. Mostrando escenario de ejemplo (25 km, 18 mph viento).',
-    mobiles: {
-      mobile: 'Adulto Móvil (0.5h)',
-      elderly: 'Adulto Mayor (1.5h)',
-      disabled: 'Discapacidad (2h)',
-      novehicle: 'Sin Vehículo (3h)',
-      medical: 'Equipo Médico (4h)',
-    },
-    levels: {
-      CRITICAL: {
-        headline: 'EVACÚE AHORA',
-        body: 'Se estima que el fuego llegará en menos de 1 hora. Salga inmediatamente.',
-      },
-      HIGH: {
-        headline: 'Ventana Pre-Orden',
-        body: 'Salga en {{hours}}. La orden oficial puede no llegar a tiempo.',
-      },
-      ELEVATED: {
-        headline: 'Comience a Prepararse',
-        body: 'Incendio detectado. Empaque lo esencial e identifique su ruta ahora.',
-      },
-      WATCH: {
-        headline: 'Incendio en la Región',
-        body: 'Incendio activo a menos de 50 km. Esté alerta y monitoree los canales de emergencia.',
-      },
-      CLEAR: {
-        headline: 'Sin Incendios Activos',
-        body: 'No se detectaron incendios a menos de 50 km de su dirección.',
-      },
-    },
-  },
-}
-
 // ── Mobility options ──────────────────────────────────────────────────────────
 
 const MOBILITY_OPTIONS = [
-  { key: 'mobile',    evacHours: 0.5  },
-  { key: 'elderly',   evacHours: 1.5  },
-  { key: 'disabled',  evacHours: 2.0  },
-  { key: 'novehicle', evacHours: 3.0  },
-  { key: 'medical',   evacHours: 4.0  },
+  { key: 'mobile',    evacHours: 0.5,  label: 'I move quickly and have a car' },
+  { key: 'elderly',   evacHours: 1.5,  label: 'I move at my own pace — might take a little longer' },
+  { key: 'disabled',  evacHours: 2.0,  label: 'I need some help getting around' },
+  { key: 'novehicle', evacHours: 3.0,  label: "I'll need a ride or public transit" },
+  { key: 'medical',   evacHours: 4.0,  label: 'I use medical devices that need careful packing' },
 ] as const
 type MobilityKey = typeof MOBILITY_OPTIONS[number]['key']
 
@@ -177,7 +64,7 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
-// ── Rothermel estimate ────────────────────────────────────────────────────────
+// ── Rothermel spread estimate ─────────────────────────────────────────────────
 
 function estimateArrivalHours(distanceKm: number, windMph: number): number {
   const R0 = 0.75 // m/min base spread (chaparral)
@@ -197,164 +84,89 @@ function classifyAlert(hours: number | null): AlertLevel {
   return 'WATCH'
 }
 
+// ── Alert content ─────────────────────────────────────────────────────────────
+
+const ALERT_CONTENT: Record<AlertLevel, {
+  heading: string
+  subtext: string
+  steps: string[]
+  borderColor: string
+  bgColor: string
+  headingColor: string
+  dotColor: string
+}> = {
+  CRITICAL: {
+    heading: 'Head out now',
+    subtext: "A fire is very close and moving toward you. Don't wait for an official notice.",
+    steps: [
+      'Grab your go-bag (or just your keys, phone, wallet)',
+      'Close windows and doors on the way out',
+      "Drive away from the fire — don't go back",
+    ],
+    borderColor: 'border-signal-danger',
+    bgColor: 'bg-signal-danger/15',
+    headingColor: 'text-signal-danger',
+    dotColor: 'bg-signal-danger animate-pulse',
+  },
+  HIGH: {
+    heading: 'Time to get ready to go',
+    subtext: "A fire is in the area. You have some time, but don't delay.",
+    steps: [
+      'Pack your essentials now',
+      'Let someone know your plan',
+      'Know your route before you need it',
+    ],
+    borderColor: 'border-signal-warn',
+    bgColor: 'bg-signal-warn/10',
+    headingColor: 'text-signal-warn',
+    dotColor: 'bg-signal-warn animate-pulse',
+  },
+  ELEVATED: {
+    heading: 'A fire was spotted nearby',
+    subtext: "You're not in immediate danger, but it's a good time to check your go-bag and stay aware.",
+    steps: [
+      'Check your go-bag',
+      'Know which road you would take',
+      'Keep your phone charged',
+    ],
+    borderColor: 'border-yellow-500',
+    bgColor: 'bg-yellow-500/10',
+    headingColor: 'text-yellow-400',
+    dotColor: 'bg-yellow-400',
+  },
+  WATCH: {
+    heading: 'Fire in the region',
+    subtext: "There's a fire in your area, but you're not at risk right now. Keep an eye on updates.",
+    steps: [],
+    borderColor: 'border-blue-500',
+    bgColor: 'bg-blue-500/10',
+    headingColor: 'text-blue-300',
+    dotColor: 'bg-blue-400',
+  },
+  CLEAR: {
+    heading: "You're clear",
+    subtext: 'No active fires detected within 50 miles of this address.',
+    steps: [],
+    borderColor: 'border-signal-safe/40',
+    bgColor: 'bg-signal-safe/10',
+    headingColor: 'text-signal-safe',
+    dotColor: 'bg-signal-safe',
+  },
+}
+
+// ── Format helpers ─────────────────────────────────────────────────────────────
+
+function formatClockTime(date: Date): string {
+  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+}
+
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 
 function Skeleton() {
   return (
     <div className="space-y-4 mt-6 animate-pulse">
-      <div className="h-24 bg-ash-800 rounded-xl" />
-      <div className="grid grid-cols-2 gap-3">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-20 bg-ash-800 rounded-xl" />
-        ))}
-      </div>
+      <div className="h-32 bg-ash-800 rounded-xl" />
       <div className="h-16 bg-ash-800 rounded-xl" />
-    </div>
-  )
-}
-
-// ── Alert banner ──────────────────────────────────────────────────────────────
-
-const LEVEL_STYLES: Record<AlertLevel, { border: string; bg: string; text: string; icon: string; dot: string }> = {
-  CRITICAL: {
-    border: 'border-signal-danger',
-    bg: 'bg-signal-danger/15',
-    text: 'text-signal-danger',
-    icon: 'text-signal-danger',
-    dot: 'bg-signal-danger animate-pulse',
-  },
-  HIGH: {
-    border: 'border-signal-warn',
-    bg: 'bg-signal-warn/10',
-    text: 'text-signal-warn',
-    icon: 'text-signal-warn',
-    dot: 'bg-signal-warn animate-pulse',
-  },
-  ELEVATED: {
-    border: 'border-yellow-500',
-    bg: 'bg-yellow-500/10',
-    text: 'text-yellow-400',
-    icon: 'text-yellow-400',
-    dot: 'bg-yellow-400',
-  },
-  WATCH: {
-    border: 'border-blue-500',
-    bg: 'bg-blue-500/10',
-    text: 'text-blue-300',
-    icon: 'text-blue-300',
-    dot: 'bg-blue-400',
-  },
-  CLEAR: {
-    border: 'border-signal-safe/40',
-    bg: 'bg-signal-safe/10',
-    text: 'text-signal-safe',
-    icon: 'text-signal-safe',
-    dot: 'bg-signal-safe',
-  },
-}
-
-// ── Timeline bar ──────────────────────────────────────────────────────────────
-
-function TimelineBar({
-  estimatedHours,
-  evacHours,
-  lang,
-  s,
-}: {
-  estimatedHours: number
-  evacHours: number
-  lang: Lang
-  s: typeof STRINGS['en']
-}) {
-  // Timeline spans from now to 1.5× fire arrival (or at least 8h)
-  const spanH = Math.max(estimatedHours * 1.5, 8)
-  const orderH = 1.1
-  const leaveByH = Math.max(0, estimatedHours - evacHours)
-
-  const pct = (h: number) => Math.min(100, (h / spanH) * 100)
-
-  const orderPct = pct(orderH)
-  const arrivalPct = pct(estimatedHours)
-  const leavePct = pct(leaveByH)
-
-  const leaveByUrgent = leaveByH < 1.0
-
-  const formatH = (h: number) => {
-    const totalMin = Math.round(h * 60)
-    const hh = Math.floor(totalMin / 60)
-    const mm = totalMin % 60
-    if (hh === 0) return `${mm}m`
-    if (mm === 0) return `${hh}h`
-    return `${hh}h ${mm}m`
-  }
-
-  return (
-    <div className="card p-5">
-      <div className="text-white text-sm font-semibold mb-4 flex items-center gap-2">
-        <Clock className="w-4 h-4 text-ash-400" />
-        Evacuation Timeline
-      </div>
-
-      {/* Bar track */}
-      <div className="relative h-3 bg-ash-800 rounded-full mb-6">
-        {/* Danger zone — from now to leave-by */}
-        <div
-          className={`absolute top-0 left-0 h-full rounded-l-full ${leaveByUrgent ? 'bg-signal-danger/40' : 'bg-signal-warn/30'}`}
-          style={{ width: `${leavePct}%` }}
-        />
-        {/* Order marker */}
-        <div
-          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-amber-400 border-2 border-ash-900 z-10"
-          style={{ left: `${orderPct}%` }}
-        />
-        {/* Fire arrival marker */}
-        <div
-          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-signal-danger border-2 border-ash-900 z-10"
-          style={{ left: `${arrivalPct}%` }}
-        />
-        {/* Leave-by marker */}
-        <div
-          className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 rounded-full border-2 border-ash-900 z-20 ${leaveByUrgent ? 'bg-signal-danger' : 'bg-signal-warn'}`}
-          style={{ left: `${leavePct}%` }}
-        />
-      </div>
-
-      {/* Labels */}
-      <div className="relative text-xs" style={{ height: 36 }}>
-        {/* NOW */}
-        <div className="absolute left-0 text-center" style={{ transform: 'translateX(0)' }}>
-          <div className="text-ash-400 font-medium">{s.nowLabel}</div>
-          <div className="text-ash-600">0h</div>
-        </div>
-        {/* Order */}
-        <div className="absolute text-center" style={{ left: `${orderPct}%`, transform: 'translateX(-50%)' }}>
-          <div className="text-amber-400 font-medium whitespace-nowrap">{s.orderLabel}</div>
-        </div>
-        {/* Fire arrival */}
-        <div className="absolute text-center" style={{ left: `${arrivalPct}%`, transform: 'translateX(-50%)' }}>
-          <div className="text-signal-danger font-medium whitespace-nowrap">{s.arrivalLabel}</div>
-          <div className="text-ash-500">{formatH(estimatedHours)}</div>
-        </div>
-      </div>
-
-      {/* Leave-by callout */}
-      <div
-        className={`mt-3 flex items-center justify-between px-4 py-2.5 rounded-xl border ${
-          leaveByUrgent
-            ? 'border-signal-danger/50 bg-signal-danger/10'
-            : 'border-signal-warn/40 bg-signal-warn/10'
-        }`}
-      >
-        <div className={`font-bold text-sm ${leaveByUrgent ? 'text-signal-danger' : 'text-signal-warn'}`}>
-          {s.leaveBy}
-        </div>
-        <div className={`font-display text-lg font-bold ${leaveByUrgent ? 'text-signal-danger' : 'text-signal-warn'}`}>
-          {leaveByH <= 0 ? 'NOW' : `+${formatH(leaveByH)}`}
-        </div>
-      </div>
-      <p className="text-ash-600 text-xs mt-2">
-        Based on {formatH(evacHours)} evacuation time for selected mobility level.
-      </p>
     </div>
   )
 }
@@ -362,7 +174,6 @@ function TimelineBar({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function EarlyAlertPage() {
-  const [lang, setLang] = useState<Lang>('en')
   const [address, setAddress] = useState('')
   const [monitoredAddress, setMonitoredAddress] = useState('')
   const [mobility, setMobility] = useState<MobilityKey>('mobile')
@@ -370,7 +181,6 @@ export default function EarlyAlertPage() {
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<AlertResult | null>(null)
 
-  const s = STRINGS[lang]
   const evacHours = MOBILITY_OPTIONS.find(m => m.key === mobility)!.evacHours
 
   const check = useCallback(async () => {
@@ -447,58 +257,46 @@ export default function EarlyAlertPage() {
     }
   }, [address, monitoredAddress])
 
-  const levelStyle = result ? LEVEL_STYLES[result.level] : null
+  // ── Derived display values ──────────────────────────────────────────────────
 
-  function formatArrival(h: number) {
-    if (!isFinite(h)) return '—'
-    const totalMin = Math.round(h * 60)
-    const hh = Math.floor(totalMin / 60)
-    const mm = totalMin % 60
-    if (hh === 0) return `${mm} min`
-    if (mm === 0) return `${hh} hr`
-    return `${hh} hr ${mm} min`
-  }
+  const leaveByText = (() => {
+    if (!result || result.level === 'CLEAR' || result.level === 'WATCH') return null
+    if (!isFinite(result.estimatedHours)) return null
+    const leaveByH = result.estimatedHours - evacHours
+    if (leaveByH <= 0) return 'already'
+    const leaveByMs = leaveByH * 60 * 60 * 1000
+    const leaveByDate = new Date(Date.now() + leaveByMs)
+    return formatClockTime(leaveByDate)
+  })()
 
-  function bodyText(level: AlertLevel, hours: number) {
-    const tpl = s.levels[level].body
-    return tpl.replace('{{hours}}', formatArrival(hours))
-  }
+  const fireSummary = (() => {
+    if (!result || result.level === 'CLEAR' || !result.nearestFire) return null
+    const miles = Math.round(result.distanceKm / 1.609)
+    const windNote = result.windMph > 20
+      ? 'Strong winds are pushing it in your direction.'
+      : 'Wind conditions are moderate.'
+    return `A fire was spotted about ${miles} ${miles === 1 ? 'mile' : 'miles'} away. ${windNote}`
+  })()
+
+  const alertContent = result ? ALERT_CONTENT[result.level] : null
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2 text-ember-400 text-sm font-medium">
-            <AlertTriangle className="w-4 h-4" />
-            {s.pageLabel}
-          </div>
-          {/* Language toggle */}
-          <div className="flex items-center gap-1 bg-ash-800 border border-ash-700 rounded-lg p-0.5">
-            {(['en', 'es'] as Lang[]).map(l => (
-              <button
-                key={l}
-                onClick={() => setLang(l)}
-                className={`px-3 py-1 rounded text-xs font-semibold transition-all ${
-                  lang === l
-                    ? 'bg-ember-500 text-white'
-                    : 'text-ash-400 hover:text-white'
-                }`}
-              >
-                {l.toUpperCase()}
-              </button>
-            ))}
-          </div>
+        <div className="flex items-center gap-2 text-ember-400 text-sm font-medium mb-3">
+          <AlertTriangle className="w-4 h-4" />
+          CAREGIVER &middot; EARLY ALERT
         </div>
-        <h1 className="font-display text-3xl font-bold text-white mb-2">{s.title}</h1>
-        <p className="text-ash-400 text-sm">{s.subtitle}</p>
+        <h1 className="font-display text-3xl font-bold text-white mb-2">Early Fire Alert</h1>
+        <p className="text-ash-400 text-sm">Get warned before official orders</p>
       </div>
 
       {/* Form */}
       <div className="card p-5 mb-6 space-y-4">
         {/* Primary address */}
         <div>
-          <label className="label">{s.addressLabel}</label>
+          <label className="label">Your address or zip code</label>
           <div className="relative">
             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ash-500 pointer-events-none" />
             <input
@@ -506,7 +304,7 @@ export default function EarlyAlertPage() {
               value={address}
               onChange={e => setAddress(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && check()}
-              placeholder={s.addressPlaceholder}
+              placeholder="e.g. 95003, Paradise CA, 123 Oak St Chico CA"
               className="input pl-9"
             />
           </div>
@@ -514,7 +312,7 @@ export default function EarlyAlertPage() {
 
         {/* Monitored person address */}
         <div>
-          <label className="label">{s.monitoredLabel}</label>
+          <label className="label">Monitored person&rsquo;s address (if different)</label>
           <div className="relative">
             <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ash-500 pointer-events-none" />
             <input
@@ -522,7 +320,7 @@ export default function EarlyAlertPage() {
               value={monitoredAddress}
               onChange={e => setMonitoredAddress(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && check()}
-              placeholder={s.monitoredPlaceholder}
+              placeholder="Leave blank to use your address"
               className="input pl-9"
             />
           </div>
@@ -530,7 +328,7 @@ export default function EarlyAlertPage() {
 
         {/* Mobility */}
         <div>
-          <label className="label">{s.mobilityLabel}</label>
+          <label className="label">How would you describe your situation?</label>
           <select
             value={mobility}
             onChange={e => setMobility(e.target.value as MobilityKey)}
@@ -538,7 +336,7 @@ export default function EarlyAlertPage() {
           >
             {MOBILITY_OPTIONS.map(opt => (
               <option key={opt.key} value={opt.key}>
-                {s.mobiles[opt.key]}
+                {opt.label}
               </option>
             ))}
           </select>
@@ -553,20 +351,18 @@ export default function EarlyAlertPage() {
           {loading ? (
             <>
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              {s.checkingBtn}
+              Checking&hellip;
             </>
           ) : (
             <>
               <RefreshCw className="w-4 h-4" />
-              {s.checkBtn}
+              Check for Fires
             </>
           )}
         </button>
 
         {error && (
-          <p className="text-signal-danger text-sm text-center">
-            {error}
-          </p>
+          <p className="text-signal-danger text-sm text-center">{error}</p>
         )}
       </div>
 
@@ -574,124 +370,78 @@ export default function EarlyAlertPage() {
       {loading && <Skeleton />}
 
       {/* Results */}
-      {!loading && result && levelStyle && (
+      {!loading && result && alertContent && (
         <div className="space-y-4">
-          {/* Mock data warning */}
+          {/* Demo mode notice */}
           {result.isMockData && (
             <div className="flex items-start gap-2 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-xs">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-              {s.mockWarning}
+              Demo mode — live fire data is temporarily unavailable. Showing an example scenario so you can see how the alert works.
             </div>
           )}
 
           {/* Alert banner */}
-          <div
-            className={`rounded-xl border-2 p-5 ${levelStyle.border} ${levelStyle.bg}`}
-          >
-            <div className="flex items-start gap-3">
-              <div className={`w-3 h-3 rounded-full mt-1.5 shrink-0 ${levelStyle.dot}`} />
-              <div className="flex-1">
-                <div className={`font-display text-2xl font-bold mb-1 ${levelStyle.text}`}>
-                  {s.levels[result.level].headline}
-                </div>
-                <p className="text-ash-200 text-sm leading-relaxed">
-                  {bodyText(result.level, result.estimatedHours)}
-                </p>
-              </div>
-              <div className={`shrink-0 text-xs font-bold px-2.5 py-1 rounded-full border ${levelStyle.border} ${levelStyle.text} bg-ash-900/80`}>
-                {result.level}
+          <div className={`rounded-xl border-2 p-6 ${alertContent.borderColor} ${alertContent.bgColor}`}>
+            <div className="flex items-start gap-3 mb-4">
+              <div className={`w-3 h-3 rounded-full mt-2 shrink-0 ${alertContent.dotColor}`} />
+              <div>
+                <h2 className={`font-display text-2xl font-bold mb-1 ${alertContent.headingColor}`}>
+                  {alertContent.heading}
+                </h2>
+                <p className="text-ash-200 text-sm leading-relaxed">{alertContent.subtext}</p>
               </div>
             </div>
+
+            {/* Action steps */}
+            {alertContent.steps.length > 0 && (
+              <ol className="space-y-2 mt-4 pl-1">
+                {alertContent.steps.map((step, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <span className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border ${alertContent.borderColor} ${alertContent.headingColor} bg-ash-900/60`}>
+                      {i + 1}
+                    </span>
+                    <span className="text-ash-100 text-sm leading-relaxed pt-0.5">{step}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
           </div>
 
-          {/* Metric cards — only if fire detected */}
-          {result.level !== 'CLEAR' && (
-            <div className="grid grid-cols-2 gap-3">
-              {/* Distance */}
-              <div className="card p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <MapPin className="w-3.5 h-3.5 text-ash-500" />
-                  <span className="text-ash-400 text-xs">{s.distanceCard}</span>
-                </div>
-                <div className={`font-display text-2xl font-bold ${levelStyle.text}`}>
-                  {result.distanceKm.toFixed(1)} km
-                </div>
-                <div className="text-ash-500 text-xs mt-0.5">from address</div>
-              </div>
+          {/* Plain-language fire summary */}
+          {fireSummary && (
+            <div className="card p-4">
+              <p className="text-ash-200 text-sm leading-relaxed">{fireSummary}</p>
+            </div>
+          )}
 
-              {/* Estimated arrival */}
-              <div className="card p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="w-3.5 h-3.5 text-ash-500" />
-                  <span className="text-ash-400 text-xs">{s.arrivalCard}</span>
-                </div>
-                <div className={`font-display text-2xl font-bold ${levelStyle.text}`}>
-                  {formatArrival(result.estimatedHours)}
-                </div>
-                <div className="text-ash-500 text-xs mt-0.5">Rothermel estimate</div>
-              </div>
-
-              {/* Wind */}
-              <div className="card p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Wind className="w-3.5 h-3.5 text-ash-500" />
-                  <span className="text-ash-400 text-xs">{s.windCard}</span>
-                </div>
-                <div className="font-display text-2xl font-bold text-white">
-                  {Math.round(result.windMph)} mph
-                </div>
-                <div className="text-ash-500 text-xs mt-0.5">{result.windDir}</div>
-              </div>
-
-              {/* Official order ETA */}
-              <div className="card p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <AlertTriangle className="w-3.5 h-3.5 text-ash-500" />
-                  <span className="text-ash-400 text-xs">{s.orderEtaCard}</span>
-                </div>
-                <div className="font-display text-2xl font-bold text-amber-400">
-                  {s.orderEtaValue}
-                </div>
-                <div className="text-ash-500 text-xs mt-0.5">{s.orderEtaNote}</div>
+          {/* Leave-by time */}
+          {leaveByText && (
+            <div className="card p-4 flex items-center gap-3">
+              <div className="text-ash-400 text-sm leading-relaxed">
+                {leaveByText === 'already' ? (
+                  <span className="text-signal-danger font-semibold">You should already be on the move.</span>
+                ) : (
+                  <>
+                    Based on your situation, we suggest leaving by{' '}
+                    <span className="text-white font-semibold">{leaveByText}</span>.
+                  </>
+                )}
               </div>
             </div>
           )}
 
-          {/* Clear state card */}
+          {/* Clear state */}
           {result.level === 'CLEAR' && (
             <div className="card p-6 flex items-center gap-4">
               <CheckCircle className="w-10 h-10 text-signal-safe shrink-0" />
               <div>
                 <div className="text-white font-semibold mb-1">Area looks clear</div>
                 <div className="text-ash-400 text-sm">
-                  No NASA FIRMS fire detections within 50 km. Conditions may change — re-check if weather worsens.
+                  No fire detections within 50 miles. Conditions can change quickly — check again if the wind picks up or smoke appears.
                 </div>
               </div>
             </div>
           )}
-
-          {/* Timeline — only for actionable levels */}
-          {(result.level === 'CRITICAL' || result.level === 'HIGH' || result.level === 'ELEVATED') && (
-            <TimelineBar
-              estimatedHours={result.estimatedHours}
-              evacHours={evacHours}
-              lang={lang}
-              s={s}
-            />
-          )}
-
-          {/* Research note */}
-          <div className="card p-4 border-l-4 border-amber-500/50">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-              <p className="text-ash-400 text-xs leading-relaxed">
-                <span className="text-amber-400 font-semibold">Why this matters: </span>
-                WiDS 2025 data shows the median gap between fire signal and official evacuation order is{' '}
-                <span className="text-white">211 minutes (3.5 hours)</span>. High-vulnerability counties wait up to{' '}
-                <span className="text-white">11.5 hours longer</span>. This alert uses real NASA FIRMS satellite detections — not official orders.
-              </p>
-            </div>
-          </div>
         </div>
       )}
     </div>

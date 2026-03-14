@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Bell, MapPin, Users, AlertTriangle, CheckCircle, Phone, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 const QUICK_ACTIONS = [
   { label: 'View Evacuation Map', href: '/dashboard/caregiver/map', icon: MapPin, color: 'text-ember-400' },
@@ -43,6 +44,8 @@ export default function CaregiverDashboard() {
   }, [])
 
   return (
+    <>
+    <LanguageSwitcher />
     <div className="p-8 max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-10">
@@ -212,5 +215,6 @@ export default function CaregiverDashboard() {
         </div>
       </div>
     </div>
+    </>
   )
 }

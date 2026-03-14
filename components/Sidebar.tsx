@@ -1,12 +1,14 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   Flame, Shield, Heart, BarChart3, Map, AlertTriangle,
   Users, Brain, LogOut, ChevronLeft, ChevronRight,
-  Activity, TrendingUp, Bell, User, Settings, BarChart2
+  Activity, TrendingUp, Bell, User, Settings, BarChart2, Globe
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+import { useLanguage } from '@/components/LanguageProvider'
+import { LANGUAGES } from '@/lib/languages'
 
 interface Props {
   user: any
@@ -66,9 +68,23 @@ const ROLE_COLORS: Record<string, string> = {
 
 export default function Sidebar({ user, profile }: Props) {
   const [collapsed, setCollapsed] = useState(false)
+  const [langOpen, setLangOpen] = useState(false)
+  const langRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
+  const { lang, setLanguage } = useLanguage()
+
+  // Close language dropdown on click-outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (langRef.current && !langRef.current.contains(e.target as Node)) {
+        setLangOpen(false)
+      }
+    }
+    if (langOpen) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [langOpen])
 
   // Infer role from URL path; for non-role-specific paths (like /settings),
   // fall back to localStorage so the last active role is remembered
@@ -161,6 +177,51 @@ export default function Sidebar({ user, profile }: Props) {
             <div className="text-ash-500 text-xs truncate">{user?.email}</div>
           </div>
         )}
+
+        {/* Language switcher */}
+        <div ref={langRef} className="relative">
+          <button
+            onClick={() => setLangOpen(v => !v)}
+            className={`flex items-center gap-2 text-ash-500 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-ash-800 w-full
+              ${collapsed ? 'justify-center' : ''}
+            `}
+            title={collapsed ? `Language: ${lang.name}` : undefined}
+          >
+            <Globe className="w-4 h-4 shrink-0" />
+            {!collapsed && (
+              <span className="text-sm flex-1 text-left">
+                {lang.flag} <span className="uppercase text-xs font-medium">{lang.code.split('-')[0]}</span>
+              </span>
+            )}
+          </button>
+
+          {langOpen && (
+            <div className={`absolute ${collapsed ? 'left-full ml-2 bottom-0' : 'bottom-full mb-1 left-0 right-0'} bg-ash-800 border border-ash-600 rounded-xl shadow-2xl overflow-hidden z-50`}
+              style={{ width: collapsed ? '240px' : undefined }}>
+              <div className="px-3 py-2 border-b border-ash-700">
+                <p className="text-ash-400 text-xs font-medium uppercase tracking-wide">Language</p>
+              </div>
+              <div className="overflow-y-auto p-2" style={{ maxHeight: '240px' }}>
+                <div className="grid grid-cols-2 gap-1">
+                  {LANGUAGES.map(l => (
+                    <button
+                      key={l.code}
+                      onClick={() => { setLanguage(l.code); setLangOpen(false) }}
+                      className={`text-xs px-2 py-1.5 rounded-lg text-left flex items-center gap-1.5 transition-colors
+                        ${l.code === lang.code
+                          ? 'border border-ember-400/60 bg-ember-500/10 text-white'
+                          : 'border border-transparent hover:bg-ash-700 text-ash-300 hover:text-white'
+                        }`}
+                    >
+                      <span className="text-sm leading-none">{l.flag}</span>
+                      <span className="truncate">{l.native}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         <button
           onClick={handleSignOut}
