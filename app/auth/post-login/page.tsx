@@ -64,7 +64,8 @@ function PostLoginRedirect() {
         } else {
           await supabase.from('profiles').update({ role: intendedRole, roles: updatedRoles }).eq('id', user.id)
         }
-        router.replace(ROLE_DESTINATIONS[intendedRole] ?? '/dashboard')
+        // First-time users go to settings for onboarding
+        router.replace(`/dashboard/settings?role=${intendedRole}&onboarding=true`)
       }
     }
     route()

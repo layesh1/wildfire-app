@@ -202,18 +202,6 @@ export default function CaregiverDashboard() {
         )}
       </div>
 
-      {/* Research context */}
-      <div className="card p-6 mt-8 border-l-4 border-amber-500/50">
-        <div className="flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-          <div>
-            <div className="text-white font-semibold mb-1">Why delays matter for caregivers</div>
-            <p className="text-ash-400 text-sm leading-relaxed">
-              Our research found that high-vulnerability counties experience significantly longer delays before receiving formal evacuation orders. Caregivers and evacuees in these areas are more likely to rely on informal signals — which is why SAFE-PATH monitors all signal channels, not just official orders.
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
     </>
   )

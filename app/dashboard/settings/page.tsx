@@ -81,6 +81,10 @@ function SettingsInner() {
   const supabase = createClient()
   const { lang, setLanguage } = useLanguage()
 
+  const isOnboarding = searchParams.get('onboarding') === 'true'
+  const roleParam = searchParams.get('role') || 'caregiver'
+  const dashDest = roleParam === 'emergency_responder' ? '/dashboard/responder' : roleParam === 'data_analyst' ? '/dashboard/analyst' : '/dashboard/caregiver'
+
   const [tab, setTab] = useState<Tab>('profile')
   const [profile, setProfile] = useState<ProfileData>(DEFAULT)
   const [loading, setLoading] = useState(true)
@@ -304,6 +308,21 @@ function SettingsInner() {
         <Settings className="w-6 h-6 text-ash-400" />
         <h1 className="font-display text-2xl font-bold text-white">Settings</h1>
       </div>
+
+      {isOnboarding && (
+        <div className="bg-ember-500/10 border border-ember-500/30 rounded-xl p-5 mb-6 flex items-start justify-between gap-4">
+          <div>
+            <div className="text-ember-400 font-semibold text-sm mb-1">Welcome to WildfireAlert</div>
+            <p className="text-ash-300 text-sm">Fill out your emergency profile so we can personalize alerts for your location, household, and needs. You can always update this later.</p>
+          </div>
+          <button
+            onClick={() => router.push(dashDest)}
+            className="shrink-0 px-3 py-2 bg-ash-800 border border-ash-700 rounded-lg text-ash-400 hover:text-white text-xs font-medium transition-colors whitespace-nowrap"
+          >
+            Skip — I'm in an emergency
+          </button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-ash-900 rounded-xl p-1 border border-ash-800">
@@ -805,6 +824,17 @@ function SettingsInner() {
               ))}
             </div>
           </section>
+        </div>
+      )}
+
+      {isOnboarding && (
+        <div className="mt-8 pt-6 border-t border-ash-800">
+          <button
+            onClick={() => router.push(dashDest)}
+            className="w-full py-3 rounded-xl bg-ember-500/20 border border-ember-500/40 text-ember-400 font-semibold hover:bg-ember-500/30 transition-colors"
+          >
+            Continue to Dashboard →
+          </button>
         </div>
       )}
     </div>

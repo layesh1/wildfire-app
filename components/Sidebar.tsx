@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   Flame, Shield, Heart, BarChart3, Map, AlertTriangle,
-  Users, Brain, LogOut, ChevronLeft, ChevronRight,
+  Users, Brain, LogOut, ChevronLeft, ChevronRight, ChevronDown,
   Activity, TrendingUp, Bell, User, Settings, BarChart2, Globe,
   ClipboardList, Thermometer
 } from 'lucide-react'
@@ -20,9 +20,7 @@ const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> 
   emergency_responder: [
     { label: 'Live Map', href: '/dashboard/responder', icon: Map },
     { label: 'ICS Incident Board', href: '/dashboard/responder/ics', icon: ClipboardList },
-    { label: 'Signal Gaps', href: '/dashboard/responder/signals', icon: AlertTriangle },
     { label: 'ML Predictor', href: '/dashboard/responder/ml', icon: Brain },
-    { label: 'Agency Coverage', href: '/dashboard/responder/coverage', icon: Shield },
     { label: 'COMMAND-INTEL', href: '/dashboard/responder/ai', icon: Activity },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
@@ -72,6 +70,8 @@ const ROLE_COLORS: Record<string, string> = {
 export default function Sidebar({ user, profile }: Props) {
   const [collapsed, setCollapsed] = useState(false)
   const [langOpen, setLangOpen] = useState(false)
+  const [caregiverOpen, setCaregiverOpen] = useState(true)
+  const [evacueeOpen, setEvacueeOpen] = useState(true)
   const langRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
   const router = useRouter()
@@ -149,28 +149,143 @@ export default function Sidebar({ user, profile }: Props) {
         </div>
       )}
 
+      {/* Multi-role switcher */}
+      {!collapsed && profile?.roles && profile.roles.length > 1 && (
+        <div className="px-3 py-2 border-b border-ash-800">
+          <p className="text-ash-600 text-xs uppercase tracking-wider mb-1.5">My Dashboards</p>
+          {profile.roles.map((r: string) => {
+            const RIcon = ROLE_ICONS[r] || Heart
+            const isActive = r === role
+            const dest = r === 'emergency_responder' ? '/dashboard/responder' : r === 'data_analyst' ? '/dashboard/analyst' : '/dashboard/caregiver'
+            return (
+              <button
+                key={r}
+                onClick={() => {
+                  if (r === 'caregiver' || r === 'emergency_responder') {
+                    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+                      navigator.geolocation.getCurrentPosition(() => {}, () => {})
+                    }
+                  }
+                  router.push(dest)
+                }}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors mb-0.5 ${isActive ? 'bg-ash-700 text-white' : 'text-ash-400 hover:text-white hover:bg-ash-800'}`}
+              >
+                <RIcon className="w-3.5 h-3.5 shrink-0" />
+                <span className="capitalize flex-1 text-left">{r.replace('_', ' ')}</span>
+                {isActive && <span className="w-1.5 h-1.5 rounded-full bg-ember-400" />}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {/* Nav */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {nav.map(({ label, href, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(href + '/')
-          return (
+        {(role === 'caregiver' || role === 'evacuee') ? (
+          <>
+            {/* Caregiver section */}
             <button
-              key={href}
-              onClick={() => router.push(href === '/dashboard/settings' ? `/dashboard/settings?role=${role}` : href)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left
-                ${active
-                  ? 'bg-ash-800 text-white border-l-2 border-ember-500'
-                  : 'text-ash-400 hover:text-white hover:bg-ash-800'
-                }
-                ${collapsed ? 'justify-center' : ''}
-              `}
-              title={collapsed ? label : undefined}
+              onClick={() => !collapsed && setCaregiverOpen(v => !v)}
+              className={`w-full flex items-center gap-1 px-2 py-1.5 text-left group ${collapsed ? 'justify-center' : ''}`}
+              title={collapsed ? 'Caregiver' : undefined}
             >
-              <Icon className="w-4 h-4 shrink-0" />
-              {!collapsed && <span className="text-sm">{label}</span>}
+              {!collapsed && (
+                <>
+                  <Heart className="w-3 h-3 text-ash-600 shrink-0" />
+                  <span className="text-ash-600 text-xs font-semibold uppercase tracking-wider flex-1">Caregiver</span>
+                  {caregiverOpen ? <ChevronDown className="w-3 h-3 text-ash-600" /> : <ChevronRight className="w-3 h-3 text-ash-600" />}
+                </>
+              )}
+              {collapsed && <Heart className="w-3 h-3 text-ash-600" />}
             </button>
-          )
-        })}
+            {(caregiverOpen || collapsed) && [
+              { label: 'My Persons', href: '/dashboard/caregiver/persons', icon: Users },
+              { label: 'Early Fire Alert', href: '/dashboard/caregiver/alert', icon: AlertTriangle },
+              { label: 'Check-In', href: '/dashboard/caregiver/checkin', icon: Users },
+            ].map(({ label, href, icon: Icon }) => {
+              const active = pathname === href || pathname.startsWith(href + '/')
+              return (
+                <button key={href} onClick={() => router.push(href)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left ${active ? 'bg-ash-800 text-white border-l-2 border-ember-500' : 'text-ash-400 hover:text-white hover:bg-ash-800'} ${collapsed ? 'justify-center' : ''}`}
+                  title={collapsed ? label : undefined}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  {!collapsed && <span className="text-sm">{label}</span>}
+                </button>
+              )
+            })}
+
+            <div className="my-2 border-t border-ash-800/60" />
+
+            {/* Evacuee section */}
+            <button
+              onClick={() => !collapsed && setEvacueeOpen(v => !v)}
+              className={`w-full flex items-center gap-1 px-2 py-1.5 text-left group ${collapsed ? 'justify-center' : ''}`}
+              title={collapsed ? 'Evacuee' : undefined}
+            >
+              {!collapsed && (
+                <>
+                  <Shield className="w-3 h-3 text-ash-600 shrink-0" />
+                  <span className="text-ash-600 text-xs font-semibold uppercase tracking-wider flex-1">Evacuee</span>
+                  {evacueeOpen ? <ChevronDown className="w-3 h-3 text-ash-600" /> : <ChevronRight className="w-3 h-3 text-ash-600" />}
+                </>
+              )}
+              {collapsed && <Shield className="w-3 h-3 text-ash-600" />}
+            </button>
+            {(evacueeOpen || collapsed) && [
+              { label: 'My Alerts', href: '/dashboard/caregiver', icon: Bell },
+              { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: Map },
+              { label: 'Ask SAFE-PATH AI', href: '/dashboard/caregiver/ai', icon: Activity },
+            ].map(({ label, href, icon: Icon }) => {
+              const active = pathname === href
+              return (
+                <button key={href} onClick={() => router.push(href)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left ${active ? 'bg-ash-800 text-white border-l-2 border-amber-400' : 'text-ash-400 hover:text-white hover:bg-ash-800'} ${collapsed ? 'justify-center' : ''}`}
+                  title={collapsed ? label : undefined}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  {!collapsed && <span className="text-sm">{label}</span>}
+                </button>
+              )
+            })}
+
+            <div className="my-2 border-t border-ash-800/60" />
+            {/* Settings */}
+            {[{ label: 'Settings', href: '/dashboard/settings', icon: Settings }].map(({ label, href, icon: Icon }) => {
+              const active = pathname === href || pathname.startsWith(href + '/')
+              return (
+                <button key={href} onClick={() => router.push(`/dashboard/settings?role=${role}`)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left ${active ? 'bg-ash-800 text-white border-l-2 border-ember-500' : 'text-ash-400 hover:text-white hover:bg-ash-800'} ${collapsed ? 'justify-center' : ''}`}
+                  title={collapsed ? label : undefined}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  {!collapsed && <span className="text-sm">{label}</span>}
+                </button>
+              )
+            })}
+          </>
+        ) : (
+          nav.map(({ label, href, icon: Icon }) => {
+            const active = pathname === href || pathname.startsWith(href + '/')
+            return (
+              <button
+                key={href}
+                onClick={() => router.push(href === '/dashboard/settings' ? `/dashboard/settings?role=${role}` : href)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left
+                  ${active
+                    ? 'bg-ash-800 text-white border-l-2 border-ember-500'
+                    : 'text-ash-400 hover:text-white hover:bg-ash-800'
+                  }
+                  ${collapsed ? 'justify-center' : ''}
+                `}
+                title={collapsed ? label : undefined}
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                {!collapsed && <span className="text-sm">{label}</span>}
+              </button>
+            )
+          })
+        )}
       </nav>
 
       {/* User + signout */}
