@@ -82,6 +82,17 @@ export async function GET() {
 
     return NextResponse.json({ shelters, near_capacity })
   } catch {
-    return NextResponse.json({ shelters: [], near_capacity: 0, error: 'unavailable' })
+    // FEMA API unavailable — return demo data for development/preview
+    const demoShelters: Shelter[] = [
+      { name: 'Paradise Community Center', county: 'Butte', state: 'CA', lat: 39.759, lon: -121.619, capacity: 450, occupancy: 187, pct_full: 42 },
+      { name: 'Chico State Events Center', county: 'Butte', state: 'CA', lat: 39.728, lon: -121.845, capacity: 1200, occupancy: 1050, pct_full: 88 },
+      { name: 'Shasta County Fairgrounds', county: 'Shasta', state: 'CA', lat: 40.581, lon: -122.352, capacity: 600, occupancy: 210, pct_full: 35 },
+      { name: 'Oroville Veterans Memorial Hall', county: 'Butte', state: 'CA', lat: 39.514, lon: -121.556, capacity: 320, occupancy: 85, pct_full: 27 },
+      { name: 'Red Bluff Civic Center', county: 'Tehama', state: 'CA', lat: 40.178, lon: -122.236, capacity: 280, occupancy: 240, pct_full: 86 },
+      { name: 'Los Angeles Convention Center', county: 'Los Angeles', state: 'CA', lat: 34.040, lon: -118.270, capacity: 5000, occupancy: 2100, pct_full: 42 },
+      { name: 'Pasadena Rose Bowl', county: 'Los Angeles', state: 'CA', lat: 34.162, lon: -118.167, capacity: 2000, occupancy: 1800, pct_full: 90 },
+    ]
+    const near_capacity = demoShelters.filter(s => s.pct_full !== null && s.pct_full >= 80).length
+    return NextResponse.json({ shelters: demoShelters, near_capacity, demo: true })
   }
 }

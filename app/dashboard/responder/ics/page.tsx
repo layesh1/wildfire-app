@@ -424,6 +424,45 @@ export default function ICSBoardPage() {
   const unaccounted = board.personnel.filter(p => p.status === 'Unaccounted').length
   const parTotal = board.personnel.length
 
+  // ── LA County demo ────────────────────────────────────────────────────────
+
+  function loadLACountyDemo() {
+    const demoBoard: ICSBoard = {
+      incidentName: 'Palisades Fire — LA County',
+      acres: 23448,
+      containment: 14,
+      structuresThreatened: 1200,
+      divisions: [
+        { id: newId(), name: 'Division Alpha', crew: 'LACoFD Engine 23', crewSize: 4, status: 'On Scene', assignment: 'Structure protection — Pacific Palisades perimeter' },
+        { id: newId(), name: 'Division Bravo', crew: 'LAFD Brush 72', crewSize: 3, status: 'En Route', assignment: 'Containment line — Sunset Blvd corridor' },
+        { id: newId(), name: 'Air Operations', crew: 'Cal Fire Air Tanker 92', crewSize: 2, status: 'On Scene', assignment: 'Retardant drops — active head of fire' },
+        { id: newId(), name: 'Logistics', crew: 'FEMA Region 9 Strike Team', crewSize: 12, status: 'Staged', assignment: 'Base camp — Will Rogers State Beach' },
+      ],
+      personnel: [
+        { id: newId(), name: 'Chief Martinez (IC)', role: 'IC', assignment: 'Unified Command Post', status: 'On Scene', lastCheckin: new Date().toISOString() },
+        { id: newId(), name: 'Capt. Williams', role: 'Safety Officer', assignment: 'Division Alpha', status: 'On Scene', lastCheckin: new Date().toISOString() },
+        { id: newId(), name: 'Lt. Chen', role: 'Operations', assignment: 'Division Bravo', status: 'On Scene', lastCheckin: new Date().toISOString() },
+        { id: newId(), name: 'FF Garcia', role: 'Crew Member', assignment: 'Division Alpha', status: 'On Scene', lastCheckin: new Date().toISOString() },
+        { id: newId(), name: 'FF Thompson', role: 'Medical', assignment: 'Staging Area', status: 'Assigned', lastCheckin: new Date().toISOString() },
+      ],
+      apparatus: [
+        { id: newId(), unitId: 'Engine 23', type: 'Engine', status: 'Assigned', location: 'Pacific Palisades Perimeter' },
+        { id: newId(), unitId: 'Brush 72', type: 'Engine', status: 'Assigned', location: 'Sunset Blvd Corridor' },
+        { id: newId(), unitId: 'Air Tanker 92', type: 'Air Tanker', status: 'Assigned', location: 'Active Head of Fire' },
+        { id: newId(), unitId: 'Water Tender 15', type: 'Water Tender', status: 'Available', location: 'Will Rogers Base Camp' },
+        { id: newId(), unitId: 'Hand Crew 4', type: 'Hand Crew', status: 'Assigned', location: 'Containment Line — North Flank' },
+      ],
+      resourceRequests: [
+        { id: newId(), resourceType: 'Aircraft', quantity: 2, priority: 'Immediate', notes: 'Request additional air tankers for north flank', timestamp: new Date(Date.now() - 45 * 60000).toISOString(), fulfilled: false },
+        { id: newId(), resourceType: 'Crew', quantity: 3, priority: 'Routine', notes: 'Hand crews for mop-up operations', timestamp: new Date(Date.now() - 120 * 60000).toISOString(), fulfilled: true },
+      ],
+      notes: 'SITREP: Palisades Fire — Active spread NE toward Brentwood. Approx 1,200 structures under threat. Mandatory evac orders Zone A-C. Shelter: UCLA Drake Stadium (cap 2,400). SVI score for affected zip codes: 0.61 (moderate vulnerability). Monitor for spot fires ahead of main front due to Santa Ana wind event (45 mph gusts). Next Ops period briefing: 0600.',
+      lastSaved: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+    }
+    setBoard(demoBoard)
+    persist(demoBoard)
+  }
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
@@ -444,13 +483,22 @@ export default function ICSBoardPage() {
             </div>
           </div>
         </div>
-        <button
-          onClick={exportICS201}
-          className="flex items-center gap-2 px-4 py-2.5 bg-ember-500/10 border border-ember-500/30 rounded-xl hover:bg-ember-500/20 transition-colors text-ember-400 text-sm font-medium shrink-0"
-        >
-          <Download className="w-4 h-4" />
-          Export ICS-201 Summary
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={loadLACountyDemo}
+            className="flex items-center gap-2 px-4 py-2.5 bg-ash-800 border border-ash-700 rounded-xl hover:bg-ash-700 transition-colors text-ash-300 text-sm font-medium shrink-0"
+            title="Pre-populate with LA County Palisades Fire demo data"
+          >
+            Load Demo
+          </button>
+          <button
+            onClick={exportICS201}
+            className="flex items-center gap-2 px-4 py-2.5 bg-ember-500/10 border border-ember-500/30 rounded-xl hover:bg-ember-500/20 transition-colors text-ember-400 text-sm font-medium shrink-0"
+          >
+            <Download className="w-4 h-4" />
+            Export ICS-201 Summary
+          </button>
+        </div>
       </div>
 
       {/* Incident Name input */}
@@ -486,6 +534,13 @@ export default function ICSBoardPage() {
           </datalist>
         </div>
       </div>
+
+      {(board.incidentName.includes('Demo') || board.incidentName.includes('Palisades')) ? (
+        <div className="flex items-center gap-2 px-4 py-2.5 bg-signal-info/10 border border-signal-info/30 rounded-lg text-signal-info text-xs">
+          <Shield className="w-3.5 h-3.5 shrink-0" />
+          Demo mode — This is pre-populated training data based on the January 2025 Palisades Fire. Not a live incident.
+        </div>
+      ) : null}
 
       {/* ── Section 1: Situation Status ────────────────────────────────────── */}
       <section>
