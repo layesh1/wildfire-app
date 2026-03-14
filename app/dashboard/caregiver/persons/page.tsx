@@ -106,6 +106,8 @@ interface Person {
   relationship: Relationship
   mobility: Mobility
   phone: string
+  languages: string[]
+  notes: string
   status: CheckinStatus
   last_confirmed: string | null   // ISO string
   checkin_token: string | null
@@ -117,6 +119,23 @@ interface Person {
 
 const RELATIONSHIPS: Relationship[] = ['Parent', 'Client', 'Neighbor', 'Self', 'Other']
 const MOBILITIES: Mobility[] = ['Mobile Adult', 'Elderly', 'Disabled', 'No Vehicle', 'Medical Equipment']
+const PERSON_LANGUAGES = [
+  { code: 'en', label: 'English', flag: '🇺🇸' },
+  { code: 'es', label: 'Spanish', flag: '🇲🇽' },
+  { code: 'zh', label: 'Chinese', flag: '🇨🇳' },
+  { code: 'ar', label: 'Arabic', flag: '🇸🇦' },
+  { code: 'tl', label: 'Tagalog', flag: '🇵🇭' },
+  { code: 'vi', label: 'Vietnamese', flag: '🇻🇳' },
+  { code: 'ko', label: 'Korean', flag: '🇰🇷' },
+  { code: 'fr', label: 'French', flag: '🇫🇷' },
+  { code: 'de', label: 'German', flag: '🇩🇪' },
+  { code: 'pt', label: 'Portuguese', flag: '🇧🇷' },
+  { code: 'ru', label: 'Russian', flag: '🇷🇺' },
+  { code: 'hi', label: 'Hindi', flag: '🇮🇳' },
+  { code: 'fa', label: 'Farsi', flag: '🇮🇷' },
+  { code: 'ja', label: 'Japanese', flag: '🇯🇵' },
+  { code: 'other', label: 'Other', flag: '🌐' },
+]
 const LS_KEY = 'monitored_persons_v2'
 
 // ── Haversine ─────────────────────────────────────────────────────────────────
@@ -225,6 +244,8 @@ function emptyForm() {
     relationship: 'Parent' as Relationship,
     mobility: 'Mobile Adult' as Mobility,
     phone: '',
+    languages: [] as string[],
+    notes: '',
   }
 }
 
@@ -435,6 +456,8 @@ export default function PersonsPage() {
       relationship: form.relationship,
       mobility: form.mobility,
       phone: form.phone.trim(),
+      languages: form.languages,
+      notes: form.notes.trim(),
       status: 'unknown',
       last_confirmed: null,
       checkin_token: null,
@@ -675,6 +698,49 @@ export default function PersonsPage() {
                 />
               </div>
             </div>
+
+            {/* Languages */}
+            <div className="sm:col-span-2">
+              <label className="label">Languages spoken <span className="text-ash-600 font-normal">(click to select all that apply)</span></label>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {PERSON_LANGUAGES.map(l => {
+                  const selected = form.languages.includes(l.code)
+                  return (
+                    <button
+                      key={l.code}
+                      type="button"
+                      onClick={() => setForm(f => ({
+                        ...f,
+                        languages: selected
+                          ? f.languages.filter(c => c !== l.code)
+                          : [...f.languages, l.code]
+                      }))}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                        selected
+                          ? 'bg-ember-500/20 border-ember-500/50 text-ember-300'
+                          : 'bg-ash-800 border-ash-700 text-ash-400 hover:border-ash-600 hover:text-ash-300'
+                      }`}
+                    >
+                      <span>{l.flag}</span>
+                      <span>{l.label}</span>
+                      {selected && <span className="text-ember-400">✓</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Personal Notes */}
+            <div className="sm:col-span-2">
+              <label className="label">Personal notes <span className="text-ash-600 font-normal">(medical needs, sensitivities, other info)</span></label>
+              <textarea
+                value={form.notes}
+                onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                placeholder="e.g. needs nebulizer, nonverbal, has latex sensitivity, uses wheelchair, carries EpiPen..."
+                rows={3}
+                className="input resize-none font-normal"
+              />
+            </div>
           </div>
 
           {formError && (
@@ -739,6 +805,23 @@ export default function PersonsPage() {
                       <div className="flex items-center gap-1.5 mt-0.5 text-ash-600 text-xs">
                         <Phone className="w-3 h-3 shrink-0" />
                         {person.phone}
+                      </div>
+                    )}
+                    {person.languages && person.languages.length > 0 && (
+                      <div className="flex items-center gap-1 mt-1 flex-wrap">
+                        {person.languages.map(code => {
+                          const lang = PERSON_LANGUAGES.find(l => l.code === code)
+                          return lang ? (
+                            <span key={code} className="text-xs px-1.5 py-0.5 rounded bg-ash-800 border border-ash-700 text-ash-400">
+                              {lang.flag} {lang.label}
+                            </span>
+                          ) : null
+                        })}
+                      </div>
+                    )}
+                    {person.notes && (
+                      <div className="mt-1.5 px-2.5 py-1.5 rounded-lg bg-signal-warn/5 border border-signal-warn/20 text-xs text-ash-300 leading-relaxed">
+                        <span className="text-signal-warn font-medium">Note: </span>{person.notes}
                       </div>
                     )}
                   </div>

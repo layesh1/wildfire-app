@@ -119,6 +119,9 @@ export default function MLPredictorPage() {
   const [fireMode, setFireMode] = useState<'scenario' | 'active'>('scenario')
   const [currentAcres, setCurrentAcres] = useState(500)
   const [containmentPct, setContainmentPct] = useState(0)
+  const [censusLoading, setCensusLoading] = useState(false)
+  const [medianHomeValue, setMedianHomeValue] = useState<number | null>(null)
+  const [censusCounty, setCensusCounty] = useState('')
 
   async function fetchLocation() {
     if (!location.trim()) return
@@ -148,6 +151,42 @@ export default function MLPredictorPage() {
       setDetectedCounty(county ? county.replace(/\b\w/g, c => c.toUpperCase()) : null)
     }
     setLocationLoading(false)
+  }
+
+  async function fetchCensusValue(countyInput: string) {
+    setCensusLoading(true)
+    setMedianHomeValue(null)
+    try {
+      // Use Nominatim to get FIPS code, then Census ACS for median home value
+      const geoRes = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(countyInput + ' county')}&format=json&addressdetails=1&limit=1&countrycodes=us`,
+        { headers: { 'Accept-Language': 'en' } }
+      )
+      const geoData = await geoRes.json()
+      if (!geoData?.[0]?.address) { setCensusLoading(false); return }
+
+      const addr = geoData[0].address
+      // Get state FIPS from state code
+      const stateRes = await fetch(
+        `https://api.census.gov/data/2022/acs/acs5?get=NAME&for=state:*`
+      )
+      const stateData = await stateRes.json()
+      const stateRow = stateData?.find((row: string[]) => row[0]?.includes(addr.state))
+      const stateFips = stateRow?.[1]
+      if (!stateFips) { setCensusLoading(false); return }
+
+      // Fetch median home value (B25077_001E) for all counties in state
+      const countyRes = await fetch(
+        `https://api.census.gov/data/2022/acs/acs5?get=NAME,B25077_001E&for=county:*&in=state:${stateFips}`
+      )
+      const countyData = await countyRes.json()
+      const countyName = addr.county?.toLowerCase().replace(' county', '')
+      const match = countyData?.find((row: string[]) => row[0]?.toLowerCase().includes(countyName || ''))
+      if (match && match[1] && match[1] !== '-666666666') {
+        setMedianHomeValue(parseInt(match[1]))
+      }
+    } catch {}
+    setCensusLoading(false)
   }
 
   async function runPrediction() {
@@ -398,6 +437,52 @@ export default function MLPredictorPage() {
           </p>
         </div>
       )}
+
+      {/* Property Value at Risk — Census ACS (free) */}
+      <div className="card p-5 mt-6">
+        <div className="flex items-center gap-2 mb-3">
+          <TrendingUp className="w-4 h-4 text-signal-info" />
+          <h2 className="text-white font-semibold text-sm">Economic Impact Estimate</h2>
+          <span className="ml-auto text-ash-600 text-xs">US Census ACS 2022 · free</span>
+        </div>
+        <p className="text-ash-500 text-xs mb-3">Enter county name to estimate property values at risk using Census median home value data.</p>
+        <div className="flex gap-2 mb-4">
+          <input
+            type="text"
+            value={censusCounty}
+            onChange={e => setCensusCounty(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && fetchCensusValue(censusCounty)}
+            placeholder="e.g. Los Angeles CA, Butte CA, Boulder CO..."
+            className="flex-1 bg-ash-800 border border-ash-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-signal-info/60 placeholder:text-ash-600"
+          />
+          <button
+            onClick={() => fetchCensusValue(censusCounty)}
+            disabled={censusLoading || !censusCounty.trim()}
+            className="px-4 py-2 rounded-lg text-sm bg-signal-info/20 border border-signal-info/30 text-signal-info hover:bg-signal-info/30 transition-colors disabled:opacity-40"
+          >
+            {censusLoading ? '…' : 'Lookup'}
+          </button>
+        </div>
+        {medianHomeValue && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-ash-900 rounded-lg p-3 border border-ash-800 text-center">
+                <div className="font-display text-xl font-bold text-white">${(medianHomeValue / 1000).toFixed(0)}K</div>
+                <div className="text-ash-500 text-xs mt-0.5">Median home value</div>
+              </div>
+              <div className="bg-ash-900 rounded-lg p-3 border border-ash-800 text-center">
+                <div className="font-display text-xl font-bold text-signal-warn">${((medianHomeValue * 50) / 1e6).toFixed(0)}M+</div>
+                <div className="text-ash-500 text-xs mt-0.5">Est. 50 structures</div>
+              </div>
+              <div className="bg-ash-900 rounded-lg p-3 border border-ash-800 text-center">
+                <div className="font-display text-xl font-bold text-signal-danger">${((medianHomeValue * 500) / 1e6).toFixed(0)}M+</div>
+                <div className="text-ash-500 text-xs mt-0.5">Est. 500 structures</div>
+              </div>
+            </div>
+            <p className="text-ash-600 text-xs">Estimate = median home value × threatened structures. Source: Census ACS 2022, table B25077. Does not include commercial property, infrastructure, or indirect costs.</p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
