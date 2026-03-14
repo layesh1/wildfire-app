@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Shield, Flame, AlertTriangle, Activity, TrendingUp, Clock, ChevronRight, Wind, Droplets, Users, Truck, Radio, Map, ChevronDown, ChevronUp, Building2, ExternalLink } from 'lucide-react'
+import { Shield, Flame, AlertTriangle, Activity, TrendingUp, Clock, ChevronRight, Wind, Droplets, Users, Truck, Radio, Map, ChevronDown, ChevronUp, Building2, ExternalLink, ClipboardList } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
@@ -87,6 +87,137 @@ function fmtDate(iso: string): string {
   } catch {
     return iso
   }
+}
+
+// ─── Sub-component: Situation Report Header ──────────────────────────────────
+
+function SituationReportHeader() {
+  const [incidentName, setIncidentName] = useState('')
+  const [currentTime, setCurrentTime] = useState(new Date())
+  const [redFlagCount, setRedFlagCount] = useState<number | null>(null)
+  const [nifcCount, setNifcCount] = useState<number | null>(null)
+  const [shelterWarn, setShelterWarn] = useState<number | null>(null)
+  const [redFlagLoaded, setRedFlagLoaded] = useState(false)
+  const [nifcLoaded, setNifcLoaded] = useState(false)
+  const [shelterLoaded, setShelterLoaded] = useState(false)
+
+  // Load saved incident name
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('active_incident_name')
+      if (saved) setIncidentName(saved)
+    } catch {}
+  }, [])
+
+  // Tick clock every minute
+  useEffect(() => {
+    const t = setInterval(() => setCurrentTime(new Date()), 60000)
+    return () => clearInterval(t)
+  }, [])
+
+  // Fetch status chips
+  useEffect(() => {
+    fetch('/api/fires/redflags')
+      .then(r => r.json())
+      .then(d => setRedFlagCount(d.count ?? 0))
+      .catch(() => setRedFlagCount(0))
+      .finally(() => setRedFlagLoaded(true))
+
+    fetch('/api/fires/nifc')
+      .then(r => r.json())
+      .then(d => setNifcCount(Array.isArray(d.data) ? d.data.length : 0))
+      .catch(() => setNifcCount(0))
+      .finally(() => setNifcLoaded(true))
+
+    fetch('/api/shelters')
+      .then(r => r.json())
+      .then(d => setShelterWarn(d.near_capacity ?? 0))
+      .catch(() => setShelterWarn(0))
+      .finally(() => setShelterLoaded(true))
+  }, [])
+
+  function saveIncident(name: string) {
+    setIncidentName(name)
+    try { localStorage.setItem('active_incident_name', name) } catch {}
+  }
+
+  const timeStr = currentTime.toLocaleString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  })
+
+  return (
+    <div className="card p-5 mb-8">
+      <div className="flex items-center gap-2 text-ember-400 text-xs font-medium mb-4">
+        <Shield className="w-3.5 h-3.5" />
+        SITUATION REPORT
+        <span className="ml-auto flex items-center gap-1.5 text-ash-500 font-mono text-xs">
+          <Clock className="w-3 h-3" />
+          {timeStr}
+        </span>
+      </div>
+
+      {/* Incident name */}
+      <input
+        type="text"
+        value={incidentName}
+        onChange={e => saveIncident(e.target.value)}
+        placeholder="Active incident name (e.g. Caldor Fire)…"
+        className="w-full bg-ash-800 border border-ash-700 rounded-lg px-4 py-2.5 text-white text-base font-semibold focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600 transition-colors mb-4"
+      />
+
+      {/* Status chips */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* Red Flag */}
+        <div className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-xs font-medium ${
+          !redFlagLoaded ? 'bg-ash-900 border-ash-800 text-ash-500' :
+          redFlagCount && redFlagCount > 0
+            ? 'bg-signal-danger/10 border-signal-danger/30 text-signal-danger'
+            : 'bg-signal-safe/10 border-signal-safe/30 text-signal-safe'
+        }`}>
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+          {!redFlagLoaded ? 'Loading…' : redFlagCount && redFlagCount > 0
+            ? `${redFlagCount} Red Flag Warning${redFlagCount !== 1 ? 's' : ''}`
+            : 'No Red Flag Warnings'
+          }
+        </div>
+
+        {/* NIFC Active */}
+        <div className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-xs font-medium ${
+          !nifcLoaded ? 'bg-ash-900 border-ash-800 text-ash-500' :
+          nifcCount && nifcCount > 0
+            ? 'bg-ember-500/10 border-ember-500/30 text-ember-400'
+            : 'bg-ash-900 border-ash-800 text-ash-400'
+        }`}>
+          <Flame className="w-3.5 h-3.5 shrink-0" />
+          {!nifcLoaded ? 'Loading…' : `${nifcCount ?? 0} NIFC Active`}
+        </div>
+
+        {/* Nearest Weather */}
+        <Link
+          href="#weather"
+          className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-signal-info/30 bg-signal-info/10 text-signal-info text-xs font-medium hover:bg-signal-info/20 transition-colors"
+        >
+          <Wind className="w-3.5 h-3.5 shrink-0" />
+          View Weather ↓
+        </Link>
+
+        {/* Shelters */}
+        <div className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-xs font-medium ${
+          !shelterLoaded ? 'bg-ash-900 border-ash-800 text-ash-500' :
+          shelterWarn && shelterWarn > 0
+            ? 'bg-signal-warn/10 border-signal-warn/30 text-signal-warn'
+            : 'bg-signal-safe/10 border-signal-safe/30 text-signal-safe'
+        }`}>
+          <Building2 className="w-3.5 h-3.5 shrink-0" />
+          {!shelterLoaded ? 'Loading…' : shelterWarn && shelterWarn > 0
+            ? `${shelterWarn} shelter${shelterWarn !== 1 ? 's' : ''} near capacity`
+            : 'Shelters OK'
+          }
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ─── Sub-component: Red Flag Warnings ────────────────────────────────────────
@@ -473,6 +604,10 @@ export default function ResponderDashboard() {
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
+
+      {/* Situation Report Header */}
+      <SituationReportHeader />
+
       <div className="mb-8">
         <div className="flex items-center gap-2 text-red-400 text-sm font-medium mb-3">
           <Shield className="w-4 h-4" />
@@ -498,7 +633,7 @@ export default function ResponderDashboard() {
       </div>
 
       {/* Quick nav */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {QUICK_NAV.map(({ label, href, icon: Icon, badge, badgeColor }) => (
           <Link key={href} href={href} className="card p-5 hover:bg-ash-800 transition-all hover:scale-[1.02] group">
             <div className="flex items-center justify-between mb-3">
@@ -511,7 +646,16 @@ export default function ResponderDashboard() {
         ))}
       </div>
 
-      {/* Red Flag Warnings — added section */}
+      {/* ICS Board CTA */}
+      <Link href="/dashboard/responder/ics" className="block w-full p-4 bg-ember-500/10 border border-ember-500/30 rounded-xl hover:bg-ember-500/20 transition-colors text-center mb-8">
+        <span className="text-ember-400 font-semibold flex items-center justify-center gap-2">
+          <ClipboardList className="w-4 h-4" />
+          Open ICS Incident Board →
+        </span>
+        <p className="text-ash-400 text-sm mt-1">Track sectors, personnel, apparatus, and resource requests</p>
+      </Link>
+
+      {/* Red Flag Warnings — TIME-CRITICAL: shown above NFDRS scale */}
       <RedFlagSection />
 
       <div className="grid md:grid-cols-2 gap-6 mb-8">
@@ -585,7 +729,7 @@ export default function ResponderDashboard() {
         </div>
 
         {/* Weather Conditions */}
-        <div className="card p-5">
+        <div id="weather" className="card p-5">
           <div className="flex items-center gap-2 mb-3">
             <Wind className="w-4 h-4 text-signal-info" />
             <h2 className="text-white font-semibold text-sm">Current Conditions</h2>

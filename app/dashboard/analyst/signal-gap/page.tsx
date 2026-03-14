@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { AlertTriangle, TrendingUp, Clock, MapPin, ChevronRight, Search, Table2, Map } from 'lucide-react'
+import { AlertTriangle, TrendingUp, Clock, MapPin, ChevronRight, Search, Table2, Map, Download, Code } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 
 const KEY_FINDINGS = [
@@ -147,6 +147,20 @@ const STATE_CONTEXT: Record<string, string> = {
   ND: 'North Dakota has the fastest median response nationally — benefits from flat terrain and open radio.',
   LA: 'Louisiana has high SVI statewide and outdated emergency alert infrastructure in rural parishes.',
   MS: 'Mississippi has the second-highest average SVI nationally; alert system gaps are severe in Delta region.',
+}
+
+function exportSignalGapCsv(stateData: { state: string; median_delay_hours: number; fire_count: number; avg_svi: number }[]) {
+  const header = 'state,median_delay_hours,fire_count,avg_svi\n'
+  const rows = stateData.map(r =>
+    [r.state, r.median_delay_hours, r.fire_count, r.avg_svi ?? ''].join(',')
+  ).join('\n')
+  const blob = new Blob([header + rows], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'signal-gap-by-state.csv'
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 type ViewMode = 'overview' | 'all-states' | 'counties'
@@ -299,7 +313,17 @@ export default function SignalGapPage() {
           <div className="grid md:grid-cols-2 gap-6 mb-6">
             {/* State bar chart */}
             <div className="card p-6">
-              <h3 className="font-display text-lg font-bold text-white mb-1">Median Delay by State (Top 15)</h3>
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <h3 className="font-display text-lg font-bold text-white">Median Delay by State (Top 15)</h3>
+                <button
+                  onClick={() => exportSignalGapCsv(gapData)}
+                  disabled={!gapData.length}
+                  className="flex items-center gap-1.5 text-xs text-ash-400 hover:text-white border border-ash-700 hover:border-ash-500 rounded-lg px-2.5 py-1.5 transition-colors shrink-0 disabled:opacity-40"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Export CSV
+                </button>
+              </div>
               <p className="text-ash-500 text-xs mb-1">Click a bar to see state detail below · Switch to "All States" for full list</p>
               <div className="flex gap-3 mb-4">
                 {[['#ef4444','High SVI'],['#f59e0b','Medium'],['#22c55e','Low SVI']].map(([c, l]) => (
@@ -562,6 +586,83 @@ export default function SignalGapPage() {
           <p className="text-ash-600 text-xs mt-3">
             {COUNTY_DATA.length} counties from WiDS dataset · SVI from CDC Social Vulnerability Index · Color = SVI tier
           </p>
+        </div>
+      )}
+    {/* API Reference */}
+    <ApiReference />
+    </div>
+  )
+}
+
+function ApiReference() {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="card overflow-hidden">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-ash-800/30 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Code className="w-4 h-4 text-signal-info" />
+          <span className="font-semibold text-white text-sm">Data Sources &amp; API Reference</span>
+        </div>
+        <ChevronRight className={`w-4 h-4 text-ash-500 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+      {open && (
+        <div className="px-6 pb-6 space-y-5 text-sm border-t border-ash-800 pt-4">
+          <p className="text-ash-400">
+            This dashboard synthesizes data from four primary sources. Below are the APIs, schemas, and usage notes for replication or integration.
+          </p>
+          <div className="grid md:grid-cols-2 gap-4">
+            {[
+              {
+                name: 'Watch Duty / WiDS Dataset',
+                desc: '62,696 fire incidents 2021–2025 with evacuation order timestamps, notification type, and spread rates.',
+                endpoint: 'Internal CSV — fire_events_with_svi_and_delays.csv',
+                fields: 'geo_event_id, notification_type, fire_start, first_order_at, hours_to_order, evacuation_occurred, county_fips',
+                note: 'Not publicly available. Contact WiDS 2025 for access.'
+              },
+              {
+                name: 'CDC Social Vulnerability Index',
+                desc: 'County-level composite vulnerability score (0–1) across 4 sub-themes: socioeconomic, household, minority, housing.',
+                endpoint: 'https://www.atsdr.cdc.gov/placeandhealth/svi/data_documentation_download.html',
+                fields: 'FIPS, RPL_THEMES, RPL_THEME1–4, EP_AGE65, EP_DISABL, EP_NOVEH',
+                note: 'Updated every 2 years. Current data: 2022.'
+              },
+              {
+                name: 'NIFC Active Fire Perimeters',
+                desc: 'National Interagency Fire Center GeoJSON of active fire incident polygons with IRWINID linkage.',
+                endpoint: 'https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/Active_Fires/FeatureServer/0/query',
+                fields: 'IncidentName, IncidentTypeCategory, GISAcres, DateCurrent, IrwinID, PerimeterCategory',
+                note: 'Public API. No auth required. Updates every 15 min.'
+              },
+              {
+                name: 'NOAA NWS Red Flag Warnings',
+                desc: 'Active fire weather alerts (Red Flag Warnings, Fire Weather Watches) with geometry.',
+                endpoint: 'https://api.weather.gov/alerts/active?event=Red%20Flag%20Warning',
+                fields: 'properties.areaDesc, properties.severity, properties.onset, geometry.coordinates',
+                note: 'Free, public. JSON-LD format. Proxied via /api/fires/redflags.'
+              },
+            ].map(src => (
+              <div key={src.name} className="bg-ash-800/40 border border-ash-700 rounded-xl p-4">
+                <div className="font-semibold text-white text-xs mb-1">{src.name}</div>
+                <p className="text-ash-400 text-xs mb-2">{src.desc}</p>
+                <div className="bg-ash-900 rounded-lg px-3 py-2 font-mono text-xs text-signal-info break-all mb-2">{src.endpoint}</div>
+                <div className="text-ash-500 text-xs"><span className="text-ash-400">Fields:</span> {src.fields}</div>
+                <div className="text-ash-600 text-xs mt-1 italic">{src.note}</div>
+              </div>
+            ))}
+          </div>
+          <div className="bg-ash-800/40 border border-ash-700 rounded-xl p-4">
+            <div className="font-semibold text-white text-xs mb-2">Methodology Notes</div>
+            <ul className="text-ash-400 text-xs space-y-1.5 list-disc list-inside">
+              <li><strong className="text-ash-300">Signal gap</strong> = time between first satellite/sensor detection and first official evacuation order (hours_to_order)</li>
+              <li><strong className="text-ash-300">Silent fire</strong> = notification_type = &ldquo;silent&rdquo; in Watch Duty API (no push alert issued to residents)</li>
+              <li><strong className="text-ash-300">Delay disparity</strong> = computed as median delay in high-SVI counties (SVI &gt; 0.7) vs. low-SVI (&lt; 0.4)</li>
+              <li><strong className="text-ash-300">Extreme spread</strong> = last_spread_rate = &ldquo;extreme&rdquo; in WiDS dataset (~298 incidents)</li>
+              <li>SVI correlation with delay computed using Pearson r on county aggregates (n=1,016)</li>
+            </ul>
+          </div>
         </div>
       )}
     </div>
