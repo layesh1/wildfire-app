@@ -48,7 +48,7 @@ interface LiveFire extends FirePoint {
 }
 
 export default function AnalystMapPage() {
-  const [tab, setTab] = useState<'live' | 'wids'>('wids')
+  const [tab, setTab] = useState<'live' | 'wids'>('live')
   const [selected, setSelected] = useState<FirePoint | null>(null)
 
   // WiDS filters
@@ -84,9 +84,10 @@ export default function AnalystMapPage() {
     setLiveFetched(true)
   }
 
+  // Fetch live fires on mount (tab defaults to 'live')
   useEffect(() => {
-    if (tab === 'live' && !liveFetched) void fetchLive()
-  }, [tab, liveFetched])
+    void fetchLive()
+  }, []) // eslint-disable-line
 
   const liveStates = ['All', ...Array.from(new Set(liveFires.map(f => f.state))).sort()]
   const filteredLive = liveFires.filter(f => liveStateFilter === 'All' || f.state === liveStateFilter)
