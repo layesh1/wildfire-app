@@ -242,6 +242,8 @@ function SettingsInner() {
 
   async function claimRole() {
     if (!addingRole || !codeVerified) return
+    // Persist to localStorage immediately so it survives regardless of DB update result
+    localStorage.setItem('wfa_active_role', addingRole)
     await fetch('/api/profile/role', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

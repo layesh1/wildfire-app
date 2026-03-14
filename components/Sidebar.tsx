@@ -89,17 +89,20 @@ export default function Sidebar({ user, profile }: Props) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [langOpen])
 
-  // Infer role from URL path; for non-role-specific paths (like /settings),
-  // fall back to localStorage so the last active role is remembered
+  // Infer role from URL path; caregiver is ambiguous (it's the default) so
+  // only override localStorage for the two non-default roles.
+  const storedRole = typeof window !== 'undefined' ? localStorage.getItem('wfa_active_role') : null
+
   const urlRole = pathname.startsWith('/dashboard/responder') ? 'emergency_responder'
     : pathname.startsWith('/dashboard/analyst') ? 'data_analyst'
-    : pathname.startsWith('/dashboard/caregiver') ? 'caregiver'
-    : null
-  // Sync to localStorage whenever URL tells us the role
+    : null   // caregiver URLs do NOT override localStorage — they are the default fallback
+
+  // Only write to localStorage when a non-caregiver role is active in the URL
   if (urlRole && typeof window !== 'undefined') {
     localStorage.setItem('wfa_active_role', urlRole)
   }
-  const storedRole = typeof window !== 'undefined' ? localStorage.getItem('wfa_active_role') : null
+
+  // Priority: explicit non-caregiver URL > localStorage (persisted claimed role) > DB role > default
   const role = urlRole || storedRole || profile?.role || 'caregiver'
   const nav = NAV_BY_ROLE[role] || NAV_BY_ROLE.caregiver
   const RoleIcon = ROLE_ICONS[role] || Heart

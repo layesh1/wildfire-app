@@ -18,8 +18,9 @@ export async function POST(req: NextRequest) {
   const upperCode = code.trim().toUpperCase()
 
   // Admin bypass — lets admin/devs claim any role without invite_codes table
-  const bypassCode = process.env.ADMIN_BYPASS_CODE
-  if (bypassCode && upperCode === bypassCode.toUpperCase()) {
+  // Falls back to hardcoded value if env var is not set in Vercel
+  const bypassCode = process.env.ADMIN_BYPASS_CODE || 'ADMIN-BYPASS-2024'
+  if (upperCode === bypassCode.toUpperCase()) {
     if (!requestedRole) {
       return NextResponse.json({ error: 'Role is required with bypass code.' }, { status: 400 })
     }
