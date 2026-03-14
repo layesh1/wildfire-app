@@ -1,5 +1,7 @@
 'use client'
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
+import { useEffect } from 'react'
+import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet'
+import type { LatLngBoundsExpression } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 export interface FirePoint {
@@ -10,12 +12,10 @@ export interface FirePoint {
   acres: number
   lat: number
   lng: number
-  // WiDS fields (optional in live mode)
   svi?: number
   has_order?: boolean
   gap_hours?: number | null
   spread_rate?: string
-  // NIFC live fields (optional in WiDS mode)
   contained_pct?: number
   cause?: string
   is_live?: boolean
@@ -26,8 +26,7 @@ interface Props {
   fires: FirePoint[]
   selected: FirePoint | null
   onSelect: (f: FirePoint | null) => void
-  center?: [number, number]
-  zoom?: number
+  fitKey?: string // change this to trigger a fitBounds on filtered fires
 }
 
 function getColor(fire: FirePoint): string {
@@ -39,17 +38,36 @@ function getColor(fire: FirePoint): string {
     return '#ef4444'
   }
   if (!fire.has_order) return '#ef4444'
-  const svi = fire.svi ?? 0
-  if (svi >= 0.7) return '#f59e0b'
-  return '#22c55e'
+  return (fire.svi ?? 0) >= 0.7 ? '#f59e0b' : '#22c55e'
 }
 
-export default function FirePointMap({ fires, selected, onSelect, center = [40, -116], zoom = 5 }: Props) {
+// Inner component — has access to the Leaflet map instance
+function BoundsController({ fires, fitKey }: { fires: FirePoint[]; fitKey?: string }) {
+  const map = useMap()
+  useEffect(() => {
+    if (!fires.length) return
+    if (!fitKey || fitKey === 'All') {
+      // Reset to CONUS view
+      map.setView([40, -98], 4, { animate: true })
+      return
+    }
+    const lats = fires.map(f => f.lat)
+    const lngs = fires.map(f => f.lng)
+    const bounds: LatLngBoundsExpression = [
+      [Math.min(...lats) - 0.5, Math.min(...lngs) - 0.5],
+      [Math.max(...lats) + 0.5, Math.max(...lngs) + 0.5],
+    ]
+    map.fitBounds(bounds, { animate: true, padding: [30, 30] })
+  }, [fitKey]) // eslint-disable-line
+  return null
+}
+
+export default function FirePointMap({ fires, selected, onSelect, fitKey }: Props) {
   return (
     <div style={{ height: 460, borderRadius: 8, overflow: 'hidden', border: '1px solid #30363d' }}>
       <MapContainer
-        center={center}
-        zoom={zoom}
+        center={[40, -98]}
+        zoom={4}
         style={{ height: '100%', width: '100%' }}
         scrollWheelZoom={true}
       >
@@ -57,6 +75,7 @@ export default function FirePointMap({ fires, selected, onSelect, center = [40, 
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         />
+        <BoundsController fires={fires} fitKey={fitKey} />
         {fires.map(fire => {
           const color = getColor(fire)
           const r = Math.max(6, Math.min(22, (fire.acres / 25000) + 6))
@@ -78,17 +97,19 @@ export default function FirePointMap({ fires, selected, onSelect, center = [40, 
                 <div style={{ minWidth: 160 }}>
                   <strong>{fire.name}</strong>
                   {fire.county && <><br />{fire.county} Co., {fire.state}</>}
-                  <br />{fire.acres.toLocaleString()} acres
+                  <br />{fire.acres > 0 ? `${fire.acres.toLocaleString()} acres` : 'Acreage TBD'}
                   {fire.is_live && fire.contained_pct != null && (
                     <><br /><span style={{ color: fire.contained_pct >= 50 ? '#22c55e' : '#f97316' }}>
                       {fire.contained_pct}% contained
                     </span></>
                   )}
-                  {fire.is_live && fire.cause && <><br />Cause: {fire.cause}</>}
+                  {fire.is_live && fire.cause && fire.cause !== 'Unknown' && <><br />Cause: {fire.cause}</>}
                   {!fire.is_live && fire.svi != null && <><br />SVI: {fire.svi.toFixed(2)}</>}
-                  {!fire.is_live && <><br />Evac order: {fire.has_order ? `Yes` : 'No'}{fire.gap_hours ? ` (${fire.gap_hours}h gap)` : ''}</>}
+                  {!fire.is_live && <><br />Evac order: {fire.has_order ? 'Yes' : 'No'}{fire.gap_hours ? ` (${fire.gap_hours}h gap)` : ''}</>}
                   {fire.spread_rate && <><br />Spread: {fire.spread_rate}</>}
-                  {fire.updated && <><br /><span style={{ color: '#888', fontSize: '0.75em' }}>Updated: {new Date(fire.updated).toLocaleDateString()}</span></>}
+                  {fire.updated && <><br /><span style={{ color: '#888', fontSize: '0.75em' }}>
+                    Updated: {new Date(fire.updated).toLocaleString()}
+                  </span></>}
                 </div>
               </Popup>
             </CircleMarker>
