@@ -1,15 +1,6 @@
 import { NextResponse } from 'next/server'
 
-// NIFC EGP Active Incidents — public view, no token required
-// Field names confirmed from live schema inspection
-const NIFC_URL =
-  'https://services3.arcgis.com/T4QMspbfLg3qTGWY/ArcGIS/rest/services/EGP_Active_Incidents_Prod_Public_View/FeatureServer/0/query' +
-  '?where=1%3D1' +
-  '&outFields=Name,POOState,County,PercentContained,Cause,DailyAcres,DiscoveryAcres,CalculatedAcres,Incident_Type_Kind,UniqueFireIdentifier,Last_Time_Information_Modified,Discovery_Date' +
-  '&returnGeometry=true' +
-  '&outSR=4326' +
-  '&f=json' +
-  '&resultRecordCount=300'
+const BASE = 'https://services3.arcgis.com/T4QMspbfLg3qTGWY/ArcGIS/rest/services/EGP_Active_Incidents_Prod_Public_View/FeatureServer/0/query'
 
 export interface ActiveFire {
   id: string
@@ -25,62 +16,64 @@ export interface ActiveFire {
   updated: string | null
 }
 
-// Normalize state values like "US-FL" → "FL"
 function normalizeState(raw: string): string {
-  if (!raw) return ''
-  return raw.replace(/^US-/, '').trim()
+  return raw ? raw.replace(/^US-/, '').trim() : ''
 }
 
 export async function GET() {
+  const params = new URLSearchParams({
+    where: '1=1',
+    outFields: 'Name,POOState,County,PercentContained,Cause,DailyAcres,CalculatedAcres,DiscoveryAcres,UniqueFireIdentifier,Last_Time_Information_Modified',
+    returnGeometry: 'true',
+    outSR: '4326',
+    f: 'json',
+    resultRecordCount: '300',
+  })
+
+  const url = `${BASE}?${params.toString()}`
+
   try {
-    const res = await fetch(NIFC_URL, {
-      cache: 'no-store', // always fresh — NIFC data changes frequently
-      headers: { 'User-Agent': 'WildFireApp/1.0' },
-    })
+    const res = await fetch(url, { cache: 'no-store' })
+    const text = await res.text()
 
-    if (!res.ok) {
-      return NextResponse.json({ error: 'NIFC unavailable', fires: [] }, { status: 200 })
+    // Return raw snippet for debugging if empty
+    let json: Record<string, unknown>
+    try {
+      json = JSON.parse(text)
+    } catch {
+      return NextResponse.json({
+        fires: [], error: 'JSON parse failed', raw_snippet: text.slice(0, 300),
+      })
     }
-
-    const json = await res.json()
 
     if (json?.error) {
-      return NextResponse.json({ error: json.error.message ?? 'NIFC error', fires: [] }, { status: 200 })
+      return NextResponse.json({
+        fires: [], error: String((json.error as Record<string,unknown>)?.message ?? json.error),
+        raw_snippet: text.slice(0, 300),
+      })
     }
 
-    const features: unknown[] = json?.features ?? []
+    const features = (json?.features as unknown[]) ?? []
 
     const fires: ActiveFire[] = features
       .map((f: unknown) => {
-        const feature = f as {
-          attributes: Record<string, unknown>
-          geometry?: { x?: number; y?: number }
-        }
-        const attrs = feature.attributes
-
-        const lat = Number(feature.geometry?.y ?? 0)
-        const lng = Number(feature.geometry?.x ?? 0)
+        const feat = f as { attributes: Record<string, unknown>; geometry?: { x?: number; y?: number } }
+        const a = feat.attributes
+        const lat = Number(feat.geometry?.y ?? 0)
+        const lng = Number(feat.geometry?.x ?? 0)
         if (!lat || !lng || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null
-
-        // Best acreage field: DailyAcres > CalculatedAcres > DiscoveryAcres
-        const acres = Number(attrs.DailyAcres ?? attrs.CalculatedAcres ?? attrs.DiscoveryAcres ?? 0)
-
-        // Last_Time_Information_Modified is a Unix ms timestamp
-        const updatedMs = attrs.Last_Time_Information_Modified
-        const updated = updatedMs ? new Date(Number(updatedMs)).toISOString() : null
-
+        const acres = Number(a.DailyAcres ?? a.CalculatedAcres ?? a.DiscoveryAcres ?? 0)
+        const updatedMs = Number(a.Last_Time_Information_Modified)
         return {
-          id: String(attrs.UniqueFireIdentifier ?? `${lat}-${lng}-${Math.random()}`),
-          name: String(attrs.Name ?? 'Unknown Fire').trim(),
-          state: normalizeState(String(attrs.POOState ?? '')),
-          county: String(attrs.County ?? '').trim(),
-          lat,
-          lng,
-          acres,
-          contained_pct: Number(attrs.PercentContained ?? 0),
-          cause: String(attrs.Cause ?? 'Unknown').trim(),
-          type: String(attrs.Incident_Type_Kind ?? 'WF'),
-          updated,
+          id: String(a.UniqueFireIdentifier ?? `${lat}_${lng}`),
+          name: String(a.Name ?? 'Unknown').trim(),
+          state: normalizeState(String(a.POOState ?? '')),
+          county: String(a.County ?? '').trim(),
+          lat, lng, acres,
+          contained_pct: Number(a.PercentContained ?? 0),
+          cause: String(a.Cause ?? 'Unknown').trim(),
+          type: 'WF',
+          updated: updatedMs ? new Date(updatedMs).toISOString() : null,
         } as ActiveFire
       })
       .filter(Boolean) as ActiveFire[]
@@ -90,9 +83,10 @@ export async function GET() {
       total_features: features.length,
       source: 'NIFC EGP',
       fetched_at: new Date().toISOString(),
+      // debug: include raw snippet if fires is empty so we can diagnose
+      ...(fires.length === 0 && { raw_snippet: text.slice(0, 500) }),
     })
   } catch (err) {
-    console.error('Active fires fetch error:', err)
-    return NextResponse.json({ error: 'Fetch failed', fires: [] }, { status: 200 })
+    return NextResponse.json({ fires: [], error: String(err) })
   }
 }
