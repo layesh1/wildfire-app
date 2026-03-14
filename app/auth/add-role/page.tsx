@@ -156,13 +156,6 @@ function AddRoleForm() {
               {error && (
                 <p className="text-signal-danger text-sm mt-2">{error}</p>
               )}
-              <div className="mt-4 p-3 rounded-lg bg-ash-800/60 border border-ash-700">
-                <p className="text-ash-500 text-xs leading-relaxed">
-                  <span className="text-ash-400 font-medium">Demo / Testing:</span> Use bypass code{' '}
-                  <code className="px-1.5 py-0.5 rounded bg-ash-700 text-ember-400 font-mono text-xs">WIDS-DEMO-2025</code>{' '}
-                  to access any role for evaluation. Contact your admin for a permanent invite code.
-                </p>
-              </div>
             </>
           ) : (
             <div className="space-y-4">

@@ -167,30 +167,45 @@ export default function Sidebar({ user, profile }: Props) {
         </div>
       )}
 
-      {/* Multi-role switcher */}
-      {!collapsed && claimedRoles.length > 1 && (
+      {/* Dashboard switcher — always visible */}
+      {!collapsed && (
         <div className="px-3 py-2 border-b border-ash-800">
           <p className="text-ash-600 text-xs uppercase tracking-wider mb-1.5">My Dashboards</p>
-          {claimedRoles.map((r) => {
-            const RIcon = ROLE_ICONS[r] || Heart
+          {[
+            { r: 'caregiver', label: 'Caregiver', dest: '/dashboard/caregiver', Icon: Heart },
+            { r: 'emergency_responder', label: 'Responder', dest: '/dashboard/responder', Icon: Shield },
+            { r: 'data_analyst', label: 'Data Analyst', dest: '/dashboard/analyst', Icon: BarChart3 },
+          ].map(({ r, label, dest, Icon }) => {
             const isActive = r === role
-            const dest = r === 'emergency_responder' ? '/dashboard/responder' : r === 'data_analyst' ? '/dashboard/analyst' : '/dashboard/caregiver'
+            const isClaimed = claimedRoles.includes(r)
             return (
               <button
                 key={r}
                 onClick={() => {
-                  if (r === 'caregiver' || r === 'emergency_responder') {
-                    if (typeof navigator !== 'undefined' && navigator.geolocation) {
-                      navigator.geolocation.getCurrentPosition(() => {}, () => {})
+                  if (isClaimed) {
+                    if (r === 'caregiver' || r === 'emergency_responder') {
+                      if (typeof navigator !== 'undefined' && navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(() => {}, () => {})
+                      }
                     }
+                    router.push(dest)
+                  } else {
+                    router.push(`/auth/add-role?role=${r}`)
                   }
-                  router.push(dest)
                 }}
-                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors mb-0.5 ${isActive ? 'bg-ash-700 text-white' : 'text-ash-400 hover:text-white hover:bg-ash-800'}`}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors mb-0.5 ${
+                  isActive
+                    ? 'bg-ash-700 text-white'
+                    : isClaimed
+                      ? 'text-ash-400 hover:text-white hover:bg-ash-800'
+                      : 'text-ash-700 hover:text-ash-500 hover:bg-ash-800/50'
+                }`}
+                title={!isClaimed ? `Add ${label} access` : undefined}
               >
-                <RIcon className="w-3.5 h-3.5 shrink-0" />
-                <span className="capitalize flex-1 text-left">{r.replace('_', ' ')}</span>
+                <Icon className="w-3.5 h-3.5 shrink-0" />
+                <span className="flex-1 text-left">{label}</span>
                 {isActive && <span className="w-1.5 h-1.5 rounded-full bg-ember-400" />}
+                {!isClaimed && <span className="text-ash-700 text-xs">+</span>}
               </button>
             )
           })}

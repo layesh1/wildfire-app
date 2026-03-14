@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 interface Shelter {
   name: string
@@ -18,7 +18,10 @@ const FEMA_URL =
   '&f=json' +
   '&resultRecordCount=100'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
+  const stateFilter = searchParams.get('state')?.toUpperCase() || null
+
   try {
     const res = await fetch(FEMA_URL, {
       headers: { Accept: 'application/json' },
@@ -76,23 +79,45 @@ export async function GET() {
       })
     }
 
-    const near_capacity = shelters.filter(
+    const filtered = stateFilter ? shelters.filter(s => s.state?.toUpperCase() === stateFilter) : shelters
+
+    const near_capacity = filtered.filter(
       s => s.pct_full !== null && s.pct_full >= 80
     ).length
 
-    return NextResponse.json({ shelters, near_capacity })
+    return NextResponse.json({ shelters: filtered, near_capacity })
   } catch {
-    // FEMA API unavailable — return demo data for development/preview
     const demoShelters: Shelter[] = [
+      // California
       { name: 'Paradise Community Center', county: 'Butte', state: 'CA', lat: 39.759, lon: -121.619, capacity: 450, occupancy: 187, pct_full: 42 },
       { name: 'Chico State Events Center', county: 'Butte', state: 'CA', lat: 39.728, lon: -121.845, capacity: 1200, occupancy: 1050, pct_full: 88 },
       { name: 'Shasta County Fairgrounds', county: 'Shasta', state: 'CA', lat: 40.581, lon: -122.352, capacity: 600, occupancy: 210, pct_full: 35 },
-      { name: 'Oroville Veterans Memorial Hall', county: 'Butte', state: 'CA', lat: 39.514, lon: -121.556, capacity: 320, occupancy: 85, pct_full: 27 },
-      { name: 'Red Bluff Civic Center', county: 'Tehama', state: 'CA', lat: 40.178, lon: -122.236, capacity: 280, occupancy: 240, pct_full: 86 },
       { name: 'Los Angeles Convention Center', county: 'Los Angeles', state: 'CA', lat: 34.040, lon: -118.270, capacity: 5000, occupancy: 2100, pct_full: 42 },
-      { name: 'Pasadena Rose Bowl', county: 'Los Angeles', state: 'CA', lat: 34.162, lon: -118.167, capacity: 2000, occupancy: 1800, pct_full: 90 },
+      { name: 'Pasadena Rose Bowl Shelter', county: 'Los Angeles', state: 'CA', lat: 34.162, lon: -118.167, capacity: 2000, occupancy: 1800, pct_full: 90 },
+      { name: 'San Diego Convention Center', county: 'San Diego', state: 'CA', lat: 32.706, lon: -117.162, capacity: 3000, occupancy: 1200, pct_full: 40 },
+      // Oregon
+      { name: 'Medford Expo Center', county: 'Jackson', state: 'OR', lat: 42.342, lon: -122.856, capacity: 800, occupancy: 320, pct_full: 40 },
+      { name: 'Klamath County Fairgrounds', county: 'Klamath', state: 'OR', lat: 42.215, lon: -121.782, capacity: 500, occupancy: 440, pct_full: 88 },
+      { name: 'Eugene Hult Center', county: 'Lane', state: 'OR', lat: 44.049, lon: -123.094, capacity: 700, occupancy: 180, pct_full: 26 },
+      // Washington
+      { name: 'Yakima Fairgrounds', county: 'Yakima', state: 'WA', lat: 46.596, lon: -120.505, capacity: 900, occupancy: 630, pct_full: 70 },
+      { name: 'Spokane Convention Center', county: 'Spokane', state: 'WA', lat: 47.658, lon: -117.424, capacity: 1500, occupancy: 450, pct_full: 30 },
+      // Colorado
+      { name: 'Boulder County Fairgrounds', county: 'Boulder', state: 'CO', lat: 40.050, lon: -105.227, capacity: 400, occupancy: 340, pct_full: 85 },
+      { name: 'Colorado Springs City Auditorium', county: 'El Paso', state: 'CO', lat: 38.835, lon: -104.821, capacity: 600, occupancy: 220, pct_full: 37 },
+      // Arizona
+      { name: 'Flagstaff Coconino Fairgrounds', county: 'Coconino', state: 'AZ', lat: 35.185, lon: -111.631, capacity: 350, occupancy: 140, pct_full: 40 },
+      { name: 'Tucson Convention Center', county: 'Pima', state: 'AZ', lat: 32.222, lon: -110.973, capacity: 1200, occupancy: 960, pct_full: 80 },
+      // Texas
+      { name: 'Austin Convention Center', county: 'Travis', state: 'TX', lat: 30.263, lon: -97.740, capacity: 2000, occupancy: 600, pct_full: 30 },
+      { name: 'San Antonio Freeman Coliseum', county: 'Bexar', state: 'TX', lat: 29.438, lon: -98.473, capacity: 1800, occupancy: 720, pct_full: 40 },
+      // North Carolina
+      { name: 'Asheville Civic Center', county: 'Buncombe', state: 'NC', lat: 35.576, lon: -82.548, capacity: 600, occupancy: 210, pct_full: 35 },
+      // Florida
+      { name: 'Tampa Convention Center', county: 'Hillsborough', state: 'FL', lat: 27.944, lon: -82.456, capacity: 3000, occupancy: 2700, pct_full: 90 },
     ]
-    const near_capacity = demoShelters.filter(s => s.pct_full !== null && s.pct_full >= 80).length
-    return NextResponse.json({ shelters: demoShelters, near_capacity, demo: true })
+    const filtered = stateFilter ? demoShelters.filter(s => s.state === stateFilter) : demoShelters
+    const near_capacity = filtered.filter(s => s.pct_full !== null && s.pct_full >= 80).length
+    return NextResponse.json({ shelters: filtered, near_capacity, demo: true })
   }
 }
