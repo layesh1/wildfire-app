@@ -4,7 +4,8 @@ import { useRouter, usePathname } from 'next/navigation'
 import {
   Flame, Shield, Heart, BarChart3, Map, AlertTriangle,
   Users, Brain, LogOut, ChevronLeft, ChevronRight,
-  Activity, TrendingUp, Bell, User, Settings, BarChart2, Globe
+  Activity, TrendingUp, Bell, User, Settings, BarChart2, Globe,
+  ClipboardList, Thermometer
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/components/LanguageProvider'
@@ -18,6 +19,7 @@ interface Props {
 const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> = {
   emergency_responder: [
     { label: 'Live Map', href: '/dashboard/responder', icon: Map },
+    { label: 'ICS Incident Board', href: '/dashboard/responder/ics', icon: ClipboardList },
     { label: 'Signal Gaps', href: '/dashboard/responder/signals', icon: AlertTriangle },
     { label: 'ML Predictor', href: '/dashboard/responder/ml', icon: Brain },
     { label: 'Agency Coverage', href: '/dashboard/responder/coverage', icon: Shield },
@@ -48,6 +50,7 @@ const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> 
     { label: 'Live Fire Map', href: '/dashboard/analyst/map', icon: Map },
     { label: 'Trends', href: '/dashboard/analyst/trends', icon: TrendingUp },
     { label: 'NRI Analysis', href: '/dashboard/analyst/nri', icon: BarChart2 },
+    { label: 'Fire Weather', href: '/dashboard/analyst/fire-weather', icon: Thermometer },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
 }
