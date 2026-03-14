@@ -150,7 +150,7 @@ const STATE_CONTEXT: Record<string, string> = {
 }
 
 type ViewMode = 'overview' | 'all-states' | 'counties'
-type SortCol = 'delay' | 'svi' | 'fires'
+type SortCol = 'name' | 'delay' | 'svi' | 'fires'
 
 export default function SignalGapPage() {
   const [gapData, setGapData] = useState<any[]>([])
@@ -159,8 +159,8 @@ export default function SignalGapPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('overview')
   const [stateSearch, setStateSearch] = useState('')
   const [countySearch, setCountySearch] = useState('')
-  const [sortCol, setSortCol] = useState<SortCol>('delay')
-  const [sortAsc, setSortAsc] = useState(false)
+  const [sortCol, setSortCol] = useState<SortCol>('name')
+  const [sortAsc, setSortAsc] = useState(true)
   const [regionFilter, setRegionFilter] = useState('All')
   const supabase = createClient()
 
@@ -189,8 +189,12 @@ export default function SignalGapPage() {
       return matchSearch && matchRegion
     })
     .sort((a, b) => {
-      const key = sortCol === 'delay' ? 'median_delay_hours' : sortCol === 'svi' ? 'avg_svi' : 'fire_count'
-      return sortAsc ? a[key] - b[key] : b[key] - a[key]
+      let result = 0
+      if (sortCol === 'name') result = a.state.localeCompare(b.state)
+      else if (sortCol === 'delay') result = a.median_delay_hours - b.median_delay_hours
+      else if (sortCol === 'svi') result = a.avg_svi - b.avg_svi
+      else result = a.fire_count - b.fire_count
+      return sortAsc ? result : -result
     })
 
   // County filtering & sorting
@@ -200,9 +204,12 @@ export default function SignalGapPage() {
       return !q || c.county.toLowerCase().includes(q) || c.state.toLowerCase().includes(q)
     })
     .sort((a, b) => {
-      if (sortCol === 'delay') return sortAsc ? a.delay - b.delay : b.delay - a.delay
-      if (sortCol === 'svi') return sortAsc ? a.svi - b.svi : b.svi - a.svi
-      return sortAsc ? a.fires - b.fires : b.fires - a.fires
+      let result = 0
+      if (sortCol === 'name') result = a.county.localeCompare(b.county)
+      else if (sortCol === 'delay') result = a.delay - b.delay
+      else if (sortCol === 'svi') result = a.svi - b.svi
+      else result = a.fires - b.fires
+      return sortAsc ? result : -result
     })
 
   function toggleSort(col: SortCol) {
@@ -435,7 +442,7 @@ export default function SignalGapPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-ash-800 text-left">
-                  <th className="px-5 py-3 text-ash-400 text-xs">State</th>
+                  <th className="px-5 py-3"><SortBtn col="name" label="State" /></th>
                   <th className="px-5 py-3"><SortBtn col="delay" label="Median Delay" /></th>
                   <th className="px-5 py-3"><SortBtn col="svi" label="Avg SVI" /></th>
                   <th className="px-5 py-3"><SortBtn col="fires" label="Fire Count" /></th>
@@ -511,7 +518,7 @@ export default function SignalGapPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-ash-800 text-left">
-                  <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">County</th>
+                  <th className="px-5 py-3"><SortBtn col="name" label="County" /></th>
                   <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">State</th>
                   <th className="px-5 py-3"><SortBtn col="delay" label="Median Delay" /></th>
                   <th className="px-5 py-3"><SortBtn col="svi" label="SVI Score" /></th>

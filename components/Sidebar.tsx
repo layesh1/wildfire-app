@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import {
   Flame, Shield, Heart, BarChart3, Map, AlertTriangle,
   Users, Brain, LogOut, ChevronLeft, ChevronRight,
-  Activity, TrendingUp, Bell, User, Settings
+  Activity, TrendingUp, Bell, User, Settings, BarChart2
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 
@@ -26,12 +26,16 @@ const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> 
     { label: 'My Alerts', href: '/dashboard/caregiver', icon: Bell },
     { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: Map },
     { label: 'Check-In', href: '/dashboard/caregiver/checkin', icon: Users },
+    { label: 'Early Fire Alert', href: '/dashboard/caregiver/alert', icon: AlertTriangle },
+    { label: 'My Persons', href: '/dashboard/caregiver/persons', icon: Users },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
   evacuee: [
     { label: 'My Alerts', href: '/dashboard/caregiver', icon: Bell },
     { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: Map },
     { label: 'Check-In', href: '/dashboard/caregiver/checkin', icon: Users },
+    { label: 'Early Fire Alert', href: '/dashboard/caregiver/alert', icon: AlertTriangle },
+    { label: 'My Persons', href: '/dashboard/caregiver/persons', icon: Users },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
   data_analyst: [
@@ -40,6 +44,8 @@ const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> 
     { label: 'ML Predictor', href: '/dashboard/analyst/ml', icon: Brain },
     { label: 'Equity Metrics', href: '/dashboard/analyst/equity', icon: TrendingUp },
     { label: 'Live Fire Map', href: '/dashboard/analyst/map', icon: Map },
+    { label: 'Trends', href: '/dashboard/analyst/trends', icon: TrendingUp },
+    { label: 'NRI Analysis', href: '/dashboard/analyst/nri', icon: BarChart2 },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
 }
