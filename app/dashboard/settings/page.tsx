@@ -148,7 +148,13 @@ function SettingsInner() {
           language_preference: p.language_preference || 'en',
           communication_needs: p.communication_needs || [], household_languages: p.household_languages || '',
         })
-        const roles: string[] = Array.isArray(p.roles) && p.roles.length ? p.roles : p.role ? [p.role] : ['caregiver']
+        const dbRoles: string[] = Array.isArray(p.roles) && p.roles.length ? p.roles : p.role ? [p.role] : ['caregiver']
+        // Merge with localStorage so claimed roles show as unlocked even if DB hasn't persisted them
+        const localRole = localStorage.getItem('wfa_active_role')
+        const localClaimedRaw = localStorage.getItem('wfa_claimed_roles')
+        const localClaimed: string[] = localClaimedRaw ? JSON.parse(localClaimedRaw) : []
+        if (localRole && localRole !== 'caregiver') localClaimed.push(localRole)
+        const roles = [...new Set([...dbRoles, ...localClaimed])]
         setMyRoles(roles)
         // Only use DB role if nothing better is available
         if (!searchParams.get('role') && !localStorage.getItem('wfa_active_role')) {
@@ -213,6 +219,10 @@ function SettingsInner() {
   async function switchActive(role: string) {
     setSavingRole(role)
     localStorage.setItem('wfa_active_role', role)
+    try {
+      const prev: string[] = JSON.parse(localStorage.getItem('wfa_claimed_roles') || '[]')
+      localStorage.setItem('wfa_claimed_roles', JSON.stringify([...new Set([...prev, role])]))
+    } catch {}
     await fetch('/api/profile/role', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -242,8 +252,14 @@ function SettingsInner() {
 
   async function claimRole() {
     if (!addingRole || !codeVerified) return
-    // Persist to localStorage immediately so it survives regardless of DB update result
+    // Persist active role and claimed roles list to localStorage so the
+    // role shows as unlocked on next visit even if the Supabase update fails
     localStorage.setItem('wfa_active_role', addingRole)
+    try {
+      const prev: string[] = JSON.parse(localStorage.getItem('wfa_claimed_roles') || '[]')
+      localStorage.setItem('wfa_claimed_roles', JSON.stringify([...new Set([...prev, addingRole])]))
+    } catch {}
+    setMyRoles(prev => [...new Set([...prev, addingRole])])
     await fetch('/api/profile/role', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
