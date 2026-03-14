@@ -34,7 +34,7 @@ function normalizeState(raw: string): string {
 export async function GET() {
   try {
     const res = await fetch(NIFC_URL, {
-      next: { revalidate: 600 }, // cache 10 min
+      cache: 'no-store', // always fresh — NIFC data changes frequently
       headers: { 'User-Agent': 'WildFireApp/1.0' },
     })
 
