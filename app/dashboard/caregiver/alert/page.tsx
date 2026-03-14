@@ -1,11 +1,12 @@
 'use client'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import {
   AlertTriangle,
   MapPin,
   CheckCircle,
   RefreshCw,
   Navigation,
+  Users,
 } from 'lucide-react'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -39,6 +40,84 @@ interface AlertResult {
   windDir: string
   nearestFire: FirmsPoint | null
   isMockData: boolean
+}
+
+// ── Address autocomplete (Nominatim/OpenStreetMap, no API key) ─────────────────
+
+interface NominatimResult {
+  place_id: number
+  display_name: string
+  lat: string
+  lon: string
+}
+
+function AddressInput({
+  value, onChange, placeholder, className = ''
+}: {
+  value: string
+  onChange: (val: string) => void
+  placeholder?: string
+  className?: string
+}) {
+  const [suggestions, setSuggestions] = useState<NominatimResult[]>([])
+  const [showDrop, setShowDrop] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setShowDrop(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  function handleChange(v: string) {
+    onChange(v)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (v.length < 4) { setSuggestions([]); setShowDrop(false); return }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(v)}&format=json&addressdetails=0&limit=5&countrycodes=us`,
+          { headers: { 'Accept-Language': 'en' } }
+        )
+        const data: NominatimResult[] = await res.json()
+        setSuggestions(data)
+        setShowDrop(data.length > 0)
+      } catch {
+        setSuggestions([])
+      }
+    }, 400)
+  }
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <input
+        type="text"
+        value={value}
+        onChange={e => handleChange(e.target.value)}
+        onFocus={() => suggestions.length > 0 && setShowDrop(true)}
+        placeholder={placeholder}
+        className={className}
+      />
+      {showDrop && (
+        <ul className="absolute z-50 top-full mt-1 left-0 right-0 bg-ash-800 border border-ash-700 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+          {suggestions.map(s => (
+            <li key={s.place_id}>
+              <button
+                type="button"
+                className="w-full text-left px-3 py-2.5 text-sm text-ash-200 hover:bg-ash-700 hover:text-white transition-colors truncate"
+                onMouseDown={() => { onChange(s.display_name); setSuggestions([]); setShowDrop(false) }}
+              >
+                {s.display_name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 }
 
 // ── Mobility options ──────────────────────────────────────────────────────────
@@ -180,6 +259,9 @@ export default function EarlyAlertPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<AlertResult | null>(null)
+  const [monitoredAlerts, setMonitoredAlerts] = useState<{name: string; address: string; mobility: string; distanceKm: number; estimatedHours: number; windMph: number}[]>([])
+  const [alertsLoading, setAlertsLoading] = useState(false)
+  const [alertsChecked, setAlertsChecked] = useState(false)
 
   const evacHours = MOBILITY_OPTIONS.find(m => m.key === mobility)!.evacHours
 
@@ -257,6 +339,64 @@ export default function EarlyAlertPage() {
     }
   }, [address, monitoredAddress])
 
+  const checkMonitoredPersons = useCallback(async () => {
+    setAlertsLoading(true)
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem('monitored_persons_v2') : null
+      const persons: {name: string; address: string; mobility: string}[] = raw ? JSON.parse(raw) : []
+      if (persons.length === 0) { setAlertsLoading(false); setAlertsChecked(true); return }
+
+      const firmsRes = await fetch('/api/fires/firms').catch(() => null)
+      const firmsJson = firmsRes?.ok ? await firmsRes.json().catch(() => ({})) : {}
+      const firmsPoints: {lat: number; lon: number; brightness: number; confidence: number; frp: number}[] = Array.isArray(firmsJson?.data) ? firmsJson.data : []
+
+      const results = await Promise.allSettled(persons.map(async (person) => {
+        const weatherRes = await fetch(`/api/weather?location=${encodeURIComponent(person.address)}`)
+        if (!weatherRes.ok) return null
+        const weather = await weatherRes.json()
+
+        let points = firmsPoints
+        if (points.length === 0) {
+          // demo fallback
+          points = [{ lat: weather.lat + 0.1, lon: weather.lon + 0.1, brightness: 330, confidence: 80, frp: 45 }]
+        }
+
+        const nearby = points
+          .map((p: {lat: number; lon: number}) => ({ ...p, km: haversineKm(weather.lat, weather.lon, p.lat, p.lon) }))
+          .filter((p: {km: number}) => p.km <= 50)
+          .sort((a: {km: number}, b: {km: number}) => a.km - b.km)
+
+        if (nearby.length === 0) return null
+
+        const nearest = nearby[0]
+        const windMph = weather.wind_mph ?? 10
+        const estimatedHours = estimateArrivalHours(nearest.km, windMph)
+
+        return {
+          name: person.name,
+          address: person.address,
+          mobility: person.mobility,
+          distanceKm: nearest.km,
+          estimatedHours,
+          windMph,
+        }
+      }))
+
+      const alerts = results
+        .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled' && r.value !== null)
+        .map(r => r.value)
+        .filter(a => a.estimatedHours < 12) // only show urgent alerts
+
+      setMonitoredAlerts(alerts)
+    } catch {}
+    setAlertsLoading(false)
+    setAlertsChecked(true)
+  }, [])
+
+  useEffect(() => {
+    checkMonitoredPersons()
+  }, [checkMonitoredPersons])
+
   // ── Derived display values ──────────────────────────────────────────────────
 
   const leaveByText = (() => {
@@ -298,12 +438,10 @@ export default function EarlyAlertPage() {
         <div>
           <label className="label">Your address or zip code</label>
           <div className="relative">
-            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ash-500 pointer-events-none" />
-            <input
-              type="text"
+            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ash-500 pointer-events-none z-10" />
+            <AddressInput
               value={address}
-              onChange={e => setAddress(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && check()}
+              onChange={setAddress}
               placeholder="e.g. 95003, Paradise CA, 123 Oak St Chico CA"
               className="input pl-9"
             />
@@ -314,12 +452,10 @@ export default function EarlyAlertPage() {
         <div>
           <label className="label">Monitored person&rsquo;s address (if different)</label>
           <div className="relative">
-            <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ash-500 pointer-events-none" />
-            <input
-              type="text"
+            <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ash-500 pointer-events-none z-10" />
+            <AddressInput
               value={monitoredAddress}
-              onChange={e => setMonitoredAddress(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && check()}
+              onChange={setMonitoredAddress}
               placeholder="Leave blank to use your address"
               className="input pl-9"
             />
@@ -440,6 +576,47 @@ export default function EarlyAlertPage() {
                   No fire detections within 50 miles. Conditions can change quickly — check again if the wind picks up or smoke appears.
                 </div>
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Proactive alerts for monitored persons */}
+      {(monitoredAlerts.length > 0 || alertsLoading) && (
+        <div className="mt-8">
+          <div className="flex items-center gap-2 mb-3">
+            <Users className="w-4 h-4 text-amber-400" />
+            <h2 className="text-white font-semibold text-sm">Proactive Alerts — Your People</h2>
+          </div>
+          {alertsLoading ? (
+            <div className="card p-4 animate-pulse"><div className="h-4 bg-ash-800 rounded w-48" /></div>
+          ) : (
+            <div className="space-y-3">
+              {monitoredAlerts.map((alert, i) => {
+                const hoursToFront = alert.estimatedHours
+                const urgency = hoursToFront < 1 ? 'CRITICAL' : hoursToFront < 3 ? 'HIGH' : 'ELEVATED'
+                const miles = Math.round(alert.distanceKm / 1.609)
+                return (
+                  <div key={i} className={`card p-4 border-l-4 ${urgency === 'CRITICAL' ? 'border-signal-danger' : urgency === 'HIGH' ? 'border-signal-warn' : 'border-yellow-500'}`}>
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full animate-pulse ${urgency === 'CRITICAL' ? 'bg-signal-danger' : urgency === 'HIGH' ? 'bg-signal-warn' : 'bg-yellow-400'}`} />
+                        <span className="text-white font-semibold text-sm">{alert.name}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${urgency === 'CRITICAL' ? 'bg-signal-danger/20 text-signal-danger' : urgency === 'HIGH' ? 'bg-signal-warn/20 text-signal-warn' : 'bg-yellow-500/20 text-yellow-400'}`}>{urgency}</span>
+                      </div>
+                    </div>
+                    <p className="text-ash-200 text-sm leading-relaxed mb-2">
+                      Fire detected <strong className="text-white">{miles} {miles === 1 ? 'mile' : 'miles'}</strong> from {alert.name}&rsquo;s address.
+                      {' '}Wind {alert.windMph.toFixed(0)} mph.
+                      {' '}Estimated fire front: <strong className="text-white">{hoursToFront < 1 ? `${Math.round(hoursToFront * 60)} minutes` : `${hoursToFront.toFixed(1)} hours`}</strong>.
+                    </p>
+                    <p className="text-amber-300 text-xs leading-relaxed">
+                      Official evacuation order typically takes <strong>1.1h</strong> after detection. {hoursToFront <= 1.1 ? 'Time to act is now — do not wait for an official order.' : `That means an order could come in ~${Math.max(0, hoursToFront - 1.1).toFixed(1)}h. Start preparing ${alert.name} now.`}
+                    </p>
+                    <div className="mt-2 text-ash-500 text-xs">{alert.address} · Mobility: {alert.mobility}</div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

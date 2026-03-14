@@ -5,7 +5,7 @@ import {
   Flame, Shield, Heart, BarChart3, Map, AlertTriangle,
   Users, Brain, LogOut, ChevronLeft, ChevronRight, ChevronDown,
   Activity, TrendingUp, Bell, User, Settings, BarChart2, Globe,
-  ClipboardList, Thermometer
+  ClipboardList, Thermometer, FileText
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/components/LanguageProvider'
@@ -78,6 +78,8 @@ export default function Sidebar({ user, profile }: Props) {
   const supabase = createClient()
   const { lang, setLanguage } = useLanguage()
 
+  const [claimedRoles, setClaimedRoles] = useState<string[]>([])
+
   // Close language dropdown on click-outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -106,6 +108,22 @@ export default function Sidebar({ user, profile }: Props) {
   const role = urlRole || storedRole || profile?.role || 'caregiver'
   const nav = NAV_BY_ROLE[role] || NAV_BY_ROLE.caregiver
   const RoleIcon = ROLE_ICONS[role] || Heart
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('wfa_roles')
+      const localRoles: string[] = stored ? JSON.parse(stored) : []
+      const serverRoles: string[] = Array.isArray(profile?.roles) && profile.roles.length > 0
+        ? profile.roles
+        : profile?.role ? [profile.role] : []
+      const merged = [...new Set([...serverRoles, ...localRoles])].filter(r =>
+        ['emergency_responder', 'caregiver', 'evacuee', 'data_analyst'].includes(r)
+      )
+      setClaimedRoles(merged.length > 0 ? merged : [role])
+    } catch {
+      setClaimedRoles([role])
+    }
+  }, []) // eslint-disable-line
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -150,10 +168,10 @@ export default function Sidebar({ user, profile }: Props) {
       )}
 
       {/* Multi-role switcher */}
-      {!collapsed && profile?.roles && profile.roles.length > 1 && (
+      {!collapsed && claimedRoles.length > 1 && (
         <div className="px-3 py-2 border-b border-ash-800">
           <p className="text-ash-600 text-xs uppercase tracking-wider mb-1.5">My Dashboards</p>
-          {profile.roles.map((r: string) => {
+          {claimedRoles.map((r) => {
             const RIcon = ROLE_ICONS[r] || Heart
             const isActive = r === role
             const dest = r === 'emergency_responder' ? '/dashboard/responder' : r === 'data_analyst' ? '/dashboard/analyst' : '/dashboard/caregiver'
@@ -202,6 +220,7 @@ export default function Sidebar({ user, profile }: Props) {
               { label: 'My Persons', href: '/dashboard/caregiver/persons', icon: Users },
               { label: 'Early Fire Alert', href: '/dashboard/caregiver/alert', icon: AlertTriangle },
               { label: 'Check-In', href: '/dashboard/caregiver/checkin', icon: Users },
+              { label: 'Emergency Card', href: '/dashboard/caregiver/emergency-card', icon: FileText },
             ].map(({ label, href, icon: Icon }) => {
               const active = pathname === href || pathname.startsWith(href + '/')
               return (

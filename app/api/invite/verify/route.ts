@@ -32,6 +32,19 @@ export async function POST(req: NextRequest) {
     })
   }
 
+  // Demo code for WiDS evaluation and testing
+  if (upperCode === 'WIDS-DEMO-2025') {
+    if (!requestedRole) {
+      return NextResponse.json({ error: 'Role is required.' }, { status: 400 })
+    }
+    return NextResponse.json({
+      valid: true,
+      role: requestedRole,
+      org_name: 'WiDS Demo',
+      code_id: null,
+    })
+  }
+
   // Normal invite code lookup
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!serviceKey || serviceKey === 'your_service_role_key_here') {
