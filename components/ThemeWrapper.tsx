@@ -4,24 +4,30 @@ import { useEffect, useState } from 'react'
 export default function ThemeWrapper({ children }: { children: React.ReactNode }) {
   const [isDark, setIsDark] = useState(false)
 
+  function applyDark(dark: boolean) {
+    setIsDark(dark)
+    if (dark) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }
+
   useEffect(() => {
     function applyStored() {
       const t = localStorage.getItem('wfa_theme') || 'light'
       if (t === 'dark') {
-        setIsDark(true)
+        applyDark(true)
       } else if (t === 'system') {
-        setIsDark(window.matchMedia('(prefers-color-scheme: dark)').matches)
+        applyDark(window.matchMedia('(prefers-color-scheme: dark)').matches)
       } else {
-        setIsDark(false)
+        applyDark(false)
       }
     }
 
     applyStored()
-
-    // Listen for theme changes dispatched by settings page
     window.addEventListener('wfa-theme-change', applyStored)
 
-    // Also handle system preference changes when mode is 'system'
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
     const mqHandler = () => {
       if (localStorage.getItem('wfa_theme') === 'system') applyStored()
@@ -35,7 +41,7 @@ export default function ThemeWrapper({ children }: { children: React.ReactNode }
   }, [])
 
   return (
-    <div className={`min-h-screen flex ${isDark ? 'bg-gray-950 dark-mode' : 'bg-gray-50 light-theme'}`}>
+    <div className={`min-h-screen flex ${isDark ? 'bg-gray-950' : 'bg-gray-50 light-theme'}`}>
       {children}
     </div>
   )
