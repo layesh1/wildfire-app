@@ -152,15 +152,15 @@ export default function FlameoChat() {
       {/* Floating button */}
       <button
         onClick={handleOpen}
-        className="fixed bottom-4 right-4 z-50 w-14 h-14 rounded-2xl bg-blue-50 hover:bg-blue-100 border border-blue-200 shadow-lg shadow-blue-200/60 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 select-none"
+        className="fixed bottom-4 right-4 z-50 w-14 h-14 rounded-2xl bg-ember-500/15 hover:bg-ember-500/25 border border-ember-500/40 shadow-lg shadow-ember-500/20 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 select-none"
         title="Chat with Flameo"
         aria-label="Open Flameo chat"
       >
         <span className={`transition-all duration-200 ${open ? 'scale-75 opacity-0 absolute' : 'scale-100 opacity-100'}`}><FlameoIcon size={36} /></span>
-        <X className={`w-5 h-5 text-blue-500 absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
+        <X className={`w-5 h-5 text-ember-400 absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
       </button>
 
-      {/* Notification dot on first load */}
+      {/* Chat intro tooltip on first load */}
       {!hasOpened && (
         <div className="fixed bottom-[62px] right-3 z-50 w-4 h-4 rounded-full bg-red-500 border-2 border-white animate-pulse pointer-events-none" />
       )}

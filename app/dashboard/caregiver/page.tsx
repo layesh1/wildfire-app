@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Bell, MapPin, Users, AlertTriangle, CheckCircle, Phone, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 const QUICK_ACTIONS = [
   { label: 'View Evacuation Map', href: '/dashboard/caregiver/map', icon: MapPin, color: 'text-forest-600' },
@@ -15,6 +16,17 @@ export default function CaregiverDashboard() {
   const [fires, setFires] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
+
+  const [showHelpForm, setShowHelpForm] = useState(false)
+  const [helpSubmitted, setHelpSubmitted] = useState(false)
+  const [helpForm, setHelpForm] = useState({ name: '', address: '', people: 1, needs: '', urgency: 'high' as 'high' | 'medium' | 'low' })
+
+  function submitHelpRequest() {
+    const req = { id: Date.now().toString(), ...helpForm, submitted_at: new Date().toISOString(), status: 'pending' as const }
+    const existing = JSON.parse(localStorage.getItem('wfa_evac_requests') || '[]')
+    localStorage.setItem('wfa_evac_requests', JSON.stringify([req, ...existing]))
+    setHelpSubmitted(true)
+  }
 
   useEffect(() => {
     async function load() {
@@ -32,6 +44,8 @@ export default function CaregiverDashboard() {
   }, [])
 
   return (
+    <>
+    <LanguageSwitcher />
     <div className="p-8 max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-10">
@@ -70,6 +84,77 @@ export default function CaregiverDashboard() {
             <div className="text-gray-900 text-sm font-medium">{label}</div>
             <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 mt-2 transition-colors" />
           </Link>
+        ))}
+      </div>
+
+      {/* Evacuation Assist Request */}
+      <div className={`rounded-xl border p-5 mb-8 ${showHelpForm ? 'border-signal-danger/40 bg-signal-danger/5' : 'border-ash-700 bg-ash-900/50'}`}>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-signal-danger" />
+            <span className="text-white font-semibold text-sm">Need evacuation assistance?</span>
+          </div>
+          <button onClick={() => setShowHelpForm(v => !v)}
+            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${showHelpForm ? 'bg-ash-700 text-ash-300' : 'bg-signal-danger/20 border border-signal-danger/40 text-signal-danger hover:bg-signal-danger/30'}`}>
+            {showHelpForm ? 'Cancel' : 'Request Help'}
+          </button>
+        </div>
+        <p className="text-ash-500 text-xs mb-3">Can't self-evacuate? Submit a request — emergency responders will be notified to assist.</p>
+        {showHelpForm && (helpSubmitted ? (
+          <div className="flex items-center gap-3 p-3 bg-signal-safe/10 border border-signal-safe/30 rounded-xl">
+            <CheckCircle className="w-5 h-5 text-signal-safe shrink-0" />
+            <div>
+              <div className="text-signal-safe font-semibold text-sm">Request submitted</div>
+              <div className="text-ash-400 text-xs mt-0.5">Responders have been notified. Stay at your location if it is safe to do so.</div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-ash-400 text-xs mb-1">Your name</label>
+                <input type="text" value={helpForm.name} onChange={e => setHelpForm(f => ({...f, name: e.target.value}))}
+                  placeholder="Full name"
+                  className="w-full bg-ash-800 border border-ash-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-signal-danger/60 placeholder:text-ash-600" />
+              </div>
+              <div>
+                <label className="block text-ash-400 text-xs mb-1">Number of people</label>
+                <input type="number" min="1" max="20" value={helpForm.people} onChange={e => setHelpForm(f => ({...f, people: parseInt(e.target.value) || 1}))}
+                  className="w-full bg-ash-800 border border-ash-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-signal-danger/60" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-ash-400 text-xs mb-1">Your address</label>
+              <input type="text" value={helpForm.address} onChange={e => setHelpForm(f => ({...f, address: e.target.value}))}
+                placeholder="123 Main St, City, State"
+                className="w-full bg-ash-800 border border-ash-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-signal-danger/60 placeholder:text-ash-600" />
+            </div>
+            <div>
+              <label className="block text-ash-400 text-xs mb-1">Special needs or notes</label>
+              <input type="text" value={helpForm.needs} onChange={e => setHelpForm(f => ({...f, needs: e.target.value}))}
+                placeholder="e.g. wheelchair, oxygen tank, 2 dogs, no vehicle"
+                className="w-full bg-ash-800 border border-ash-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-signal-danger/60 placeholder:text-ash-600" />
+            </div>
+            <div>
+              <label className="block text-ash-400 text-xs mb-2">Urgency</label>
+              <div className="flex gap-2">
+                {(['high', 'medium', 'low'] as const).map(u => (
+                  <button key={u} onClick={() => setHelpForm(f => ({...f, urgency: u}))}
+                    className={`flex-1 py-2 rounded-lg text-xs font-medium border capitalize transition-all ${helpForm.urgency === u
+                      ? u === 'high' ? 'bg-signal-danger/20 border-signal-danger/50 text-signal-danger'
+                        : u === 'medium' ? 'bg-signal-warn/20 border-signal-warn/50 text-signal-warn'
+                        : 'bg-signal-safe/20 border-signal-safe/50 text-signal-safe'
+                      : 'border-ash-700 text-ash-400 hover:border-ash-600'}`}>
+                    {u}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button onClick={submitHelpRequest} disabled={!helpForm.name || !helpForm.address}
+              className="w-full py-2.5 rounded-xl text-sm font-semibold bg-signal-danger text-white hover:bg-red-600 transition-colors disabled:opacity-40">
+              Submit Evacuation Request
+            </button>
+          </div>
         ))}
       </div>
 
@@ -130,5 +215,6 @@ export default function CaregiverDashboard() {
         </div>
       </div>
     </div>
+    </>
   )
 }

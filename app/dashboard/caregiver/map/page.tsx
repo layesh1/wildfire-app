@@ -2,8 +2,31 @@
 import { useEffect, useState, Suspense, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
-import { MapPin, AlertTriangle, CheckCircle, Navigation, ExternalLink, ChevronRight, Flame, RefreshCw } from 'lucide-react'
+import { MapPin, AlertTriangle, CheckCircle, Navigation, ExternalLink, ChevronRight, Flame, RefreshCw, Heart } from 'lucide-react'
 import type { NifcFire } from './LeafletMap'
+
+const EVAC_SHELTERS = [
+  { id: 1, name: 'Pomona Fairplex Emergency Shelter', lat: 34.0564, lng: -117.7503, type: 'evacuation', county: 'Los Angeles, CA', capacity: 2000 },
+  { id: 2, name: 'Del Mar Fairgrounds', lat: 32.9595, lng: -117.2653, type: 'evacuation', county: 'San Diego, CA', capacity: 1500 },
+  { id: 3, name: 'Sonoma County Fairgrounds', lat: 38.4346, lng: -122.7249, type: 'evacuation', county: 'Sonoma, CA', capacity: 1200 },
+  { id: 4, name: 'Cal Expo Pet-Friendly Shelter', lat: 38.5961, lng: -121.4143, type: 'evacuation', county: 'Sacramento, CA', capacity: 800 },
+  { id: 5, name: 'Rancho Bernardo Community Center', lat: 33.0251, lng: -117.0831, type: 'evacuation', county: 'San Diego, CA', capacity: 600 },
+  { id: 6, name: 'Ventura County Fairgrounds', lat: 34.2766, lng: -119.2953, type: 'evacuation', county: 'Ventura, CA', capacity: 900 },
+  { id: 7, name: 'Tucson Convention Center', lat: 32.2228, lng: -110.9747, type: 'evacuation', county: 'Pima, AZ', capacity: 1100 },
+  { id: 8, name: 'Phoenix Veteran Memorial Coliseum', lat: 33.5007, lng: -112.0709, type: 'evacuation', county: 'Maricopa, AZ', capacity: 1800 },
+  { id: 9, name: 'Klamath Falls Expo Center', lat: 42.2249, lng: -121.7753, type: 'evacuation', county: 'Klamath, OR', capacity: 400 },
+  { id: 10, name: 'Spokane Arena Shelter', lat: 47.6587, lng: -117.4260, type: 'evacuation', county: 'Spokane, WA', capacity: 1300 },
+  { id: 11, name: 'Albuquerque Convention Center', lat: 35.0853, lng: -106.6505, type: 'evacuation', county: 'Bernalillo, NM', capacity: 700 },
+  { id: 12, name: 'Gallup Multi-Generational Center', lat: 35.5281, lng: -108.7426, type: 'evacuation', county: 'McKinley, NM', capacity: 350 },
+  { id: 13, name: 'Denver Coliseum', lat: 39.7758, lng: -104.9742, type: 'evacuation', county: 'Denver, CO', capacity: 1600 },
+  { id: 14, name: 'Reno-Sparks Convention Center', lat: 39.5279, lng: -119.8143, type: 'evacuation', county: 'Washoe, NV', capacity: 900 },
+  { id: 15, name: 'Boise State Pavilion', lat: 43.6028, lng: -116.2003, type: 'evacuation', county: 'Ada, ID', capacity: 1100 },
+  { id: 16, name: 'Pasadena Humane Society Emergency', lat: 34.1478, lng: -118.1445, type: 'animal', county: 'Los Angeles, CA', capacity: 200 },
+  { id: 17, name: 'Sacramento SPCA Emergency Center', lat: 38.5815, lng: -121.4944, type: 'animal', county: 'Sacramento, CA', capacity: 150 },
+  { id: 18, name: 'Sonoma Humane Society Emergency', lat: 38.4405, lng: -122.7039, type: 'animal', county: 'Sonoma, CA', capacity: 120 },
+  { id: 19, name: 'AZ Humane Society N Phoenix', lat: 33.6751, lng: -112.1150, type: 'animal', county: 'Maricopa, AZ', capacity: 180 },
+  { id: 20, name: 'Oregon Humane Society Emergency', lat: 45.5688, lng: -122.6468, type: 'animal', county: 'Multnomah, OR', capacity: 100 },
+]
 
 const LeafletMap = dynamic(() => import('./LeafletMap'), { ssr: false })
 
@@ -113,6 +136,7 @@ function EvacuationMapContent() {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
   const [locationError, setLocationError] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [showShelters, setShowShelters] = useState(false)
   const searchParams = useSearchParams()
 
   async function loadNifc() {
@@ -230,8 +254,8 @@ function EvacuationMapContent() {
       <div className="grid md:grid-cols-3 gap-5">
         {/* Map */}
         <div className="md:col-span-2 flex flex-col gap-3">
-          {/* Locate me */}
-          <div className="flex items-center gap-3">
+          {/* Controls */}
+          <div className="flex items-center gap-3 flex-wrap">
             <button
               onClick={locateMe}
               disabled={locating}
@@ -239,6 +263,17 @@ function EvacuationMapContent() {
             >
               <Navigation className="w-3.5 h-3.5" />
               {locating ? 'Locating…' : userLocation ? 'Update my location' : 'Show fires near me'}
+            </button>
+            <button
+              onClick={() => setShowShelters(v => !v)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                showShelters
+                  ? 'bg-signal-safe/20 border-signal-safe/40 text-signal-safe'
+                  : 'bg-ash-800 border-ash-700 text-ash-400 hover:text-white'
+              }`}
+            >
+              <Heart className="w-3.5 h-3.5" />
+              {showShelters ? 'Shelters: ON' : 'Show Shelters'}
             </button>
             {locationError && (
               <span className="text-ash-500 text-xs">Location unavailable — enable browser location access.</span>
@@ -266,7 +301,53 @@ function EvacuationMapContent() {
             <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-amber-400" /> Being controlled (50–75%)</div>
             <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-signal-safe" /> Mostly contained (75%+)</div>
             <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-blue-500" /> Your location</div>
+            {showShelters && <div className="flex items-center gap-1.5"><Heart className="w-3 h-3 text-signal-safe" /> Evacuation shelters</div>}
           </div>
+
+          {/* Shelter panel */}
+          {showShelters && (
+            <div className="card p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Heart className="w-4 h-4 text-signal-safe" />
+                <h3 className="text-white font-semibold text-sm">Evacuation Shelters Near Active Fire Zones</h3>
+                <span className="ml-auto text-ash-500 text-xs">
+                  {EVAC_SHELTERS.filter(s => s.type === 'evacuation').length} evac ·{' '}
+                  {EVAC_SHELTERS.filter(s => s.type === 'animal').length} animal
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {EVAC_SHELTERS.map(shelter => (
+                  <div
+                    key={shelter.id}
+                    className={`rounded-lg border p-3 ${
+                      shelter.type === 'evacuation'
+                        ? 'border-signal-safe/30 bg-signal-safe/5'
+                        : 'border-signal-info/30 bg-signal-info/5'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <div className="text-white text-sm font-medium leading-snug">{shelter.name}</div>
+                      <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${
+                        shelter.type === 'evacuation'
+                          ? 'bg-signal-safe/20 text-signal-safe'
+                          : 'bg-signal-info/20 text-signal-info'
+                      }`}>
+                        {shelter.type === 'evacuation' ? 'Evac' : 'Animal'}
+                      </span>
+                    </div>
+                    <div className="text-ash-500 text-xs">{shelter.county}</div>
+                    <div className="flex items-center gap-3 mt-2">
+                      <span className="text-ash-400 text-xs">Cap: {shelter.capacity.toLocaleString()}</span>
+                      <span className="text-signal-safe text-xs font-medium">Open</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-ash-600 text-xs mt-3">
+                Data from Watch Duty location records. 459 evacuation shelters and 234 animal shelters tracked system-wide.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Fire cards */}

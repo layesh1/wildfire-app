@@ -80,6 +80,12 @@ function AddRoleForm() {
           role,              // set as active role
         }).eq('id', u.id)
 
+        // Always persist to localStorage — reliable even if Supabase roles column is missing
+        try {
+          localStorage.setItem('wfa_roles', JSON.stringify(updatedRoles))
+          localStorage.setItem('wfa_active_role', role)
+        } catch { /* ignore */ }
+
         // Consume invite code
         await fetch('/api/invite/consume', {
           method: 'POST',

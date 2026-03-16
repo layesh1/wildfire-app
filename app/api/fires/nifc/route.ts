@@ -14,6 +14,14 @@ export interface NifcFire {
   source: 'nifc_perimeter' | 'nifc_incident'
 }
 
+function ringCentroid(rings: number[][][]): { x: number; y: number } | null {
+  if (!rings?.[0]?.length) return null
+  const ring = rings[0]
+  const x = ring.reduce((s, p) => s + p[0], 0) / ring.length
+  const y = ring.reduce((s, p) => s + p[1], 0) / ring.length
+  return { x, y }
+}
+
 async function fetchPerimeters(): Promise<NifcFire[]> {
   const url = `${ARCGIS_BASE}/Current_WildlandFire_Perimeters/FeatureServer/0/query?${QUERY_PARAMS}`
   const res = await fetch(url, { next: { revalidate: 300 } })
@@ -21,16 +29,19 @@ async function fetchPerimeters(): Promise<NifcFire[]> {
   const json = await res.json()
   if (!json.features) return []
   return json.features
-    .filter((f: any) => f.attributes && f.centroid)
-    .map((f: any) => ({
-      id: `nifc-p-${f.attributes.OBJECTID ?? Math.random()}`,
-      latitude: f.centroid?.y ?? null,
-      longitude: f.centroid?.x ?? null,
-      fire_name: f.attributes.IncidentName || f.attributes.GACGName || 'Unknown Fire',
-      acres: f.attributes.GISAcres ?? f.attributes.Acres ?? null,
-      containment: f.attributes.PercentContained ?? null,
-      source: 'nifc_perimeter' as const,
-    }))
+    .filter((f: any) => f.attributes && f.geometry?.rings)
+    .map((f: any) => {
+      const c = ringCentroid(f.geometry.rings)
+      return {
+        id: `nifc-p-${f.attributes.OBJECTID ?? Math.random()}`,
+        latitude: c?.y ?? null,
+        longitude: c?.x ?? null,
+        fire_name: f.attributes.IncidentName || f.attributes.GACGName || 'Unknown Fire',
+        acres: f.attributes.GISAcres ?? f.attributes.Acres ?? null,
+        containment: f.attributes.PercentContained ?? null,
+        source: 'nifc_perimeter' as const,
+      }
+    })
     .filter((f: NifcFire) => f.latitude && f.longitude)
 }
 
