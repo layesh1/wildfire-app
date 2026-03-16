@@ -62,7 +62,7 @@ module.exports = {
         'fade-up':    'fadeUp 0.5s ease forwards',
         'glow':       'glow 2s ease-in-out infinite alternate',
         'marquee':    'marquee 30s linear infinite',
-        'phone-rise': 'phoneRise 1s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both',
+        'phone-rise': 'phoneRise 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both',
       },
       keyframes: {
         fadeUp: {
