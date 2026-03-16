@@ -1,12 +1,14 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Share2, Download, Phone, MapPin, AlertTriangle, Heart, Shield, Plus, X, Droplets, PawPrint } from 'lucide-react'
+import { FileText, Share2, Download, Phone, AlertTriangle, Heart, Shield, Plus, X, Droplets, PawPrint } from 'lucide-react'
+import { createClient } from '@/lib/supabase'
 
 const MOBILITY_OPTIONS = ['Mobile Adult', 'Elderly', 'Elderly (needs driver)', 'Disabled', 'Wheelchair', 'No Vehicle', 'Medical Equipment', 'Other']
 
 export default function EmergencyCardPage() {
   const cardRef = useRef<HTMLDivElement>(null)
   const [saved, setSaved] = useState(false)
+  const supabase = createClient()
 
   const [profile, setProfile] = useState({
     name: '',
@@ -17,38 +19,49 @@ export default function EmergencyCardPage() {
     emergencyContacts: [{ name: '', phone: '', relationship: '' }] as { name: string; phone: string; relationship: string }[],
     mobility: 'Mobile Adult',
     mobilityOther: '',
-    medications: '',      // freetext: "Metformin 500mg, Lisinopril 10mg"
-    medicalEquipment: '', // freetext: "O2 concentrator (needs power), nebulizer"
-    pets: '',             // freetext: "Bella (lab mix), 2 cats"
-    languages: '',        // freetext: non-English languages
-    evacuationRoute: '',  // user's pre-planned route
+    medications: '',
+    medicalEquipment: '',
+    pets: '',
+    languages: '',
+    evacuationRoute: '',
     destinationAddress: '',
   })
 
-  // Auto-save to localStorage
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('wfa_emergency_card')
-      if (raw) {
-        const p = JSON.parse(raw)
-        setProfile(prev => ({ ...prev, ...p }))
-        return
-      }
-      // Fall back to settings profile
-      const settingsRaw = localStorage.getItem('wfa_profile_cache')
-      if (settingsRaw) {
-        const s = JSON.parse(settingsRaw)
-        setProfile(prev => ({
-          ...prev,
-          name: s.full_name || '',
-          address: s.address || '',
-          phone: s.phone || '',
-          emergencyContacts: s.emergency_contact_name
-            ? [{ name: s.emergency_contact_name, phone: s.emergency_contact_phone || '', relationship: '' }]
-            : prev.emergencyContacts,
-        }))
-      }
-    } catch {}
+    async function load() {
+      // Priority 1: previously saved emergency card data
+      try {
+        const raw = localStorage.getItem('wfa_emergency_card')
+        if (raw) {
+          const p = JSON.parse(raw)
+          if (p.name || p.phone || p.address) {
+            setProfile(prev => ({ ...prev, ...p }))
+            return
+          }
+        }
+      } catch {}
+
+      // Priority 2: Supabase profile
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+          if (p) {
+            setProfile(prev => ({
+              ...prev,
+              name: p.full_name || '',
+              address: p.address || '',
+              phone: p.phone || '',
+              languages: p.household_languages || '',
+              emergencyContacts: p.emergency_contact_name
+                ? [{ name: p.emergency_contact_name, phone: p.emergency_contact_phone || '', relationship: '' }]
+                : prev.emergencyContacts,
+            }))
+          }
+        }
+      } catch {}
+    }
+    load()
   }, [])
 
   function update<K extends keyof typeof profile>(key: K, value: typeof profile[K]) {
