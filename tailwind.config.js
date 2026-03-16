@@ -62,11 +62,16 @@ module.exports = {
         'fade-up':    'fadeUp 0.5s ease forwards',
         'glow':       'glow 2s ease-in-out infinite alternate',
         'marquee':    'marquee 30s linear infinite',
+        'phone-rise': 'phoneRise 1s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both',
       },
       keyframes: {
         fadeUp: {
           '0%':   { opacity: 0, transform: 'translateY(16px)' },
           '100%': { opacity: 1, transform: 'translateY(0)' },
+        },
+        phoneRise: {
+          '0%':   { opacity: '0', transform: 'translateY(80px) scale(0.96)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
         },
         glow: {
           '0%':   { boxShadow: '0 0 5px #16a34a30' },

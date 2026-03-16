@@ -140,31 +140,6 @@ function HomepageChat() {
   )
 }
 
-// ── Marquee ticker ────────────────────────────────────────────────────────────
-function Marquee() {
-  const items = [
-    'Real-time wildfire intelligence',
-    'Equity-driven evacuation alerts',
-    'AI-powered safety planning',
-    '60,000+ incidents analyzed',
-    'Protecting vulnerable communities',
-    'WiDS Datathon 2025',
-  ]
-  const repeated = [...items, ...items]
-  return (
-    <div className="overflow-hidden bg-[#0a1f12] border-y border-white/10 py-3 select-none">
-      <div className="flex gap-12 animate-marquee whitespace-nowrap" style={{ width: 'max-content' }}>
-        {repeated.map((item, i) => (
-          <span key={i} className="text-sm text-green-300/70 font-medium tracking-wide flex items-center gap-3">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block shrink-0" />
-            {item}
-          </span>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 // ── Phone mockup ──────────────────────────────────────────────────────────────
 function PhoneMockup() {
   return (
@@ -461,83 +436,14 @@ export default function Home() {
           </div>
 
           {/* Right: phone mockup */}
-          <div className="flex items-center justify-center shrink-0 lg:flex-1">
+          <div className="flex items-center justify-center shrink-0 lg:flex-1 animate-phone-rise">
             <PhoneMockup />
           </div>
         </div>
       </section>
 
-      {/* ── MARQUEE ── */}
-      <Marquee />
-
-      {/* ── STATS ── */}
-      <section className="bg-white py-20 border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-0 divide-x divide-gray-100">
-            {[
-              { value: '60,000+', label: 'Fire incidents analyzed', sub: '2021–2025' },
-              { value: '11.5h', label: 'Median evacuation delay', sub: 'across all counties' },
-              { value: '99.74%', label: 'Fires with no formal order', sub: 'despite external signals' },
-              { value: '9×', label: 'State disparity gap', sub: 'fastest vs slowest' },
-            ].map((s, i) => (
-              <div key={s.label} className={`px-8 py-4 ${i === 0 ? 'pl-0' : ''} ${i === 3 ? 'pr-0' : ''}`}>
-                <div className="font-display font-bold text-gray-900 mb-1" style={{ fontSize: 'clamp(2rem, 4vw, 3.5rem)', lineHeight: 1 }}>{s.value}</div>
-                <div className="text-gray-600 text-sm font-medium mt-2">{s.label}</div>
-                <div className="text-gray-400 text-xs mt-0.5">{s.sub}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── ABOUT ── */}
-      <section id="about" className="py-28 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid lg:grid-cols-[1fr_2fr] gap-20 items-start">
-            {/* Left label */}
-            <div className="lg:sticky lg:top-32">
-              <div className="text-green-600 text-xs font-semibold uppercase tracking-widest mb-4">About the Project</div>
-              <h2 className="font-display font-bold text-gray-900 leading-tight" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>
-                Built for equity.<br />Powered by data.
-              </h2>
-              <div className="mt-8 flex flex-wrap gap-2">
-                {['WatchDuty', 'CDC SVI', 'NASA FIRMS', 'XGBoost'].map(tag => (
-                  <span key={tag} className="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-sm">{tag}</span>
-                ))}
-              </div>
-            </div>
-            {/* Right content */}
-            <div>
-              <p className="text-gray-500 text-xl leading-relaxed mb-8 font-light">
-                Minutes Matter was built for the WiDS Datathon 2025 to address a critical failure in wildfire response: evacuation alerts consistently miss the communities that need them most.
-              </p>
-              <p className="text-gray-600 leading-relaxed mb-8">
-                Using the WatchDuty dataset of 60,000+ fire incidents cross-referenced with the CDC Social Vulnerability Index, we found that <strong className="text-gray-900">99.74% of fires with external detection signals never received a formal evacuation order</strong>, with median delays of 11.5 hours.
-              </p>
-              <p className="text-gray-600 leading-relaxed mb-12">
-                For elderly residents, people with disabilities, and non-English speakers, these delays can be fatal. Minutes Matter closes that gap with real-time signal analysis, ML-powered predictions, and accessible alerts.
-              </p>
-              {/* Data grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {[
-                  { value: '60,000+', label: 'Total incidents', color: '#16a34a' },
-                  { value: '108', label: 'With formal orders', color: '#dc2626' },
-                  { value: '41,906', label: 'Fires with signals', color: '#d97706' },
-                  { value: '11.5h', label: 'Median delay', color: '#2563eb' },
-                ].map(s => (
-                  <div key={s.label} className="border border-gray-100 rounded-2xl p-5 text-center">
-                    <div className="font-display text-2xl font-bold mb-1" style={{ color: s.color }}>{s.value}</div>
-                    <div className="text-gray-400 text-xs">{s.label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ── WHO IT'S FOR ── */}
-      <section id="who" className="py-28" style={{ background: '#f7faf8' }}>
+      <section id="who" className="py-28 bg-white">
         <div className="max-w-7xl mx-auto px-6">
           <div className="mb-16">
             <div className="text-green-600 text-xs font-semibold uppercase tracking-widest mb-4">Who It's For</div>
@@ -546,31 +452,19 @@ export default function Home() {
             </h2>
           </div>
 
-          {/* Caregiver spotlight — editorial wide card */}
+          {/* Caregiver spotlight */}
           <div className="rounded-3xl overflow-hidden mb-6 grid lg:grid-cols-[420px_1fr]" style={{ background: '#0a1f12' }}>
-            {/* Photo panel */}
             <div className="relative overflow-hidden" style={{ minHeight: 320 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/caregiver.png"
-                alt="Caregiver supporting an elderly person"
-                className="w-full h-full object-cover object-center"
-                style={{ minHeight: 320 }}
-              />
+              <img src="/caregiver.png" alt="Caregiver supporting an elderly person" className="w-full h-full object-cover object-center" style={{ minHeight: 320 }} />
               <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent 65%, #0a1f12 95%)' }} />
             </div>
-            {/* Text */}
             <div className="p-10 lg:p-12 flex flex-col justify-center">
               <div className="text-green-500 text-xs font-semibold uppercase tracking-widest mb-3">Primary Users</div>
-              <h3 className="font-display text-3xl font-bold text-white mb-4">Caregivers & Families</h3>
-              <p className="text-green-200/70 leading-relaxed mb-4">
-                When a wildfire breaks out, caregivers managing elderly parents, young children, or family members with disabilities face unique challenges. Standard alerts often arrive too late, use inaccessible language, or fail to account for slower evacuation needs.
-              </p>
-              <p className="text-green-200/50 leading-relaxed mb-8">
-                Minutes Matter gives caregivers personalised, actionable alerts with accessible route guidance, check-in tools, and Flameo, an AI assistant that helps plan evacuations in plain language.
-              </p>
-              <button onClick={() => router.push('/auth/login?role=caregiver')}
-                className="self-start flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
+              <h3 className="font-display text-3xl font-bold text-white mb-4">Caregivers &amp; Families</h3>
+              <p className="text-green-200/70 leading-relaxed mb-4">When a wildfire breaks out, caregivers managing elderly parents, young children, or family members with disabilities face unique challenges. Standard alerts often arrive too late, use inaccessible language, or fail to account for slower evacuation needs.</p>
+              <p className="text-green-200/50 leading-relaxed mb-8">Minutes Matter gives caregivers personalised, actionable alerts with accessible route guidance, check-in tools, and Flameo, an AI assistant that helps plan evacuations in plain language.</p>
+              <button onClick={() => router.push('/auth/login?role=caregiver')} className="self-start flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
                 Get started <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -591,6 +485,49 @@ export default function Home() {
                 <p className="text-gray-500 text-sm leading-relaxed">{desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── ABOUT ── */}
+      <section id="about" className="py-28 bg-white">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid lg:grid-cols-[1fr_2fr] gap-20 items-start">
+            <div className="lg:sticky lg:top-32">
+              <div className="text-green-600 text-xs font-semibold uppercase tracking-widest mb-4">About the Project</div>
+              <h2 className="font-display font-bold text-gray-900 leading-tight" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>
+                Built for equity.<br />Powered by data.
+              </h2>
+              <div className="mt-8 flex flex-wrap gap-2">
+                {['WatchDuty', 'CDC SVI', 'NASA FIRMS', 'XGBoost'].map(tag => (
+                  <span key={tag} className="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-sm">{tag}</span>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-gray-500 text-xl leading-relaxed mb-8 font-light">
+                Minutes Matter was built for the WiDS Datathon 2025 to address a critical failure in wildfire response: evacuation alerts consistently miss the communities that need them most.
+              </p>
+              <p className="text-gray-600 leading-relaxed mb-8">
+                Using the WatchDuty dataset of 60,000+ fire incidents cross-referenced with the CDC Social Vulnerability Index, we found that <strong className="text-gray-900">99.74% of fires with external detection signals never received a formal evacuation order</strong>, with median delays of 11.5 hours.
+              </p>
+              <p className="text-gray-600 leading-relaxed mb-10">
+                For elderly residents, people with disabilities, and non-English speakers, these delays can be fatal. Minutes Matter closes that gap with real-time signal analysis, ML-powered predictions, and accessible alerts.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {[
+                  { value: '60,000+', label: 'Total incidents', color: '#16a34a' },
+                  { value: '108', label: 'With formal orders', color: '#dc2626' },
+                  { value: '41,906', label: 'Fires with signals', color: '#d97706' },
+                  { value: '11.5h', label: 'Median delay', color: '#2563eb' },
+                ].map(s => (
+                  <div key={s.label} className="border border-gray-100 rounded-2xl p-5 text-center">
+                    <div className="font-display text-2xl font-bold mb-1" style={{ color: s.color }}>{s.value}</div>
+                    <div className="text-gray-400 text-xs">{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
