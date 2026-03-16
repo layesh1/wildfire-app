@@ -143,9 +143,9 @@ function HomepageChat() {
 // ── Phone mockup ──────────────────────────────────────────────────────────────
 function PhoneMockup() {
   return (
-    <div className="relative shrink-0 drop-shadow-2xl" style={{ width: 280 }}>
+    <div className="relative shrink-0 drop-shadow-2xl" style={{ width: 340 }}>
       {/* Phone shell */}
-      <div className="relative bg-[#1c1c1e] rounded-[3rem] shadow-2xl overflow-hidden border-[6px] border-[#2c2c2e]" style={{ height: 580 }}>
+      <div className="relative bg-[#1c1c1e] rounded-[3rem] shadow-2xl overflow-hidden border-[7px] border-[#2c2c2e]" style={{ height: 700 }}>
         {/* Dynamic island */}
         <div className="absolute top-3 left-1/2 -translate-x-1/2 w-20 h-5 bg-[#1c1c1e] rounded-full z-10" />
         {/* Screen */}
@@ -409,7 +409,7 @@ export default function Home() {
           </div>
 
           {/* Right: phone mockup — cropped to upper ~65% */}
-          <div className="flex items-end justify-center shrink-0 lg:flex-1 animate-phone-rise" style={{ overflow: 'hidden', maxHeight: 380 }}>
+          <div className="flex items-end justify-center shrink-0 lg:flex-1 animate-phone-rise" style={{ overflow: 'hidden', maxHeight: 460 }}>
             <PhoneMockup />
           </div>
         </div>
