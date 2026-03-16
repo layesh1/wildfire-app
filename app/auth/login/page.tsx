@@ -9,7 +9,9 @@ function LoginForm() {
   const searchParams = useSearchParams()
   const supabase = createClient()
 
-  const [mode, setMode] = useState<'login' | 'signup'>('login')
+  const [mode, setMode] = useState<'login' | 'signup'>(
+    searchParams.get('mode') === 'signup' ? 'signup' : 'login'
+  )
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
@@ -105,7 +107,7 @@ function LoginForm() {
           </div>
         </div>
         <div className="text-green-200/40 text-xs">
-          WiDS Datathon 2025 · 62,696 incidents analyzed
+          WiDS Datathon 2025 · 60,000+ incidents analyzed
         </div>
       </div>
 

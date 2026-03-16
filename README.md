@@ -136,7 +136,7 @@ Set `ML_SERVICE_URL` to your Modal endpoint URL.
 
 ## Key Research Findings
 
-- **62,696** wildfire incidents analyzed (2021–2025)
+- **60,000+** wildfire incidents analyzed (2021–2025)
 - **99.74%** of fires with external signals never received a formal evacuation order
 - **11.5h** median delay from signal detection to formal order
 - **9×** disparity between fastest and slowest response states
