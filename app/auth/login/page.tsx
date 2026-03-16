@@ -51,14 +51,20 @@ function LoginForm() {
         if (error) throw error
         window.location.href = '/dashboard'
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email, password,
           options: {
             emailRedirectTo: `${window.location.origin}/auth/callback`,
           },
         })
         if (error) throw error
-        setError('Check your email to confirm your account.')
+        // If email confirmation is disabled in Supabase, the session is
+        // returned immediately — redirect straight to the dashboard.
+        if (data.session) {
+          window.location.href = '/dashboard'
+        } else {
+          setError('Almost there! Check your inbox (and spam folder) for a confirmation email, then come back to log in.')
+        }
       }
     } catch (err: any) {
       setError(err.message)
