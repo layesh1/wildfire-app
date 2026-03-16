@@ -366,9 +366,9 @@ export default function Home() {
         </div>
 
         {/* Main content */}
-        <div className="relative flex-1 max-w-7xl mx-auto px-6 flex flex-col lg:flex-row items-center lg:items-end gap-12 pb-16 w-full">
+        <div className="relative flex-1 max-w-7xl mx-auto px-6 flex flex-col lg:flex-row items-center lg:items-end gap-12 w-full">
           {/* Left: text */}
-          <div className="flex-1 pt-8 lg:pt-0 lg:pb-12">
+          <div className="flex-1 pt-8 lg:pt-0 lg:pb-16">
             <h1 className="leading-none mb-8">
               <span className="block font-display font-bold text-white" style={{ fontSize: 'clamp(3rem, 8vw, 6rem)', lineHeight: 1 }}>
                 Stay Safe
@@ -409,8 +409,8 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right: phone mockup — show top, crop bottom at section edge */}
-          <div className="flex items-start justify-center shrink-0 lg:flex-1 animate-phone-rise" style={{ overflow: 'hidden', maxHeight: 520, alignSelf: 'stretch' }}>
+          {/* Right: phone mockup — flush to bottom of hero */}
+          <div className="flex items-start justify-center shrink-0 lg:flex-1 animate-phone-rise" style={{ overflow: 'hidden', alignSelf: 'stretch' }}>
             <PhoneMockup />
           </div>
         </div>
@@ -559,7 +559,7 @@ export default function Home() {
         {/* Background design image — fully visible */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/Untitled design (10).png"
+          src="/forest-blur-image.png"
           alt=""
           aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
