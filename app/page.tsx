@@ -253,56 +253,54 @@ const HOW_STEPS = [
 
 function HowItWorks() {
   return (
-    <section id="how" className="py-24" style={{ background: '#f0fdf4' }}>
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-16">
-          <div className="text-green-600 text-xs font-semibold uppercase tracking-widest mb-3">How It Works</div>
-          <h2 className="font-display font-bold text-gray-900" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>
-            Four steps to safer evacuations.
-          </h2>
+    <section id="how" className="overflow-hidden" style={{ background: '#f0fdf4' }}>
+      <div className="max-w-7xl mx-auto lg:grid lg:grid-cols-2 min-h-[640px]">
+
+        {/* Left: image */}
+        <div className="relative hidden lg:block">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/lukasz-szmigiel-2ShvY8Lf6l0-unsplash.jpg"
+            alt="Forest landscape"
+            className="absolute inset-0 w-full h-full object-cover object-center"
+          />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(5,20,10,0.18) 0%, rgba(240,253,244,0.55) 100%)' }} />
         </div>
 
-        {/* Snake timeline */}
-        <div className="max-w-2xl mx-auto">
-          {HOW_STEPS.map((step, i) => {
-            const isLeft = i % 2 === 0
-            const isLast = i === HOW_STEPS.length - 1
-            return (
-              <div key={step.num}>
-                {/* Pill card */}
-                <div className={`flex ${isLeft ? 'justify-start' : 'justify-end'}`}>
-                  <div
-                    className={`w-[82%] rounded-[3rem] px-7 py-5 flex items-center gap-5 shadow-lg ${isLeft ? 'flex-row' : 'flex-row-reverse'}`}
-                    style={{ background: 'linear-gradient(135deg, #14532d 0%, #16a34a 100%)' }}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="text-green-300/70 text-[10px] font-semibold uppercase tracking-widest mb-1">{step.tag}</div>
-                      <div className="text-white font-display font-bold text-xl leading-tight">{step.title}</div>
-                      <div className="text-green-100/60 text-sm leading-relaxed mt-2">{step.desc}</div>
+        {/* Right: steps */}
+        <div className="py-20 px-8 lg:px-14">
+          <div className="mb-12">
+            <div className="text-green-600 text-xs font-semibold uppercase tracking-widest mb-3">How It Works</div>
+            <h2 className="font-display font-bold text-gray-900" style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)' }}>
+              Four steps to safer evacuations.
+            </h2>
+          </div>
+
+          <div className="space-y-0">
+            {HOW_STEPS.map((step, i) => {
+              const isLast = i === HOW_STEPS.length - 1
+              return (
+                <div key={step.num} className="flex gap-5">
+                  {/* Number + line */}
+                  <div className="flex flex-col items-center shrink-0">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-display font-bold text-sm text-white shrink-0"
+                      style={{ background: 'linear-gradient(135deg, #14532d, #16a34a)' }}>
+                      {step.num}
                     </div>
-                    <div
-                      className="w-14 h-14 rounded-full flex items-center justify-center shrink-0 border-2 border-white/20"
-                      style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(4px)' }}
-                    >
-                      <span className="text-white font-display font-bold text-lg">{step.num}</span>
-                    </div>
+                    {!isLast && <div className="w-px flex-1 my-2" style={{ background: '#bbf7d0' }} />}
+                  </div>
+                  {/* Content */}
+                  <div className={`pb-10 ${isLast ? '' : ''}`}>
+                    <div className="text-green-600 text-[10px] font-semibold uppercase tracking-widest mb-1">{step.tag}</div>
+                    <h3 className="font-display font-bold text-gray-900 text-lg mb-1">{step.title}</h3>
+                    <p className="text-gray-500 text-sm leading-relaxed">{step.desc}</p>
                   </div>
                 </div>
-
-                {/* Snake connector */}
-                {!isLast && (
-                  <div
-                    className={`h-14 w-[20%] ${isLeft
-                      ? 'ml-auto border-r-[3px] border-b-[3px] rounded-br-[2.5rem]'
-                      : 'mr-auto border-l-[3px] border-b-[3px] rounded-bl-[2.5rem]'
-                    }`}
-                    style={{ borderColor: '#16a34a50' }}
-                  />
-                )}
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
+
       </div>
     </section>
   )
@@ -427,20 +425,22 @@ export default function Home() {
           </div>
 
           {/* Caregiver spotlight */}
-          <div className="rounded-3xl overflow-hidden mb-6 grid lg:grid-cols-[420px_1fr]" style={{ background: '#0a1f12' }}>
-            <div className="relative overflow-hidden" style={{ minHeight: 320 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/caregiver.png" alt="Caregiver supporting an elderly person" className="w-full h-full object-cover object-center" style={{ minHeight: 320 }} />
-              <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent 65%, #0a1f12 95%)' }} />
-            </div>
-            <div className="p-10 lg:p-12 flex flex-col justify-center">
-              <div className="text-green-500 text-xs font-semibold uppercase tracking-widest mb-3">Primary Users</div>
-              <h3 className="font-display text-3xl font-bold text-white mb-4">Caregivers &amp; Families</h3>
-              <p className="text-green-200/70 leading-relaxed mb-4">When a wildfire breaks out, caregivers managing elderly parents, young children, or family members with disabilities face unique challenges. Standard alerts often arrive too late, use inaccessible language, or fail to account for slower evacuation needs.</p>
-              <p className="text-green-200/50 leading-relaxed mb-8">Minutes Matter gives caregivers personalised, actionable alerts with accessible route guidance, check-in tools, and Flameo, an AI assistant that helps plan evacuations in plain language.</p>
-              <button onClick={() => router.push('/auth/login?role=caregiver')} className="self-start flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
+          <div className="rounded-3xl overflow-hidden mb-6 grid lg:grid-cols-[1fr_340px]" style={{ background: '#0a1f12', minHeight: 380 }}>
+            {/* Text — left */}
+            <div className="p-8 lg:p-10 flex flex-col justify-center">
+              <div className="text-green-500 text-xs font-semibold uppercase tracking-widest mb-2">Primary Users</div>
+              <h3 className="font-display text-2xl font-bold text-white mb-3">Caregivers &amp; Families</h3>
+              <p className="text-green-200/70 text-sm leading-relaxed mb-3">When a wildfire breaks out, caregivers managing elderly parents, young children, or family members with disabilities face unique challenges. Standard alerts often arrive too late, use inaccessible language, or fail to account for slower evacuation needs.</p>
+              <p className="text-green-200/50 text-sm leading-relaxed mb-7">Minutes Matter gives caregivers personalised, actionable alerts with accessible route guidance, check-in tools, and Flameo — an AI assistant that helps plan evacuations in plain language.</p>
+              <button onClick={() => router.push('/auth/login?role=caregiver')} className="self-start flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm">
                 Get started <ArrowRight className="w-4 h-4" />
               </button>
+            </div>
+            {/* Image — right, tall */}
+            <div className="relative overflow-hidden" style={{ minHeight: 320 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/caregiver.png" alt="Caregiver supporting an elderly person" className="absolute inset-0 w-full h-full object-cover object-center" />
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(to left, transparent 60%, #0a1f12 100%)' }} />
             </div>
           </div>
 
@@ -452,22 +452,17 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6">
 
           {/* Header */}
-          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-14">
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: '#9a7a50' }}>Our Mission</div>
-              <h2 className="font-display font-bold leading-tight" style={{ fontSize: 'clamp(2rem, 4vw, 2.75rem)', color: '#2c2416' }}>
-                Why we built<br />Minutes Matter.
-              </h2>
-            </div>
-            <p className="max-w-sm leading-relaxed" style={{ color: '#7a6a52', fontSize: '0.95rem' }}>
-              A data-driven platform built to close the gap between wildfire signals and the people who need to act on them.
-            </p>
+          <div className="mb-12">
+            <div className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: '#9a7a50' }}>Our Mission</div>
+            <h2 className="font-display font-bold leading-tight" style={{ fontSize: 'clamp(2rem, 4vw, 2.75rem)', color: '#2c2416' }}>
+              Closing the gap between<br />signal and safety.
+            </h2>
           </div>
 
           {/* Bento grid */}
           <div className="grid lg:grid-cols-12 gap-4">
 
-            {/* Problem — tall left card */}
+            {/* Problem — left card */}
             <div className="mission-card lg:col-span-5">
               <div className="mc-glow" />
               <div className="mc-inner p-8 border h-full flex flex-col justify-between" style={{ background: '#fdf3ec', borderColor: '#e8c9aa' }}>
@@ -475,7 +470,7 @@ export default function Home() {
                   <div className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color: '#b05a2a' }}>The Problem</div>
                   <h3 className="font-display text-xl font-bold mb-4" style={{ color: '#2c2416' }}>Alerts arrive too late — or not at all.</h3>
                   <p className="text-sm leading-relaxed" style={{ color: '#7a6050' }}>
-                    99.74% of fires with detectable signals never received a formal evacuation order. Median delay: 11.5 hours. High-SVI communities wait up to 9× longer.
+                    Across 60,000+ wildfire incidents in California, the vast majority had detectable fire signals but never triggered a formal evacuation order. The most vulnerable communities wait longest.
                   </p>
                 </div>
                 <div className="mt-8 grid grid-cols-2 gap-3">
@@ -494,61 +489,34 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Right column: People + Solution stacked */}
-            <div className="lg:col-span-7 flex flex-col gap-4">
-
-              {/* The People */}
-              <div className="mission-card">
-                <div className="mc-glow" style={{ background: 'conic-gradient(from var(--angle, 0deg), #7aad6a, #3d6b35, #9ecf8a, #5a8a50, #7aad6a)' }} />
-                <div className="mc-inner p-8 border" style={{ background: '#eef3ec', borderColor: '#c3d4bc' }}>
-                  <div className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: '#4a7a42' }}>The People</div>
-                  <div className="grid sm:grid-cols-2 gap-6">
-                    <div>
-                      <h4 className="font-display font-bold text-base mb-2" style={{ color: '#2c2416' }}>Caregivers &amp; Families</h4>
-                      <p className="text-sm leading-relaxed" style={{ color: '#5a7052' }}>Managing elderly parents, children, or loved ones with disabilities when standard alerts fail them.</p>
+            {/* Right: Solution */}
+            <div className="mission-card lg:col-span-7">
+              <div className="mc-glow" style={{ background: 'conic-gradient(from var(--angle, 0deg), #d4a853, #8a6020, #c8903a, #6a4a18, #d4a853)' }} />
+              <div className="mc-inner p-8 h-full" style={{ background: 'linear-gradient(135deg, #2c1f0e 0%, #4a3018 100%)' }}>
+                <div className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: '#c8a97a' }}>What We Built</div>
+                <h3 className="font-display font-bold text-white text-xl mb-6">An early-warning platform for those who need it most.</h3>
+                <div className="grid sm:grid-cols-2 gap-6 mb-8">
+                  {[
+                    { title: 'Signal Detection', desc: 'NASA FIRMS satellite data and WatchDuty reports surface fire activity before formal orders are issued.' },
+                    { title: 'Equity Scoring', desc: 'CDC Social Vulnerability Index weights alerts so high-risk communities hear first, not last.' },
+                    { title: 'Caregiver Portal', desc: 'Free, accessible alerts with evacuation routes and Flameo AI — in 30+ languages.' },
+                    { title: 'Responder Command', desc: 'ML-powered gap maps and incident intelligence for emergency coordinators.' },
+                  ].map(item => (
+                    <div key={item.title}>
+                      <div className="w-1 h-4 rounded-full mb-2" style={{ background: '#d4a853' }} />
+                      <h4 className="font-semibold text-white text-sm mb-1">{item.title}</h4>
+                      <p className="text-xs leading-relaxed" style={{ color: '#c8b89a' }}>{item.desc}</p>
                     </div>
-                    <div>
-                      <h4 className="font-display font-bold text-base mb-2" style={{ color: '#2c2416' }}>First Responders</h4>
-                      <p className="text-sm leading-relaxed" style={{ color: '#5a7052' }}>Need unified signal gap data and vulnerability mapping to prioritize outreach before conditions escalate.</p>
-                    </div>
-                  </div>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {['XGBoost · 96% accuracy', 'NASA FIRMS', 'CDC SVI', 'WatchDuty'].map(tag => (
+                    <span key={tag} className="text-xs px-2.5 py-1 rounded-full" style={{ background: 'rgba(255,255,255,0.08)', color: '#c8b89a', border: '1px solid rgba(255,255,255,0.1)' }}>{tag}</span>
+                  ))}
                 </div>
               </div>
-
-              {/* Solution + AI */}
-              <div className="mission-card">
-                <div className="mc-glow" style={{ background: 'conic-gradient(from var(--angle, 0deg), #d4a853, #8a6020, #c8903a, #6a4a18, #d4a853)' }} />
-                <div className="mc-inner p-8" style={{ background: 'linear-gradient(135deg, #2c1f0e 0%, #4a3018 100%)' }}>
-                  <div className="grid sm:grid-cols-2 gap-8">
-                    <div>
-                      <div className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: '#c8a97a' }}>Our Solution</div>
-                      <h4 className="font-display font-bold text-white text-base mb-3">Two-part role-based dashboard.</h4>
-                      <div className="space-y-2.5">
-                        {[
-                          { dot: '#8ec97a', text: 'Caregiver Portal — alerts, routes, Flameo AI. Free.' },
-                          { dot: '#d4a853', text: 'Responder Command — gap maps, ML predictions.' },
-                        ].map(item => (
-                          <div key={item.text} className="flex items-start gap-2.5">
-                            <div className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: item.dot }} />
-                            <span className="text-sm leading-relaxed" style={{ color: '#c8b89a' }}>{item.text}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: '#c8a97a' }}>AI Approach</div>
-                      <h4 className="font-display font-bold text-white text-base mb-3">XGBoost on real data.</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {['96% accuracy', 'NASA FIRMS', 'CDC SVI', 'WatchDuty', 'EPA AQI'].map(tag => (
-                          <span key={tag} className="text-xs px-2.5 py-1 rounded-full" style={{ background: 'rgba(255,255,255,0.08)', color: '#c8b89a', border: '1px solid rgba(255,255,255,0.1)' }}>{tag}</span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
             </div>
+
           </div>
 
         </div>
@@ -565,36 +533,18 @@ export default function Home() {
           className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
         />
         {/* Content bubble */}
-        <div className="relative max-w-4xl mx-auto px-6 flex items-center justify-center" style={{ minHeight: 488 }}>
+        <div className="relative max-w-3xl mx-auto px-6 flex items-center justify-center" style={{ minHeight: 420 }}>
           <div className="w-full rounded-3xl p-10 lg:p-14" style={{ background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.6)', boxShadow: '0 20px 60px rgba(0,0,0,0.10)' }}>
             <div className="text-green-600 text-xs font-semibold uppercase tracking-widest mb-4">About the Project</div>
-            <h2 className="font-display font-bold text-gray-900 leading-tight mb-6" style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)' }}>
-              Built for equity. Powered by data.
+            <h2 className="font-display font-bold text-gray-900 leading-tight mb-5" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.25rem)' }}>
+              A WiDS Datathon 2026 submission<br />from California.
             </h2>
-            <p className="text-gray-500 text-lg leading-relaxed mb-5 font-light">
-              Minutes Matter was built for the WiDS Datathon 2025 to address a critical failure in wildfire response: evacuation alerts consistently miss the communities that need them most.
+            <p className="text-gray-500 leading-relaxed mb-5">
+              Minutes Matter started as a research question: why do so many wildfires go unannounced? We dug into the data and found a systemic gap — fire signals exist, but formal alerts rarely follow. The communities hit hardest are also the least likely to be reached in time.
             </p>
-            <p className="text-gray-600 leading-relaxed mb-8 text-sm">
-              Using 60,000+ WatchDuty incidents cross-referenced with the CDC Social Vulnerability Index, we found that <strong className="text-gray-900">99.74% of fires with signals never received a formal evacuation order</strong>, with median delays of 11.5 hours. For elderly residents, people with disabilities, and non-English speakers, these delays can be fatal.
+            <p className="text-gray-500 leading-relaxed">
+              We built this platform to turn that finding into action. It is open to caregivers and evacuees for free, with a mission to make every minute count for the people who need it most.
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { value: '60,000+', label: 'Total incidents', color: '#16a34a' },
-                { value: '108', label: 'With formal orders', color: '#dc2626' },
-                { value: '41,906', label: 'Fires with signals', color: '#d97706' },
-                { value: '11.5h', label: 'Median delay', color: '#2563eb' },
-              ].map(s => (
-                <div key={s.label} className="rounded-2xl p-4 text-center" style={{ background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.06)' }}>
-                  <div className="font-display text-xl font-bold mb-0.5" style={{ color: s.color }}>{s.value}</div>
-                  <div className="text-gray-400 text-xs">{s.label}</div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-6 flex flex-wrap gap-2">
-              {['WatchDuty', 'CDC SVI', 'NASA FIRMS', 'XGBoost'].map(tag => (
-                <span key={tag} className="text-gray-500 px-3 py-1.5 rounded-full text-xs font-medium" style={{ background: 'rgba(0,0,0,0.05)', border: '1px solid rgba(0,0,0,0.08)' }}>{tag}</span>
-              ))}
-            </div>
           </div>
         </div>
       </section>
