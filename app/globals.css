@@ -92,6 +92,73 @@
   }
 }
 
+/* ── Light-theme dashboard: remap all dark ash/ember classes ─────────────── */
+.light-theme .bg-ash-950,
+.light-theme .bg-ash-900 { background-color: #ffffff !important; }
+.light-theme .bg-ash-800 { background-color: #f9fafb !important; }
+.light-theme .bg-ash-700 { background-color: #f3f4f6 !important; }
+.light-theme .bg-ash-600 { background-color: #e5e7eb !important; }
+
+.light-theme .border-ash-800,
+.light-theme .border-ash-700 { border-color: #e5e7eb !important; }
+.light-theme .border-ash-600 { border-color: #d1d5db !important; }
+.light-theme [class*="divide-ash-"] > * + * { border-color: #e5e7eb !important; }
+
+/* Text that was light on dark → now dark on light */
+.light-theme .text-white { color: #1f2937 !important; }
+.light-theme .text-ash-100,
+.light-theme .text-ash-200 { color: #1f2937 !important; }
+.light-theme .text-ash-300 { color: #374151 !important; }
+.light-theme .text-ash-400 { color: #4b5563 !important; }
+.light-theme .text-ash-500 { color: #6b7280 !important; }
+.light-theme .text-ash-600,
+.light-theme .text-ash-700 { color: #9ca3af !important; }
+
+/* Restore white text on genuinely colored backgrounds (buttons, badges) */
+.light-theme [class*="bg-forest-"] .text-white,
+.light-theme [class*="bg-green-"] .text-white,
+.light-theme [class*="bg-red-"] .text-white,
+.light-theme [class*="bg-blue-"] .text-white,
+.light-theme [class*="bg-amber-"] .text-white,
+.light-theme [class*="bg-ember-"] .text-white,
+.light-theme [class*="bg-gray-7"] .text-white,
+.light-theme [class*="bg-gray-8"] .text-white,
+.light-theme [class*="bg-gray-9"] .text-white,
+.light-theme [class*="bg-\[#"] .text-white { color: #ffffff !important; }
+/* Also preserve on elements that have both bg + text-white and the bg is colored */
+.light-theme .bg-forest-600.text-white,
+.light-theme .bg-forest-700.text-white,
+.light-theme .bg-green-600.text-white,
+.light-theme .bg-red-500.text-white,
+.light-theme .bg-blue-600.text-white { color: #ffffff !important; }
+
+/* Ember orange → forest green */
+.light-theme .text-ember-400,
+.light-theme .text-ember-500 { color: #16a34a !important; }
+.light-theme .text-ember-300 { color: #22c55e !important; }
+.light-theme .bg-ember-500\/10 { background-color: #f0fdf4 !important; }
+.light-theme .bg-ember-500\/20 { background-color: #dcfce7 !important; }
+.light-theme .border-ember-500,
+.light-theme .border-ember-400 { border-color: #16a34a !important; }
+.light-theme .border-ember-500\/40 { border-color: rgba(22,163,74,0.4) !important; }
+
+/* Hover states that were dark → light */
+.light-theme .hover\:bg-ash-800:hover { background-color: #f3f4f6 !important; }
+.light-theme .hover\:bg-ash-700:hover { background-color: #e5e7eb !important; }
+.light-theme .hover\:border-ash-600:hover { border-color: #d1d5db !important; }
+.light-theme .hover\:text-white:hover { color: #1f2937 !important; }
+/* Preserve hover:text-white on colored backgrounds */
+.light-theme [class*="bg-forest-"]:hover,
+.light-theme [class*="hover\:bg-forest-"]:hover { color: #ffffff; }
+
+/* Active/selected states */
+.light-theme .bg-ash-800.text-white { color: #1f2937 !important; background-color: #f3f4f6 !important; }
+.light-theme .bg-ash-900.text-white { color: #1f2937 !important; }
+
+/* Input/textarea on ash background */
+.light-theme .bg-ash-800 input,
+.light-theme .bg-ash-900 input { background-color: #ffffff !important; color: #1f2937 !important; }
+
 @layer utilities {
   .text-gradient-forest {
     @apply bg-clip-text text-transparent;
