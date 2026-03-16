@@ -257,8 +257,10 @@ function HowItWorks() {
       <div className="max-w-7xl mx-auto lg:grid lg:grid-cols-2 min-h-[640px]">
 
         {/* Left: phone mockup — top half visible, bottom cropped */}
-        <div className="relative hidden lg:flex items-start justify-center overflow-hidden pt-12" style={{ background: 'linear-gradient(160deg, #14532d 0%, #16a34a 100%)' }}>
-          <PhoneMockup />
+        <div className="relative hidden lg:flex items-start justify-center" style={{ background: 'linear-gradient(160deg, #14532d 0%, #16a34a 100%)' }}>
+          <div style={{ paddingTop: 48, overflow: 'hidden', height: 430, width: 340, flexShrink: 0 }}>
+            <PhoneMockup />
+          </div>
         </div>
 
         {/* Right: steps */}
