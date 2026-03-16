@@ -35,7 +35,7 @@ export default function ThemeWrapper({ children }: { children: React.ReactNode }
   }, [])
 
   return (
-    <div className={`min-h-screen flex ${isDark ? 'bg-ash-950' : 'bg-gray-50 light-theme'}`}>
+    <div className={`min-h-screen flex ${isDark ? 'bg-gray-950 dark-mode' : 'bg-gray-50 light-theme'}`}>
       {children}
     </div>
   )

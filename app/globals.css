@@ -92,6 +92,69 @@
   }
 }
 
+/* ── Dark mode overrides: explicit Tailwind grays/whites → dark tokens ───── */
+.dark-mode {
+  background-color: #0d1117 !important;
+  color: #e6edf3;
+}
+
+/* Backgrounds */
+.dark-mode .bg-white          { background-color: #161b22 !important; }
+.dark-mode .bg-gray-50        { background-color: #0d1117 !important; }
+.dark-mode .bg-gray-100       { background-color: #21262d !important; }
+.dark-mode .bg-gray-200       { background-color: #30363d !important; }
+.dark-mode .hover\:bg-gray-50:hover  { background-color: #21262d !important; }
+.dark-mode .hover\:bg-gray-100:hover { background-color: #30363d !important; }
+.dark-mode .hover\:bg-white:hover    { background-color: #21262d !important; }
+
+/* Borders */
+.dark-mode .border-gray-200   { border-color: #30363d !important; }
+.dark-mode .border-gray-300   { border-color: #30363d !important; }
+.dark-mode .border-gray-100   { border-color: #21262d !important; }
+.dark-mode .divide-gray-200 > * + * { border-color: #30363d !important; }
+
+/* Text */
+.dark-mode .text-gray-900     { color: #e6edf3 !important; }
+.dark-mode .text-gray-800     { color: #c9d1d9 !important; }
+.dark-mode .text-gray-700     { color: #c9d1d9 !important; }
+.dark-mode .text-gray-600     { color: #8b949e !important; }
+.dark-mode .text-gray-500     { color: #8b949e !important; }
+.dark-mode .text-gray-400     { color: #6e7681 !important; }
+.dark-mode .text-gray-300     { color: #484f58 !important; }
+
+/* Component classes */
+.dark-mode .card              { background-color: #161b22 !important; border-color: #30363d !important; }
+.dark-mode .input             { background-color: #21262d !important; border-color: #30363d !important; color: #e6edf3 !important; }
+.dark-mode select             { background-color: #21262d; border-color: #30363d; color: #e6edf3; }
+.dark-mode textarea           { background-color: #21262d !important; border-color: #30363d !important; color: #e6edf3 !important; }
+.dark-mode input:not([type=checkbox]):not([type=radio]) { background-color: #21262d !important; border-color: #30363d !important; color: #e6edf3 !important; }
+.dark-mode ::placeholder      { color: #6e7681 !important; }
+
+/* Nav + sidebar elements in light-theme style */
+.dark-mode .nav-link          { color: #8b949e !important; }
+.dark-mode .nav-link:hover    { background-color: #21262d !important; color: #e6edf3 !important; }
+.dark-mode .nav-link-active   { background-color: #161b22 !important; color: #3fb950 !important; border-color: #3fb950 !important; }
+
+/* Preserve colored backgrounds with white text */
+.dark-mode [class*="bg-forest-"] .text-white,
+.dark-mode [class*="bg-red-"] .text-white,
+.dark-mode [class*="bg-blue-"] .text-white,
+.dark-mode [class*="bg-signal-danger"] .text-white { color: #ffffff !important; }
+
+/* forest accent → green in dark mode */
+.dark-mode .text-forest-600   { color: #3fb950 !important; }
+.dark-mode .text-forest-700   { color: #2ea043 !important; }
+.dark-mode .bg-forest-50      { background-color: #0d2818 !important; }
+.dark-mode .border-forest-200 { border-color: #1a4731 !important; }
+.dark-mode .border-forest-300 { border-color: #2ea043 !important; }
+.dark-mode .bg-forest-600     { background-color: #238636 !important; }
+.dark-mode .bg-forest-600:hover, .dark-mode .hover\:bg-forest-700:hover { background-color: #2ea043 !important; }
+
+/* Tab bar */
+.dark-mode [class*="bg-ash-9"] { background-color: #161b22 !important; }
+.dark-mode [class*="bg-ash-8"] { background-color: #21262d !important; }
+.dark-mode [class*="border-ash-"] { border-color: #30363d !important; }
+
 /* ── Light-theme dashboard: remap all dark ash/ember classes ─────────────── */
 .light-theme .bg-ash-950,
 .light-theme .bg-ash-900 { background-color: #ffffff !important; }

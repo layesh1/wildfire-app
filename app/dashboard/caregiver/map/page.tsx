@@ -305,49 +305,63 @@ function EvacuationMapContent() {
           </div>
 
           {/* Shelter panel */}
-          {showShelters && (
-            <div className="card p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <Heart className="w-4 h-4 text-signal-safe" />
-                <h3 className="text-white font-semibold text-sm">Evacuation Shelters Near Active Fire Zones</h3>
-                <span className="ml-auto text-ash-500 text-xs">
-                  {EVAC_SHELTERS.filter(s => s.type === 'evacuation').length} evac ·{' '}
-                  {EVAC_SHELTERS.filter(s => s.type === 'animal').length} animal
-                </span>
+          {showShelters && (() => {
+            const sorted = userLocation
+              ? [...EVAC_SHELTERS].sort((a, b) =>
+                  distanceMiles(userLocation, [a.lat, a.lng]) - distanceMiles(userLocation, [b.lat, b.lng])
+                ).slice(0, 8)
+              : EVAC_SHELTERS.slice(0, 8)
+            return (
+              <div className="card p-5">
+                <div className="flex items-center gap-2 mb-1">
+                  <Heart className="w-4 h-4 text-signal-safe" />
+                  <h3 className="text-white font-semibold text-sm">
+                    {userLocation ? 'Nearest Shelters to Your Location' : 'Evacuation Shelters'}
+                  </h3>
+                </div>
+                {!userLocation && (
+                  <p className="text-ash-500 text-xs mb-3">Click &quot;Show fires near me&quot; to sort by distance from your location.</p>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                  {sorted.map(shelter => {
+                    const dist = userLocation ? distanceMiles(userLocation, [shelter.lat, shelter.lng]) : null
+                    return (
+                      <div
+                        key={shelter.id}
+                        className={`rounded-lg border p-3 ${
+                          shelter.type === 'evacuation'
+                            ? 'border-signal-safe/30 bg-signal-safe/5'
+                            : 'border-signal-info/30 bg-signal-info/5'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <div className="text-white text-sm font-medium leading-snug">{shelter.name}</div>
+                          <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${
+                            shelter.type === 'evacuation'
+                              ? 'bg-signal-safe/20 text-signal-safe'
+                              : 'bg-signal-info/20 text-signal-info'
+                          }`}>
+                            {shelter.type === 'evacuation' ? 'Evac' : 'Animal'}
+                          </span>
+                        </div>
+                        <div className="text-ash-500 text-xs">{shelter.county}</div>
+                        <div className="flex items-center gap-3 mt-2">
+                          <span className="text-ash-400 text-xs">Cap: {shelter.capacity.toLocaleString()}</span>
+                          {dist != null && (
+                            <span className="text-blue-400 text-xs font-medium">{dist.toFixed(0)} mi away</span>
+                          )}
+                          <span className="text-signal-safe text-xs font-medium ml-auto">Open</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                <p className="text-ash-600 text-xs mt-3">
+                  Showing {sorted.length} nearest shelters{userLocation ? ' to your location' : ''}. 459 total tracked system-wide.
+                </p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {EVAC_SHELTERS.map(shelter => (
-                  <div
-                    key={shelter.id}
-                    className={`rounded-lg border p-3 ${
-                      shelter.type === 'evacuation'
-                        ? 'border-signal-safe/30 bg-signal-safe/5'
-                        : 'border-signal-info/30 bg-signal-info/5'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <div className="text-white text-sm font-medium leading-snug">{shelter.name}</div>
-                      <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${
-                        shelter.type === 'evacuation'
-                          ? 'bg-signal-safe/20 text-signal-safe'
-                          : 'bg-signal-info/20 text-signal-info'
-                      }`}>
-                        {shelter.type === 'evacuation' ? 'Evac' : 'Animal'}
-                      </span>
-                    </div>
-                    <div className="text-ash-500 text-xs">{shelter.county}</div>
-                    <div className="flex items-center gap-3 mt-2">
-                      <span className="text-ash-400 text-xs">Cap: {shelter.capacity.toLocaleString()}</span>
-                      <span className="text-signal-safe text-xs font-medium">Open</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="text-ash-600 text-xs mt-3">
-                Data from Watch Duty location records. 459 evacuation shelters and 234 animal shelters tracked system-wide.
-              </p>
-            </div>
-          )}
+            )
+          })()}
         </div>
 
         {/* Fire cards */}
