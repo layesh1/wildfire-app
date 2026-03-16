@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { BarChart3, AlertTriangle, Clock, TrendingUp, Database, ArrowRight } from 'lucide-react'
+import { BarChart3, AlertTriangle, Clock, TrendingUp, Database, ArrowRight, Flame, Activity, MapPin } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
@@ -45,6 +45,30 @@ export default function AnalystDashboard() {
       color: 'text-signal-safe',
       stat: 'Real-time FIRMS',
     },
+    {
+      title: 'Hidden Danger',
+      desc: '100 silent fires with extreme radio spread that received zero evacuation action — strongest equity signal in dataset.',
+      href: '/dashboard/analyst/hidden-danger',
+      icon: Flame,
+      color: 'text-signal-danger',
+      stat: '100 silent+extreme',
+    },
+    {
+      title: 'Fire Patterns',
+      desc: 'Radio dispatch signals, zone escalation skip rates, fire cause analysis, and protocol inversion detection.',
+      href: '/dashboard/analyst/fire-patterns',
+      icon: Activity,
+      color: 'text-amber-400',
+      stat: '4 pattern analyses',
+    },
+    {
+      title: 'Fire Density',
+      desc: 'Fires per square mile by state. Identifies compound risk: high density + high SVI = most underserved.',
+      href: '/dashboard/analyst/fire-density',
+      icon: MapPin,
+      color: 'text-signal-info',
+      stat: '111 fires/1000sqmi CA',
+    },
   ]
 
   return (
@@ -87,7 +111,7 @@ export default function AnalystDashboard() {
       </div>
 
       {/* Section cards */}
-      <div className="grid md:grid-cols-2 gap-5">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
         {SECTIONS.map(({ title, desc, href, icon: Icon, color, stat }) => (
           <Link
             key={href}
