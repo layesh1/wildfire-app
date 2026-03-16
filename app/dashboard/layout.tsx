@@ -18,7 +18,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <LanguageProvider initialLang={profile?.language_preference ?? null}>
-      <div className="min-h-screen flex bg-gray-50">
+      <div className="min-h-screen flex bg-gray-50 light-theme">
         <Sidebar user={user} profile={profile} />
         <main className="flex-1 overflow-auto">
           {children}

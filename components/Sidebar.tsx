@@ -171,8 +171,8 @@ export default function Sidebar({ user, profile }: Props) {
 
       {/* Dashboard switcher — always visible */}
       {!collapsed && (
-        <div className="px-3 py-2 border-b border-ash-800">
-          <p className="text-ash-600 text-xs uppercase tracking-wider mb-1.5">My Dashboards</p>
+        <div className="px-3 py-2 border-b border-gray-100">
+          <p className="text-gray-400 text-xs uppercase tracking-wider mb-1.5">My Dashboards</p>
           {[
             { r: 'caregiver', label: 'Caregiver', dest: '/dashboard/caregiver', Icon: Heart },
             { r: 'emergency_responder', label: 'Responder', dest: '/dashboard/responder', Icon: Shield },
@@ -197,17 +197,17 @@ export default function Sidebar({ user, profile }: Props) {
                 }}
                 className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors mb-0.5 ${
                   isActive
-                    ? 'bg-ash-700 text-white'
+                    ? 'bg-forest-50 text-forest-700 border border-forest-200'
                     : isClaimed
-                      ? 'text-ash-400 hover:text-white hover:bg-ash-800'
-                      : 'text-ash-700 hover:text-ash-500 hover:bg-ash-800/50'
+                      ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
                 }`}
                 title={!isClaimed ? `Add ${label} access` : undefined}
               >
                 <Icon className="w-3.5 h-3.5 shrink-0" />
                 <span className="flex-1 text-left">{label}</span>
-                {isActive && <span className="w-1.5 h-1.5 rounded-full bg-ember-400" />}
-                {!isClaimed && <span className="text-ash-700 text-xs">+</span>}
+                {isActive && <span className="w-1.5 h-1.5 rounded-full bg-forest-600" />}
+                {!isClaimed && <span className="text-gray-400 text-xs">+</span>}
               </button>
             )
           })}
@@ -226,8 +226,8 @@ export default function Sidebar({ user, profile }: Props) {
             >
               {!collapsed && (
                 <>
-                  <Heart className="w-3 h-3 text-ash-600 shrink-0" />
-                  <span className="text-ash-600 text-xs font-semibold uppercase tracking-wider flex-1">Caregiver</span>
+                  <Heart className="w-3 h-3 text-gray-400 shrink-0" />
+                  <span className="text-gray-400 text-xs font-semibold uppercase tracking-wider flex-1">Caregiver</span>
                   {caregiverOpen ? <ChevronDown className="w-3 h-3 text-ash-600" /> : <ChevronRight className="w-3 h-3 text-ash-600" />}
                 </>
               )}
@@ -242,7 +242,7 @@ export default function Sidebar({ user, profile }: Props) {
               const active = pathname === href || pathname.startsWith(href + '/')
               return (
                 <button key={href} onClick={() => router.push(href)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left ${active ? 'bg-ash-800 text-white border-l-2 border-ember-500' : 'text-ash-400 hover:text-white hover:bg-ash-800'} ${collapsed ? 'justify-center' : ''}`}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left ${active ? 'bg-forest-50 text-forest-700 border-l-2 border-forest-500 font-medium' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'} ${collapsed ? 'justify-center' : ''}`}
                   title={collapsed ? label : undefined}
                 >
                   <Icon className="w-4 h-4 shrink-0" />
@@ -251,7 +251,7 @@ export default function Sidebar({ user, profile }: Props) {
               )
             })}
 
-            <div className="my-2 border-t border-ash-800/60" />
+            <div className="my-2 border-t border-gray-100" />
 
             {/* Evacuee section */}
             <button
@@ -261,8 +261,8 @@ export default function Sidebar({ user, profile }: Props) {
             >
               {!collapsed && (
                 <>
-                  <Shield className="w-3 h-3 text-ash-600 shrink-0" />
-                  <span className="text-ash-600 text-xs font-semibold uppercase tracking-wider flex-1">Evacuee</span>
+                  <Shield className="w-3 h-3 text-gray-400 shrink-0" />
+                  <span className="text-gray-400 text-xs font-semibold uppercase tracking-wider flex-1">Evacuee</span>
                   {evacueeOpen ? <ChevronDown className="w-3 h-3 text-ash-600" /> : <ChevronRight className="w-3 h-3 text-ash-600" />}
                 </>
               )}
@@ -276,7 +276,7 @@ export default function Sidebar({ user, profile }: Props) {
               const active = pathname === href
               return (
                 <button key={href} onClick={() => router.push(href)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left ${active ? 'bg-ash-800 text-white border-l-2 border-amber-400' : 'text-ash-400 hover:text-white hover:bg-ash-800'} ${collapsed ? 'justify-center' : ''}`}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left ${active ? 'bg-forest-50 text-forest-700 border-l-2 border-forest-500 font-medium' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'} ${collapsed ? 'justify-center' : ''}`}
                   title={collapsed ? label : undefined}
                 >
                   <Icon className="w-4 h-4 shrink-0" />
@@ -285,13 +285,13 @@ export default function Sidebar({ user, profile }: Props) {
               )
             })}
 
-            <div className="my-2 border-t border-ash-800/60" />
+            <div className="my-2 border-t border-gray-100" />
             {/* Settings */}
             {[{ label: 'Settings', href: '/dashboard/settings', icon: Settings }].map(({ label, href, icon: Icon }) => {
               const active = pathname === href || pathname.startsWith(href + '/')
               return (
                 <button key={href} onClick={() => router.push(`/dashboard/settings?role=${role}`)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left ${active ? 'bg-ash-800 text-white border-l-2 border-ember-500' : 'text-ash-400 hover:text-white hover:bg-ash-800'} ${collapsed ? 'justify-center' : ''}`}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left ${active ? 'bg-forest-50 text-forest-700 border-l-2 border-forest-500 font-medium' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'} ${collapsed ? 'justify-center' : ''}`}
                   title={collapsed ? label : undefined}
                 >
                   <Icon className="w-4 h-4 shrink-0" />
@@ -339,7 +339,7 @@ export default function Sidebar({ user, profile }: Props) {
         <div ref={langRef} className="relative">
           <button
             onClick={() => setLangOpen(v => !v)}
-            className={`flex items-center gap-2 text-ash-500 hover:text-white transition-colors px-3 py-2 rounded-lg hover:bg-ash-800 w-full
+            className={`flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors px-3 py-2 rounded-lg hover:bg-gray-100 w-full
               ${collapsed ? 'justify-center' : ''}
             `}
             title={collapsed ? `Language: ${lang.name}` : undefined}
@@ -353,10 +353,10 @@ export default function Sidebar({ user, profile }: Props) {
           </button>
 
           {langOpen && (
-            <div className={`absolute ${collapsed ? 'left-full ml-2 bottom-0' : 'bottom-full mb-1 left-0 right-0'} bg-ash-800 border border-ash-600 rounded-xl shadow-2xl overflow-hidden z-50`}
+            <div className={`absolute ${collapsed ? 'left-full ml-2 bottom-0' : 'bottom-full mb-1 left-0 right-0'} bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden z-50`}
               style={{ width: collapsed ? '240px' : undefined }}>
-              <div className="px-3 py-2 border-b border-ash-700">
-                <p className="text-ash-400 text-xs font-medium uppercase tracking-wide">Language</p>
+              <div className="px-3 py-2 border-b border-gray-100">
+                <p className="text-gray-400 text-xs font-medium uppercase tracking-wide">Language</p>
               </div>
               <div className="overflow-y-auto p-2" style={{ maxHeight: '240px' }}>
                 <div className="grid grid-cols-2 gap-1">
@@ -366,8 +366,8 @@ export default function Sidebar({ user, profile }: Props) {
                       onClick={() => { setLanguage(l.code); setLangOpen(false) }}
                       className={`text-xs px-2 py-1.5 rounded-lg text-left flex items-center gap-1.5 transition-colors
                         ${l.code === lang.code
-                          ? 'border border-ember-400/60 bg-ember-500/10 text-white'
-                          : 'border border-transparent hover:bg-ash-700 text-ash-300 hover:text-white'
+                          ? 'border border-forest-300 bg-forest-50 text-forest-700'
+                          : 'border border-transparent hover:bg-gray-50 text-gray-600 hover:text-gray-900'
                         }`}
                     >
                       <span className="text-sm leading-none">{l.flag}</span>
