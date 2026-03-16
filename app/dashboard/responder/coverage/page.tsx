@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Shield, AlertTriangle, CheckCircle, XCircle, MapPin, Users, Clock, Search, Radio, Heart } from 'lucide-react'
+import { Shield, AlertTriangle, CheckCircle, XCircle, MapPin, Users, Clock, Search, Radio, Heart, WifiOff, Globe } from 'lucide-react'
 
 const ALL_COVERAGE_DATA = [
   { region: 'Los Angeles County, CA', status: 'covered', agencies: 12, response_time: 8, population: 10014009, svi: 0.61 },
@@ -55,7 +55,7 @@ interface AssistRequest {
 export default function AgencyCoveragePage() {
   const [filter, setFilter] = useState<'all' | 'gap' | 'partial'>('all')
   const [search, setSearch] = useState('')
-  const [tab, setTab] = useState<'coverage' | 'requests'>('coverage')
+  const [tab, setTab] = useState<'coverage' | 'requests' | 'access_gaps'>('coverage')
   const [requests, setRequests] = useState<AssistRequest[]>([])
 
   useEffect(() => {
@@ -92,10 +92,15 @@ export default function AgencyCoveragePage() {
         <p className="text-ash-400 text-sm">Emergency response coverage across US counties, plus live evacuation assistance requests from residents.</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <div className="card p-5"><div className="font-display text-3xl font-bold text-signal-danger">{gaps}</div><div className="text-ash-400 text-sm mt-1">Critical gaps</div></div>
         <div className="card p-5"><div className="font-display text-3xl font-bold text-signal-warn">{partial}</div><div className="text-ash-400 text-sm mt-1">Partial coverage</div></div>
         <div className="card p-5"><div className="font-display text-3xl font-bold text-ember-400">{maxTime} min</div><div className="text-ash-400 text-sm mt-1">Max response time</div></div>
+        <div className="card p-5">
+          <div className="font-display text-3xl font-bold text-signal-warn">52.5%</div>
+          <div className="text-ash-400 text-sm mt-1">Max no-internet county</div>
+          <div className="text-ash-600 text-xs mt-0.5">Apache Co, AZ</div>
+        </div>
         <div className={`card p-5 ${pending > 0 ? 'border-signal-danger/30 bg-signal-danger/5' : ''}`}>
           <div className={`font-display text-3xl font-bold ${pending > 0 ? 'text-signal-danger' : 'text-signal-safe'}`}>{pending}</div>
           <div className="text-ash-400 text-sm mt-1">Assist requests pending</div>
@@ -111,6 +116,10 @@ export default function AgencyCoveragePage() {
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${tab === 'requests' ? 'bg-ash-700 text-white' : 'text-ash-400 hover:text-white'}`}>
           <Radio className="w-3.5 h-3.5" /> Assist Requests
           {pending > 0 && <span className="w-5 h-5 rounded-full bg-signal-danger text-white text-xs flex items-center justify-center font-bold">{pending}</span>}
+        </button>
+        <button onClick={() => setTab('access_gaps')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${tab === 'access_gaps' ? 'bg-ash-700 text-white' : 'text-ash-400 hover:text-white'}`}>
+          <WifiOff className="w-3.5 h-3.5" /> Access Gaps
         </button>
       </div>
 
@@ -231,6 +240,108 @@ export default function AgencyCoveragePage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {tab === 'access_gaps' && (
+        <div className="space-y-6">
+          {/* Language barriers */}
+          <div className="card p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Globe className="w-4 h-4 text-signal-warn" />
+              <h3 className="text-white font-semibold text-sm">Language Barrier Counties</h3>
+              <span className="ml-auto text-ash-500 text-xs">Source: CDC SVI EP_LIMENG</span>
+            </div>
+            <p className="text-ash-400 text-sm mb-4">
+              Counties with &gt;8% limited-English-proficiency AND significant wildfire exposure.
+              English-only alert systems structurally fail these communities.
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-ash-800 text-left">
+                    <th className="px-4 py-2 text-ash-400 text-xs font-medium uppercase">County</th>
+                    <th className="px-4 py-2 text-ash-400 text-xs font-medium uppercase">Limited English</th>
+                    <th className="px-4 py-2 text-ash-400 text-xs font-medium uppercase">Fires</th>
+                    <th className="px-4 py-2 text-ash-400 text-xs font-medium uppercase">SVI</th>
+                    <th className="px-4 py-2 text-ash-400 text-xs font-medium uppercase">Risk</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-ash-800">
+                  {[
+                    { county: 'Webb County, TX', pct: 19.8, fires: 89, svi: 0.83, risk: 'critical' },
+                    { county: 'Monterey County, CA', pct: 16.9, fires: 240, svi: 0.72, risk: 'critical' },
+                    { county: 'Imperial County, CA', pct: 15.3, fires: 134, svi: 0.81, risk: 'critical' },
+                    { county: 'Fresno County, CA', pct: 14.2, fires: 812, svi: 0.76, risk: 'critical' },
+                    { county: 'Merced County, CA', pct: 13.7, fires: 299, svi: 0.78, risk: 'critical' },
+                    { county: 'Santa Clara County, CA', pct: 12.1, fires: 445, svi: 0.61, risk: 'high' },
+                    { county: 'Madera County, CA', pct: 10.2, fires: 521, svi: 0.73, risk: 'high' },
+                    { county: 'Navajo County, AZ', pct: 8.7, fires: 312, svi: 0.91, risk: 'high' },
+                  ].map((row, i) => (
+                    <tr key={i} className="hover:bg-ash-800/40 transition-colors">
+                      <td className="px-4 py-3 text-white text-sm font-medium">{row.county}</td>
+                      <td className="px-4 py-3">
+                        <span className={`font-mono text-sm font-bold ${row.pct > 15 ? 'text-signal-danger' : row.pct > 10 ? 'text-signal-warn' : 'text-amber-400'}`}>
+                          {row.pct}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-ash-300 text-sm">{row.fires.toLocaleString()}</td>
+                      <td className="px-4 py-3">
+                        <span className={`font-mono text-sm ${row.svi > 0.7 ? 'text-signal-danger' : 'text-signal-warn'}`}>
+                          {row.svi.toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded font-medium ${row.risk === 'critical' ? 'bg-signal-danger/20 text-signal-danger' : 'bg-signal-warn/20 text-signal-warn'}`}>
+                          {row.risk}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* No-internet gaps */}
+          <div className="card p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <WifiOff className="w-4 h-4 text-signal-danger" />
+              <h3 className="text-white font-semibold text-sm">No-Internet Coverage Gaps</h3>
+              <span className="ml-auto text-ash-500 text-xs">Source: CDC SVI EP_NOINT</span>
+            </div>
+            <p className="text-ash-400 text-sm mb-4">
+              Counties where digital alert systems cannot reach residents — only broadcast radio and in-person outreach work here.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[
+                { county: 'Apache County, AZ', pct_noint: 52.5, fires: 212, svi: 0.91 },
+                { county: 'Harding County, NM', pct_noint: 41.2, fires: 67, svi: 0.87 },
+                { county: 'Shannon County, SD', pct_noint: 38.1, fires: 34, svi: 0.96 },
+                { county: 'Catron County, NM', pct_noint: 37.0, fires: 389, svi: 0.84 },
+                { county: 'San Juan County, UT', pct_noint: 35.4, fires: 145, svi: 0.82 },
+                { county: 'Presidio County, TX', pct_noint: 31.8, fires: 56, svi: 0.84 },
+              ].map((row, i) => (
+                <div key={i} className={`rounded-lg border p-4 ${row.pct_noint > 40 ? 'border-signal-danger/40 bg-signal-danger/5' : 'border-signal-warn/40 bg-signal-warn/5'}`}>
+                  <div className="text-white font-semibold text-sm mb-2">{row.county}</div>
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <div className={`font-mono font-bold text-xl ${row.pct_noint > 40 ? 'text-signal-danger' : 'text-signal-warn'}`}>{row.pct_noint}%</div>
+                      <div className="text-ash-500 text-xs">no internet</div>
+                    </div>
+                    <div>
+                      <div className="text-white font-bold text-xl">{row.fires}</div>
+                      <div className="text-ash-500 text-xs">fires</div>
+                    </div>
+                    <div>
+                      <div className={`font-mono font-bold text-xl ${row.svi > 0.8 ? 'text-signal-danger' : 'text-signal-warn'}`}>{row.svi.toFixed(2)}</div>
+                      <div className="text-ash-500 text-xs">SVI</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>

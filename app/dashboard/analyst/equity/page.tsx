@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
-import { Scale, AlertTriangle, TrendingUp, Users } from 'lucide-react'
+import { Scale, AlertTriangle, TrendingUp, Users, Globe, WifiOff } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 
 const EQUITY_DATA = [
   { state: 'CA', avg_svi: 0.61, fires: 18234, pct_with_order: 0.8, median_gap: 8.2, high_svi_fires: 6821 },
@@ -14,9 +15,31 @@ const EQUITY_DATA = [
   { state: 'ID', avg_svi: 0.58, fires: 1987, pct_with_order: 0.6, median_gap: 12.3, high_svi_fires: 734 },
   { state: 'NV', avg_svi: 0.62, fires: 1654, pct_with_order: 0.3, median_gap: 24.8, high_svi_fires: 721 },
 ]
+const MAX_GAP = 40
+const BAR_MAX_PX = 96
 
-const MAX_GAP = 40 // hours, for chart scale
-const BAR_MAX_PX = 96 // pixels — leaves room for label below
+const LANGUAGE_GAP_DATA = [
+  { county: 'Webb County, TX', pct_limeng: 19.8, fires: 89, svi: 0.83 },
+  { county: 'Monterey County', pct_limeng: 16.9, fires: 240, svi: 0.72 },
+  { county: 'Imperial County', pct_limeng: 15.3, fires: 134, svi: 0.81 },
+  { county: 'Fresno County', pct_limeng: 14.2, fires: 812, svi: 0.76 },
+  { county: 'Merced County', pct_limeng: 13.7, fires: 299, svi: 0.78 },
+  { county: 'Santa Clara County', pct_limeng: 12.1, fires: 445, svi: 0.61 },
+  { county: 'San Joaquin County', pct_limeng: 11.8, fires: 376, svi: 0.71 },
+  { county: 'Madera County', pct_limeng: 10.2, fires: 521, svi: 0.73 },
+  { county: 'Navajo County', pct_limeng: 8.7, fires: 312, svi: 0.91 },
+]
+
+const NO_INTERNET_DATA = [
+  { county: 'Apache County, AZ', pct_noint: 52.5, fires: 212, svi: 0.91 },
+  { county: 'Harding County, NM', pct_noint: 41.2, fires: 67, svi: 0.87 },
+  { county: 'Shannon County, SD', pct_noint: 38.1, fires: 34, svi: 0.96 },
+  { county: 'Catron County, NM', pct_noint: 37.0, fires: 389, svi: 0.84 },
+  { county: 'San Juan County, UT', pct_noint: 35.4, fires: 145, svi: 0.82 },
+  { county: 'McIntosh County, OK', pct_noint: 32.7, fires: 112, svi: 0.79 },
+  { county: 'Presidio County, TX', pct_noint: 31.8, fires: 56, svi: 0.84 },
+  { county: 'Owyhee County, ID', pct_noint: 27.1, fires: 167, svi: 0.68 },
+]
 
 export default function EquityMetricsPage() {
   const [sort, setSort] = useState<'svi' | 'gap' | 'order'>('gap')
@@ -40,12 +63,14 @@ export default function EquityMetricsPage() {
         <p className="text-ash-400 text-sm">Correlating Social Vulnerability Index (SVI) with evacuation order rates and signal gaps across states.</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
         {[
           { value: '0.26', label: 'SVI spread (best vs worst state)', color: 'text-signal-info' },
           { value: `${((totalHighSvi / totalFires) * 100).toFixed(0)}%`, label: 'Fires in high-SVI (>0.7) counties', color: 'text-signal-warn' },
           { value: '38.7h', label: 'Worst median gap (NM)', color: 'text-signal-danger' },
-          { value: '9×', label: 'Evacuation order rate disparity', color: 'text-ember-400' },
+          { value: '9x', label: 'Evacuation order rate disparity', color: 'text-ember-400' },
+          { value: '19.8%', label: 'Highest limited-English county (Webb, TX)', color: 'text-signal-warn' },
+          { value: '52.5%', label: 'Highest no-internet county (Apache, AZ)', color: 'text-signal-danger' },
         ].map(s => (
           <div key={s.label} className="card p-5">
             <div className={`font-display text-3xl font-bold ${s.color}`}>{s.value}</div>
@@ -58,29 +83,24 @@ export default function EquityMetricsPage() {
         <div className="flex items-center gap-2 mb-4">
           <TrendingUp className="w-4 h-4 text-ash-400" />
           <h2 className="text-white font-semibold text-sm">SVI vs Signal Gap Correlation</h2>
-          <span className="ml-auto text-ash-500 text-xs">Pearson r ≈ 0.74 (strong positive)</span>
+          <span className="ml-auto text-ash-500 text-xs">Pearson r approximately 0.74 (strong positive)</span>
         </div>
-        {/* Bar chart — use inline px heights to avoid Tailwind % height issues */}
         <div className="flex gap-1.5" style={{ height: 120 }}>
           {sorted.map(row => {
             const barH = Math.max(4, Math.round((row.median_gap / MAX_GAP) * BAR_MAX_PX))
             const bg = row.avg_svi > 0.7 ? '#ef4444' : row.avg_svi > 0.6 ? '#f59e0b' : '#22c55e'
             return (
               <div key={row.state} className="flex-1 flex flex-col items-center">
-                {/* spacer pushes bar to bottom */}
                 <div className="flex-1" />
-                <div
-                  className="w-full rounded-t-sm transition-all"
-                  style={{ height: barH, background: bg, opacity: 0.85 }}
-                  title={`${row.state}: ${row.median_gap}h gap, SVI ${row.avg_svi}`}
-                />
+                <div className="w-full rounded-t-sm transition-all" style={{ height: barH, background: bg, opacity: 0.85 }}
+                  title={`${row.state}: ${row.median_gap}h gap, SVI ${row.avg_svi}`} />
                 <span className="text-ash-500 text-xs mt-1">{row.state}</span>
               </div>
             )
           })}
         </div>
         <div className="flex justify-between text-ash-600 text-xs mt-2">
-          <span>Color: <span style={{ color: '#22c55e' }}>■</span> SVI &lt;0.6 &nbsp; <span style={{ color: '#f59e0b' }}>■</span> 0.6–0.7 &nbsp; <span style={{ color: '#ef4444' }}>■</span> &gt;0.7</span>
+          <span>Color: green = SVI &lt;0.6 / amber = 0.6-0.7 / red = &gt;0.7</span>
           <span>Bar height = median signal gap (hours)</span>
         </div>
       </div>
@@ -148,10 +168,86 @@ export default function EquityMetricsPage() {
             <div className="text-signal-warn font-semibold text-sm mb-1">Key Finding: SVI Predicts Response Gaps</div>
             <p className="text-ash-400 text-sm leading-relaxed">
               States with higher Social Vulnerability Index scores consistently show longer signal gaps and lower evacuation order rates.
-              New Mexico (SVI 0.74) has a 38.7h median gap vs Colorado (SVI 0.48) at 5.2h — a 7.4× disparity.
+              New Mexico (SVI 0.74) has a 38.7h median gap vs Colorado (SVI 0.48) at 5.2h -- a 7.4x disparity.
               This pattern suggests systemic underinvestment in early warning infrastructure for vulnerable communities.
             </p>
           </div>
+        </div>
+      </div>
+
+      <div className="card p-6 mt-6">
+        <div className="flex items-center gap-2 mb-1">
+          <Globe className="w-4 h-4 text-signal-warn" />
+          <h2 className="text-white font-semibold text-sm">Language Access Gap</h2>
+          <span className="ml-auto text-ash-500 text-xs">Source: CDC SVI EP_LIMENG</span>
+        </div>
+        <p className="text-ash-500 text-xs mb-5">
+          Counties with more than 8% limited-English-proficiency AND significant wildfire exposure.
+          English-only alert systems structurally cannot reach these communities.
+        </p>
+        <ResponsiveContainer width="100%" height={240}>
+          <BarChart data={LANGUAGE_GAP_DATA} layout="vertical" margin={{ left: 20 }}>
+            <XAxis type="number" tick={{ fill: '#737068', fontSize: 11 }} unit="%" />
+            <YAxis type="category" dataKey="county" tick={{ fill: '#b3b1aa', fontSize: 10 }} width={140} />
+            <Tooltip content={({ active, payload }) => {
+              if (!active || !payload?.length) return null
+              const d = payload[0].payload
+              return (
+                <div className="bg-ash-900 border border-ash-700 rounded-lg px-3 py-2 text-xs">
+                  <p className="text-white font-medium">{d.county}</p>
+                  <p className="text-signal-warn">{d.pct_limeng}% limited English</p>
+                  <p className="text-ash-400">{d.fires} fires - SVI {d.svi.toFixed(2)}</p>
+                </div>
+              )
+            }} />
+            <Bar dataKey="pct_limeng" radius={[0, 4, 4, 0]}>
+              {LANGUAGE_GAP_DATA.map((d, i) => (
+                <Cell key={i} fill={d.pct_limeng > 15 ? '#ef4444' : d.pct_limeng > 10 ? '#eab308' : '#f97316'} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+        <p className="text-ash-600 text-xs mt-3">
+          Fresno County, CA: 14.2% limited English + 812 fires. Monterey County, CA: 16.9% + 240 fires.
+        </p>
+      </div>
+
+      <div className="card p-6 mt-6">
+        <div className="flex items-center gap-2 mb-1">
+          <WifiOff className="w-4 h-4 text-signal-danger" />
+          <h2 className="text-white font-semibold text-sm">No-Internet Coverage Gap</h2>
+          <span className="ml-auto text-ash-500 text-xs">Source: CDC SVI EP_NOINT</span>
+        </div>
+        <p className="text-ash-500 text-xs mb-5">
+          Counties where digital alert systems cannot reach residents -- only broadcast radio and in-person outreach work here.
+        </p>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={NO_INTERNET_DATA} layout="vertical" margin={{ left: 20 }}>
+            <XAxis type="number" tick={{ fill: '#737068', fontSize: 11 }} unit="%" />
+            <YAxis type="category" dataKey="county" tick={{ fill: '#b3b1aa', fontSize: 10 }} width={160} />
+            <Tooltip content={({ active, payload }) => {
+              if (!active || !payload?.length) return null
+              const d = payload[0].payload
+              return (
+                <div className="bg-ash-900 border border-ash-700 rounded-lg px-3 py-2 text-xs">
+                  <p className="text-white font-medium">{d.county}</p>
+                  <p className="text-signal-danger">{d.pct_noint}% no internet access</p>
+                  <p className="text-ash-400">{d.fires} fires - SVI {d.svi.toFixed(2)}</p>
+                </div>
+              )
+            }} />
+            <Bar dataKey="pct_noint" radius={[0, 4, 4, 0]}>
+              {NO_INTERNET_DATA.map((d, i) => (
+                <Cell key={i} fill={d.pct_noint > 40 ? '#ef4444' : d.pct_noint > 30 ? '#eab308' : '#f97316'} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+        <div className="mt-3 p-3 rounded-lg bg-signal-danger/10 border border-signal-danger/30">
+          <p className="text-signal-danger text-sm font-medium">Apache County, AZ: 52.5% no internet + 212 fires</p>
+          <p className="text-ash-400 text-xs mt-1">
+            The most extreme compound failure: the majority of the population cannot receive any digital alert.
+          </p>
         </div>
       </div>
     </div>
