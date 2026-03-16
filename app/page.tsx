@@ -256,15 +256,9 @@ function HowItWorks() {
     <section id="how" className="overflow-hidden" style={{ background: '#f0fdf4' }}>
       <div className="max-w-7xl mx-auto lg:grid lg:grid-cols-2 min-h-[640px]">
 
-        {/* Left: image */}
-        <div className="relative hidden lg:block">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/lukasz-szmigiel-2ShvY8Lf6l0-unsplash.jpg"
-            alt="Forest landscape"
-            className="absolute inset-0 w-full h-full object-cover object-center"
-          />
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(5,20,10,0.18) 0%, rgba(240,253,244,0.55) 100%)' }} />
+        {/* Left: phone mockup */}
+        <div className="relative hidden lg:flex items-center justify-center py-16" style={{ background: 'linear-gradient(160deg, #14532d 0%, #16a34a 100%)' }}>
+          <PhoneMockup />
         </div>
 
         {/* Right: steps */}
