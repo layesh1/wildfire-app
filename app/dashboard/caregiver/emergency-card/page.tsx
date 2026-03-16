@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react'
 import { FileText, Download, Phone, MapPin, AlertTriangle, Heart, Shield } from 'lucide-react'
 
+const MOBILITY_OPTIONS = ['Mobile Adult', 'Elderly', 'Disabled', 'No Vehicle', 'Medical Equipment', 'Other']
+
 const MOBILITY_CHECKLISTS: Record<string, string[]> = {
   'Mobile Adult': [
     'Grab go-bag (documents, medications, charger, cash)',
@@ -37,6 +39,13 @@ const MOBILITY_CHECKLISTS: Record<string, string[]> = {
     'Notify receiving shelter of medical equipment needs',
     'Pack extra supplies (oxygen tubing, nebulizer cups)',
     'Confirm hospital / medical shelter location in advance',
+  ],
+  'Other': [
+    'Grab go-bag and any essential personal items',
+    'Notify someone you trust of your situation and plan',
+    'Follow official evacuation routes and instructions',
+    'Keep phone charged and check for updates',
+    'Head to nearest designated shelter if unsure',
   ],
 }
 
@@ -83,7 +92,8 @@ export default function EmergencyCardPage() {
     window.print()
   }
 
-  const checklist = MOBILITY_CHECKLISTS[profile.mobility] || MOBILITY_CHECKLISTS['Mobile Adult']
+  const mobilityBase = profile.mobility.startsWith('Other:') ? 'Other' : profile.mobility
+  const checklist = MOBILITY_CHECKLISTS[mobilityBase] || MOBILITY_CHECKLISTS['Mobile Adult']
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
@@ -135,9 +145,23 @@ export default function EmergencyCardPage() {
           </div>
           <div>
             <label className="text-gray-500 text-xs block mb-1">Your mobility level</label>
-            <select value={profile.mobility} onChange={e => setProfile(p => ({...p, mobility: e.target.value}))} className="input">
-              {Object.keys(MOBILITY_CHECKLISTS).map(m => <option key={m} value={m}>{m}</option>)}
+            <select
+              value={profile.mobility.startsWith('Other:') ? 'Other' : profile.mobility}
+              onChange={e => setProfile(p => ({...p, mobility: e.target.value === 'Other' ? 'Other:' : e.target.value}))}
+              className="input"
+            >
+              {MOBILITY_OPTIONS.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
+            {(profile.mobility === 'Other' || profile.mobility.startsWith('Other:')) && (
+              <input
+                type="text"
+                value={profile.mobility.startsWith('Other:') ? profile.mobility.slice(6) : ''}
+                onChange={e => setProfile(p => ({...p, mobility: `Other:${e.target.value}`}))}
+                placeholder="Describe your situation…"
+                className="input mt-2"
+                autoFocus
+              />
+            )}
           </div>
           <div>
             <label className="text-gray-500 text-xs block mb-1">Special notes</label>
@@ -239,7 +263,7 @@ export default function EmergencyCardPage() {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="w-3.5 h-3.5 text-signal-warn" />
-              <div className="text-gray-400 text-xs uppercase tracking-wider">Evacuation Checklist ({profile.mobility})</div>
+              <div className="text-gray-400 text-xs uppercase tracking-wider">Evacuation Checklist ({profile.mobility.startsWith('Other:') && profile.mobility.slice(6) ? profile.mobility.slice(6) : mobilityBase})</div>
             </div>
             <ol className="space-y-1.5">
               {checklist.map((item, i) => (

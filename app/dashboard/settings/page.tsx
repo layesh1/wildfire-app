@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, Suspense } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Shield, Heart, BarChart3, Lock, Check, ShieldCheck, Globe,
@@ -797,6 +797,31 @@ function SettingsInner() {
       {/* ── PREFERENCES TAB ── */}
       {tab === 'preferences' && (
         <div className="space-y-5">
+          <section className="card p-6">
+            <div className="flex items-center gap-2 mb-1"><Moon className="w-4 h-4 text-gray-500" /><h2 className="font-semibold text-gray-900">Appearance</h2></div>
+            <p className="text-gray-500 text-sm mb-4">Choose how the app looks on your device.</p>
+            <div className="flex gap-2">
+              {([
+                { value: 'light', label: 'Light', Icon: Sun },
+                { value: 'dark', label: 'Dark', Icon: Moon },
+                { value: 'system', label: 'System', Icon: Monitor },
+              ] as { value: Theme; label: string; Icon: React.ElementType }[]).map(({ value, label, Icon }) => (
+                <button
+                  key={value}
+                  onClick={() => applyTheme(value)}
+                  className={`flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl border text-sm font-medium transition-all ${
+                    theme === value
+                      ? 'bg-forest-50 border-forest-300 text-forest-700'
+                      : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </section>
+
           <section className="card p-6">
             <div className="flex items-center gap-2 mb-1"><Globe className="w-4 h-4 text-forest-600" /><h2 className="font-semibold text-gray-900">Language</h2></div>
             <p className="text-gray-500 text-sm mb-4">The app will be translated to your selected language.</p>
