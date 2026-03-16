@@ -1,7 +1,6 @@
 'use client'
-import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { Flame, Shield, Heart, BarChart3, ChevronRight, Plus, Lock } from 'lucide-react'
+import { Flame, Shield, Heart, BarChart3, ChevronRight, Plus, Lock, Loader2, CheckCircle, X } from 'lucide-react'
 
 const ALL_ROLES = ['caregiver', 'emergency_responder', 'data_analyst'] as const
 
@@ -61,19 +60,25 @@ interface Props {
 }
 
 export default function RolePicker({ roles, activeRole, name }: Props) {
-  const router = useRouter()
-  // Start with server-provided roles; merge localStorage on mount
   const [myRoles, setMyRoles] = useState<string[]>(roles.filter(r => ROLE_CONFIG[r]))
 
+  // Access code state
+  const [expandedRole, setExpandedRole] = useState<string | null>(null)
+  const [code, setCode] = useState('')
+  const [codeLoading, setCodeLoading] = useState(false)
+  const [codeVerified, setCodeVerified] = useState(false)
+  const [codeError, setCodeError] = useState('')
+  const [orgName, setOrgName] = useState<string | null>(null)
+  const [codeId, setCodeId] = useState<string | null>(null)
+  const [claimLoading, setClaimLoading] = useState(false)
+
   useEffect(() => {
-    // Merge server roles with localStorage roles (localStorage wins on additions)
     try {
       const stored = localStorage.getItem(LS_ROLES_KEY)
       const localRoles: string[] = stored ? JSON.parse(stored) : []
       const valid = localRoles.filter((r: string) => ROLE_CONFIG[r])
       const merged = [...new Set([...roles.filter(r => ROLE_CONFIG[r]), ...valid])]
       setMyRoles(merged)
-      // Keep localStorage in sync
       localStorage.setItem(LS_ROLES_KEY, JSON.stringify(merged))
     } catch {
       // ignore parse errors
@@ -83,19 +88,77 @@ export default function RolePicker({ roles, activeRole, name }: Props) {
   const otherRoles = ALL_ROLES.filter(r => !myRoles.includes(r))
 
   async function selectRole(role: string, href: string) {
-    // Always persist to localStorage — this is the reliable source of truth
     const updated = [...new Set([...myRoles, role])]
     localStorage.setItem(LS_ACTIVE_KEY, role)
     localStorage.setItem(LS_ROLES_KEY, JSON.stringify(updated))
-
-    // Also try Supabase (best-effort — if the roles column is missing this will fail silently)
     fetch('/api/profile/role', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ role }),
-    }).catch(() => {/* localStorage is the fallback */})
-
+    }).catch(() => {})
     window.location.href = href
+  }
+
+  function toggleExpand(role: string) {
+    if (expandedRole === role) {
+      setExpandedRole(null)
+    } else {
+      setExpandedRole(role)
+      setCode('')
+      setCodeVerified(false)
+      setCodeError('')
+      setOrgName(null)
+      setCodeId(null)
+    }
+  }
+
+  async function verifyCode() {
+    if (!expandedRole || !code.trim()) return
+    setCodeLoading(true)
+    setCodeError('')
+    try {
+      const res = await fetch('/api/invite/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code.trim(), role: expandedRole }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.valid) {
+        setCodeError(data.error || 'Invalid code. Please try again.')
+      } else if (data.role !== expandedRole) {
+        setCodeError(`This code is for ${data.role.replace('_', ' ')}, not ${expandedRole.replace('_', ' ')}.`)
+      } else {
+        setCodeVerified(true)
+        setOrgName(data.org_name)
+        setCodeId(data.code_id)
+      }
+    } catch {
+      setCodeError('Network error — check your connection.')
+    }
+    setCodeLoading(false)
+  }
+
+  async function claimRole() {
+    if (!expandedRole || !codeVerified) return
+    setClaimLoading(true)
+    localStorage.setItem(LS_ACTIVE_KEY, expandedRole)
+    try {
+      const prev: string[] = JSON.parse(localStorage.getItem('wfa_claimed_roles') || '[]')
+      localStorage.setItem('wfa_claimed_roles', JSON.stringify([...new Set([...prev, expandedRole])]))
+    } catch {}
+    await fetch('/api/profile/role', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: expandedRole }),
+    }).catch(() => {})
+    if (codeId) {
+      await fetch('/api/invite/consume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code_id: codeId }),
+      }).catch(() => {})
+    }
+    window.location.href = ROLE_CONFIG[expandedRole].href
   }
 
   return (
@@ -165,26 +228,90 @@ export default function RolePicker({ roles, activeRole, name }: Props) {
                 {otherRoles.map(role => {
                   const cfg = ROLE_CONFIG[role]
                   const Icon = cfg.icon
+                  const isExpanded = expandedRole === role
+
                   return (
-                    <button
-                      key={role}
-                      onClick={() => router.push(`/auth/add-role?role=${role}`)}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 hover:bg-white hover:border-gray-300 hover:shadow-sm transition-all text-left"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center shrink-0">
-                        <Icon className={`w-4 h-4 ${cfg.color} opacity-60`} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-gray-600 text-sm font-medium">{cfg.label}</div>
-                        {cfg.protected && (
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <Lock className="w-3 h-3 text-gray-400" />
-                            <span className="text-gray-400 text-xs">Requires access code</span>
+                    <div key={role} className={`rounded-xl border transition-all ${isExpanded ? 'border-gray-300 bg-white shadow-sm' : 'border-gray-200 bg-gray-50'}`}>
+                      {/* Role header row */}
+                      <button
+                        onClick={() => toggleExpand(role)}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100/60 transition-colors rounded-xl"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center shrink-0">
+                          <Icon className={`w-4 h-4 ${cfg.color} opacity-60`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-gray-600 text-sm font-medium">{cfg.label}</div>
+                          {cfg.protected && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Lock className="w-3 h-3 text-gray-400" />
+                              <span className="text-gray-400 text-xs">Requires access code</span>
+                            </div>
+                          )}
+                        </div>
+                        {isExpanded
+                          ? <X className="w-4 h-4 text-gray-400 shrink-0" />
+                          : <Plus className="w-4 h-4 text-gray-400 shrink-0" />
+                        }
+                      </button>
+
+                      {/* Inline access code form */}
+                      {isExpanded && (
+                        <div className="px-4 pb-4">
+                          <div className="border-t border-gray-100 pt-3">
+                            {!codeVerified ? (
+                              <>
+                                <p className="text-gray-500 text-xs mb-3">
+                                  Enter your access code to unlock {cfg.label}.
+                                  Codes are issued by your organization or agency.
+                                </p>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    value={code}
+                                    onChange={e => { setCode(e.target.value.toUpperCase()); setCodeError('') }}
+                                    onKeyDown={e => e.key === 'Enter' && verifyCode()}
+                                    placeholder="e.g. ER-ORG-1234"
+                                    className="flex-1 bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-sm font-mono focus:outline-none focus:border-blue-400 placeholder:text-gray-400"
+                                  />
+                                  <button
+                                    onClick={verifyCode}
+                                    disabled={codeLoading || !code.trim()}
+                                    className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                                  >
+                                    {codeLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Verify'}
+                                  </button>
+                                </div>
+                                {codeError && (
+                                  <p className="text-signal-danger text-xs mt-2">{codeError}</p>
+                                )}
+                              </>
+                            ) : (
+                              <div className="space-y-3">
+                                <div className="flex items-center gap-2 text-signal-safe text-sm">
+                                  <CheckCircle className="w-4 h-4" />
+                                  <span className="font-medium">Code verified{orgName ? ` · ${orgName}` : ''}</span>
+                                </div>
+                                <button
+                                  onClick={claimRole}
+                                  disabled={claimLoading}
+                                  className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
+                                    role === 'emergency_responder'
+                                      ? 'bg-red-50 border border-red-200 text-red-600 hover:bg-red-100'
+                                      : 'bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100'
+                                  }`}
+                                >
+                                  {claimLoading
+                                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                                    : <>Add {cfg.label} to my account →</>
+                                  }
+                                </button>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                      <Plus className="w-4 h-4 text-gray-400 shrink-0" />
-                    </button>
+                        </div>
+                      )}
+                    </div>
                   )
                 })}
               </div>
