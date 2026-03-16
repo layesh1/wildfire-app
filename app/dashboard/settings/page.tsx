@@ -798,28 +798,16 @@ function SettingsInner() {
       {tab === 'preferences' && (
         <div className="space-y-5">
           <section className="card p-6">
-            <div className="flex items-center gap-2 mb-4"><Moon className="w-4 h-4 text-ember-400" /><h2 className="font-semibold text-white">Appearance</h2></div>
-            <div className="grid grid-cols-3 gap-2">
-              {([['dark','Dark',Moon],['light','Light',Sun],['system','System',Monitor]] as const).map(([value, label, Icon]) => (
-                <button key={value} onClick={() => applyTheme(value as Theme)}
-                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all ${theme === value ? 'border-ember-500 bg-ember-500/10 text-ember-400' : 'border-ash-700 text-ash-400 hover:border-ash-600 hover:text-ash-300'}`}>
-                  <Icon className="w-5 h-5" /><span className="text-xs font-medium">{label}</span>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="card p-6">
-            <div className="flex items-center gap-2 mb-1"><Globe className="w-4 h-4 text-ember-400" /><h2 className="font-semibold text-white">Language</h2></div>
-            <p className="text-ash-500 text-sm mb-4">The app will be translated to your selected language.</p>
+            <div className="flex items-center gap-2 mb-1"><Globe className="w-4 h-4 text-forest-600" /><h2 className="font-semibold text-gray-900">Language</h2></div>
+            <p className="text-gray-500 text-sm mb-4">The app will be translated to your selected language.</p>
             <input type="text" value={langSearch} onChange={e => setLangSearch(e.target.value)} placeholder="Search language…" className="input w-full mb-3 text-sm" />
             <div className="grid grid-cols-2 gap-1.5 max-h-64 overflow-y-auto pr-1">
               {LANGUAGES.filter(l => !langSearch || l.name.toLowerCase().includes(langSearch.toLowerCase()) || l.native.toLowerCase().includes(langSearch.toLowerCase())).map(l => (
                 <button key={l.code} onClick={() => setLanguage(l.code)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors ${l.code === lang.code ? 'bg-ember-500/20 border border-ember-500/40 text-ember-300' : 'text-ash-300 hover:bg-ash-800 border border-transparent'}`}>
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors ${l.code === lang.code ? 'bg-forest-50 border border-forest-200 text-forest-700' : 'text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
                   <span className="text-base shrink-0">{l.flag}</span>
-                  <div className="min-w-0"><div className="truncate text-xs font-medium">{l.native}</div>{l.code !== 'en' && <div className="truncate text-ash-600 text-xs">{l.name}</div>}</div>
-                  {l.code === lang.code && <Check className="w-3 h-3 ml-auto shrink-0 text-ember-400" />}
+                  <div className="min-w-0"><div className="truncate text-xs font-medium">{l.native}</div>{l.code !== 'en' && <div className="truncate text-gray-400 text-xs">{l.name}</div>}</div>
+                  {l.code === lang.code && <Check className="w-3 h-3 ml-auto shrink-0 text-forest-600" />}
                 </button>
               ))}
             </div>
@@ -828,10 +816,10 @@ function SettingsInner() {
       )}
 
       {isOnboarding && (
-        <div className="mt-8 pt-6 border-t border-ash-800">
+        <div className="mt-8 pt-6 border-t border-gray-200">
           <button
             onClick={() => router.push(dashDest)}
-            className="w-full py-3 rounded-xl bg-ember-500/20 border border-ember-500/40 text-ember-400 font-semibold hover:bg-ember-500/30 transition-colors"
+            className="w-full py-3 rounded-xl bg-forest-600 hover:bg-forest-700 text-white font-semibold transition-colors"
           >
             Continue to Dashboard →
           </button>
