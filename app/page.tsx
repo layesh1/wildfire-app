@@ -430,22 +430,17 @@ export default function Home() {
           </div>
 
           {/* Caregiver spotlight — editorial wide card */}
-          <div className="rounded-3xl overflow-hidden mb-6 grid lg:grid-cols-[auto_1fr]" style={{ background: '#0a1f12' }}>
-            {/* Illustration panel */}
-            <div className="flex items-center justify-center p-12 lg:p-16" style={{ background: 'rgba(22,163,74,0.08)', minWidth: 220 }}>
-              <svg viewBox="0 0 120 120" className="w-36 h-36" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="42" cy="28" r="14" fill="#dcfce7" stroke="#16a34a" strokeWidth="2" />
-                <path d="M28 52 Q42 42 56 52 L60 85 Q50 90 42 90 Q34 90 24 85 Z" fill="#dcfce7" stroke="#16a34a" strokeWidth="1.5" />
-                <path d="M28 55 L20 72 L18 92 L24 92 L26 76 L32 60" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" />
-                <path d="M18 92 Q16 100 20 102" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" />
-                <path d="M56 55 L62 68" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" />
-                <path d="M34 88 L30 108 L36 108" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" />
-                <path d="M50 88 L52 108 L46 108" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" />
-                <circle cx="82" cy="30" r="11" fill="#bbf7d0" stroke="#16a34a" strokeWidth="2" />
-                <path d="M70 52 Q82 44 94 52 L96 80 Q88 84 82 84 Q76 84 68 80 Z" fill="#bbf7d0" stroke="#16a34a" strokeWidth="1.5" />
-                <path d="M62 65 Q72 58 70 70" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" fill="none" />
-                <path d="M58 42 Q62 36 66 42 Q70 48 58 55 Q46 48 50 42 Q54 36 58 42Z" fill="#fca5a5" opacity="0.7" />
-              </svg>
+          <div className="rounded-3xl overflow-hidden mb-6 grid lg:grid-cols-[420px_1fr]" style={{ background: '#0a1f12' }}>
+            {/* Photo panel */}
+            <div className="relative overflow-hidden" style={{ minHeight: 320 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/caregiver.jpeg"
+                alt="Caregiver supporting an elderly person"
+                className="w-full h-full object-cover object-center"
+                style={{ minHeight: 320 }}
+              />
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent 70%, #0a1f12)' }} />
             </div>
             {/* Text */}
             <div className="p-10 lg:p-12 flex flex-col justify-center">
