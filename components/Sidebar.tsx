@@ -135,7 +135,7 @@ export default function Sidebar({ user, profile }: Props) {
   return (
     <aside className={`
       relative flex flex-col bg-white border-r border-gray-200
-      transition-all duration-300 shrink-0
+      transition-all duration-300 shrink-0 h-screen sticky top-0 overflow-y-auto
       ${collapsed ? 'w-16' : 'w-60'}
     `}>
       {/* Toggle */}

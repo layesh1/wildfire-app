@@ -6,26 +6,41 @@ import { MapPin, AlertTriangle, CheckCircle, Navigation, ExternalLink, ChevronRi
 import type { NifcFire, EvacShelter } from './LeafletMap'
 
 const EVAC_SHELTERS: EvacShelter[] = [
+  // West Coast
   { id: 1, name: 'Pomona Fairplex Emergency Shelter', lat: 34.0564, lng: -117.7503, type: 'evacuation', county: 'Los Angeles, CA', capacity: 2000 },
   { id: 2, name: 'Del Mar Fairgrounds', lat: 32.9595, lng: -117.2653, type: 'evacuation', county: 'San Diego, CA', capacity: 1500 },
   { id: 3, name: 'Sonoma County Fairgrounds', lat: 38.4346, lng: -122.7249, type: 'evacuation', county: 'Sonoma, CA', capacity: 1200 },
   { id: 4, name: 'Cal Expo Pet-Friendly Shelter', lat: 38.5961, lng: -121.4143, type: 'evacuation', county: 'Sacramento, CA', capacity: 800 },
-  { id: 5, name: 'Rancho Bernardo Community Center', lat: 33.0251, lng: -117.0831, type: 'evacuation', county: 'San Diego, CA', capacity: 600 },
-  { id: 6, name: 'Ventura County Fairgrounds', lat: 34.2766, lng: -119.2953, type: 'evacuation', county: 'Ventura, CA', capacity: 900 },
-  { id: 7, name: 'Tucson Convention Center', lat: 32.2228, lng: -110.9747, type: 'evacuation', county: 'Pima, AZ', capacity: 1100 },
-  { id: 8, name: 'Phoenix Veteran Memorial Coliseum', lat: 33.5007, lng: -112.0709, type: 'evacuation', county: 'Maricopa, AZ', capacity: 1800 },
-  { id: 9, name: 'Klamath Falls Expo Center', lat: 42.2249, lng: -121.7753, type: 'evacuation', county: 'Klamath, OR', capacity: 400 },
-  { id: 10, name: 'Spokane Arena Shelter', lat: 47.6587, lng: -117.4260, type: 'evacuation', county: 'Spokane, WA', capacity: 1300 },
-  { id: 11, name: 'Albuquerque Convention Center', lat: 35.0853, lng: -106.6505, type: 'evacuation', county: 'Bernalillo, NM', capacity: 700 },
-  { id: 12, name: 'Gallup Multi-Generational Center', lat: 35.5281, lng: -108.7426, type: 'evacuation', county: 'McKinley, NM', capacity: 350 },
-  { id: 13, name: 'Denver Coliseum', lat: 39.7758, lng: -104.9742, type: 'evacuation', county: 'Denver, CO', capacity: 1600 },
-  { id: 14, name: 'Reno-Sparks Convention Center', lat: 39.5279, lng: -119.8143, type: 'evacuation', county: 'Washoe, NV', capacity: 900 },
-  { id: 15, name: 'Boise State Pavilion', lat: 43.6028, lng: -116.2003, type: 'evacuation', county: 'Ada, ID', capacity: 1100 },
-  { id: 16, name: 'Pasadena Humane Society Emergency', lat: 34.1478, lng: -118.1445, type: 'animal', county: 'Los Angeles, CA', capacity: 200 },
-  { id: 17, name: 'Sacramento SPCA Emergency Center', lat: 38.5815, lng: -121.4944, type: 'animal', county: 'Sacramento, CA', capacity: 150 },
-  { id: 18, name: 'Sonoma Humane Society Emergency', lat: 38.4405, lng: -122.7039, type: 'animal', county: 'Sonoma, CA', capacity: 120 },
-  { id: 19, name: 'AZ Humane Society N Phoenix', lat: 33.6751, lng: -112.1150, type: 'animal', county: 'Maricopa, AZ', capacity: 180 },
-  { id: 20, name: 'Oregon Humane Society Emergency', lat: 45.5688, lng: -122.6468, type: 'animal', county: 'Multnomah, OR', capacity: 100 },
+  { id: 5, name: 'Ventura County Fairgrounds', lat: 34.2766, lng: -119.2953, type: 'evacuation', county: 'Ventura, CA', capacity: 900 },
+  { id: 6, name: 'Tucson Convention Center', lat: 32.2228, lng: -110.9747, type: 'evacuation', county: 'Pima, AZ', capacity: 1100 },
+  { id: 7, name: 'Phoenix Veteran Memorial Coliseum', lat: 33.5007, lng: -112.0709, type: 'evacuation', county: 'Maricopa, AZ', capacity: 1800 },
+  { id: 8, name: 'Klamath Falls Expo Center', lat: 42.2249, lng: -121.7753, type: 'evacuation', county: 'Klamath, OR', capacity: 400 },
+  { id: 9, name: 'Spokane Arena Shelter', lat: 47.6587, lng: -117.4260, type: 'evacuation', county: 'Spokane, WA', capacity: 1300 },
+  { id: 10, name: 'Albuquerque Convention Center', lat: 35.0853, lng: -106.6505, type: 'evacuation', county: 'Bernalillo, NM', capacity: 700 },
+  { id: 11, name: 'Denver Coliseum', lat: 39.7758, lng: -104.9742, type: 'evacuation', county: 'Denver, CO', capacity: 1600 },
+  { id: 12, name: 'Reno-Sparks Convention Center', lat: 39.5279, lng: -119.8143, type: 'evacuation', county: 'Washoe, NV', capacity: 900 },
+  { id: 13, name: 'Boise State Pavilion', lat: 43.6028, lng: -116.2003, type: 'evacuation', county: 'Ada, ID', capacity: 1100 },
+  // Southeast / NC area (high wildfire risk counties)
+  { id: 14, name: 'Cabarrus County Fairgrounds', lat: 35.3882, lng: -80.5496, type: 'evacuation', county: 'Cabarrus, NC', capacity: 800 },
+  { id: 15, name: 'Charlotte Convention Center', lat: 35.2271, lng: -80.8431, type: 'evacuation', county: 'Mecklenburg, NC', capacity: 3000 },
+  { id: 16, name: 'Wake County Shelter (NC State Fairgrounds)', lat: 35.7885, lng: -78.7026, type: 'evacuation', county: 'Wake, NC', capacity: 1200 },
+  { id: 17, name: 'Buncombe County Shelter (WNC Ag Center)', lat: 35.5951, lng: -82.5515, type: 'evacuation', county: 'Buncombe, NC', capacity: 700 },
+  { id: 18, name: 'Guilford County Emergency Shelter', lat: 36.0726, lng: -79.7920, type: 'evacuation', county: 'Guilford, NC', capacity: 900 },
+  { id: 19, name: 'Spartanburg Memorial Auditorium', lat: 34.9496, lng: -81.9320, type: 'evacuation', county: 'Spartanburg, SC', capacity: 600 },
+  { id: 20, name: 'Columbia Metropolitan Convention Ctr', lat: 34.0007, lng: -81.0348, type: 'evacuation', county: 'Richland, SC', capacity: 1400 },
+  { id: 21, name: 'Georgia World Congress Center', lat: 33.7573, lng: -84.3963, type: 'evacuation', county: 'Fulton, GA', capacity: 2500 },
+  { id: 22, name: 'Floyd County Emergency Shelter', lat: 34.2579, lng: -85.1647, type: 'evacuation', county: 'Floyd, GA', capacity: 500 },
+  { id: 23, name: 'Nashville Municipal Auditorium', lat: 36.1687, lng: -86.7816, type: 'evacuation', county: 'Davidson, TN', capacity: 1100 },
+  { id: 24, name: 'Knoxville Convention Center', lat: 35.9606, lng: -83.9207, type: 'evacuation', county: 'Knox, TN', capacity: 800 },
+  { id: 25, name: 'Huntsville Von Braun Center', lat: 34.7304, lng: -86.5861, type: 'evacuation', county: 'Madison, AL', capacity: 900 },
+  // Animal shelters
+  { id: 26, name: 'Pasadena Humane Society Emergency', lat: 34.1478, lng: -118.1445, type: 'animal', county: 'Los Angeles, CA', capacity: 200 },
+  { id: 27, name: 'Sacramento SPCA Emergency Center', lat: 38.5815, lng: -121.4944, type: 'animal', county: 'Sacramento, CA', capacity: 150 },
+  { id: 28, name: 'AZ Humane Society N Phoenix', lat: 33.6751, lng: -112.1150, type: 'animal', county: 'Maricopa, AZ', capacity: 180 },
+  { id: 29, name: 'Oregon Humane Society Emergency', lat: 45.5688, lng: -122.6468, type: 'animal', county: 'Multnomah, OR', capacity: 100 },
+  { id: 30, name: 'Cabarrus Animal Shelter (Emergency)', lat: 35.3798, lng: -80.5523, type: 'animal', county: 'Cabarrus, NC', capacity: 120 },
+  { id: 31, name: 'Humane Society of Charlotte Emergency', lat: 35.2559, lng: -80.7993, type: 'animal', county: 'Mecklenburg, NC', capacity: 200 },
+  { id: 32, name: 'Atlanta Humane Society Emergency', lat: 33.7815, lng: -84.3791, type: 'animal', county: 'Fulton, GA', capacity: 160 },
 ]
 
 const LeafletMap = dynamic(() => import('./LeafletMap'), { ssr: false })
@@ -262,7 +277,7 @@ function EvacuationMapContent() {
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600/20 border border-blue-500/40 text-blue-300 hover:bg-blue-600/30 transition-colors disabled:opacity-50"
             >
               <Navigation className="w-3.5 h-3.5" />
-              {locating ? 'Locating…' : userLocation ? 'Update my location' : 'Show fires near me'}
+              {locating ? 'Locating…' : userLocation ? 'Update my location' : 'Show fires & shelters near me'}
             </button>
             <button
               onClick={() => setShowShelters(v => !v)}

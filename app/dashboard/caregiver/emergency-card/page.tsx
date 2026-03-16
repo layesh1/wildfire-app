@@ -333,8 +333,13 @@ export default function EmergencyCardPage() {
               <div className="text-gray-400 text-xs uppercase tracking-wider mb-0.5">Home Address</div>
               <div className="text-gray-900 font-semibold">{profile.address || '______________________________________'}</div>
             </div>
-            {(profile.bloodType || profile.languages || profile.allergies) && (
+            {(profile.bloodType || profile.languages || profile.allergies || profile.mobility !== 'Mobile Adult') && (
               <div className="col-span-2 flex flex-wrap gap-2">
+                {profile.mobility !== 'Mobile Adult' && (
+                  <span className="bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold px-2 py-1 rounded-lg">
+                    Mobility: {mobilityLabel}
+                  </span>
+                )}
                 {profile.bloodType && (
                   <span className="bg-red-50 border border-red-200 text-red-700 text-xs font-bold px-2 py-1 rounded-lg">
                     Blood: {profile.bloodType}
