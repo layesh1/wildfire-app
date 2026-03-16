@@ -149,6 +149,28 @@ html.dark [class*="bg-forest-"] .text-white,
 html.dark [class*="bg-red-"] .text-white,
 html.dark .bg-signal-danger .text-white { color: #ffffff !important; }
 
+/* ── Landing page: preserve light colors even when html.dark is toggled ───── */
+/* The landing page has its own dark design; dark-mode rules must not bleed in */
+html.dark .lp .bg-white      { background-color: #ffffff !important; }
+html.dark .lp .bg-gray-50    { background-color: #f9fafb !important; }
+html.dark .lp .bg-gray-100   { background-color: #f3f4f6 !important; }
+html.dark .lp .text-gray-900 { color: #111827 !important; }
+html.dark .lp .text-gray-800 { color: #1f2937 !important; }
+html.dark .lp .text-gray-700 { color: #374151 !important; }
+html.dark .lp .text-gray-600 { color: #4b5563 !important; }
+html.dark .lp .text-gray-500 { color: #6b7280 !important; }
+html.dark .lp .text-gray-400 { color: #9ca3af !important; }
+html.dark .lp .text-gray-300 { color: #d1d5db !important; }
+html.dark .lp .border-gray-100 { border-color: #f3f4f6 !important; }
+html.dark .lp .border-gray-200 { border-color: #e5e7eb !important; }
+html.dark .lp .divide-gray-100 > * + * { border-color: #f3f4f6 !important; }
+html.dark .lp input  { background-color: #f9fafb !important; color: #111827 !important; border-color: #e5e7eb !important; }
+html.dark .lp select { background-color: #f9fafb !important; color: #111827 !important; }
+html.dark .lp .hover\:bg-gray-50:hover  { background-color: #f9fafb !important; }
+html.dark .lp .hover\:bg-gray-100:hover { background-color: #f3f4f6 !important; }
+html.dark .lp .hover\:border-gray-300:hover { border-color: #d1d5db !important; }
+html.dark .lp .hover\:text-gray-700:hover { color: #374151 !important; }
+
 /* ── Light-theme dashboard: remap all dark ash/ember classes ─────────────── */
 .light-theme .bg-ash-950,
 .light-theme .bg-ash-900 { background-color: #ffffff !important; }
