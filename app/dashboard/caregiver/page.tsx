@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Bell, MapPin, Users, AlertTriangle, CheckCircle, Phone, ChevronRight } from 'lucide-react'
+import { Bell, MapPin, Users, AlertTriangle, CheckCircle, Phone, ChevronRight, Eye, EyeOff, Clock, Shield, Flame, Package } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
@@ -12,6 +12,40 @@ const QUICK_ACTIONS = [
   { label: 'Ask SAFE-PATH AI', href: '/dashboard/caregiver/ai', icon: Phone, color: 'text-amber-500' },
 ]
 
+// WiDS-derived signal gap by state (median hours from detection to order)
+const STATE_DELAYS: Record<string, number> = {
+  NM: 38.7, AZ: 31.2, TX: 27.4, AK: 24.6, OK: 22.1, MT: 19.8, ID: 16.3,
+  KS: 14.8, WA: 13.9, HI: 12.8, LA: 11.8, OR: 11.2, MS: 10.4, CA: 9.8,
+  AL: 9.8, FL: 9.2, NV: 8.4, CO: 5.2, UT: 4.8, ND: 2.9,
+}
+
+const GO_BAG_ITEMS = [
+  { id: 'water', label: 'Water (1 gal/person/day × 3 days)', critical: true },
+  { id: 'docs', label: 'ID, insurance, and vital documents (waterproof bag)', critical: true },
+  { id: 'meds', label: 'Medications (7-day supply + list)', critical: true },
+  { id: 'phone', label: 'Phone charger & battery pack', critical: true },
+  { id: 'cash', label: 'Cash ($100+ small bills)', critical: false },
+  { id: 'clothes', label: 'Clothing change + sturdy shoes', critical: false },
+  { id: 'food', label: 'Non-perishable food (3-day supply)', critical: false },
+  { id: 'first_aid', label: 'First-aid kit', critical: false },
+  { id: 'flashlight', label: 'Flashlight + extra batteries', critical: false },
+  { id: 'pet', label: 'Pet supplies (carrier, food, records)', critical: false },
+  { id: 'radio', label: 'Battery/crank weather radio', critical: false },
+  { id: 'map', label: 'Paper map of your area (offline backup)', critical: false },
+]
+
+function getPeakRisk(): { hour: boolean; month: boolean; peakHour: string; peakMonth: string } {
+  const now = new Date()
+  const hour = now.getHours()
+  const month = now.getMonth() + 1 // 1-indexed
+  return {
+    hour: hour >= 20 || hour <= 23, // peak: 21:00 (9PM)
+    month: month >= 6 && month <= 9, // peak: June-Sept (July peak)
+    peakHour: '9 PM',
+    peakMonth: 'July',
+  }
+}
+
 export default function CaregiverDashboard() {
   const [fires, setFires] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -20,6 +54,42 @@ export default function CaregiverDashboard() {
   const [showHelpForm, setShowHelpForm] = useState(false)
   const [helpSubmitted, setHelpSubmitted] = useState(false)
   const [helpForm, setHelpForm] = useState({ name: '', address: '', people: 1, needs: '', urgency: 'high' as 'high' | 'medium' | 'low' })
+
+  // Go-bag checklist (localStorage)
+  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set())
+  const [showBag, setShowBag] = useState(false)
+  const [bagLoaded, setBagLoaded] = useState(false)
+
+  // User's county/state from settings
+  const [userState, setUserState] = useState<string | null>(null)
+
+  const peak = getPeakRisk()
+
+  useEffect(() => {
+    // Load go-bag state from localStorage
+    try {
+      const saved = JSON.parse(localStorage.getItem('wfa_gobag') || '[]')
+      setCheckedItems(new Set(saved))
+    } catch {}
+    setBagLoaded(true)
+
+    // Try to get state from profile address
+    try {
+      const addr = localStorage.getItem('wfa_profile_address') || ''
+      const stateMatch = addr.match(/\b([A-Z]{2})\b/)
+      if (stateMatch) setUserState(stateMatch[1])
+    } catch {}
+  }, [])
+
+  function toggleBagItem(id: string) {
+    setCheckedItems(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      localStorage.setItem('wfa_gobag', JSON.stringify([...next]))
+      return next
+    })
+  }
 
   function submitHelpRequest() {
     const req = { id: Date.now().toString(), ...helpForm, submitted_at: new Date().toISOString(), status: 'pending' as const }
@@ -36,19 +106,26 @@ export default function CaregiverDashboard() {
         .eq('has_evacuation_order', true)
         .order('started_at', { ascending: false })
         .limit(5)
-
       if (data) setFires(data)
       setLoading(false)
     }
     load()
   }, [])
 
+  const criticalItems = GO_BAG_ITEMS.filter(i => i.critical)
+  const criticalChecked = criticalItems.filter(i => checkedItems.has(i.id)).length
+  const totalChecked = GO_BAG_ITEMS.filter(i => checkedItems.has(i.id)).length
+  const readyPct = Math.round((totalChecked / GO_BAG_ITEMS.length) * 100)
+
+  const stateDelay = userState ? STATE_DELAYS[userState] : null
+
   return (
     <>
     <LanguageSwitcher />
     <div className="p-8 max-w-5xl mx-auto">
+
       {/* Header */}
-      <div className="mb-10">
+      <div className="mb-8">
         <div className="flex items-center gap-2 text-forest-600 text-sm font-medium mb-3">
           <Bell className="w-4 h-4" />
           CAREGIVER DASHBOARD · SAFE-PATH
@@ -62,7 +139,7 @@ export default function CaregiverDashboard() {
       </div>
 
       {/* Alert status */}
-      <div className="bg-signal-safe/10 border border-signal-safe/30 rounded-xl p-5 flex items-center gap-4 mb-8">
+      <div className="bg-signal-safe/10 border border-signal-safe/30 rounded-xl p-5 flex items-center gap-4 mb-6">
         <div className="w-10 h-10 rounded-full bg-signal-safe/20 flex items-center justify-center">
           <CheckCircle className="w-5 h-5 text-signal-safe" />
         </div>
@@ -72,8 +149,50 @@ export default function CaregiverDashboard() {
         </div>
       </div>
 
+      {/* Peak time warning (data-driven) */}
+      {(peak.hour || peak.month) && (
+        <div className="bg-signal-warn/10 border border-signal-warn/30 rounded-xl p-4 flex items-start gap-3 mb-6">
+          <Flame className="w-4 h-4 text-signal-warn mt-0.5 shrink-0" />
+          <div>
+            <p className="text-signal-warn text-sm font-semibold mb-0.5">
+              {peak.hour ? 'Peak Fire Hour Active' : 'Peak Fire Season'}
+            </p>
+            <p className="text-gray-500 text-xs leading-relaxed">
+              {peak.hour
+                ? `WiDS data shows wildfires peak around ${peak.peakHour}. Stay alert — keep your phone charged and unlocked.`
+                : `${peak.peakMonth} through August is when wildfire incidents peak nationally. Check this app daily.`
+              }
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Silent fire awareness */}
+      <div className="card p-5 mb-6 border-l-4 border-signal-warn">
+        <div className="flex items-start gap-3">
+          <EyeOff className="w-5 h-5 text-signal-warn mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <div className="text-gray-900 font-semibold text-sm mb-1">
+              73.5% of wildfires start with NO alert
+            </div>
+            <p className="text-gray-500 text-xs leading-relaxed">
+              Analysis of 62,696 fire incidents (2021–2025) shows most fires are &quot;silent&quot; — no push notification reaches nearby residents.
+              {stateDelay != null ? (
+                <span className="text-signal-warn font-medium"> In {userState}, the median time between fire detection and an evacuation order is <strong>{stateDelay}h</strong>.</span>
+              ) : (
+                <span> Even when signals exist, 99.74% of fires result in no formal evacuation order.</span>
+              )}
+              {' '}Don&apos;t wait for an alert — check this app during fire weather.
+            </p>
+            <Link href="/dashboard/caregiver/alert" className="mt-2 inline-flex items-center gap-1 text-signal-info text-xs hover:underline">
+              <Eye className="w-3 h-3" /> Check fire proximity for my address →
+            </Link>
+          </div>
+        </div>
+      </div>
+
       {/* Quick actions */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {QUICK_ACTIONS.map(({ label, href, icon: Icon, color }) => (
           <Link
             key={href}
@@ -85,6 +204,165 @@ export default function CaregiverDashboard() {
             <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 mt-2 transition-colors" />
           </Link>
         ))}
+      </div>
+
+      {/* Go-Bag Readiness Checklist */}
+      <div className={`rounded-xl border mb-8 overflow-hidden ${readyPct >= 80 ? 'border-signal-safe/30' : readyPct >= 50 ? 'border-signal-warn/30' : 'border-signal-danger/30'}`}>
+        <button
+          onClick={() => setShowBag(v => !v)}
+          className="w-full flex items-center gap-3 px-5 py-4 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+        >
+          <Package className={`w-4 h-4 shrink-0 ${readyPct >= 80 ? 'text-signal-safe' : readyPct >= 50 ? 'text-signal-warn' : 'text-signal-danger'}`} />
+          <div className="flex-1">
+            <div className="text-gray-900 font-semibold text-sm">Go-Bag Readiness</div>
+            <div className="text-gray-500 text-xs mt-0.5">
+              {bagLoaded
+                ? `${totalChecked}/${GO_BAG_ITEMS.length} items packed · ${criticalChecked}/${criticalItems.length} critical`
+                : 'Loading…'
+              }
+            </div>
+          </div>
+          {/* Progress bar */}
+          <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden mx-2">
+            <div
+              className={`h-full rounded-full transition-all ${readyPct >= 80 ? 'bg-signal-safe' : readyPct >= 50 ? 'bg-signal-warn' : 'bg-signal-danger'}`}
+              style={{ width: `${readyPct}%` }}
+            />
+          </div>
+          <span className={`text-xs font-mono font-bold w-10 text-right shrink-0 ${readyPct >= 80 ? 'text-signal-safe' : readyPct >= 50 ? 'text-signal-warn' : 'text-signal-danger'}`}>
+            {readyPct}%
+          </span>
+          <ChevronRight className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${showBag ? 'rotate-90' : ''}`} />
+        </button>
+
+        {showBag && (
+          <div className="border-t border-gray-200 p-5 bg-white">
+            <p className="text-gray-500 text-xs mb-4">
+              Check off items you have packed and ready. <span className="text-signal-danger">Red items are critical</span> — prioritize these first.
+            </p>
+            <div className="space-y-2">
+              {GO_BAG_ITEMS.map(item => (
+                <label key={item.id} className="flex items-center gap-3 cursor-pointer group p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
+                    checkedItems.has(item.id)
+                      ? 'bg-signal-safe border-signal-safe'
+                      : item.critical
+                        ? 'border-signal-danger/60 group-hover:border-signal-danger'
+                        : 'border-gray-300 group-hover:border-gray-400'
+                  }`}>
+                    {checkedItems.has(item.id) && <CheckCircle className="w-3 h-3 text-white" />}
+                  </div>
+                  <input type="checkbox" checked={checkedItems.has(item.id)} onChange={() => toggleBagItem(item.id)} className="sr-only" />
+                  <span className={`text-sm transition-colors ${
+                    checkedItems.has(item.id) ? 'text-gray-400 line-through' : item.critical ? 'text-gray-900' : 'text-gray-600'
+                  }`}>
+                    {item.label}
+                    {item.critical && !checkedItems.has(item.id) && (
+                      <span className="ml-2 text-xs text-signal-danger font-medium">CRITICAL</span>
+                    )}
+                  </span>
+                </label>
+              ))}
+            </div>
+            {readyPct < 60 && (
+              <div className="mt-4 p-3 rounded-lg bg-signal-danger/10 border border-signal-danger/20">
+                <p className="text-signal-danger text-xs font-medium">
+                  Your bag is not ready for evacuation. In {userState && STATE_DELAYS[userState] ? `${userState}, you may have as little as ${STATE_DELAYS[userState]}h` : 'some areas, you may have under 10h'} between a fire starting and an evacuation order. Pack now.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Know Your Risk */}
+      <div className="card p-5 mb-8">
+        <div className="flex items-center gap-2 mb-4">
+          <Shield className="w-4 h-4 text-gray-400" />
+          <h2 className="text-gray-900 font-semibold text-sm">Know Your Risk</h2>
+          <span className="ml-auto text-gray-400 text-xs">WiDS 2021–2025 · 62,696 incidents</span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {[
+            {
+              label: 'Silent fire rate',
+              value: '73.5%',
+              sub: 'of fires start with no push alert',
+              color: 'text-signal-danger',
+            },
+            {
+              label: stateDelay != null ? `${userState} median alert delay` : 'National median delay',
+              value: stateDelay != null ? `${stateDelay}h` : '11.5h',
+              sub: 'from fire detection to evacuation order',
+              color: stateDelay != null && stateDelay > 20 ? 'text-signal-danger' : 'text-signal-warn',
+            },
+            {
+              label: 'Peak fire hour',
+              value: '9 PM',
+              sub: 'when fires are most likely to start',
+              color: 'text-amber-500',
+            },
+            {
+              label: 'Peak fire month',
+              value: 'July',
+              sub: '13,650 fires recorded in July alone',
+              color: 'text-amber-500',
+            },
+            {
+              label: 'Fires w/ extreme spread',
+              value: '298',
+              sub: '70.8% received zero evacuation action',
+              color: 'text-signal-danger',
+            },
+            {
+              label: 'Early signal, no action',
+              value: '99.7%',
+              sub: 'of fires with early signals got no order',
+              color: 'text-signal-warn',
+            },
+          ].map(stat => (
+            <div key={stat.label} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+              <div className={`font-display text-xl font-bold ${stat.color} mb-0.5`}>{stat.value}</div>
+              <div className="text-gray-900 text-xs font-medium">{stat.label}</div>
+              <div className="text-gray-500 text-xs mt-0.5 leading-tight">{stat.sub}</div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link href="/dashboard/caregiver/alert" className="flex items-center gap-1.5 text-xs text-signal-info hover:underline">
+            <MapPin className="w-3 h-3" /> Check my address risk →
+          </Link>
+          <Link href="/dashboard/caregiver/emergency-card" className="flex items-center gap-1.5 text-xs text-amber-500 hover:underline">
+            <Package className="w-3 h-3" /> Get my emergency card →
+          </Link>
+          <Link href="/dashboard/caregiver/persons" className="flex items-center gap-1.5 text-xs text-signal-safe hover:underline">
+            <Users className="w-3 h-3" /> Track my household →
+          </Link>
+        </div>
+      </div>
+
+      {/* Evacuation timing guide */}
+      <div className="card p-5 mb-8">
+        <div className="flex items-center gap-2 mb-4">
+          <Clock className="w-4 h-4 text-gray-400" />
+          <h2 className="text-gray-900 font-semibold text-sm">When to Leave — Don&apos;t Wait for an Order</h2>
+        </div>
+        <div className="space-y-2">
+          {[
+            { stage: 'Watch (now)', action: 'Pack go-bag, fill gas, locate pets, know your route', color: 'text-signal-safe', border: 'border-signal-safe/30', bg: 'bg-signal-safe/5' },
+            { stage: 'Advisory issued', action: 'Load car, move valuables, prepare to leave immediately', color: 'text-signal-warn', border: 'border-signal-warn/30', bg: 'bg-signal-warn/5' },
+            { stage: 'Warning issued', action: 'Leave NOW — do not wait for Order. High-SVI areas average 40h delay.', color: 'text-amber-500', border: 'border-amber-400/30', bg: 'bg-amber-400/5' },
+            { stage: 'Order issued', action: 'Mandatory evacuation — go immediately. Shelter info on map.', color: 'text-signal-danger', border: 'border-signal-danger/30', bg: 'bg-signal-danger/5' },
+          ].map(row => (
+            <div key={row.stage} className={`flex items-start gap-3 px-3 py-2.5 rounded-lg border ${row.border} ${row.bg}`}>
+              <span className={`text-xs font-bold w-28 shrink-0 mt-0.5 ${row.color}`}>{row.stage}</span>
+              <span className="text-gray-600 text-xs leading-relaxed">{row.action}</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-gray-400 text-xs mt-3">
+          Source: WiDS 2021–2025 dataset · High-SVI communities wait 9.6× longer for formal orders than low-SVI areas
+        </p>
       </div>
 
       {/* Evacuation Assist Request */}
@@ -99,7 +377,7 @@ export default function CaregiverDashboard() {
             {showHelpForm ? 'Cancel' : 'Request Help'}
           </button>
         </div>
-        <p className="text-gray-500 text-xs mb-3">Can't self-evacuate? Submit a request — emergency responders will be notified to assist.</p>
+        <p className="text-gray-500 text-xs mb-3">Can&apos;t self-evacuate? Submit a request — emergency responders will be notified to assist.</p>
         {showHelpForm && (helpSubmitted ? (
           <div className="flex items-center gap-3 p-3 bg-signal-safe/10 border border-signal-safe/30 rounded-xl">
             <CheckCircle className="w-5 h-5 text-signal-safe shrink-0" />
