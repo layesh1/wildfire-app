@@ -240,6 +240,126 @@ function PhoneMockup() {
 }
 
 
+// ── How It Works ──────────────────────────────────────────────────────────────
+const HOW_STEPS = [
+  {
+    num: '01',
+    title: 'Signal Detection',
+    tag: 'Data Ingestion',
+    desc: 'NASA FIRMS and WatchDuty data streams detect fire incidents in real time, before formal evacuation orders are ever issued.',
+    detail: 'We ingest satellite thermal anomaly data from NASA FIRMS alongside crowd-sourced incident reports from WatchDuty, giving us the earliest possible signal that a fire is growing.',
+    color: '#16a34a',
+  },
+  {
+    num: '02',
+    title: 'Gap Analysis',
+    tag: 'Intelligence Layer',
+    desc: 'We identify where formal evacuation orders are missing despite clear fire signals, closing the critical information gap.',
+    detail: 'Across 60,000+ incidents, 99.74% of fires with external detection signals never received a formal order. Our gap analysis flags these silent emergencies immediately.',
+    color: '#d97706',
+  },
+  {
+    num: '03',
+    title: 'Equity Scoring',
+    tag: 'Vulnerability Mapping',
+    desc: 'CDC Social Vulnerability Index data identifies which communities are most at risk and least likely to receive timely alerts.',
+    detail: 'High-SVI counties experience up to 9× longer delays before evacuation orders. We weight our alert priority by vulnerability score so the most at-risk residents hear first.',
+    color: '#dc2626',
+  },
+  {
+    num: '04',
+    title: 'Personalized Alerts',
+    tag: 'Delivery',
+    desc: 'Caregivers receive tailored alerts, accessible evacuation routes, and safe shelter locations in plain, accessible language.',
+    detail: 'Alerts are delivered in 30+ languages with mobility-adaptive guidance. Flameo AI helps caregivers plan step-by-step evacuations for elderly relatives or people with disabilities.',
+    color: '#2563eb',
+  },
+]
+
+function HowItWorks() {
+  const [active, setActive] = useState(0)
+  const step = HOW_STEPS[active]
+
+  return (
+    <section id="how" className="py-24 bg-white">
+      <div className="max-w-6xl mx-auto px-6">
+        {/* Header */}
+        <div className="text-center mb-16">
+          <div className="text-green-600 text-xs font-semibold uppercase tracking-widest mb-3">How It Works</div>
+          <h2 className="font-display font-bold text-gray-900" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>
+            Four steps to safer evacuations.
+          </h2>
+        </div>
+
+        {/* Step tabs */}
+        <div className="flex gap-2 mb-10 overflow-x-auto pb-1">
+          {HOW_STEPS.map((s, i) => (
+            <button
+              key={s.num}
+              onClick={() => setActive(i)}
+              className={`flex items-center gap-3 px-5 py-3 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-200 border ${
+                active === i
+                  ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
+                  : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-700'
+              }`}
+            >
+              <span className={`font-mono text-xs font-bold ${active === i ? 'text-gray-400' : 'text-gray-300'}`}>{s.num}</span>
+              {s.title}
+            </button>
+          ))}
+        </div>
+
+        {/* Active step content */}
+        <div className="grid lg:grid-cols-[1fr_1fr] gap-8 items-stretch">
+          {/* Left: main info */}
+          <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 flex flex-col justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold mb-6"
+                style={{ background: `${step.color}18`, color: step.color }}>
+                {step.tag}
+              </div>
+              <div className="font-display font-bold text-gray-100 mb-2" style={{ fontSize: '5rem', lineHeight: 1 }}>{step.num}</div>
+              <h3 className="font-display text-3xl font-bold text-gray-900 mb-4">{step.title}</h3>
+              <p className="text-gray-600 text-lg leading-relaxed">{step.desc}</p>
+            </div>
+            {/* Progress dots */}
+            <div className="flex gap-2 mt-10">
+              {HOW_STEPS.map((_, i) => (
+                <button key={i} onClick={() => setActive(i)}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${i === active ? 'w-8 bg-gray-900' : 'w-4 bg-gray-200 hover:bg-gray-300'}`} />
+              ))}
+            </div>
+          </div>
+
+          {/* Right: detail + nav */}
+          <div className="flex flex-col gap-4">
+            <div className="flex-1 rounded-2xl border border-gray-100 p-8 flex flex-col justify-center" style={{ background: `${step.color}08`, borderColor: `${step.color}20` }}>
+              <div className="text-sm font-semibold mb-3" style={{ color: step.color }}>In depth</div>
+              <p className="text-gray-700 leading-relaxed">{step.detail}</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setActive(i => Math.max(0, i - 1))}
+                disabled={active === 0}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700 disabled:opacity-30 transition-all"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setActive(i => Math.min(HOW_STEPS.length - 1, i + 1))}
+                disabled={active === HOW_STEPS.length - 1}
+                className="flex-1 py-3 rounded-xl border border-gray-900 bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 disabled:opacity-30 transition-all"
+              >
+                Next step
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function Home() {
   const router = useRouter()
@@ -432,12 +552,12 @@ export default function Home() {
             <div className="relative overflow-hidden" style={{ minHeight: 320 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/caregiver.jpeg"
+                src="/caregiver.png"
                 alt="Caregiver supporting an elderly person"
                 className="w-full h-full object-cover object-center"
                 style={{ minHeight: 320 }}
               />
-              <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent 70%, #0a1f12)' }} />
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent 65%, #0a1f12 95%)' }} />
             </div>
             {/* Text */}
             <div className="p-10 lg:p-12 flex flex-col justify-center">
@@ -476,8 +596,16 @@ export default function Home() {
       </section>
 
       {/* ── JOIN ── */}
-      <section className="py-28" style={{ background: '#0a1f12' }}>
-        <div className="max-w-5xl mx-auto px-6 text-center">
+      <section className="relative py-28 overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/hero-forest.jpg"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
+        />
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(5,20,10,0.80)' }} />
+        <div className="relative max-w-5xl mx-auto px-6 text-center">
           <div className="text-green-500 text-xs font-semibold uppercase tracking-widest mb-4">Get Started</div>
           <h2 className="font-display font-bold text-white mb-6" style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', lineHeight: 1.1 }}>
             Join Minutes Matter
@@ -503,34 +631,7 @@ export default function Home() {
       </section>
 
       {/* ── HOW IT WORKS ── */}
-      <section id="how" className="py-28 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid lg:grid-cols-[1fr_2fr] gap-20 items-start">
-            <div className="lg:sticky lg:top-32">
-              <div className="text-green-600 text-xs font-semibold uppercase tracking-widest mb-4">How It Works</div>
-              <h2 className="font-display font-bold text-gray-900 leading-tight" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>
-                Four steps to safer evacuations.
-              </h2>
-            </div>
-            <div className="space-y-0 divide-y divide-gray-100">
-              {[
-                { num: '01', title: 'Signal Detection', desc: 'NASA FIRMS and WatchDuty data streams detect fire incidents in real time, before formal orders are issued.' },
-                { num: '02', title: 'Gap Analysis', desc: 'We identify where formal evacuation orders are missing despite clear fire signals, closing the critical information gap.' },
-                { num: '03', title: 'Equity Scoring', desc: 'CDC SVI data highlights which communities are most vulnerable and underserved, prioritizing those who need alerts most.' },
-                { num: '04', title: 'Personalized Alerts', desc: 'Caregivers receive tailored alerts, evacuation routes, and safe shelter locations in accessible language.' },
-              ].map(({ num, title, desc }) => (
-                <div key={num} className="flex gap-8 py-8 group">
-                  <div className="font-display text-5xl font-bold text-gray-100 group-hover:text-green-100 transition-colors shrink-0 w-16">{num}</div>
-                  <div className="pt-2">
-                    <h3 className="font-display text-xl font-bold text-gray-900 mb-2">{title}</h3>
-                    <p className="text-gray-500 leading-relaxed">{desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+      <HowItWorks />
 
       {/* ── FOOTER ── */}
       <footer className="py-8 px-6" style={{ background: '#050f08' }}>
