@@ -25,6 +25,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
           {children}
         </main>
         <FlameoChat />
+        {/* Honeypot: invisible to users, visible to crawlers/scanners */}
+        <a href="/api/honeypot" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} />
       </ThemeWrapper>
     </LanguageProvider>
   )
