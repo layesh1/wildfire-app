@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Flame, Shield, Heart, BarChart3, Monitor, X, Send, ArrowRight } from 'lucide-react'
+import { Flame, Shield, Heart, Monitor, X, Send, ArrowRight } from 'lucide-react'
 
 // ── Homepage Flameo chat (prompts login) ─────────────────────────────────────
 function HomepageChat() {
@@ -326,8 +326,9 @@ export default function Home() {
           </div>
           <div className="flex-1" />
           <nav className="hidden md:flex items-center gap-8 text-sm text-green-200/70 font-medium">
-            <a href="#about" className="hover:text-white transition-colors">About</a>
             <a href="#who" className="hover:text-white transition-colors">Who It's For</a>
+            <a href="#mission" className="hover:text-white transition-colors">Our Mission</a>
+            <a href="#about" className="hover:text-white transition-colors">About</a>
             <a href="#how" className="hover:text-white transition-colors">How It Works</a>
           </nav>
           <div className="flex items-center gap-2">
@@ -448,7 +449,6 @@ export default function Home() {
             {[
               { icon: Heart, title: 'Caregivers', desc: 'Managing the safety of elderly parents, children, or loved ones with mobility challenges during a wildfire event.', color: '#be185d', bg: '#fdf2f8', border: '#fce7f3' },
               { icon: Shield, title: 'Emergency Responders', desc: 'Fire departments and emergency management teams who need real-time signal gap data and ML-powered spread predictions.', color: '#dc2626', bg: '#fff5f5', border: '#fee2e2' },
-              { icon: BarChart3, title: 'Data Analysts', desc: 'Academics and policy teams studying equity gaps in wildfire evacuation using 60,000+ real incidents with SVI cross-analysis.', color: '#2563eb', bg: '#eff6ff', border: '#dbeafe' },
             ].map(({ icon: Icon, title, desc, color, bg, border }) => (
               <div key={title} className="rounded-2xl p-7 border" style={{ background: bg, borderColor: border }}>
                 <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-5" style={{ background: 'white', border: `1px solid ${border}` }}>
@@ -459,6 +459,131 @@ export default function Home() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ── MISSION ── */}
+      <section id="mission" className="py-28" style={{ background: '#f5f0e8' }}>
+        <div className="max-w-7xl mx-auto px-6">
+
+          {/* Header */}
+          <div className="max-w-3xl mb-20">
+            <div className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: '#7a6a4f' }}>Our Mission</div>
+            <h2 className="font-display font-bold leading-tight mb-6" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: '#2c2416' }}>
+              Keeping loved ones safe,<br />no matter the distance.
+            </h2>
+            <p className="text-xl leading-relaxed font-light" style={{ color: '#6b5d45' }}>
+              Minutes Matter was built so that anyone — no matter where they live — can stay informed and connected when wildfires threaten the people they care about most.
+            </p>
+          </div>
+
+          {/* The Problem + The People */}
+          <div className="grid lg:grid-cols-2 gap-6 mb-6">
+            {/* Problem card */}
+            <div className="mission-card">
+              <div className="mc-glow" />
+              <div className="mc-inner p-10 border" style={{ background: 'linear-gradient(135deg, #fdf3ec 0%, #faf6f0 100%)', borderColor: '#e8c9aa' }}>
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-6" style={{ background: '#f0d5bc' }}>
+                  <svg className="w-6 h-6" style={{ color: '#b05a2a' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+                </div>
+                <div className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: '#b05a2a' }}>The Problem</div>
+                <h3 className="font-display text-2xl font-bold mb-4" style={{ color: '#2c2416' }}>Alerts arrive too late — or not at all.</h3>
+                <p className="leading-relaxed mb-4" style={{ color: '#6b5d45' }}>
+                  Across California, we found that <strong style={{ color: '#2c2416' }}>99.74% of fires with detectable signals never received a formal evacuation order</strong>. For the fires that did, the median delay was 11.5 hours — time most vulnerable people cannot afford to lose.
+                </p>
+                <p className="leading-relaxed" style={{ color: '#6b5d45' }}>
+                  Communities with high social vulnerability scores faced delays up to <strong style={{ color: '#2c2416' }}>9× longer</strong> than lower-risk counties, exposing a systemic equity gap in who gets warned first.
+                </p>
+              </div>
+            </div>
+
+            {/* People card */}
+            <div className="mission-card">
+              <div className="mc-glow" style={{ background: 'conic-gradient(from var(--angle, 0deg), #7aad6a, #3d6b35, #9ecf8a, #5a8a50, #7aad6a)' }} />
+              <div className="mc-inner p-10 border" style={{ background: 'linear-gradient(135deg, #eef3ec 0%, #f5f2ee 100%)', borderColor: '#c3d4bc' }}>
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-6" style={{ background: '#d4e4ce' }}>
+                  <svg className="w-6 h-6" style={{ color: '#4a7a42' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+                </div>
+                <div className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: '#4a7a42' }}>The People</div>
+                <h3 className="font-display text-2xl font-bold mb-4" style={{ color: '#2c2416' }}>Those most at risk are least equipped.</h3>
+                <p className="leading-relaxed mb-4" style={{ color: '#6b5d45' }}>
+                  <strong style={{ color: '#2c2416' }}>Caregivers and families</strong> managing elderly parents, young children, or loved ones with disabilities face evacuation challenges that standard alert systems were never designed for — slower movement, language barriers, and complex care logistics.
+                </p>
+                <p className="leading-relaxed" style={{ color: '#6b5d45' }}>
+                  <strong style={{ color: '#2c2416' }}>First responders</strong> lack a unified view of where signal gaps exist and which communities need prioritized outreach, leaving them unable to intervene before conditions become life-threatening.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* The Solution — warm dark bark */}
+          <div className="mission-card mb-6">
+            <div className="mc-glow" style={{ background: 'conic-gradient(from var(--angle, 0deg), #d4a853, #8a6020, #c8903a, #6a4a18, #d4a853)' }} />
+            <div className="mc-inner overflow-hidden" style={{ background: 'linear-gradient(135deg, #2c1f0e 0%, #4a3018 100%)' }}>
+              <div className="grid lg:grid-cols-[1fr_1.4fr] gap-0">
+                <div className="p-10 lg:p-12 border-b lg:border-b-0 lg:border-r" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                  <div className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: '#c8a97a' }}>Proposed Solution</div>
+                  <h3 className="font-display text-2xl font-bold text-white mb-5">A two-part, role-based dashboard.</h3>
+                  <p className="leading-relaxed mb-6" style={{ color: '#c8b89a' }}>
+                    Minutes Matter pairs a public-facing caregiver portal with a restricted responder command center, each surfacing exactly the right intelligence for each user's role.
+                  </p>
+                  <div className="space-y-4">
+                    {[
+                      { label: 'Caregiver Portal', desc: 'Real-time alerts, accessible evacuation routes, check-in tools, and Flameo AI guidance. Free and public.', dot: '#8ec97a' },
+                      { label: 'Responder Command', desc: 'Signal gap mapping, ML-powered spread predictions, vulnerability-weighted incident prioritisation.', dot: '#d4a853' },
+                    ].map(item => (
+                      <div key={item.label} className="flex items-start gap-3">
+                        <div className="w-2 h-2 rounded-full mt-2 shrink-0" style={{ background: item.dot }} />
+                        <div>
+                          <div className="text-white font-semibold text-sm mb-0.5">{item.label}</div>
+                          <div className="text-sm leading-relaxed" style={{ color: '#a89070' }}>{item.desc}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="p-10 lg:p-12">
+                  <div className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: '#c8a97a' }}>AI Modeling Approach</div>
+                  <h3 className="font-display text-2xl font-bold text-white mb-5">Built on real wildfire data.</h3>
+                  <p className="leading-relaxed mb-6" style={{ color: '#c8b89a' }}>
+                    Our XGBoost classifier is trained on 60,000+ WatchDuty incidents cross-referenced with NASA FIRMS satellite data, EPA air quality readings, and the CDC Social Vulnerability Index.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { value: '96%', label: 'Model accuracy', color: '#8ec97a' },
+                      { value: '60K+', label: 'Training incidents', color: '#8ec97a' },
+                      { value: '11.5h', label: 'Median gap closed', color: '#d4a853' },
+                      { value: '9×', label: 'State disparity found', color: '#c47a4a' },
+                    ].map(stat => (
+                      <div key={stat.label} className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <div className="font-display text-2xl font-bold mb-0.5" style={{ color: stat.color }}>{stat.value}</div>
+                        <div className="text-xs" style={{ color: '#8a7060' }}>{stat.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Impact strip */}
+          <div className="grid sm:grid-cols-3 gap-4">
+            {[
+              { num: '01', heading: 'Early warning', body: 'Satellite and crowd-sourced signals detect fire growth before any official order, giving caregivers critical minutes to prepare.' },
+              { num: '02', heading: 'Equity-first alerting', body: 'Vulnerability weighting ensures high-SVI communities are notified first — the opposite of the current 9× disparity gap.' },
+              { num: '03', heading: 'Accessible guidance', body: 'Flameo AI delivers step-by-step evacuation plans in 30+ languages with mobility-adaptive routing, no app download required.' },
+            ].map(item => (
+              <div key={item.num} className="mission-card">
+                <div className="mc-glow" />
+                <div className="mc-inner p-7 border" style={{ background: '#faf6f0', borderColor: '#e0d0b8' }}>
+                  <div className="font-display font-bold text-3xl mb-4" style={{ color: '#b07840' }}>{item.num}</div>
+                  <h4 className="font-display font-bold text-lg mb-2" style={{ color: '#2c2416' }}>{item.heading}</h4>
+                  <p className="text-sm leading-relaxed" style={{ color: '#7a6a52' }}>{item.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
         </div>
       </section>
 
@@ -531,10 +656,6 @@ export default function Home() {
             <button onClick={() => router.push('/auth/login?role=emergency_responder')}
               className="bg-red-600 hover:bg-red-500 text-white font-semibold px-8 py-4 rounded-xl transition-colors text-base flex items-center justify-center gap-2">
               <Shield className="w-5 h-5" /> Emergency Responder
-            </button>
-            <button onClick={() => router.push('/auth/login?role=data_analyst')}
-              className="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-8 py-4 rounded-xl transition-colors text-base flex items-center justify-center gap-2">
-              <BarChart3 className="w-5 h-5" /> Data Analyst
             </button>
           </div>
         </div>

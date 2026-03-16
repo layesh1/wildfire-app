@@ -159,6 +159,49 @@
 .light-theme .bg-ash-800 input,
 .light-theme .bg-ash-900 input { background-color: #ffffff !important; color: #1f2937 !important; }
 
+/* ── Mission glowing-border cards ───────────────────────────────────────── */
+.mission-card {
+  position: relative;
+  border-radius: 1.5rem;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.mission-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 24px 48px rgba(80, 50, 10, 0.18);
+}
+.mission-card > .mc-glow {
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    #c8a060, #8a5c20, #d4a040, #b07030, #c8a060
+  );
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  z-index: 0;
+  animation: mc-rotate 4s linear infinite paused;
+}
+.mission-card:hover > .mc-glow {
+  opacity: 1;
+  animation-play-state: running;
+}
+.mission-card > .mc-inner {
+  position: relative;
+  z-index: 1;
+  border-radius: calc(1.5rem - 3px);
+  height: 100%;
+}
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes mc-rotate {
+  to { --angle: 360deg; }
+}
+
 @layer utilities {
   .text-gradient-forest {
     @apply bg-clip-text text-transparent;
