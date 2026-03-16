@@ -145,6 +145,9 @@ export default function RolePicker({ roles, activeRole, name }: Props) {
     try {
       const prev: string[] = JSON.parse(localStorage.getItem('wfa_claimed_roles') || '[]')
       localStorage.setItem('wfa_claimed_roles', JSON.stringify([...new Set([...prev, expandedRole])]))
+      // Also persist to wfa_roles so it survives refresh
+      const prevRoles: string[] = JSON.parse(localStorage.getItem(LS_ROLES_KEY) || '[]')
+      localStorage.setItem(LS_ROLES_KEY, JSON.stringify([...new Set([...prevRoles, expandedRole])]))
     } catch {}
     await fetch('/api/profile/role', {
       method: 'POST',
