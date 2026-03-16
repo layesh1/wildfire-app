@@ -169,12 +169,12 @@ export default function FlameoChat() {
       {/* Floating button */}
       <button
         onClick={handleOpen}
-        className="fixed bottom-4 right-4 z-50 w-14 h-14 rounded-2xl bg-forest-50 hover:bg-forest-100 border border-forest-200 shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 select-none"
+        className="fixed bottom-4 right-4 z-50 w-16 h-16 rounded-2xl bg-forest-600 hover:bg-forest-700 shadow-xl shadow-forest-600/30 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 select-none"
         title="Chat with Flameo"
         aria-label="Open Flameo chat"
       >
-        <span className={`transition-all duration-200 ${open ? 'scale-75 opacity-0 absolute' : 'scale-100 opacity-100'}`}><FlameoIcon size={36} /></span>
-        <X className={`w-5 h-5 text-forest-600 absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
+        <span className={`transition-all duration-200 ${open ? 'scale-75 opacity-0 absolute' : 'scale-100 opacity-100'}`}><FlameoIcon size={40} /></span>
+        <X className={`w-6 h-6 text-white absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
       </button>
 
       {/* Meet Flameo intro popup */}
@@ -204,16 +204,9 @@ export default function FlameoChat() {
         </div>
       )}
 
-      {/* Notification dot + tooltip on first load */}
+      {/* Notification dot on first load */}
       {!hasOpened && (
-        <>
-          <div className="fixed bottom-[62px] right-3 z-50 w-4 h-4 rounded-full bg-red-500 border-2 border-white animate-pulse pointer-events-none" />
-          <div className="fixed bottom-20 right-20 z-50 pointer-events-none animate-fade-up">
-            <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-lg max-w-[180px]">
-              <p className="text-gray-700 text-xs font-medium leading-snug">Ask Flameo about fire safety &amp; evacuation</p>
-            </div>
-          </div>
-        </>
+        <div className="fixed bottom-[68px] right-3 z-50 w-4 h-4 rounded-full bg-red-500 border-2 border-white animate-pulse pointer-events-none" />
       )}
     </>
   )

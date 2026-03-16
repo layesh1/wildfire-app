@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Flame, Shield, Heart, BarChart3, Monitor, X, Send, ArrowRight } from 'lucide-react'
 
@@ -9,6 +9,25 @@ function HomepageChat() {
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const [hasTyped, setHasTyped] = useState(false)
+  const [showIntro, setShowIntro] = useState(false)
+
+  useEffect(() => {
+    const seen = typeof window !== 'undefined' && localStorage.getItem('wfa_flameo_intro_home')
+    if (!seen) {
+      const t = setTimeout(() => setShowIntro(true), 1800)
+      return () => clearTimeout(t)
+    }
+  }, [])
+
+  function dismissIntro() {
+    setShowIntro(false)
+    if (typeof window !== 'undefined') localStorage.setItem('wfa_flameo_intro_home', '1')
+  }
+
+  function handleOpen() {
+    setOpen(v => !v)
+    dismissIntro()
+  }
 
   function handleSend() {
     if (!input.trim()) return
@@ -81,17 +100,41 @@ function HomepageChat() {
           </div>
         </div>
       )}
-      <button onClick={() => setOpen(v => !v)}
-        className="fixed bottom-4 right-4 z-50 w-14 h-14 rounded-2xl bg-white border border-gray-200 shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
+      <button onClick={handleOpen}
+        className="fixed bottom-4 right-4 z-50 w-16 h-16 rounded-2xl bg-forest-600 hover:bg-forest-700 shadow-xl shadow-forest-600/30 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
         title="Chat with Flameo">
         <span className={`transition-all duration-200 ${open ? 'scale-75 opacity-0 absolute' : 'scale-100 opacity-100'}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/flameo1.png" alt="Flameo" width={36} height={36} style={{ objectFit: 'contain' }} />
+          <img src="/flameo1.png" alt="Flameo" width={40} height={40} style={{ objectFit: 'contain' }} />
         </span>
-        <X className={`w-5 h-5 text-gray-500 absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
+        <X className={`w-6 h-6 text-white absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
       </button>
       {!open && (
-        <div className="fixed bottom-[62px] right-3 z-50 w-4 h-4 rounded-full bg-red-500 border-2 border-white animate-pulse pointer-events-none" />
+        <div className="fixed bottom-[72px] right-3 z-50 w-4 h-4 rounded-full bg-red-500 border-2 border-white animate-pulse pointer-events-none" />
+      )}
+      {showIntro && !open && (
+        <div className="fixed bottom-24 right-4 z-50">
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-xl p-4 w-56 relative">
+            <button onClick={dismissIntro} className="absolute top-2 right-2 text-gray-300 hover:text-gray-600 transition-colors">
+              <X className="w-3.5 h-3.5" />
+            </button>
+            <div className="flex items-center gap-2.5 mb-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/flameo1.png" alt="Flameo" width={32} height={32} style={{ objectFit: 'contain' }} />
+              <div className="font-semibold text-gray-900 text-sm">Meet Flameo!</div>
+            </div>
+            <p className="text-gray-500 text-xs leading-relaxed mb-3">
+              Your personal wildfire safety assistant. Ask about evacuation routes, go-bags, and alerts.
+            </p>
+            <button
+              onClick={() => { setOpen(true); dismissIntro() }}
+              className="w-full bg-forest-600 hover:bg-forest-700 text-white text-xs font-semibold py-2 rounded-xl transition-colors"
+            >
+              Chat with Flameo
+            </button>
+            <div className="absolute -bottom-2 right-6 w-4 h-4 bg-white border-r border-b border-gray-200 rotate-45" />
+          </div>
+        </div>
       )}
     </>
   )
@@ -103,7 +146,7 @@ function Marquee() {
     'Real-time wildfire intelligence',
     'Equity-driven evacuation alerts',
     'AI-powered safety planning',
-    '62,696 incidents analyzed',
+    '60,000+ incidents analyzed',
     'Protecting vulnerable communities',
     'WiDS Datathon 2025',
   ]
@@ -315,7 +358,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-0 divide-x divide-gray-100">
             {[
-              { value: '62,696', label: 'Fire incidents analyzed', sub: '2021–2025' },
+              { value: '60,000+', label: 'Fire incidents analyzed', sub: '2021–2025' },
               { value: '11.5h', label: 'Median evacuation delay', sub: 'across all counties' },
               { value: '99.74%', label: 'Fires with no formal order', sub: 'despite external signals' },
               { value: '9×', label: 'State disparity gap', sub: 'fastest vs slowest' },
@@ -352,7 +395,7 @@ export default function Home() {
                 Minutes Matter was built for the WiDS Datathon 2025 to address a critical failure in wildfire response: evacuation alerts consistently miss the communities that need them most.
               </p>
               <p className="text-gray-600 leading-relaxed mb-8">
-                Using the WatchDuty dataset of 62,696 fire incidents cross-referenced with the CDC Social Vulnerability Index, we found that <strong className="text-gray-900">99.74% of fires with external detection signals never received a formal evacuation order</strong> — with median delays of 11.5 hours.
+                Using the WatchDuty dataset of 60,000+ fire incidents cross-referenced with the CDC Social Vulnerability Index, we found that <strong className="text-gray-900">99.74% of fires with external detection signals never received a formal evacuation order</strong> — with median delays of 11.5 hours.
               </p>
               <p className="text-gray-600 leading-relaxed mb-12">
                 For elderly residents, people with disabilities, and non-English speakers, these delays can be fatal. Minutes Matter closes that gap with real-time signal analysis, ML-powered predictions, and accessible alerts.
@@ -360,7 +403,7 @@ export default function Home() {
               {/* Data grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
-                  { value: '62,696', label: 'Total incidents', color: '#16a34a' },
+                  { value: '60,000+', label: 'Total incidents', color: '#16a34a' },
                   { value: '108', label: 'With formal orders', color: '#dc2626' },
                   { value: '41,906', label: 'Fires with signals', color: '#d97706' },
                   { value: '11.5h', label: 'Median delay', color: '#2563eb' },
@@ -426,7 +469,7 @@ export default function Home() {
             {[
               { icon: Heart, title: 'Caregivers', desc: 'Managing the safety of elderly parents, children, or loved ones with mobility challenges during a wildfire event.', color: '#be185d', bg: '#fdf2f8', border: '#fce7f3' },
               { icon: Shield, title: 'Emergency Responders', desc: 'Fire departments and emergency management teams who need real-time signal gap data and ML-powered spread predictions.', color: '#dc2626', bg: '#fff5f5', border: '#fee2e2' },
-              { icon: BarChart3, title: 'Data Analysts', desc: 'Academics and policy teams studying equity gaps in wildfire evacuation using 62,696 real incidents with SVI cross-analysis.', color: '#2563eb', bg: '#eff6ff', border: '#dbeafe' },
+              { icon: BarChart3, title: 'Data Analysts', desc: 'Academics and policy teams studying equity gaps in wildfire evacuation using 60,000+ real incidents with SVI cross-analysis.', color: '#2563eb', bg: '#eff6ff', border: '#dbeafe' },
             ].map(({ icon: Icon, title, desc, color, bg, border }) => (
               <div key={title} className="rounded-2xl p-7 border" style={{ background: bg, borderColor: border }}>
                 <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-5" style={{ background: 'white', border: `1px solid ${border}` }}>

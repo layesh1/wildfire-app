@@ -5,7 +5,7 @@ import { AlertTriangle, TrendingUp, Clock, MapPin, ChevronRight, Search, Table2,
 import { createClient } from '@/lib/supabase'
 
 const KEY_FINDINGS = [
-  { icon: Clock, value: '11.5h', label: 'Median evacuation delay', sub: 'Across all 62,696 incidents', color: 'text-signal-warn' },
+  { icon: Clock, value: '11.5h', label: 'Median evacuation delay', sub: 'Across all 60,000+ incidents', color: 'text-signal-warn' },
   { icon: AlertTriangle, value: '99.74%', label: 'Fires with no formal order', sub: '41,906 had signals; only 108 linked to actions', color: 'text-signal-danger' },
   { icon: TrendingUp, value: '9×', label: 'State-level disparity', sub: 'Fastest vs. slowest response states', color: 'text-ember-400' },
   { icon: MapPin, value: 'High SVI', label: 'Counties hit hardest', sub: 'Significantly longer delays in vulnerable areas', color: 'text-signal-info' },
@@ -499,7 +499,7 @@ export default function SignalGapPage() {
           <div className="card p-6 border-l-4 border-ember-500">
             <h4 className="text-white font-semibold mb-2">Data &amp; Methodology</h4>
             <p className="text-ash-400 text-sm leading-relaxed">
-              Analysis based on 62,696 wildfire incidents (2021–2025) from the WatchDuty/WiDS dataset, cross-referenced with CDC Social Vulnerability Index scores at the county level. Signal gap = time between first external signal detection and issuance of formal evacuation order. Of 41,906 fire geo_event_ids with external signals, only 108 had linked evacuation actions — a 99.74% gap rate.
+              Analysis based on 60,000+ wildfire incidents (2021–2025) from the WatchDuty/WiDS dataset, cross-referenced with CDC Social Vulnerability Index scores at the county level. Signal gap = time between first external signal detection and issuance of formal evacuation order. Of 41,906 fire geo_event_ids with external signals, only 108 had linked evacuation actions — a 99.74% gap rate.
             </p>
           </div>
         </>
@@ -682,7 +682,7 @@ function ApiReference() {
             {[
               {
                 name: 'Watch Duty / WiDS Dataset',
-                desc: '62,696 fire incidents 2021–2025 with evacuation order timestamps, notification type, and spread rates.',
+                desc: '60,000+ fire incidents 2021–2025 with evacuation order timestamps, notification type, and spread rates.',
                 endpoint: 'Internal CSV — fire_events_with_svi_and_delays.csv',
                 fields: 'geo_event_id, notification_type, fire_start, first_order_at, hours_to_order, evacuation_occurred, county_fips',
                 note: 'Not publicly available. Contact WiDS 2025 for access.'
