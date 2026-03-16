@@ -33,13 +33,25 @@ function FlyToUser({ coords }: { coords: [number, number] | null }) {
   return null
 }
 
+export interface EvacShelter {
+  id: number
+  name: string
+  lat: number
+  lng: number
+  type: 'evacuation' | 'animal'
+  county: string
+  capacity: number
+}
+
 interface Props {
   nifc: NifcFire[]
   userLocation: [number, number] | null
   center: [number, number]
+  shelters?: EvacShelter[]
+  showShelters?: boolean
 }
 
-export default function LeafletMap({ nifc, userLocation, center }: Props) {
+export default function LeafletMap({ nifc, userLocation, center, shelters = [], showShelters = false }: Props) {
   return (
     <MapContainer center={center} zoom={5} style={{ height: '100%', width: '100%' }}>
       <TileLayer
@@ -62,6 +74,30 @@ export default function LeafletMap({ nifc, userLocation, center }: Props) {
           </Popup>
         </CircleMarker>
       )}
+
+      {/* Evacuation shelters */}
+      {showShelters && shelters.map(s => (
+        <CircleMarker
+          key={`shelter-${s.id}`}
+          center={[s.lat, s.lng]}
+          radius={7}
+          pathOptions={{
+            color: s.type === 'evacuation' ? '#22c55e' : '#3b82f6',
+            fillColor: s.type === 'evacuation' ? '#22c55e' : '#3b82f6',
+            fillOpacity: 0.9,
+            weight: 2,
+          }}
+        >
+          <Popup>
+            <div style={{ fontFamily: 'sans-serif', fontSize: 13, lineHeight: 1.7 }}>
+              <strong>{s.name}</strong><br />
+              {s.type === 'evacuation' ? '🏠 Evacuation Shelter' : '🐾 Animal Shelter'}<br />
+              {s.county}<br />
+              Capacity: {s.capacity.toLocaleString()}
+            </div>
+          </Popup>
+        </CircleMarker>
+      ))}
 
       {/* NIFC active fires — colored by containment */}
       {nifc.map((f) => {

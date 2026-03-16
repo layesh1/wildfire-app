@@ -3,9 +3,9 @@ import { useEffect, useState, Suspense, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
 import { MapPin, AlertTriangle, CheckCircle, Navigation, ExternalLink, ChevronRight, Flame, RefreshCw, Heart } from 'lucide-react'
-import type { NifcFire } from './LeafletMap'
+import type { NifcFire, EvacShelter } from './LeafletMap'
 
-const EVAC_SHELTERS = [
+const EVAC_SHELTERS: EvacShelter[] = [
   { id: 1, name: 'Pomona Fairplex Emergency Shelter', lat: 34.0564, lng: -117.7503, type: 'evacuation', county: 'Los Angeles, CA', capacity: 2000 },
   { id: 2, name: 'Del Mar Fairgrounds', lat: 32.9595, lng: -117.2653, type: 'evacuation', county: 'San Diego, CA', capacity: 1500 },
   { id: 3, name: 'Sonoma County Fairgrounds', lat: 38.4346, lng: -122.7249, type: 'evacuation', county: 'Sonoma, CA', capacity: 1200 },
@@ -290,7 +290,7 @@ function EvacuationMapContent() {
                 <span className="text-ash-500 text-sm">Loading active fires…</span>
               </div>
             ) : (
-              <LeafletMap nifc={sortedFires} userLocation={userLocation} center={center} />
+              <LeafletMap nifc={sortedFires} userLocation={userLocation} center={center} shelters={EVAC_SHELTERS} showShelters={showShelters} />
             )}
           </div>
 

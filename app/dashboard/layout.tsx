@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import Sidebar from '@/components/Sidebar'
 import FlameoChat from '@/components/FlameoChat'
 import LanguageProvider from '@/components/LanguageProvider'
+import ThemeWrapper from '@/components/ThemeWrapper'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerSupabaseClient()
@@ -18,13 +19,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <LanguageProvider initialLang={profile?.language_preference ?? null}>
-      <div className="min-h-screen flex bg-gray-50 light-theme">
+      <ThemeWrapper>
         <Sidebar user={user} profile={profile} />
         <main className="flex-1 overflow-auto">
           {children}
         </main>
         <FlameoChat />
-      </div>
+      </ThemeWrapper>
     </LanguageProvider>
   )
 }
