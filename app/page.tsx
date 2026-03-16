@@ -256,8 +256,8 @@ function HowItWorks() {
     <section id="how" className="overflow-hidden" style={{ background: '#f0fdf4' }}>
       <div className="max-w-7xl mx-auto lg:grid lg:grid-cols-2 min-h-[640px]">
 
-        {/* Left: phone mockup */}
-        <div className="relative hidden lg:flex items-center justify-center py-16" style={{ background: 'linear-gradient(160deg, #14532d 0%, #16a34a 100%)' }}>
+        {/* Left: phone mockup — top half visible, bottom cropped */}
+        <div className="relative hidden lg:flex items-start justify-center overflow-hidden pt-12" style={{ background: 'linear-gradient(160deg, #14532d 0%, #16a34a 100%)' }}>
           <PhoneMockup />
         </div>
 
