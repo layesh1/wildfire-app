@@ -168,9 +168,9 @@ function Marquee() {
 // ── Phone mockup ──────────────────────────────────────────────────────────────
 function PhoneMockup() {
   return (
-    <div className="relative shrink-0" style={{ width: 220 }}>
+    <div className="relative shrink-0 drop-shadow-2xl" style={{ width: 280 }}>
       {/* Phone shell */}
-      <div className="relative bg-[#1c1c1e] rounded-[3rem] shadow-2xl overflow-hidden border-[5px] border-[#2c2c2e]" style={{ height: 460 }}>
+      <div className="relative bg-[#1c1c1e] rounded-[3rem] shadow-2xl overflow-hidden border-[6px] border-[#2c2c2e]" style={{ height: 580 }}>
         {/* Dynamic island */}
         <div className="absolute top-3 left-1/2 -translate-x-1/2 w-20 h-5 bg-[#1c1c1e] rounded-full z-10" />
         {/* Screen */}
@@ -276,20 +276,17 @@ export default function Home() {
       </header>
 
       {/* ── HERO ── */}
-      <section className="relative min-h-screen flex flex-col" style={{ background: '#0a1f12' }}>
-        {/* Organic grid texture */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="herogrid" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
-              <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#4ade80" strokeWidth="0.8"/>
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#herogrid)" />
-        </svg>
-
-        {/* Radial glow */}
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(22,163,74,0.12) 0%, transparent 70%)' }} />
+      <section className="relative min-h-screen flex flex-col overflow-hidden">
+        {/* Background forest photo */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/hero-forest.jpg"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
+        />
+        {/* Dark overlay for text readability */}
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(5,20,10,0.82) 0%, rgba(10,31,18,0.70) 50%, rgba(5,20,10,0.60) 100%)' }} />
 
         {/* Live badge */}
         <div className="relative max-w-7xl mx-auto px-6 pt-12 pb-4 w-full">
@@ -310,8 +307,8 @@ export default function Home() {
               <span className="block font-display italic text-green-400" style={{ fontSize: 'clamp(2.5rem, 7vw, 5.5rem)', lineHeight: 1.05 }}>
                 From Wildfires
               </span>
-              <span className="block text-white/40 font-body font-medium tracking-tight mt-3" style={{ fontSize: 'clamp(1.1rem, 2.5vw, 1.75rem)' }}>
-                When seconds count.
+              <span className="block text-white/50 font-body font-medium tracking-tight mt-3" style={{ fontSize: 'clamp(1.1rem, 2.5vw, 1.75rem)' }}>
+                When minutes matter.
               </span>
             </h1>
             <p className="text-green-200/60 text-lg mb-10 leading-relaxed max-w-lg">
@@ -344,7 +341,7 @@ export default function Home() {
           </div>
 
           {/* Right: phone mockup */}
-          <div className="flex items-end shrink-0">
+          <div className="flex items-center justify-center shrink-0 lg:flex-1">
             <PhoneMockup />
           </div>
         </div>
@@ -395,7 +392,7 @@ export default function Home() {
                 Minutes Matter was built for the WiDS Datathon 2025 to address a critical failure in wildfire response: evacuation alerts consistently miss the communities that need them most.
               </p>
               <p className="text-gray-600 leading-relaxed mb-8">
-                Using the WatchDuty dataset of 60,000+ fire incidents cross-referenced with the CDC Social Vulnerability Index, we found that <strong className="text-gray-900">99.74% of fires with external detection signals never received a formal evacuation order</strong> — with median delays of 11.5 hours.
+                Using the WatchDuty dataset of 60,000+ fire incidents cross-referenced with the CDC Social Vulnerability Index, we found that <strong className="text-gray-900">99.74% of fires with external detection signals never received a formal evacuation order</strong>, with median delays of 11.5 hours.
               </p>
               <p className="text-gray-600 leading-relaxed mb-12">
                 For elderly residents, people with disabilities, and non-English speakers, these delays can be fatal. Minutes Matter closes that gap with real-time signal analysis, ML-powered predictions, and accessible alerts.
@@ -450,7 +447,7 @@ export default function Home() {
                 When a wildfire breaks out, caregivers managing elderly parents, young children, or family members with disabilities face unique challenges. Standard alerts often arrive too late, use inaccessible language, or fail to account for slower evacuation needs.
               </p>
               <p className="text-green-200/50 leading-relaxed mb-8">
-                Minutes Matter gives caregivers personalised, actionable alerts with accessible route guidance, check-in tools, and Flameo — an AI assistant that helps plan evacuations in plain language.
+                Minutes Matter gives caregivers personalised, actionable alerts with accessible route guidance, check-in tools, and Flameo, an AI assistant that helps plan evacuations in plain language.
               </p>
               <button onClick={() => router.push('/auth/login?role=caregiver')}
                 className="self-start flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
@@ -518,7 +515,7 @@ export default function Home() {
             <div className="space-y-0 divide-y divide-gray-100">
               {[
                 { num: '01', title: 'Signal Detection', desc: 'NASA FIRMS and WatchDuty data streams detect fire incidents in real time, before formal orders are issued.' },
-                { num: '02', title: 'Gap Analysis', desc: 'We identify where formal evacuation orders are missing despite clear fire signals — closing the critical information gap.' },
+                { num: '02', title: 'Gap Analysis', desc: 'We identify where formal evacuation orders are missing despite clear fire signals, closing the critical information gap.' },
                 { num: '03', title: 'Equity Scoring', desc: 'CDC SVI data highlights which communities are most vulnerable and underserved, prioritizing those who need alerts most.' },
                 { num: '04', title: 'Personalized Alerts', desc: 'Caregivers receive tailored alerts, evacuation routes, and safe shelter locations in accessible language.' },
               ].map(({ num, title, desc }) => (
