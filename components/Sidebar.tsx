@@ -3,8 +3,9 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   Flame, Shield, Heart, BarChart3, Map, AlertTriangle,
-  Users, Brain, LogOut, ChevronLeft, ChevronRight,
-  Activity, TrendingUp, Bell, Settings
+  Users, Brain, LogOut, ChevronLeft, ChevronRight, ChevronDown,
+  Activity, TrendingUp, Bell, Settings, BarChart2, Globe,
+  ClipboardList, Thermometer, FileText
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/components/LanguageProvider'
@@ -219,16 +220,6 @@ export default function Sidebar({ user, profile }: Props) {
           <>
             {/* Caregiver section */}
             <button
-              key={href}
-              onClick={() => router.push(href === '/dashboard/settings' ? `/dashboard/settings?role=${role}` : href)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left
-                ${active
-                  ? 'bg-forest-50 text-forest-700 border-l-2 border-forest-600 font-medium'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-                }
-                ${collapsed ? 'justify-center' : ''}
-              `}
-              title={collapsed ? label : undefined}
               onClick={() => !collapsed && setCaregiverOpen(v => !v)}
               className={`w-full flex items-center gap-1 px-2 py-1.5 text-left group ${collapsed ? 'justify-center' : ''}`}
               title={collapsed ? 'Caregiver' : undefined}
