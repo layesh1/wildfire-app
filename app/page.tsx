@@ -408,8 +408,8 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right: phone mockup */}
-          <div className="flex items-center justify-center shrink-0 lg:flex-1 animate-phone-rise">
+          {/* Right: phone mockup — cropped to upper ~65% */}
+          <div className="flex items-end justify-center shrink-0 lg:flex-1 animate-phone-rise" style={{ overflow: 'hidden', maxHeight: 380 }}>
             <PhoneMockup />
           </div>
         </div>
