@@ -5,7 +5,7 @@ import { X, Send } from 'lucide-react'
 function FlameoIcon({ size = 32 }: { size?: number }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src="/flameo.png" alt="Flameo" width={size} height={size} style={{ objectFit: 'contain' }} />
+    <img src="/flameo1.png" alt="Flameo" width={size} height={size} style={{ objectFit: 'contain' }} />
   )
 }
 
@@ -55,7 +55,7 @@ export default function FlameoChat() {
       const { content } = await res.json()
       setMessages(m => [...m, { role: 'assistant', content: content || 'Sorry, something went wrong.' }])
     } catch {
-      setMessages(m => [...m, { role: 'assistant', content: 'I couldn\'t reach the server. Please try again in a moment.' }])
+      setMessages(m => [...m, { role: 'assistant', content: "I couldn't reach the server. Please try again in a moment." }])
     }
     setLoading(false)
   }
@@ -65,41 +65,42 @@ export default function FlameoChat() {
       {/* Chat panel */}
       {open && (
         <div
-          className="fixed bottom-20 right-4 z-50 flex flex-col bg-ash-900 border border-ash-700 rounded-2xl shadow-2xl overflow-hidden"
+          className="fixed bottom-20 right-4 z-50 flex flex-col bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden"
           style={{ width: 360, maxHeight: '72vh' }}
         >
           {/* Header */}
-          <div className="flex items-center gap-3 p-4 bg-ash-800 border-b border-ash-700 shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-ember-500/10 border border-ember-500/40 flex items-center justify-center select-none">
+          <div className="flex items-center gap-3 p-4 border-b border-gray-100 shrink-0" style={{ background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)' }}>
+            <div className="w-9 h-9 rounded-xl bg-white border border-forest-200 flex items-center justify-center select-none shadow-sm">
               <FlameoIcon size={28} />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-white font-semibold text-sm">Flameo</div>
-              <div className="text-ash-400 text-xs">Wildfire safety assistant · always here</div>
+              <div className="text-gray-900 font-semibold text-sm">Flameo</div>
+              <div className="text-gray-500 text-xs">Wildfire safety assistant · always here</div>
             </div>
             <button
               onClick={() => setOpen(false)}
-              className="text-ash-400 hover:text-white p-1.5 rounded-lg hover:bg-ash-700 transition-colors"
+              className="text-gray-400 hover:text-gray-700 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0 bg-gray-50">
             {messages.map((msg, i) => (
               <div key={i} className={`flex gap-2 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 {msg.role === 'assistant' && (
-                  <div className="w-6 h-6 rounded-lg bg-ember-500/10 border border-ember-500/30 flex items-center justify-center mt-0.5 shrink-0 select-none">
+                  <div className="w-6 h-6 rounded-lg bg-white border border-forest-200 flex items-center justify-center mt-0.5 shrink-0 select-none shadow-sm">
                     <FlameoIcon size={18} />
                   </div>
                 )}
                 <div
                   className={`max-w-[82%] rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words ${
                     msg.role === 'user'
-                      ? 'bg-ember-500/20 text-white rounded-tr-sm'
-                      : 'bg-ash-800 text-ash-200 rounded-tl-sm'
+                      ? 'text-white rounded-tr-sm'
+                      : 'bg-white text-gray-900 border border-gray-200 rounded-tl-sm'
                   }`}
+                  style={msg.role === 'user' ? { background: 'linear-gradient(135deg, #16a34a, #15803d)' } : undefined}
                 >
                   {msg.content}
                 </div>
@@ -108,13 +109,15 @@ export default function FlameoChat() {
 
             {loading && (
               <div className="flex gap-2 justify-start">
-                <div className="w-6 h-6 rounded-lg bg-ember-500/10 border border-ember-500/30 flex items-center justify-center shrink-0 select-none"><FlameoIcon size={18} /></div>
-                <div className="bg-ash-800 rounded-2xl rounded-tl-sm px-3 py-2.5">
+                <div className="w-6 h-6 rounded-lg bg-white border border-forest-200 flex items-center justify-center shrink-0 select-none shadow-sm">
+                  <FlameoIcon size={18} />
+                </div>
+                <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-sm px-3 py-2.5">
                   <div className="flex gap-1 items-center h-4">
                     {[0, 150, 300].map(delay => (
                       <div
                         key={delay}
-                        className="w-1.5 h-1.5 bg-ash-500 rounded-full animate-bounce"
+                        className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce"
                         style={{ animationDelay: `${delay}ms` }}
                       />
                     ))}
@@ -126,7 +129,7 @@ export default function FlameoChat() {
           </div>
 
           {/* Input */}
-          <div className="p-3 border-t border-ash-700 shrink-0">
+          <div className="p-3 border-t border-gray-100 shrink-0 bg-white">
             <div className="flex gap-2">
               <input
                 ref={inputRef}
@@ -134,12 +137,12 @@ export default function FlameoChat() {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
                 placeholder="Ask Flameo anything…"
-                className="flex-1 bg-ash-800 text-white text-sm rounded-xl px-3 py-2 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
+                className="flex-1 bg-white text-gray-900 text-sm rounded-xl px-3 py-2 border border-gray-200 focus:outline-none focus:border-forest-400 placeholder:text-gray-500"
               />
               <button
                 onClick={send}
                 disabled={!input.trim() || loading}
-                className="p-2 bg-ember-500/20 border border-ember-500/40 rounded-xl text-ember-400 hover:bg-ember-500/30 transition-colors disabled:opacity-40 shrink-0"
+                className="p-2 bg-forest-600 hover:bg-forest-700 border border-forest-600 rounded-xl text-white transition-colors disabled:opacity-40 shrink-0"
               >
                 <Send className="w-4 h-4" />
               </button>
@@ -151,22 +154,24 @@ export default function FlameoChat() {
       {/* Floating button */}
       <button
         onClick={handleOpen}
-        className="fixed bottom-4 right-4 z-50 w-14 h-14 rounded-2xl bg-ember-500/15 hover:bg-ember-500/25 border border-ember-500/40 shadow-lg shadow-ember-500/20 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 select-none"
+        className="fixed bottom-4 right-4 z-50 w-14 h-14 rounded-2xl bg-forest-50 hover:bg-forest-100 border border-forest-200 shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 select-none"
         title="Chat with Flameo"
         aria-label="Open Flameo chat"
       >
         <span className={`transition-all duration-200 ${open ? 'scale-75 opacity-0 absolute' : 'scale-100 opacity-100'}`}><FlameoIcon size={36} /></span>
-        <X className={`w-5 h-5 text-ember-400 absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
+        <X className={`w-5 h-5 text-forest-600 absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
       </button>
 
-      {/* Chat intro tooltip on first load */}
+      {/* Notification dot + tooltip on first load */}
       {!hasOpened && (
-        <div className="fixed bottom-20 right-4 z-50 flex items-center gap-2 pointer-events-none animate-fade-up">
-          <div className="bg-ash-800 border border-ash-700 rounded-xl px-3 py-2 shadow-lg max-w-[180px]">
-            <p className="text-white text-xs font-medium leading-snug">Ask Flameo about fire safety &amp; evacuation</p>
-            <div className="absolute right-3 -bottom-1.5 w-3 h-3 bg-ash-800 border-r border-b border-ash-700 rotate-45" />
+        <>
+          <div className="fixed bottom-[62px] right-3 z-50 w-4 h-4 rounded-full bg-red-500 border-2 border-white animate-pulse pointer-events-none" />
+          <div className="fixed bottom-20 right-20 z-50 pointer-events-none animate-fade-up">
+            <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-lg max-w-[180px]">
+              <p className="text-gray-700 text-xs font-medium leading-snug">Ask Flameo about fire safety &amp; evacuation</p>
+            </div>
           </div>
-        </div>
+        </>
       )}
     </>
   )

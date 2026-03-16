@@ -6,10 +6,10 @@ import Link from 'next/link'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 const QUICK_ACTIONS = [
-  { label: 'View Evacuation Map', href: '/dashboard/caregiver/map', icon: MapPin, color: 'text-ember-400' },
+  { label: 'View Evacuation Map', href: '/dashboard/caregiver/map', icon: MapPin, color: 'text-forest-600' },
   { label: 'Check In Safe', href: '/dashboard/caregiver/checkin', icon: CheckCircle, color: 'text-signal-safe' },
   { label: 'Find Shelter', href: '/dashboard/caregiver/map?filter=shelter', icon: Users, color: 'text-signal-info' },
-  { label: 'Ask SAFE-PATH AI', href: '/dashboard/caregiver/ai', icon: Phone, color: 'text-amber-400' },
+  { label: 'Ask SAFE-PATH AI', href: '/dashboard/caregiver/ai', icon: Phone, color: 'text-amber-500' },
 ]
 
 export default function CaregiverDashboard() {
@@ -49,14 +49,14 @@ export default function CaregiverDashboard() {
     <div className="p-8 max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-10">
-        <div className="flex items-center gap-2 text-amber-400 text-sm font-medium mb-3">
+        <div className="flex items-center gap-2 text-forest-600 text-sm font-medium mb-3">
           <Bell className="w-4 h-4" />
           CAREGIVER DASHBOARD · SAFE-PATH
         </div>
-        <h1 className="font-display text-4xl font-bold text-white mb-3">
+        <h1 className="font-display text-4xl font-bold text-gray-900 mb-3">
           Your Evacuation Hub
         </h1>
-        <p className="text-ash-400">
+        <p className="text-gray-500">
           Personalized alerts, check-in tools, and accessible evacuation guidance.
         </p>
       </div>
@@ -67,8 +67,8 @@ export default function CaregiverDashboard() {
           <CheckCircle className="w-5 h-5 text-signal-safe" />
         </div>
         <div>
-          <div className="text-white font-semibold">No active evacuation orders in your area</div>
-          <div className="text-ash-400 text-sm">Last checked: just now · Alerts update automatically</div>
+          <div className="text-gray-900 font-semibold">No active evacuation orders in your area</div>
+          <div className="text-gray-500 text-sm">Last checked: just now · Alerts update automatically</div>
         </div>
       </div>
 
@@ -78,11 +78,11 @@ export default function CaregiverDashboard() {
           <Link
             key={href}
             href={href}
-            className="card p-5 hover:bg-ash-800 transition-all duration-200 hover:scale-[1.02] group"
+            className="card p-5 hover:bg-gray-50 transition-all duration-200 hover:scale-[1.02] group"
           >
             <Icon className={`w-6 h-6 ${color} mb-3`} />
-            <div className="text-white text-sm font-medium">{label}</div>
-            <ChevronRight className="w-4 h-4 text-ash-600 group-hover:text-ash-400 mt-2 transition-colors" />
+            <div className="text-gray-900 text-sm font-medium">{label}</div>
+            <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 mt-2 transition-colors" />
           </Link>
         ))}
       </div>
@@ -165,23 +165,23 @@ export default function CaregiverDashboard() {
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
               <div key={i} className="card p-5 animate-pulse">
-                <div className="h-4 bg-ash-800 rounded w-1/3 mb-2" />
-                <div className="h-3 bg-ash-800 rounded w-1/2" />
+                <div className="h-4 bg-gray-100 rounded w-1/3 mb-2" />
+                <div className="h-3 bg-gray-100 rounded w-1/2" />
               </div>
             ))}
           </div>
         ) : fires.length === 0 ? (
-          <div className="card p-8 text-center text-ash-500">No active evacuation orders found.</div>
+          <div className="card p-8 text-center text-gray-400">No active evacuation orders found.</div>
         ) : (
           <div className="space-y-3">
             {fires.map(fire => (
               <div key={fire.id} className="card p-5 flex items-center gap-4">
                 <div className="w-2 h-2 rounded-full bg-signal-danger animate-pulse-slow shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-white font-medium truncate">
+                  <div className="text-gray-900 font-medium truncate">
                     {fire.incident_name || 'Unnamed Incident'}
                   </div>
-                  <div className="text-ash-400 text-sm">
+                  <div className="text-gray-400 text-sm">
                     {fire.county && `${fire.county}, `}{fire.state} ·{' '}
                     {fire.acres_burned ? `${fire.acres_burned.toLocaleString()} acres` : 'Size unknown'}
                   </div>
@@ -193,7 +193,7 @@ export default function CaregiverDashboard() {
                     <div className="badge-danger">Uncontained</div>
                   )}
                   {fire.signal_gap_hours != null && (
-                    <div className="text-ash-500 text-xs mt-1">{fire.signal_gap_hours.toFixed(1)}h alert delay</div>
+                    <div className="text-gray-400 text-xs mt-1">{fire.signal_gap_hours.toFixed(1)}h alert delay</div>
                   )}
                 </div>
               </div>
@@ -202,6 +202,18 @@ export default function CaregiverDashboard() {
         )}
       </div>
 
+      {/* Research context */}
+      <div className="card p-6 mt-8 border-l-4 border-amber-400">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+          <div>
+            <div className="text-gray-900 font-semibold mb-1">Why delays matter for caregivers</div>
+            <p className="text-gray-500 text-sm leading-relaxed">
+              Our research found that high-vulnerability counties experience significantly longer delays before receiving formal evacuation orders. Caregivers and evacuees in these areas are more likely to rely on informal signals — which is why SAFE-PATH monitors all signal channels, not just official orders.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
     </>
   )
