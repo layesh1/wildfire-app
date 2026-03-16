@@ -25,6 +25,7 @@ export default function FlameoChat() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [hasOpened, setHasOpened] = useState(false)
+  const [showIntro, setShowIntro] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -35,9 +36,23 @@ export default function FlameoChat() {
     }
   }, [messages, open])
 
+  useEffect(() => {
+    const seen = typeof window !== 'undefined' && localStorage.getItem('wfa_flameo_intro')
+    if (!seen) {
+      const t = setTimeout(() => setShowIntro(true), 1800)
+      return () => clearTimeout(t)
+    }
+  }, [])
+
+  function dismissIntro() {
+    setShowIntro(false)
+    if (typeof window !== 'undefined') localStorage.setItem('wfa_flameo_intro', '1')
+  }
+
   function handleOpen() {
     setOpen(v => !v)
     setHasOpened(true)
+    dismissIntro()
   }
 
   async function send() {
@@ -161,6 +176,33 @@ export default function FlameoChat() {
         <span className={`transition-all duration-200 ${open ? 'scale-75 opacity-0 absolute' : 'scale-100 opacity-100'}`}><FlameoIcon size={36} /></span>
         <X className={`w-5 h-5 text-forest-600 absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
       </button>
+
+      {/* Meet Flameo intro popup */}
+      {showIntro && !open && (
+        <div className="fixed bottom-20 right-4 z-50 animate-fade-up">
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-xl p-4 w-56 relative">
+            <button onClick={dismissIntro} className="absolute top-2 right-2 text-gray-300 hover:text-gray-600 transition-colors">
+              <X className="w-3.5 h-3.5" />
+            </button>
+            <div className="flex items-center gap-2.5 mb-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/flameo1.png" alt="Flameo" width={32} height={32} style={{ objectFit: 'contain' }} />
+              <div className="font-semibold text-gray-900 text-sm">Meet Flameo!</div>
+            </div>
+            <p className="text-gray-500 text-xs leading-relaxed mb-3">
+              Your personal wildfire safety assistant. Ask about evacuation routes, go-bags, and alerts.
+            </p>
+            <button
+              onClick={() => { setOpen(true); setHasOpened(true); dismissIntro() }}
+              className="w-full bg-forest-600 hover:bg-forest-700 text-white text-xs font-semibold py-2 rounded-xl transition-colors"
+            >
+              Chat with Flameo
+            </button>
+            {/* Arrow pointing down to FAB */}
+            <div className="absolute -bottom-2 right-6 w-4 h-4 bg-white border-r border-b border-gray-200 rotate-45" />
+          </div>
+        </div>
+      )}
 
       {/* Notification dot + tooltip on first load */}
       {!hasOpened && (
