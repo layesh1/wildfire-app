@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Flame, Shield, Heart, BarChart3, Monitor, X, Send, ArrowRight } from 'lucide-react'
 
@@ -9,6 +9,25 @@ function HomepageChat() {
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const [hasTyped, setHasTyped] = useState(false)
+  const [showIntro, setShowIntro] = useState(false)
+
+  useEffect(() => {
+    const seen = typeof window !== 'undefined' && localStorage.getItem('wfa_flameo_intro_home')
+    if (!seen) {
+      const t = setTimeout(() => setShowIntro(true), 1800)
+      return () => clearTimeout(t)
+    }
+  }, [])
+
+  function dismissIntro() {
+    setShowIntro(false)
+    if (typeof window !== 'undefined') localStorage.setItem('wfa_flameo_intro_home', '1')
+  }
+
+  function handleOpen() {
+    setOpen(v => !v)
+    dismissIntro()
+  }
 
   function handleSend() {
     if (!input.trim()) return
@@ -81,17 +100,41 @@ function HomepageChat() {
           </div>
         </div>
       )}
-      <button onClick={() => setOpen(v => !v)}
-        className="fixed bottom-4 right-4 z-50 w-14 h-14 rounded-2xl bg-white border border-gray-200 shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
+      <button onClick={handleOpen}
+        className="fixed bottom-4 right-4 z-50 w-16 h-16 rounded-2xl bg-forest-600 hover:bg-forest-700 shadow-xl shadow-forest-600/30 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
         title="Chat with Flameo">
         <span className={`transition-all duration-200 ${open ? 'scale-75 opacity-0 absolute' : 'scale-100 opacity-100'}`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/flameo1.png" alt="Flameo" width={36} height={36} style={{ objectFit: 'contain' }} />
+          <img src="/flameo1.png" alt="Flameo" width={40} height={40} style={{ objectFit: 'contain' }} />
         </span>
-        <X className={`w-5 h-5 text-gray-500 absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
+        <X className={`w-6 h-6 text-white absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
       </button>
       {!open && (
-        <div className="fixed bottom-[62px] right-3 z-50 w-4 h-4 rounded-full bg-red-500 border-2 border-white animate-pulse pointer-events-none" />
+        <div className="fixed bottom-[72px] right-3 z-50 w-4 h-4 rounded-full bg-red-500 border-2 border-white animate-pulse pointer-events-none" />
+      )}
+      {showIntro && !open && (
+        <div className="fixed bottom-24 right-4 z-50">
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-xl p-4 w-56 relative">
+            <button onClick={dismissIntro} className="absolute top-2 right-2 text-gray-300 hover:text-gray-600 transition-colors">
+              <X className="w-3.5 h-3.5" />
+            </button>
+            <div className="flex items-center gap-2.5 mb-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/flameo1.png" alt="Flameo" width={32} height={32} style={{ objectFit: 'contain' }} />
+              <div className="font-semibold text-gray-900 text-sm">Meet Flameo!</div>
+            </div>
+            <p className="text-gray-500 text-xs leading-relaxed mb-3">
+              Your personal wildfire safety assistant. Ask about evacuation routes, go-bags, and alerts.
+            </p>
+            <button
+              onClick={() => { setOpen(true); dismissIntro() }}
+              className="w-full bg-forest-600 hover:bg-forest-700 text-white text-xs font-semibold py-2 rounded-xl transition-colors"
+            >
+              Chat with Flameo
+            </button>
+            <div className="absolute -bottom-2 right-6 w-4 h-4 bg-white border-r border-b border-gray-200 rotate-45" />
+          </div>
+        </div>
       )}
     </>
   )
@@ -103,7 +146,7 @@ function Marquee() {
     'Real-time wildfire intelligence',
     'Equity-driven evacuation alerts',
     'AI-powered safety planning',
-    '62,696 incidents analyzed',
+    '60,000+ incidents analyzed',
     'Protecting vulnerable communities',
     'WiDS Datathon 2025',
   ]
@@ -125,9 +168,9 @@ function Marquee() {
 // ── Phone mockup ──────────────────────────────────────────────────────────────
 function PhoneMockup() {
   return (
-    <div className="relative shrink-0" style={{ width: 220 }}>
+    <div className="relative shrink-0 drop-shadow-2xl" style={{ width: 280 }}>
       {/* Phone shell */}
-      <div className="relative bg-[#1c1c1e] rounded-[3rem] shadow-2xl overflow-hidden border-[5px] border-[#2c2c2e]" style={{ height: 460 }}>
+      <div className="relative bg-[#1c1c1e] rounded-[3rem] shadow-2xl overflow-hidden border-[6px] border-[#2c2c2e]" style={{ height: 580 }}>
         {/* Dynamic island */}
         <div className="absolute top-3 left-1/2 -translate-x-1/2 w-20 h-5 bg-[#1c1c1e] rounded-full z-10" />
         {/* Screen */}
@@ -233,20 +276,17 @@ export default function Home() {
       </header>
 
       {/* ── HERO ── */}
-      <section className="relative min-h-screen flex flex-col" style={{ background: '#0a1f12' }}>
-        {/* Organic grid texture */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="herogrid" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
-              <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#4ade80" strokeWidth="0.8"/>
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#herogrid)" />
-        </svg>
-
-        {/* Radial glow */}
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] rounded-full pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(22,163,74,0.12) 0%, transparent 70%)' }} />
+      <section className="relative min-h-screen flex flex-col overflow-hidden">
+        {/* Background forest photo */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/hero-forest.jpg"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
+        />
+        {/* Dark overlay for text readability */}
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(5,20,10,0.82) 0%, rgba(10,31,18,0.70) 50%, rgba(5,20,10,0.60) 100%)' }} />
 
         {/* Live badge */}
         <div className="relative max-w-7xl mx-auto px-6 pt-12 pb-4 w-full">
@@ -267,8 +307,8 @@ export default function Home() {
               <span className="block font-display italic text-green-400" style={{ fontSize: 'clamp(2.5rem, 7vw, 5.5rem)', lineHeight: 1.05 }}>
                 From Wildfires
               </span>
-              <span className="block text-white/40 font-body font-medium tracking-tight mt-3" style={{ fontSize: 'clamp(1.1rem, 2.5vw, 1.75rem)' }}>
-                When seconds count.
+              <span className="block text-white/50 font-body font-medium tracking-tight mt-3" style={{ fontSize: 'clamp(1.1rem, 2.5vw, 1.75rem)' }}>
+                When minutes matter.
               </span>
             </h1>
             <p className="text-green-200/60 text-lg mb-10 leading-relaxed max-w-lg">
@@ -301,7 +341,7 @@ export default function Home() {
           </div>
 
           {/* Right: phone mockup */}
-          <div className="flex items-end shrink-0">
+          <div className="flex items-center justify-center shrink-0 lg:flex-1">
             <PhoneMockup />
           </div>
         </div>
@@ -315,7 +355,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-0 divide-x divide-gray-100">
             {[
-              { value: '62,696', label: 'Fire incidents analyzed', sub: '2021–2025' },
+              { value: '60,000+', label: 'Fire incidents analyzed', sub: '2021–2025' },
               { value: '11.5h', label: 'Median evacuation delay', sub: 'across all counties' },
               { value: '99.74%', label: 'Fires with no formal order', sub: 'despite external signals' },
               { value: '9×', label: 'State disparity gap', sub: 'fastest vs slowest' },
@@ -352,7 +392,7 @@ export default function Home() {
                 Minutes Matter was built for the WiDS Datathon 2025 to address a critical failure in wildfire response: evacuation alerts consistently miss the communities that need them most.
               </p>
               <p className="text-gray-600 leading-relaxed mb-8">
-                Using the WatchDuty dataset of 62,696 fire incidents cross-referenced with the CDC Social Vulnerability Index, we found that <strong className="text-gray-900">99.74% of fires with external detection signals never received a formal evacuation order</strong> — with median delays of 11.5 hours.
+                Using the WatchDuty dataset of 60,000+ fire incidents cross-referenced with the CDC Social Vulnerability Index, we found that <strong className="text-gray-900">99.74% of fires with external detection signals never received a formal evacuation order</strong>, with median delays of 11.5 hours.
               </p>
               <p className="text-gray-600 leading-relaxed mb-12">
                 For elderly residents, people with disabilities, and non-English speakers, these delays can be fatal. Minutes Matter closes that gap with real-time signal analysis, ML-powered predictions, and accessible alerts.
@@ -360,7 +400,7 @@ export default function Home() {
               {/* Data grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
-                  { value: '62,696', label: 'Total incidents', color: '#16a34a' },
+                  { value: '60,000+', label: 'Total incidents', color: '#16a34a' },
                   { value: '108', label: 'With formal orders', color: '#dc2626' },
                   { value: '41,906', label: 'Fires with signals', color: '#d97706' },
                   { value: '11.5h', label: 'Median delay', color: '#2563eb' },
@@ -387,22 +427,17 @@ export default function Home() {
           </div>
 
           {/* Caregiver spotlight — editorial wide card */}
-          <div className="rounded-3xl overflow-hidden mb-6 grid lg:grid-cols-[auto_1fr]" style={{ background: '#0a1f12' }}>
-            {/* Illustration panel */}
-            <div className="flex items-center justify-center p-12 lg:p-16" style={{ background: 'rgba(22,163,74,0.08)', minWidth: 220 }}>
-              <svg viewBox="0 0 120 120" className="w-36 h-36" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="42" cy="28" r="14" fill="#dcfce7" stroke="#16a34a" strokeWidth="2" />
-                <path d="M28 52 Q42 42 56 52 L60 85 Q50 90 42 90 Q34 90 24 85 Z" fill="#dcfce7" stroke="#16a34a" strokeWidth="1.5" />
-                <path d="M28 55 L20 72 L18 92 L24 92 L26 76 L32 60" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" />
-                <path d="M18 92 Q16 100 20 102" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" />
-                <path d="M56 55 L62 68" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" />
-                <path d="M34 88 L30 108 L36 108" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" />
-                <path d="M50 88 L52 108 L46 108" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" />
-                <circle cx="82" cy="30" r="11" fill="#bbf7d0" stroke="#16a34a" strokeWidth="2" />
-                <path d="M70 52 Q82 44 94 52 L96 80 Q88 84 82 84 Q76 84 68 80 Z" fill="#bbf7d0" stroke="#16a34a" strokeWidth="1.5" />
-                <path d="M62 65 Q72 58 70 70" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" fill="none" />
-                <path d="M58 42 Q62 36 66 42 Q70 48 58 55 Q46 48 50 42 Q54 36 58 42Z" fill="#fca5a5" opacity="0.7" />
-              </svg>
+          <div className="rounded-3xl overflow-hidden mb-6 grid lg:grid-cols-[420px_1fr]" style={{ background: '#0a1f12' }}>
+            {/* Photo panel */}
+            <div className="relative overflow-hidden" style={{ minHeight: 320 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/caregiver.jpeg"
+                alt="Caregiver supporting an elderly person"
+                className="w-full h-full object-cover object-center"
+                style={{ minHeight: 320 }}
+              />
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent 70%, #0a1f12)' }} />
             </div>
             {/* Text */}
             <div className="p-10 lg:p-12 flex flex-col justify-center">
@@ -412,7 +447,7 @@ export default function Home() {
                 When a wildfire breaks out, caregivers managing elderly parents, young children, or family members with disabilities face unique challenges. Standard alerts often arrive too late, use inaccessible language, or fail to account for slower evacuation needs.
               </p>
               <p className="text-green-200/50 leading-relaxed mb-8">
-                Minutes Matter gives caregivers personalised, actionable alerts with accessible route guidance, check-in tools, and Flameo — an AI assistant that helps plan evacuations in plain language.
+                Minutes Matter gives caregivers personalised, actionable alerts with accessible route guidance, check-in tools, and Flameo, an AI assistant that helps plan evacuations in plain language.
               </p>
               <button onClick={() => router.push('/auth/login?role=caregiver')}
                 className="self-start flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
@@ -426,7 +461,7 @@ export default function Home() {
             {[
               { icon: Heart, title: 'Caregivers', desc: 'Managing the safety of elderly parents, children, or loved ones with mobility challenges during a wildfire event.', color: '#be185d', bg: '#fdf2f8', border: '#fce7f3' },
               { icon: Shield, title: 'Emergency Responders', desc: 'Fire departments and emergency management teams who need real-time signal gap data and ML-powered spread predictions.', color: '#dc2626', bg: '#fff5f5', border: '#fee2e2' },
-              { icon: BarChart3, title: 'Data Analysts', desc: 'Academics and policy teams studying equity gaps in wildfire evacuation using 62,696 real incidents with SVI cross-analysis.', color: '#2563eb', bg: '#eff6ff', border: '#dbeafe' },
+              { icon: BarChart3, title: 'Data Analysts', desc: 'Academics and policy teams studying equity gaps in wildfire evacuation using 60,000+ real incidents with SVI cross-analysis.', color: '#2563eb', bg: '#eff6ff', border: '#dbeafe' },
             ].map(({ icon: Icon, title, desc, color, bg, border }) => (
               <div key={title} className="rounded-2xl p-7 border" style={{ background: bg, borderColor: border }}>
                 <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-5" style={{ background: 'white', border: `1px solid ${border}` }}>
@@ -480,7 +515,7 @@ export default function Home() {
             <div className="space-y-0 divide-y divide-gray-100">
               {[
                 { num: '01', title: 'Signal Detection', desc: 'NASA FIRMS and WatchDuty data streams detect fire incidents in real time, before formal orders are issued.' },
-                { num: '02', title: 'Gap Analysis', desc: 'We identify where formal evacuation orders are missing despite clear fire signals — closing the critical information gap.' },
+                { num: '02', title: 'Gap Analysis', desc: 'We identify where formal evacuation orders are missing despite clear fire signals, closing the critical information gap.' },
                 { num: '03', title: 'Equity Scoring', desc: 'CDC SVI data highlights which communities are most vulnerable and underserved, prioritizing those who need alerts most.' },
                 { num: '04', title: 'Personalized Alerts', desc: 'Caregivers receive tailored alerts, evacuation routes, and safe shelter locations in accessible language.' },
               ].map(({ num, title, desc }) => (

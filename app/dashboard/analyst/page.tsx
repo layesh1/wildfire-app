@@ -82,14 +82,14 @@ export default function AnalystDashboard() {
           Research Overview
         </h1>
         <p className="text-ash-400 text-lg">
-          WiDS Datathon 2025 · WatchDuty Dataset · 62,696 Wildfire Incidents
+          WiDS Datathon 2025 · WatchDuty Dataset · 60,000+ Wildfire Incidents
         </p>
       </div>
 
       {/* Core stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
         <div className="card p-5">
-          <div className="stat-value text-white">62,696</div>
+          <div className="stat-value text-white">60,000+</div>
           <div className="stat-label">Total fire incidents</div>
           <div className="text-ash-600 text-xs mt-0.5">2021–2025</div>
         </div>
@@ -134,7 +134,7 @@ export default function AnalystDashboard() {
       {/* Data note */}
       <div className="mt-8 p-4 bg-ash-900/50 border border-ash-800 rounded-lg">
         <p className="text-ash-500 text-xs">
-          <span className="text-ash-400 font-medium">Note:</span> The fire_events table contains a known duplicate upload issue (124,696 rows → deduplicated to 62,696 unique incidents). All analyses use deduplicated geo_event_id counts.
+          <span className="text-ash-400 font-medium">Note:</span> The fire_events table contains a known duplicate upload issue (124,696 rows → deduplicated to 60,000+ unique incidents). All analyses use deduplicated geo_event_id counts.
         </p>
       </div>
     </div>
