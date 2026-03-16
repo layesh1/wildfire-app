@@ -205,19 +205,7 @@ function SettingsInner() {
   function applyTheme(t: Theme) {
     setThemeState(t)
     localStorage.setItem('wfa_theme', t)
-    const html = document.documentElement
-    if (t === 'dark') {
-      html.classList.add('dark')
-    } else if (t === 'light') {
-      html.classList.remove('dark')
-    } else {
-      // system
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        html.classList.add('dark')
-      } else {
-        html.classList.remove('dark')
-      }
-    }
+    window.dispatchEvent(new Event('wfa-theme-change'))
   }
 
   async function switchActive(role: string) {

@@ -1,311 +1,427 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { FileText, Download, Phone, MapPin, AlertTriangle, Heart, Shield } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { FileText, Share2, Download, Phone, MapPin, AlertTriangle, Heart, Shield, Plus, X, Droplets, PawPrint } from 'lucide-react'
 
-const MOBILITY_OPTIONS = ['Mobile Adult', 'Elderly', 'Disabled', 'No Vehicle', 'Medical Equipment', 'Other']
-
-const MOBILITY_CHECKLISTS: Record<string, string[]> = {
-  'Mobile Adult': [
-    'Grab go-bag (documents, medications, charger, cash)',
-    'Close all windows and doors on the way out',
-    'Take your most direct pre-planned route',
-    'Text your emergency contact when leaving',
-    'Drive at least 20 miles from the fire',
-  ],
-  'Elderly': [
-    'Call your designated driver/helper immediately',
-    'Pack medications (7-day supply), glasses, hearing aids',
-    'Bring grab bar or mobility aids',
-    'Alert a neighbor or community center',
-    'Allow extra time — leave as soon as you hear of the fire',
-  ],
-  'Disabled': [
-    'Contact pre-registered accessible transport service',
-    'Pack all medical equipment and power adapters',
-    'Notify local emergency registry if pre-registered',
-    'Have a backup person who knows your location',
-    'Request lift-equipped transit if needed',
-  ],
-  'No Vehicle': [
-    'Call your county accessible transport number immediately',
-    'Contact a neighbor or church community for a ride',
-    'Walk to your pre-identified pickup point',
-    'Know your transit evacuation route',
-    'Carry transit card / cash for any alternative',
-  ],
-  'Medical Equipment': [
-    'Pack backup power source for nebulizer / O2 concentrator',
-    'Bring printed medication list and prescriptions',
-    'Notify receiving shelter of medical equipment needs',
-    'Pack extra supplies (oxygen tubing, nebulizer cups)',
-    'Confirm hospital / medical shelter location in advance',
-  ],
-  'Other': [
-    'Grab go-bag and any essential personal items',
-    'Notify someone you trust of your situation and plan',
-    'Follow official evacuation routes and instructions',
-    'Keep phone charged and check for updates',
-    'Head to nearest designated shelter if unsure',
-  ],
-}
+const MOBILITY_OPTIONS = ['Mobile Adult', 'Elderly', 'Elderly (needs driver)', 'Disabled', 'Wheelchair', 'No Vehicle', 'Medical Equipment', 'Other']
 
 export default function EmergencyCardPage() {
+  const cardRef = useRef<HTMLDivElement>(null)
+  const [saved, setSaved] = useState(false)
+
   const [profile, setProfile] = useState({
     name: '',
     address: '',
     phone: '',
-    emergencyContactName: '',
-    emergencyContactPhone: '',
+    bloodType: '',
+    allergies: '',
+    emergencyContacts: [{ name: '', phone: '', relationship: '' }] as { name: string; phone: string; relationship: string }[],
     mobility: 'Mobile Adult',
-    dependents: [] as {name: string; mobility: string}[],
-    notes: '',
+    mobilityOther: '',
+    medications: '',      // freetext: "Metformin 500mg, Lisinopril 10mg"
+    medicalEquipment: '', // freetext: "O2 concentrator (needs power), nebulizer"
+    pets: '',             // freetext: "Bella (lab mix), 2 cats"
+    languages: '',        // freetext: non-English languages
+    evacuationRoute: '',  // user's pre-planned route
+    destinationAddress: '',
   })
 
+  // Auto-save to localStorage
   useEffect(() => {
     try {
-      // Load from settings localStorage if available
-      const raw = localStorage.getItem('wfa_profile_cache')
+      const raw = localStorage.getItem('wfa_emergency_card')
       if (raw) {
         const p = JSON.parse(raw)
-        setProfile(prev => ({
-          ...prev,
-          name: p.full_name || '',
-          address: p.address || '',
-          phone: p.phone || '',
-          emergencyContactName: p.emergency_contact_name || '',
-          emergencyContactPhone: p.emergency_contact_phone || '',
-        }))
+        setProfile(prev => ({ ...prev, ...p }))
+        return
       }
-      // Load persons
-      const personsRaw = localStorage.getItem('monitored_persons_v2')
-      if (personsRaw) {
-        const persons = JSON.parse(personsRaw)
+      // Fall back to settings profile
+      const settingsRaw = localStorage.getItem('wfa_profile_cache')
+      if (settingsRaw) {
+        const s = JSON.parse(settingsRaw)
         setProfile(prev => ({
           ...prev,
-          dependents: persons.map((p: any) => ({ name: p.name, mobility: p.mobility || 'Mobile Adult' })),
+          name: s.full_name || '',
+          address: s.address || '',
+          phone: s.phone || '',
+          emergencyContacts: s.emergency_contact_name
+            ? [{ name: s.emergency_contact_name, phone: s.emergency_contact_phone || '', relationship: '' }]
+            : prev.emergencyContacts,
         }))
       }
     } catch {}
   }, [])
 
-  function printCard() {
-    window.print()
+  function update<K extends keyof typeof profile>(key: K, value: typeof profile[K]) {
+    setProfile(p => {
+      const next = { ...p, [key]: value }
+      try { localStorage.setItem('wfa_emergency_card', JSON.stringify(next)) } catch {}
+      return next
+    })
+    setSaved(false)
   }
 
-  const mobilityBase = profile.mobility.startsWith('Other:') ? 'Other' : profile.mobility
-  const checklist = MOBILITY_CHECKLISTS[mobilityBase] || MOBILITY_CHECKLISTS['Mobile Adult']
+  function saveNow() {
+    try { localStorage.setItem('wfa_emergency_card', JSON.stringify(profile)) } catch {}
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  function addContact() {
+    update('emergencyContacts', [...profile.emergencyContacts, { name: '', phone: '', relationship: '' }])
+  }
+
+  function removeContact(i: number) {
+    update('emergencyContacts', profile.emergencyContacts.filter((_, idx) => idx !== i))
+  }
+
+  function updateContact(i: number, field: 'name' | 'phone' | 'relationship', value: string) {
+    const next = profile.emergencyContacts.map((c, idx) => idx === i ? { ...c, [field]: value } : c)
+    update('emergencyContacts', next)
+  }
+
+  function shareCard() {
+    const text = buildShareText()
+    if (navigator.share) {
+      navigator.share({ title: 'My Wildfire Emergency Card', text }).catch(() => {})
+    } else {
+      navigator.clipboard?.writeText(text).then(() => alert('Card copied to clipboard. Paste it in any app or message to share.'))
+    }
+  }
+
+  function buildShareText() {
+    const mobilityLabel = profile.mobility === 'Other' && profile.mobilityOther ? profile.mobilityOther : profile.mobility
+    const lines = [
+      '🔥 WILDFIRE EMERGENCY CARD — Minutes Matter',
+      `Name: ${profile.name || 'Unknown'}`,
+      `Phone: ${profile.phone || 'Unknown'}`,
+      `Address: ${profile.address || 'Unknown'}`,
+      profile.bloodType ? `Blood Type: ${profile.bloodType}` : '',
+      profile.allergies ? `⚠ Allergies: ${profile.allergies}` : '',
+      '',
+      '— Emergency Contacts —',
+      ...profile.emergencyContacts.filter(c => c.name).map(c => `${c.name}${c.relationship ? ` (${c.relationship})` : ''}: ${c.phone}`),
+      '',
+      profile.mobility !== 'Mobile Adult' ? `Mobility: ${mobilityLabel}` : '',
+      profile.medications ? `Medications: ${profile.medications}` : '',
+      profile.medicalEquipment ? `Medical Equipment: ${profile.medicalEquipment}` : '',
+      profile.pets ? `Pets: ${profile.pets}` : '',
+      profile.languages ? `Languages: ${profile.languages}` : '',
+      '',
+      profile.evacuationRoute ? `Evacuation Route: ${profile.evacuationRoute}` : '',
+      profile.destinationAddress ? `Going to: ${profile.destinationAddress}` : '',
+      '',
+      '— Emergency Numbers —',
+      '911 · FEMA: 1-800-621-3362 · Red Cross: 1-800-733-2767',
+      '',
+      'Generated by minutesmatter.app',
+    ].filter(l => l !== null && l !== undefined)
+    return lines.filter(l => l !== '').join('\n')
+  }
+
+  const mobilityLabel = profile.mobility === 'Other' && profile.mobilityOther ? profile.mobilityOther : profile.mobility
+  const hasCriticalNeeds = profile.medications || profile.medicalEquipment || (profile.mobility !== 'Mobile Adult')
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
       {/* Header */}
-      <div className="mb-6 no-print">
+      <div className="mb-6">
         <div className="flex items-center gap-2 text-forest-600 text-sm font-medium mb-3">
           <FileText className="w-4 h-4" />
           CAREGIVER · EMERGENCY CARD
         </div>
-        <h1 className="font-display text-3xl font-bold text-gray-900 mb-2">Emergency Card</h1>
-        <p className="text-gray-500 text-sm mb-4">Fill in your details, then download or print. Store offline — this card works when apps fail.</p>
-        <button
-          onClick={printCard}
-          className="flex items-center gap-2 px-5 py-2.5 bg-forest-600 hover:bg-forest-700 rounded-xl text-white font-semibold transition-colors"
-        >
-          <Download className="w-4 h-4" />
-          Print / Save as PDF
-        </button>
+        <h1 className="font-display text-3xl font-bold text-gray-900 mb-1">My Emergency Card</h1>
+        <p className="text-gray-500 text-sm mb-4">
+          Your personal card for first responders and shelter staff. Fills in what 911 can&apos;t know — your meds, your pets, your route.
+          <strong className="text-gray-700"> Auto-saved to your device.</strong>
+        </p>
+        <div className="flex gap-3 flex-wrap">
+          <button onClick={shareCard}
+            className="flex items-center gap-2 px-5 py-2.5 bg-forest-600 hover:bg-forest-700 rounded-xl text-white font-semibold transition-colors">
+            <Share2 className="w-4 h-4" />
+            Share / AirDrop
+          </button>
+          <button onClick={() => window.print()}
+            className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 rounded-xl text-gray-700 font-semibold transition-colors">
+            <Download className="w-4 h-4" />
+            Save as PDF
+          </button>
+          {saved && <span className="text-signal-safe text-sm font-medium self-center">✓ Saved</span>}
+        </div>
+        <p className="text-gray-400 text-xs mt-3">
+          On iPhone: tap <strong>Share / AirDrop</strong> → &quot;AirDrop&quot; to send to another device, or &quot;Add to Notes&quot; to save offline.
+        </p>
       </div>
 
-      {/* Edit form — no-print */}
-      <div className="card p-5 mb-6 no-print space-y-4">
-        <h2 className="text-gray-900 font-semibold text-sm">Your Information</h2>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <div>
-            <label className="text-gray-500 text-xs block mb-1">Your name</label>
-            <input type="text" value={profile.name} onChange={e => setProfile(p => ({...p, name: e.target.value}))}
-              placeholder="Full name" className="input" />
-          </div>
-          <div>
-            <label className="text-gray-500 text-xs block mb-1">Your phone</label>
-            <input type="tel" value={profile.phone} onChange={e => setProfile(p => ({...p, phone: e.target.value}))}
-              placeholder="+1 (555) 000-0000" className="input" />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="text-gray-500 text-xs block mb-1">Your address</label>
-            <input type="text" value={profile.address} onChange={e => setProfile(p => ({...p, address: e.target.value}))}
-              placeholder="123 Main St, City, CA 95003" className="input" />
-          </div>
-          <div>
-            <label className="text-gray-500 text-xs block mb-1">Emergency contact name</label>
-            <input type="text" value={profile.emergencyContactName} onChange={e => setProfile(p => ({...p, emergencyContactName: e.target.value}))}
-              placeholder="Contact name" className="input" />
-          </div>
-          <div>
-            <label className="text-gray-500 text-xs block mb-1">Emergency contact phone</label>
-            <input type="tel" value={profile.emergencyContactPhone} onChange={e => setProfile(p => ({...p, emergencyContactPhone: e.target.value}))}
-              placeholder="+1 (555) 000-0001" className="input" />
-          </div>
-          <div>
-            <label className="text-gray-500 text-xs block mb-1">Your mobility level</label>
-            <select
-              value={profile.mobility.startsWith('Other:') ? 'Other' : profile.mobility}
-              onChange={e => setProfile(p => ({...p, mobility: e.target.value === 'Other' ? 'Other:' : e.target.value}))}
-              className="input"
-            >
-              {MOBILITY_OPTIONS.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-            {(profile.mobility === 'Other' || profile.mobility.startsWith('Other:')) && (
-              <input
-                type="text"
-                value={profile.mobility.startsWith('Other:') ? profile.mobility.slice(6) : ''}
-                onChange={e => setProfile(p => ({...p, mobility: `Other:${e.target.value}`}))}
-                placeholder="Describe your situation…"
-                className="input mt-2"
-                autoFocus
-              />
-            )}
-          </div>
-          <div>
-            <label className="text-gray-500 text-xs block mb-1">Special notes</label>
-            <input type="text" value={profile.notes} onChange={e => setProfile(p => ({...p, notes: e.target.value}))}
-              placeholder="e.g. nebulizer required, no vehicle" className="input" />
-          </div>
-        </div>
-      </div>
-
-      {/* Printable card */}
-      <div className="print-card rounded-xl border-2 border-gray-200 bg-white overflow-hidden">
-        {/* Card header */}
-        <div className="bg-forest-50 border-b border-forest-100 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-forest-100 border border-forest-200 flex items-center justify-center">
-                <Shield className="w-5 h-5 text-forest-600" />
-              </div>
-              <div>
-                <div className="font-display font-bold text-gray-900 text-lg">WILDFIRE EMERGENCY CARD</div>
-                <div className="text-forest-600/70 text-xs">Minutes Matter · minutesmatter.app</div>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-gray-400 text-xs">Generated</div>
-              <div className="text-gray-700 text-xs font-mono">{new Date().toLocaleDateString()}</div>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-6 space-y-5">
-          {/* Identity */}
-          <div className="grid sm:grid-cols-2 gap-4">
+      {/* Edit form */}
+      <div className="space-y-4 no-print mb-8">
+        {/* Identity */}
+        <div className="card p-5">
+          <h2 className="text-gray-700 font-semibold text-sm mb-3 flex items-center gap-2">
+            <Heart className="w-4 h-4 text-signal-danger" /> Personal Info
+          </h2>
+          <div className="grid sm:grid-cols-2 gap-3">
             <div>
-              <div className="flex items-center gap-1.5 text-gray-400 text-xs uppercase tracking-wider mb-1">
-                <Heart className="w-3 h-3" /> Name
-              </div>
-              <div className="text-gray-900 font-semibold">{profile.name || '____________________'}</div>
+              <label className="text-gray-500 text-xs block mb-1">Full name</label>
+              <input type="text" value={profile.name} onChange={e => update('name', e.target.value)}
+                placeholder="Jane Doe" className="input" />
             </div>
             <div>
-              <div className="flex items-center gap-1.5 text-gray-400 text-xs uppercase tracking-wider mb-1">
-                <Phone className="w-3 h-3" /> Phone
-              </div>
-              <div className="text-gray-900 font-semibold font-mono">{profile.phone || '____________________'}</div>
+              <label className="text-gray-500 text-xs block mb-1">Phone</label>
+              <input type="tel" value={profile.phone} onChange={e => update('phone', e.target.value)}
+                placeholder="+1 (555) 000-0000" className="input" />
             </div>
             <div className="sm:col-span-2">
-              <div className="flex items-center gap-1.5 text-gray-400 text-xs uppercase tracking-wider mb-1">
-                <MapPin className="w-3 h-3" /> Home Address
-              </div>
-              <div className="text-gray-900 font-semibold">{profile.address || '____________________________________'}</div>
+              <label className="text-gray-500 text-xs block mb-1">Home address</label>
+              <input type="text" value={profile.address} onChange={e => update('address', e.target.value)}
+                placeholder="123 Main St, City, CA 95003" className="input" />
+            </div>
+            <div>
+              <label className="text-gray-500 text-xs block mb-1">Blood type <span className="text-gray-400">(optional)</span></label>
+              <select value={profile.bloodType} onChange={e => update('bloodType', e.target.value)} className="input">
+                <option value="">Unknown</option>
+                {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-gray-500 text-xs block mb-1">Languages (non-English)</label>
+              <input type="text" value={profile.languages} onChange={e => update('languages', e.target.value)}
+                placeholder="e.g. Spanish, Cantonese" className="input" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-gray-500 text-xs block mb-1">Allergies / reactions <span className="text-gray-400">(critical for shelters)</span></label>
+              <input type="text" value={profile.allergies} onChange={e => update('allergies', e.target.value)}
+                placeholder="e.g. penicillin (anaphylaxis), latex, shellfish" className="input" />
             </div>
           </div>
+        </div>
 
-          <div className="border-t border-gray-100" />
-
-          {/* Emergency contact */}
-          <div>
-            <div className="text-gray-400 text-xs uppercase tracking-wider mb-2">Emergency Contact</div>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div className="bg-gray-50 border border-gray-100 rounded-lg px-3 py-2.5">
-                <div className="text-gray-400 text-xs mb-0.5">Name</div>
-                <div className="text-gray-900 font-semibold text-sm">{profile.emergencyContactName || '____________________'}</div>
-              </div>
-              <div className="bg-gray-50 border border-gray-100 rounded-lg px-3 py-2.5">
-                <div className="text-gray-400 text-xs mb-0.5">Phone</div>
-                <div className="text-gray-900 font-semibold text-sm font-mono">{profile.emergencyContactPhone || '____________________'}</div>
-              </div>
+        {/* Medical needs */}
+        <div className="card p-5">
+          <h2 className="text-gray-700 font-semibold text-sm mb-3 flex items-center gap-2">
+            <Droplets className="w-4 h-4 text-signal-info" /> Medical Needs
+            {hasCriticalNeeds && <span className="text-xs bg-signal-danger/10 text-signal-danger border border-signal-danger/30 px-2 py-0.5 rounded-full font-normal">Has critical needs</span>}
+          </h2>
+          <div className="space-y-3">
+            <div>
+              <label className="text-gray-500 text-xs block mb-1">Mobility level</label>
+              <select
+                value={profile.mobility.startsWith('Other') ? 'Other' : profile.mobility}
+                onChange={e => update('mobility', e.target.value)}
+                className="input"
+              >
+                {MOBILITY_OPTIONS.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+              {profile.mobility === 'Other' && (
+                <input type="text" value={profile.mobilityOther} onChange={e => update('mobilityOther', e.target.value)}
+                  placeholder="Describe your situation…" className="input mt-2" autoFocus />
+              )}
+            </div>
+            <div>
+              <label className="text-gray-500 text-xs block mb-1">Medications <span className="text-gray-400">— responders need this to help you at a shelter</span></label>
+              <textarea value={profile.medications} onChange={e => update('medications', e.target.value)}
+                placeholder="e.g. Metformin 500mg twice daily, Lisinopril 10mg, insulin (refrigerated), blood thinners"
+                rows={2} className="input resize-none" />
+            </div>
+            <div>
+              <label className="text-gray-500 text-xs block mb-1">Medical equipment / power needs</label>
+              <input type="text" value={profile.medicalEquipment} onChange={e => update('medicalEquipment', e.target.value)}
+                placeholder="e.g. O2 concentrator (needs outlet), CPAP, nebulizer, insulin pump" className="input" />
             </div>
           </div>
+        </div>
 
-          <div className="border-t border-gray-100" />
-
-          {/* Critical numbers */}
-          <div>
-            <div className="text-gray-400 text-xs uppercase tracking-wider mb-2">Critical Numbers</div>
-            <div className="grid sm:grid-cols-2 gap-2 text-sm">
-              <div className="flex justify-between bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
-                <span className="text-gray-500">Emergency</span>
-                <span className="text-gray-900 font-mono font-bold">911</span>
-              </div>
-              <div className="flex justify-between bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
-                <span className="text-gray-500">FEMA Helpline</span>
-                <span className="text-gray-900 font-mono font-bold">1-800-621-3362</span>
-              </div>
-              <div className="flex justify-between bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
-                <span className="text-gray-500">Red Cross</span>
-                <span className="text-gray-900 font-mono font-bold">1-800-733-2767</span>
-              </div>
-              <div className="flex justify-between bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
-                <span className="text-gray-500">Poison Control</span>
-                <span className="text-gray-900 font-mono font-bold">1-800-222-1222</span>
-              </div>
-            </div>
+        {/* Emergency contacts */}
+        <div className="card p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-gray-700 font-semibold text-sm flex items-center gap-2">
+              <Phone className="w-4 h-4 text-forest-600" /> Emergency Contacts
+            </h2>
+            <button onClick={addContact} className="flex items-center gap-1 text-xs text-forest-600 hover:text-forest-700 font-medium">
+              <Plus className="w-3 h-3" /> Add
+            </button>
           </div>
-
-          <div className="border-t border-gray-100" />
-
-          {/* Mobility-adaptive checklist */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="w-3.5 h-3.5 text-signal-warn" />
-              <div className="text-gray-400 text-xs uppercase tracking-wider">Evacuation Checklist ({profile.mobility.startsWith('Other:') && profile.mobility.slice(6) ? profile.mobility.slice(6) : mobilityBase})</div>
-            </div>
-            <ol className="space-y-1.5">
-              {checklist.map((item, i) => (
-                <li key={i} className="flex items-start gap-2.5 text-sm">
-                  <span className="w-5 h-5 rounded-full border border-gray-200 flex items-center justify-center text-xs text-gray-400 shrink-0 mt-0.5">{i + 1}</span>
-                  <span className="text-gray-700">{item}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-
-          {/* Dependents */}
-          {profile.dependents.length > 0 && (
-            <>
-              <div className="border-t border-gray-100" />
-              <div>
-                <div className="text-gray-400 text-xs uppercase tracking-wider mb-2">People I&rsquo;m Responsible For</div>
-                <div className="space-y-1">
-                  {profile.dependents.map((d, i) => (
-                    <div key={i} className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-sm">
-                      <span className="text-gray-900">{d.name}</span>
-                      <span className="text-gray-400 text-xs">{d.mobility}</span>
-                    </div>
-                  ))}
+          <div className="space-y-3">
+            {profile.emergencyContacts.map((c, i) => (
+              <div key={i} className="flex gap-2 items-start">
+                <div className="flex-1 grid sm:grid-cols-3 gap-2">
+                  <input type="text" value={c.name} onChange={e => updateContact(i, 'name', e.target.value)}
+                    placeholder="Name" className="input" />
+                  <input type="tel" value={c.phone} onChange={e => updateContact(i, 'phone', e.target.value)}
+                    placeholder="Phone" className="input font-mono" />
+                  <input type="text" value={c.relationship} onChange={e => updateContact(i, 'relationship', e.target.value)}
+                    placeholder="Relationship (e.g. spouse)" className="input" />
                 </div>
+                {profile.emergencyContacts.length > 1 && (
+                  <button onClick={() => removeContact(i)} className="mt-2.5 text-gray-400 hover:text-signal-danger transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
-            </>
+            ))}
+          </div>
+        </div>
+
+        {/* Pets & evacuation */}
+        <div className="card p-5">
+          <h2 className="text-gray-700 font-semibold text-sm mb-3 flex items-center gap-2">
+            <PawPrint className="w-4 h-4 text-amber-500" /> Pets & Evacuation Plan
+          </h2>
+          <div className="space-y-3">
+            <div>
+              <label className="text-gray-500 text-xs block mb-1">Pets <span className="text-gray-400">(shelters need this to direct you to pet-friendly locations)</span></label>
+              <input type="text" value={profile.pets} onChange={e => update('pets', e.target.value)}
+                placeholder="e.g. Bella (lab), 2 cats, fish tank (can't take)" className="input" />
+            </div>
+            <div>
+              <label className="text-gray-500 text-xs block mb-1">Primary evacuation route</label>
+              <input type="text" value={profile.evacuationRoute} onChange={e => update('evacuationRoute', e.target.value)}
+                placeholder="e.g. Hwy 1 North → I-5 North" className="input" />
+            </div>
+            <div>
+              <label className="text-gray-500 text-xs block mb-1">Destination / meeting point</label>
+              <input type="text" value={profile.destinationAddress} onChange={e => update('destinationAddress', e.target.value)}
+                placeholder="e.g. Sister's house: 456 Oak Ave, Sacramento" className="input" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Printable / shareable card */}
+      <div ref={cardRef} id="emergency-card" className="print-card rounded-xl border-2 border-gray-300 bg-white overflow-hidden">
+        {/* Header */}
+        <div className="bg-red-50 border-b-2 border-red-200 px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-red-100 border border-red-200 flex items-center justify-center">
+              <Shield className="w-5 h-5 text-red-600" />
+            </div>
+            <div>
+              <div className="font-bold text-gray-900 text-base uppercase tracking-wide">Wildfire Emergency Card</div>
+              <div className="text-red-600/70 text-xs">minutesmatter.app · Show this to any shelter or responder</div>
+            </div>
+          </div>
+          <div className="text-right text-xs text-gray-400">
+            <div>Updated</div>
+            <div className="font-mono">{new Date().toLocaleDateString()}</div>
+          </div>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Identity row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="text-gray-400 text-xs uppercase tracking-wider mb-0.5">Name</div>
+              <div className="text-gray-900 font-bold text-lg">{profile.name || '______________________'}</div>
+            </div>
+            <div>
+              <div className="text-gray-400 text-xs uppercase tracking-wider mb-0.5">Phone</div>
+              <div className="text-gray-900 font-bold text-lg font-mono">{profile.phone || '______________________'}</div>
+            </div>
+            <div className="col-span-2">
+              <div className="text-gray-400 text-xs uppercase tracking-wider mb-0.5">Home Address</div>
+              <div className="text-gray-900 font-semibold">{profile.address || '______________________________________'}</div>
+            </div>
+            {(profile.bloodType || profile.languages || profile.allergies) && (
+              <div className="col-span-2 flex flex-wrap gap-2">
+                {profile.bloodType && (
+                  <span className="bg-red-50 border border-red-200 text-red-700 text-xs font-bold px-2 py-1 rounded-lg">
+                    Blood: {profile.bloodType}
+                  </span>
+                )}
+                {profile.languages && (
+                  <span className="bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium px-2 py-1 rounded-lg">
+                    Speaks: {profile.languages}
+                  </span>
+                )}
+                {profile.allergies && (
+                  <span className="bg-signal-warn/10 border border-signal-warn/40 text-signal-warn text-xs font-bold px-2 py-1 rounded-lg">
+                    ⚠ ALLERGY: {profile.allergies}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Critical needs banner */}
+          {hasCriticalNeeds && (
+            <div className="bg-signal-danger/10 border-2 border-signal-danger/40 rounded-lg p-3">
+              <div className="text-signal-danger font-bold text-xs uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                <AlertTriangle className="w-3.5 h-3.5" /> Critical Needs — Read Before Placing
+              </div>
+              <div className="space-y-1 text-sm">
+                {profile.mobility !== 'Mobile Adult' && (
+                  <div><span className="font-semibold text-gray-700">Mobility:</span> <span className="text-gray-600">{mobilityLabel}</span></div>
+                )}
+                {profile.medications && (
+                  <div><span className="font-semibold text-gray-700">Medications:</span> <span className="text-gray-600">{profile.medications}</span></div>
+                )}
+                {profile.medicalEquipment && (
+                  <div><span className="font-semibold text-gray-700">Equipment:</span> <span className="text-gray-600 font-medium">{profile.medicalEquipment}</span></div>
+                )}
+              </div>
+            </div>
           )}
 
-          {/* Special notes */}
-          {profile.notes && (
-            <>
-              <div className="border-t border-gray-100" />
-              <div>
-                <div className="text-gray-400 text-xs uppercase tracking-wider mb-1">Special Notes</div>
-                <div className="text-gray-700 text-sm">{profile.notes}</div>
-              </div>
-            </>
+          <div className="border-t border-gray-100" />
+
+          {/* Emergency contacts */}
+          <div>
+            <div className="text-gray-400 text-xs uppercase tracking-wider mb-2">Emergency Contacts</div>
+            <div className="grid grid-cols-1 gap-1.5">
+              {profile.emergencyContacts.filter(c => c.name || c.phone).length > 0
+                ? profile.emergencyContacts.filter(c => c.name || c.phone).map((c, i) => (
+                    <div key={i} className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+                      <Phone className="w-3 h-3 text-gray-400 shrink-0" />
+                      <span className="text-gray-900 font-semibold text-sm">{c.name}</span>
+                      {c.relationship && <span className="text-gray-400 text-xs">({c.relationship})</span>}
+                      <span className="ml-auto text-gray-900 font-mono text-sm">{c.phone}</span>
+                    </div>
+                  ))
+                : <div className="text-gray-400 text-sm">No contacts added yet</div>
+              }
+            </div>
+          </div>
+
+          <div className="border-t border-gray-100" />
+
+          {/* Pets / route */}
+          {(profile.pets || profile.evacuationRoute || profile.destinationAddress) && (
+            <div className="grid grid-cols-1 gap-2 text-sm">
+              {profile.pets && (
+                <div><span className="font-semibold text-gray-700">Pets:</span> <span className="text-gray-600">{profile.pets}</span></div>
+              )}
+              {profile.evacuationRoute && (
+                <div><span className="font-semibold text-gray-700">Route:</span> <span className="text-gray-600">{profile.evacuationRoute}</span></div>
+              )}
+              {profile.destinationAddress && (
+                <div><span className="font-semibold text-gray-700">Going to:</span> <span className="text-gray-600">{profile.destinationAddress}</span></div>
+              )}
+            </div>
           )}
 
-          <div className="border-t border-gray-100 pt-3 text-gray-300 text-xs">
-            Minutes Matter Emergency Card · Print and store offline · minutesmatter.app
+          {(profile.pets || profile.evacuationRoute || profile.destinationAddress) && <div className="border-t border-gray-100" />}
+
+          {/* Emergency numbers */}
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="flex justify-between bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+              <span className="text-gray-500">Emergency</span>
+              <span className="text-gray-900 font-mono font-bold">911</span>
+            </div>
+            <div className="flex justify-between bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+              <span className="text-gray-500">FEMA Helpline</span>
+              <span className="text-gray-900 font-mono font-bold">1-800-621-3362</span>
+            </div>
+            <div className="flex justify-between bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+              <span className="text-gray-500">Red Cross</span>
+              <span className="text-gray-900 font-mono font-bold">1-800-733-2767</span>
+            </div>
+            <div className="flex justify-between bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+              <span className="text-gray-500">Crisis Text</span>
+              <span className="text-gray-900 font-mono font-bold">Text HOME→741741</span>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-100 pt-2 text-gray-300 text-xs text-center">
+            Minutes Matter Emergency Card · minutesmatter.app · Auto-saved to your device
           </div>
         </div>
       </div>
@@ -313,9 +429,8 @@ export default function EmergencyCardPage() {
       <style jsx global>{`
         @media print {
           .no-print { display: none !important; }
-          body { background: white !important; color: black !important; }
-          .print-card { border-color: #ccc !important; background: white !important; }
-          .print-card * { color: black !important; background: transparent !important; border-color: #eee !important; }
+          body { background: white !important; }
+          .print-card { border-color: #999 !important; }
         }
       `}</style>
     </div>
