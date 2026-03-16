@@ -55,7 +55,7 @@ export default function FlameoChat() {
       const { content } = await res.json()
       setMessages(m => [...m, { role: 'assistant', content: content || 'Sorry, something went wrong.' }])
     } catch {
-      setMessages(m => [...m, { role: 'assistant', content: 'I couldn\'t reach the server. Please try again in a moment.' }])
+      setMessages(m => [...m, { role: 'assistant', content: "I couldn't reach the server. Please try again in a moment." }])
     }
     setLoading(false)
   }
@@ -109,7 +109,9 @@ export default function FlameoChat() {
 
             {loading && (
               <div className="flex gap-2 justify-start">
-                <div className="w-6 h-6 rounded-lg bg-white border border-forest-200 flex items-center justify-center shrink-0 select-none shadow-sm"><FlameoIcon size={18} /></div>
+                <div className="w-6 h-6 rounded-lg bg-white border border-forest-200 flex items-center justify-center shrink-0 select-none shadow-sm">
+                  <FlameoIcon size={18} />
+                </div>
                 <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-sm px-3 py-2.5">
                   <div className="flex gap-1 items-center h-4">
                     {[0, 150, 300].map(delay => (
@@ -152,17 +154,24 @@ export default function FlameoChat() {
       {/* Floating button */}
       <button
         onClick={handleOpen}
-        className="fixed bottom-4 right-4 z-50 w-14 h-14 rounded-2xl bg-ember-500/15 hover:bg-ember-500/25 border border-ember-500/40 shadow-lg shadow-ember-500/20 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 select-none"
+        className="fixed bottom-4 right-4 z-50 w-14 h-14 rounded-2xl bg-forest-50 hover:bg-forest-100 border border-forest-200 shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 select-none"
         title="Chat with Flameo"
         aria-label="Open Flameo chat"
       >
         <span className={`transition-all duration-200 ${open ? 'scale-75 opacity-0 absolute' : 'scale-100 opacity-100'}`}><FlameoIcon size={36} /></span>
-        <X className={`w-5 h-5 text-ember-400 absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
+        <X className={`w-5 h-5 text-forest-600 absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
       </button>
 
-      {/* Chat intro tooltip on first load */}
+      {/* Notification dot + tooltip on first load */}
       {!hasOpened && (
-        <div className="fixed bottom-[62px] right-3 z-50 w-4 h-4 rounded-full bg-red-500 border-2 border-white animate-pulse pointer-events-none" />
+        <>
+          <div className="fixed bottom-[62px] right-3 z-50 w-4 h-4 rounded-full bg-red-500 border-2 border-white animate-pulse pointer-events-none" />
+          <div className="fixed bottom-20 right-20 z-50 pointer-events-none animate-fade-up">
+            <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-lg max-w-[180px]">
+              <p className="text-gray-700 text-xs font-medium leading-snug">Ask Flameo about fire safety &amp; evacuation</p>
+            </div>
+          </div>
+        </>
       )}
     </>
   )
