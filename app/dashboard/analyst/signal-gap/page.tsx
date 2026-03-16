@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { AlertTriangle, TrendingUp, Clock, MapPin, ChevronRight, Search, Table2, Map, Download, Code } from 'lucide-react'
+import { AlertTriangle, TrendingUp, Clock, MapPin, ChevronRight, Search, Table2, Map, Download, Code, ShieldAlert } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 
 const KEY_FINDINGS = [
@@ -11,7 +11,6 @@ const KEY_FINDINGS = [
   { icon: MapPin, value: 'High SVI', label: 'Counties hit hardest', sub: 'Significantly longer delays in vulnerable areas', color: 'text-signal-info' },
 ]
 
-// Top 15 for the main bar chart
 const DEMO_STATE_DATA = [
   { state: 'NM', median_delay_hours: 38.7, fire_count: 892, avg_svi: 0.74 },
   { state: 'AZ', median_delay_hours: 31.2, fire_count: 2341, avg_svi: 0.71 },
@@ -30,7 +29,6 @@ const DEMO_STATE_DATA = [
   { state: 'ND', median_delay_hours: 2.9, fire_count: 412, avg_svi: 0.47 },
 ]
 
-// All states with fire data
 const ALL_STATES = [
   { state: 'NM', median_delay_hours: 38.7, fire_count: 892, avg_svi: 0.74, region: 'Southwest' },
   { state: 'AZ', median_delay_hours: 31.2, fire_count: 2341, avg_svi: 0.71, region: 'Southwest' },
@@ -69,7 +67,6 @@ const ALL_STATES = [
   { state: 'ND', median_delay_hours: 2.9, fire_count: 412, avg_svi: 0.47, region: 'Midwest' },
 ]
 
-// County-level data
 const COUNTY_DATA = [
   { county: 'McKinley', state: 'NM', svi: 0.88, delay: 51.2, fires: 89 },
   { county: 'Apache', state: 'AZ', svi: 0.82, delay: 48.3, fires: 156 },
@@ -149,6 +146,20 @@ const STATE_CONTEXT: Record<string, string> = {
   MS: 'Mississippi has the second-highest average SVI nationally; alert system gaps are severe in Delta region.',
 }
 
+// Protocol inversions: orders issued BEFORE warnings (anomalous escalation)
+const PROTOCOL_INVERSIONS = [
+  { fire: 'Oak Fire', state: 'CA', county: 'Mariposa', gap_min: 142, max_acres: 19244, svi: 0.71 },
+  { fire: 'Mosquito Fire', state: 'CA', county: 'Placer/El Dorado', gap_min: 98, max_acres: 76788, svi: 0.61 },
+  { fire: 'River Fire', state: 'CA', county: 'Nevada', gap_min: 76, max_acres: 2642, svi: 0.58 },
+  { fire: 'Calf Canyon', state: 'NM', county: 'Mora', gap_min: 64, max_acres: 341735, svi: 0.82 },
+  { fire: 'Hermits Peak', state: 'NM', county: 'San Miguel', gap_min: 58, max_acres: 341735, svi: 0.79 },
+  { fire: 'Cedar Creek', state: 'OR', county: 'Lane', gap_min: 51, max_acres: 127324, svi: 0.59 },
+  { fire: 'Bootleg', state: 'OR', county: 'Klamath/Lake', gap_min: 44, max_acres: 413717, svi: 0.61 },
+  { fire: 'Tamarack', state: 'CA', county: 'Alpine', gap_min: 37, max_acres: 68637, svi: 0.55 },
+  { fire: 'Antelope', state: 'CA', county: 'Lassen', gap_min: 29, max_acres: 145108, svi: 0.67 },
+  { fire: 'Monument', state: 'CA', county: 'Trinity', gap_min: 21, max_acres: 223124, svi: 0.72 },
+]
+
 function exportSignalGapCsv(stateData: { state: string; median_delay_hours: number; fire_count: number; avg_svi: number }[]) {
   const header = 'state,median_delay_hours,fire_count,avg_svi\n'
   const rows = stateData.map(r =>
@@ -194,7 +205,6 @@ export default function SignalGapPage() {
   const barColor = (row: { avg_svi: number }) =>
     row.avg_svi > 0.7 ? '#ef4444' : row.avg_svi > 0.6 ? '#f59e0b' : '#22c55e'
 
-  // All-states filtering & sorting
   const regions = ['All', ...Array.from(new Set(ALL_STATES.map(s => s.region)))]
   const filteredStates = ALL_STATES
     .filter(s => {
@@ -211,7 +221,6 @@ export default function SignalGapPage() {
       return sortAsc ? result : -result
     })
 
-  // County filtering & sorting
   const filteredCounties = COUNTY_DATA
     .filter(c => {
       const q = countySearch.toLowerCase()
@@ -293,6 +302,17 @@ export default function SignalGapPage() {
         })}
       </div>
 
+      {/* Protocol Inversion Banner */}
+      <div className="mb-6 p-4 rounded-xl border border-signal-danger/30 bg-signal-danger/5 flex items-start gap-3">
+        <ShieldAlert className="w-5 h-5 text-signal-danger mt-0.5 shrink-0" />
+        <div>
+          <p className="text-signal-danger text-sm font-semibold mb-1">258 Protocol Inversions Detected</p>
+          <p className="text-ash-400 text-xs leading-relaxed">
+            In 258 fire incidents, evacuation <strong className="text-white">orders were issued before warnings</strong> — skipping the standard advisory→warning→order escalation. This bypasses the early-warning window that vulnerable populations rely on most. The 10 most extreme cases are shown in the Overview tab.
+          </p>
+        </div>
+      </div>
+
       {/* View mode tabs */}
       <div className="flex gap-1 mb-6 bg-ash-900 rounded-xl p-1 border border-ash-800 w-fit">
         {([
@@ -324,7 +344,7 @@ export default function SignalGapPage() {
                   Export CSV
                 </button>
               </div>
-              <p className="text-ash-500 text-xs mb-1">Click a bar to see state detail below · Switch to "All States" for full list</p>
+              <p className="text-ash-500 text-xs mb-1">Click a bar to see state detail below · Switch to &quot;All States&quot; for full list</p>
               <div className="flex gap-3 mb-4">
                 {[['#ef4444','High SVI'],['#f59e0b','Medium'],['#22c55e','Low SVI']].map(([c, l]) => (
                   <span key={l} className="text-xs flex items-center gap-1 text-ash-400">
@@ -430,6 +450,50 @@ export default function SignalGapPage() {
               </button>
             </div>
           )}
+
+          {/* Protocol Inversions Table */}
+          <div className="card p-6 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <ShieldAlert className="w-4 h-4 text-signal-danger" />
+              <h3 className="font-display text-lg font-bold text-white">Top 10 Protocol Inversions</h3>
+              <span className="ml-auto text-xs text-ash-500">Order issued before warning · gap in minutes</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-ash-800 text-left">
+                    <th className="pb-2 text-ash-400 text-xs font-medium uppercase tracking-wider pr-4">Fire</th>
+                    <th className="pb-2 text-ash-400 text-xs font-medium uppercase tracking-wider pr-4">State</th>
+                    <th className="pb-2 text-ash-400 text-xs font-medium uppercase tracking-wider pr-4">County</th>
+                    <th className="pb-2 text-ash-400 text-xs font-medium uppercase tracking-wider pr-4">Inversion Gap</th>
+                    <th className="pb-2 text-ash-400 text-xs font-medium uppercase tracking-wider pr-4">Max Acres</th>
+                    <th className="pb-2 text-ash-400 text-xs font-medium uppercase tracking-wider">SVI</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-ash-800/50">
+                  {PROTOCOL_INVERSIONS.map((row, i) => (
+                    <tr key={i} className="hover:bg-ash-800/30 transition-colors">
+                      <td className="py-2.5 text-white text-sm font-medium pr-4">{row.fire}</td>
+                      <td className="py-2.5 text-ash-300 text-sm font-mono pr-4">{row.state}</td>
+                      <td className="py-2.5 text-ash-400 text-sm pr-4">{row.county}</td>
+                      <td className="py-2.5 pr-4">
+                        <span className="text-signal-danger font-mono text-sm font-bold">−{row.gap_min} min</span>
+                      </td>
+                      <td className="py-2.5 text-ash-300 text-sm pr-4">{row.max_acres.toLocaleString()} ac</td>
+                      <td className="py-2.5">
+                        <span className={`font-mono text-sm font-bold ${row.svi > 0.7 ? 'text-signal-danger' : row.svi > 0.6 ? 'text-signal-warn' : 'text-signal-safe'}`}>
+                          {row.svi.toFixed(2)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-ash-600 text-xs mt-3">
+              Negative gap = order timestamp precedes warning timestamp · Source: fire_events_with_svi_and_delays.csv
+            </p>
+          </div>
 
           {/* Methodology */}
           <div className="card p-6 border-l-4 border-ember-500">
@@ -588,8 +652,9 @@ export default function SignalGapPage() {
           </p>
         </div>
       )}
-    {/* API Reference */}
-    <ApiReference />
+
+      {/* API Reference */}
+      <ApiReference />
     </div>
   )
 }
@@ -597,7 +662,7 @@ export default function SignalGapPage() {
 function ApiReference() {
   const [open, setOpen] = useState(false)
   return (
-    <div className="card overflow-hidden">
+    <div className="card overflow-hidden mt-6">
       <button
         onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-ash-800/30 transition-colors"
@@ -660,6 +725,7 @@ function ApiReference() {
               <li><strong className="text-ash-300">Silent fire</strong> = notification_type = &ldquo;silent&rdquo; in Watch Duty API (no push alert issued to residents)</li>
               <li><strong className="text-ash-300">Delay disparity</strong> = computed as median delay in high-SVI counties (SVI &gt; 0.7) vs. low-SVI (&lt; 0.4)</li>
               <li><strong className="text-ash-300">Extreme spread</strong> = last_spread_rate = &ldquo;extreme&rdquo; in WiDS dataset (~298 incidents)</li>
+              <li><strong className="text-ash-300">Protocol inversion</strong> = first_order_at timestamp precedes first_warning_at (258 incidents)</li>
               <li>SVI correlation with delay computed using Pearson r on county aggregates (n=1,016)</li>
             </ul>
           </div>

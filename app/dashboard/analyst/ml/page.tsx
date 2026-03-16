@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Brain, Wind, Thermometer, Droplets, TrendingUp, BarChart3, MapPin, Loader2 } from 'lucide-react'
+import { Brain, Wind, Thermometer, Droplets, TrendingUp, BarChart3, MapPin, Loader2, Flame } from 'lucide-react'
 
 const FireSpreadMap = dynamic(() => import('@/components/FireSpreadMap'), { ssr: false })
 
@@ -108,6 +108,8 @@ export default function AnalystMLPage() {
   const [humidity, setHumidity] = useState(20)
   const [temp, setTemp] = useState(85)
   const [svi, setSvi] = useState(0.65)
+  const [acreageGrowth, setAcreageGrowth] = useState(1)
+  const [excludePrescribed, setExcludePrescribed] = useState(false)
   const [fireMode, setFireMode] = useState<'scenario' | 'active'>('scenario')
   const [currentAcres, setCurrentAcres] = useState(500)
   const [containmentPct, setContainmentPct] = useState(0)
@@ -147,8 +149,13 @@ export default function AnalystMLPage() {
   async function run() {
     setRunning(true)
     await new Promise(r => setTimeout(r, 1200))
-    const risk = Math.min(((windSpeed / 60) * 0.35) + ((1 - humidity / 100) * 0.3) + ((temp / 120) * 0.2) + (svi * 0.15), 0.99)
-    const baseSpread = Math.round(risk * 15000 + windSpeed * 80)
+    const growthFactor = Math.min(acreageGrowth / 100, 1.0)
+    const prescribedAdjust = excludePrescribed ? 0.95 : 1.0
+    const risk = Math.min(
+      (((windSpeed / 60) * 0.30) + ((1 - humidity / 100) * 0.25) + ((temp / 120) * 0.20) + (svi * 0.15) + (growthFactor * 0.10)) * prescribedAdjust,
+      0.99
+    )
+    const baseSpread = Math.round(risk * 15000 + windSpeed * 80 + acreageGrowth * 20)
     const adjustedSpread = fireMode === 'active'
       ? Math.round(baseSpread * Math.max(0.05, 1 - containmentPct / 100))
       : baseSpread
@@ -267,6 +274,36 @@ export default function AnalystMLPage() {
                 className="w-full accent-blue-500" />
             </div>
           ))}
+
+          {/* Acreage Growth Rate */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-2">
+                <Flame className="w-3.5 h-3.5 text-ash-500" />
+                <span className="text-ash-300 text-sm">Acreage Growth Rate</span>
+              </div>
+              <span className="text-white font-mono text-sm">{acreageGrowth}×</span>
+            </div>
+            <input type="range" min={1} max={500} step={1} value={acreageGrowth}
+              onChange={e => { setAcreageGrowth(Number(e.target.value)); setResult(null) }}
+              className="w-full accent-orange-500" />
+            <p className="text-ash-600 text-xs mt-1">Observed growth multiplier vs. baseline (from acreage update logs)</p>
+          </div>
+
+          {/* Exclude Prescribed Burns */}
+          <label className="flex items-center gap-3 cursor-pointer group">
+            <div className="relative">
+              <input type="checkbox" checked={excludePrescribed} onChange={e => { setExcludePrescribed(e.target.checked); setResult(null) }}
+                className="sr-only" />
+              <div className={`w-10 h-5 rounded-full transition-colors ${excludePrescribed ? 'bg-signal-info' : 'bg-ash-700'}`} />
+              <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${excludePrescribed ? 'translate-x-5' : ''}`} />
+            </div>
+            <div>
+              <span className="text-ash-300 text-sm group-hover:text-white transition-colors">Exclude prescribed burns</span>
+              <p className="text-ash-600 text-xs">Remove NIFC CAUSE=2 (prescribed fire) from risk calculation</p>
+            </div>
+          </label>
+
           <button onClick={run} disabled={running} className="btn-primary w-full flex items-center justify-center gap-2">
             {running ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Running…</> : <><Brain className="w-4 h-4" /> Run Model</>}
           </button>
@@ -295,15 +332,21 @@ export default function AnalystMLPage() {
                   { label: 'Humidity (inverse)', weight: 1 - humidity / 100 },
                   { label: 'Temperature', weight: temp / 120 },
                   { label: 'SVI vulnerability', weight: svi },
+                  { label: 'Acreage growth rate', weight: Math.min(acreageGrowth / 500, 1) },
                 ].map(f => (
                   <div key={f.label} className="flex items-center gap-3 mb-2">
-                    <span className="text-ash-400 text-xs w-32 shrink-0">{f.label}</span>
+                    <span className="text-ash-400 text-xs w-36 shrink-0">{f.label}</span>
                     <div className="flex-1 h-2 bg-ash-800 rounded-full overflow-hidden">
                       <div className="h-full bg-blue-500 rounded-full" style={{ width: `${f.weight * 100}%` }} />
                     </div>
                     <span className="text-ash-400 text-xs w-10 text-right">{(f.weight * 100).toFixed(0)}%</span>
                   </div>
                 ))}
+                {excludePrescribed && (
+                  <p className="text-ash-600 text-xs mt-2 pt-2 border-t border-ash-800">
+                    Prescribed burn exclusion applied — risk reduced by ~5%
+                  </p>
+                )}
               </div>
             </>
           ) : (
