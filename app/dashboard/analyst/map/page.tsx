@@ -195,7 +195,7 @@ export default function AnalystMapPage() {
         </div>
         <h1 className="font-display text-3xl font-bold text-white mb-2">Fire Incident Map</h1>
         <p className="text-ash-400 text-sm">
-          Live active fires via NIFC EGP (public) · WiDS 2025 dataset (62,696 incidents) with SVI overlay · Click markers for details.
+          Live active fires via NIFC EGP (public) · WiDS 2025 dataset (60,000+ incidents) with SVI overlay · Click markers for details.
         </p>
       </div>
 
@@ -203,7 +203,7 @@ export default function AnalystMapPage() {
       <div className="flex gap-1 mb-5 border-b border-ash-800">
         {([
           { key: 'live', label: 'Live Active Fires', sub: 'NIFC real-time', color: 'text-signal-danger' },
-          { key: 'wids', label: 'WiDS Dataset', sub: '62,696 incidents', color: 'text-signal-info' },
+          { key: 'wids', label: 'WiDS Dataset', sub: '60,000+ incidents', color: 'text-signal-info' },
         ] as const).map(t => (
           <button key={t.key} onClick={() => { setTab(t.key); setSelected(null) }}
             className={`px-5 py-3 text-sm font-medium border-b-2 transition-all -mb-px ${

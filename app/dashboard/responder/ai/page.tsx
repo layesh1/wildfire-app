@@ -16,7 +16,7 @@ const STARTERS = [
 export default function CommandIntelPage() {
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
-    content: "**COMMAND-INTEL online.** I have access to the WiDS wildfire dataset covering 62,696 incidents, signal gap analysis by state and county, SVI vulnerability scores, and ML spread predictions.\n\nHow can I assist your incident command?",
+    content: "**COMMAND-INTEL online.** I have access to the WiDS wildfire dataset covering 60,000+ incidents, signal gap analysis by state and county, SVI vulnerability scores, and ML spread predictions.\n\nHow can I assist your incident command?",
   }])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
