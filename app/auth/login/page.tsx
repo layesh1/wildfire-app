@@ -90,27 +90,53 @@ function LoginForm() {
               <div className="text-green-300/70 text-xs">Wildfire evacuation intelligence</div>
             </div>
           </div>
-          <h2 className="font-display font-bold text-white leading-tight mb-4" style={{ fontSize: 'clamp(2rem, 3.5vw, 2.75rem)' }}>
-            Wildfire alerts<br/>when it matters most.
-          </h2>
-          <p className="text-green-200/70 text-base leading-relaxed mb-10">
-            Get personalized evacuation alerts, plan safe routes, and protect the people in your care — before the fire reaches you.
-          </p>
-          <div className="space-y-4">
-            {[
-              'Real-time fire monitoring for your area',
-              'AI-powered evacuation route guidance',
-              'Accessible alerts in 30+ languages',
-              'Check-in system for caregivers & families',
-            ].map((item, i) => (
-              <div key={i} className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-green-500/30 border border-green-500/50 flex items-center justify-center shrink-0 mt-0.5">
-                  <svg className="w-3 h-3 text-green-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 13l4 4L19 7"/></svg>
-                </div>
-                <span className="text-green-100/80 text-sm">{item}</span>
+
+          {mode === 'login' ? (
+            <>
+              <h2 className="font-display font-bold text-white leading-tight mb-4" style={{ fontSize: 'clamp(2rem, 3.5vw, 2.75rem)' }}>
+                Good to have<br/>you back.
+              </h2>
+              <p className="text-green-200/70 text-base leading-relaxed mb-10">
+                Your evacuation plan, alerts, and check-in tools are waiting. Sign in to pick up where you left off.
+              </p>
+              <div className="space-y-5">
+                {[
+                  { stat: '11.5h', label: 'median delay before evacuation orders reach vulnerable communities' },
+                  { stat: '99.74%', label: 'of fires with signals had no formal evacuation order' },
+                  { stat: '9×', label: 'disparity between fastest and slowest-alerted states' },
+                ].map(({ stat, label }) => (
+                  <div key={stat} className="flex items-start gap-4 border-l-2 border-green-500/40 pl-4">
+                    <div className="font-display font-bold text-white text-2xl leading-none shrink-0">{stat}</div>
+                    <div className="text-green-200/60 text-sm leading-relaxed">{label}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          ) : (
+            <>
+              <h2 className="font-display font-bold text-white leading-tight mb-4" style={{ fontSize: 'clamp(2rem, 3.5vw, 2.75rem)' }}>
+                Wildfire alerts<br/>when it matters most.
+              </h2>
+              <p className="text-green-200/70 text-base leading-relaxed mb-10">
+                Get personalized evacuation alerts, plan safe routes, and protect the people in your care before the fire reaches you.
+              </p>
+              <div className="space-y-4">
+                {[
+                  'Real-time fire monitoring for your area',
+                  'AI-powered evacuation route guidance',
+                  'Accessible alerts in 30+ languages',
+                  'Check-in system for caregivers & families',
+                ].map((item, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className="w-5 h-5 rounded-full bg-green-500/30 border border-green-500/50 flex items-center justify-center shrink-0 mt-0.5">
+                      <svg className="w-3 h-3 text-green-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                    <span className="text-green-100/80 text-sm">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
         <div className="text-green-200/40 text-xs">
           WiDS Datathon 2025 · 60,000+ incidents analyzed

@@ -432,12 +432,12 @@ export default function Home() {
             <div className="relative overflow-hidden" style={{ minHeight: 320 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/caregiver.jpeg"
+                src="/caregiver.png"
                 alt="Caregiver supporting an elderly person"
                 className="w-full h-full object-cover object-center"
                 style={{ minHeight: 320 }}
               />
-              <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent 70%, #0a1f12)' }} />
+              <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, transparent 65%, #0a1f12 95%)' }} />
             </div>
             {/* Text */}
             <div className="p-10 lg:p-12 flex flex-col justify-center">
@@ -476,8 +476,16 @@ export default function Home() {
       </section>
 
       {/* ── JOIN ── */}
-      <section className="py-28" style={{ background: '#0a1f12' }}>
-        <div className="max-w-5xl mx-auto px-6 text-center">
+      <section className="relative py-28 overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/hero-forest.jpg"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
+        />
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(5,20,10,0.80)' }} />
+        <div className="relative max-w-5xl mx-auto px-6 text-center">
           <div className="text-green-500 text-xs font-semibold uppercase tracking-widest mb-4">Get Started</div>
           <h2 className="font-display font-bold text-white mb-6" style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', lineHeight: 1.1 }}>
             Join Minutes Matter
