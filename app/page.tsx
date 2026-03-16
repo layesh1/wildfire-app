@@ -252,13 +252,9 @@ const HOW_STEPS = [
 ]
 
 function HowItWorks() {
-  const [active, setActive] = useState(0)
-  const step = HOW_STEPS[active]
-
   return (
-    <section id="how" className="py-24 bg-white">
-      <div className="max-w-6xl mx-auto px-6">
-        {/* Header */}
+    <section id="how" className="py-24" style={{ background: '#f0fdf4' }}>
+      <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-16">
           <div className="text-green-600 text-xs font-semibold uppercase tracking-widest mb-3">How It Works</div>
           <h2 className="font-display font-bold text-gray-900" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>
@@ -266,69 +262,46 @@ function HowItWorks() {
           </h2>
         </div>
 
-        {/* Step tabs */}
-        <div className="flex gap-2 mb-10 overflow-x-auto pb-1">
-          {HOW_STEPS.map((s, i) => (
-            <button
-              key={s.num}
-              onClick={() => setActive(i)}
-              className={`flex items-center gap-3 px-5 py-3 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-200 border ${
-                active === i
-                  ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
-                  : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-700'
-              }`}
-            >
-              <span className={`font-mono text-xs font-bold ${active === i ? 'text-gray-400' : 'text-gray-300'}`}>{s.num}</span>
-              {s.title}
-            </button>
-          ))}
-        </div>
+        {/* Snake timeline */}
+        <div className="max-w-2xl mx-auto">
+          {HOW_STEPS.map((step, i) => {
+            const isLeft = i % 2 === 0
+            const isLast = i === HOW_STEPS.length - 1
+            return (
+              <div key={step.num}>
+                {/* Pill card */}
+                <div className={`flex ${isLeft ? 'justify-start' : 'justify-end'}`}>
+                  <div
+                    className={`w-[82%] rounded-[3rem] px-7 py-5 flex items-center gap-5 shadow-lg ${isLeft ? 'flex-row' : 'flex-row-reverse'}`}
+                    style={{ background: 'linear-gradient(135deg, #14532d 0%, #16a34a 100%)' }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="text-green-300/70 text-[10px] font-semibold uppercase tracking-widest mb-1">{step.tag}</div>
+                      <div className="text-white font-display font-bold text-xl leading-tight">{step.title}</div>
+                      <div className="text-green-100/60 text-sm leading-relaxed mt-2">{step.desc}</div>
+                    </div>
+                    <div
+                      className="w-14 h-14 rounded-full flex items-center justify-center shrink-0 border-2 border-white/20"
+                      style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(4px)' }}
+                    >
+                      <span className="text-white font-display font-bold text-lg">{step.num}</span>
+                    </div>
+                  </div>
+                </div>
 
-        {/* Active step content */}
-        <div className="grid lg:grid-cols-[1fr_1fr] gap-8 items-stretch">
-          {/* Left: main info */}
-          <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 flex flex-col justify-between">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold mb-6"
-                style={{ background: `${step.color}18`, color: step.color }}>
-                {step.tag}
+                {/* Snake connector */}
+                {!isLast && (
+                  <div
+                    className={`h-14 w-[20%] ${isLeft
+                      ? 'ml-auto border-r-[3px] border-b-[3px] rounded-br-[2.5rem]'
+                      : 'mr-auto border-l-[3px] border-b-[3px] rounded-bl-[2.5rem]'
+                    }`}
+                    style={{ borderColor: '#16a34a50' }}
+                  />
+                )}
               </div>
-              <div className="font-display font-bold text-gray-100 mb-2" style={{ fontSize: '5rem', lineHeight: 1 }}>{step.num}</div>
-              <h3 className="font-display text-3xl font-bold text-gray-900 mb-4">{step.title}</h3>
-              <p className="text-gray-600 text-lg leading-relaxed">{step.desc}</p>
-            </div>
-            {/* Progress dots */}
-            <div className="flex gap-2 mt-10">
-              {HOW_STEPS.map((_, i) => (
-                <button key={i} onClick={() => setActive(i)}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${i === active ? 'w-8 bg-gray-900' : 'w-4 bg-gray-200 hover:bg-gray-300'}`} />
-              ))}
-            </div>
-          </div>
-
-          {/* Right: detail + nav */}
-          <div className="flex flex-col gap-4">
-            <div className="flex-1 rounded-2xl border border-gray-100 p-8 flex flex-col justify-center" style={{ background: `${step.color}08`, borderColor: `${step.color}20` }}>
-              <div className="text-sm font-semibold mb-3" style={{ color: step.color }}>In depth</div>
-              <p className="text-gray-700 leading-relaxed">{step.detail}</p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setActive(i => Math.max(0, i - 1))}
-                disabled={active === 0}
-                className="flex-1 py-3 rounded-xl border border-gray-200 text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700 disabled:opacity-30 transition-all"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setActive(i => Math.min(HOW_STEPS.length - 1, i + 1))}
-                disabled={active === HOW_STEPS.length - 1}
-                className="flex-1 py-3 rounded-xl border border-gray-900 bg-gray-900 text-white text-sm font-medium hover:bg-gray-800 disabled:opacity-30 transition-all"
-              >
-                Next step
-              </button>
-            </div>
-          </div>
+            )
+          })}
         </div>
       </div>
     </section>
