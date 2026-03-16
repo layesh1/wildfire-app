@@ -365,7 +365,7 @@ export default function Home() {
   const router = useRouter()
 
   return (
-    <main className="min-h-screen bg-white overflow-hidden">
+    <main className="lp min-h-screen bg-white overflow-hidden">
 
       {/* ── NAVBAR ── */}
       <header className="sticky top-0 z-20 border-b border-white/10" style={{ background: 'rgba(10,31,18,0.95)', backdropFilter: 'blur(12px)' }}>
