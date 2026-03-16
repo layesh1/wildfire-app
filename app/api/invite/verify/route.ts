@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { inviteRateLimit, getClientIp } from '@/lib/ratelimit'
+import { checkRateLimit, getClientIp } from '@/lib/ratelimit'
 
 function adminClient() {
   return createClient(
@@ -10,12 +10,10 @@ function adminClient() {
 }
 
 export async function POST(req: NextRequest) {
-  if (inviteRateLimit) {
-    const ip = getClientIp(req)
-    const { success } = await inviteRateLimit.limit(ip)
-    if (!success) {
-      return NextResponse.json({ error: 'Too many attempts. Try again in a minute.' }, { status: 429 })
-    }
+  // Rate limit: 10 attempts per minute per IP
+  const ip = getClientIp(req)
+  if (!checkRateLimit(ip, 'invite', 10, 60_000)) {
+    return NextResponse.json({ error: 'Too many attempts. Try again in a minute.' }, { status: 429 })
   }
 
   const { code, email, role: requestedRole } = await req.json()

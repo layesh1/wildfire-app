@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { createServerClient } from '@supabase/ssr'
-import { aiRateLimit, getClientIp } from '@/lib/ratelimit'
+import { checkRateLimit, getClientIp } from '@/lib/ratelimit'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -39,13 +38,10 @@ IMPORTANT - TOPIC BOUNDARIES: You ONLY answer questions related to wildfire inci
 
 export async function POST(request: NextRequest) {
   try {
-    // Rate limit by IP
-    if (aiRateLimit) {
-      const ip = getClientIp(request)
-      const { success } = await aiRateLimit.limit(ip)
-      if (!success) {
-        return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
-      }
+    // Rate limit: 20 requests per minute per IP
+    const ip = getClientIp(request)
+    if (!checkRateLimit(ip, 'ai', 20, 60_000)) {
+      return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
     }
 
     const { messages, persona = 'SAFE-PATH' } = await request.json()
