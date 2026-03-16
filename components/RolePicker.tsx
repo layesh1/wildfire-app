@@ -99,25 +99,25 @@ export default function RolePicker({ roles, activeRole, name }: Props) {
   }
 
   return (
-    <main className="min-h-screen bg-ash-950 flex items-start justify-center p-4 py-12 overflow-y-auto">
-      <div className="fixed inset-0 bg-ember-radial pointer-events-none" />
+    <main className="min-h-screen bg-gray-50 flex items-start justify-center p-4 py-12 overflow-y-auto">
+      <div className="fixed inset-0 bg-forest-radial pointer-events-none" />
       <div className="relative w-full max-w-lg">
         {/* Logo */}
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-ember-500/20 border border-ember-500/40 flex items-center justify-center">
-            <Flame className="w-5 h-5 text-ember-400" />
+          <div className="w-10 h-10 rounded-xl bg-forest-50 border border-forest-200 flex items-center justify-center">
+            <Flame className="w-5 h-5 text-forest-600" />
           </div>
           <div>
-            <div className="font-display font-bold text-white text-xl leading-none">WildfireAlert</div>
-            <div className="text-ash-500 text-xs">Equity-driven evacuation intelligence</div>
+            <div className="font-display font-bold text-gray-900 text-xl leading-none">Minutes Matter</div>
+            <div className="text-gray-400 text-xs">Equity-driven evacuation intelligence</div>
           </div>
         </div>
 
         <div className="card p-8">
-          <h2 className="font-display text-2xl font-bold text-white mb-1">
+          <h2 className="font-display text-2xl font-bold text-gray-900 mb-1">
             {name ? `Welcome, ${name.split(' ')[0]}` : 'Choose your dashboard'}
           </h2>
-          <p className="text-ash-400 text-sm mb-6">
+          <p className="text-gray-500 text-sm mb-6">
             {myRoles.length > 1
               ? 'You have access to multiple dashboards. Where would you like to go?'
               : 'Select your dashboard to continue.'}
@@ -133,20 +133,20 @@ export default function RolePicker({ roles, activeRole, name }: Props) {
                 <button
                   key={role}
                   onClick={() => selectRole(role, cfg.href)}
-                  className={`w-full flex items-center gap-4 p-4 rounded-xl border bg-ash-900 transition-all text-left hover:bg-ash-800 ${
-                    isActive ? cfg.activeBorder : cfg.border
+                  className={`w-full flex items-center gap-4 p-4 rounded-xl border bg-white transition-all text-left hover:bg-gray-50 hover:shadow-sm ${
+                    isActive ? 'border-forest-300 shadow-sm' : 'border-gray-200'
                   }`}
                 >
                   <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${
-                    isActive ? `${cfg.bg} ${cfg.activeBorder}` : 'bg-ash-800/50 border-ash-700'
+                    isActive ? 'bg-forest-50 border-forest-200' : 'bg-gray-50 border-gray-200'
                   }`}>
                     <Icon className={`w-5 h-5 ${cfg.color}`} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className={`font-semibold text-sm ${cfg.color}`}>{cfg.label}</div>
-                    <div className="text-ash-500 text-xs mt-0.5">{cfg.description}</div>
+                    <div className="text-gray-500 text-xs mt-0.5">{cfg.description}</div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-ash-600 shrink-0" />
+                  <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />
                 </button>
               )
             })}
@@ -156,9 +156,9 @@ export default function RolePicker({ roles, activeRole, name }: Props) {
           {otherRoles.length > 0 && (
             <>
               <div className="flex items-center gap-3 mb-3">
-                <div className="flex-1 border-t border-ash-800" />
-                <span className="text-ash-600 text-xs font-medium">Add a role</span>
-                <div className="flex-1 border-t border-ash-800" />
+                <div className="flex-1 border-t border-gray-200" />
+                <span className="text-gray-400 text-xs font-medium">Add a role</span>
+                <div className="flex-1 border-t border-gray-200" />
               </div>
 
               <div className="space-y-2">
@@ -169,21 +169,21 @@ export default function RolePicker({ roles, activeRole, name }: Props) {
                     <button
                       key={role}
                       onClick={() => router.push(`/auth/add-role?role=${role}`)}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-ash-800 bg-ash-900/50 hover:bg-ash-800 hover:border-ash-700 transition-all text-left"
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 hover:bg-white hover:border-gray-300 hover:shadow-sm transition-all text-left"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-ash-800 border border-ash-700 flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center shrink-0">
                         <Icon className={`w-4 h-4 ${cfg.color} opacity-60`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-ash-400 text-sm font-medium">{cfg.label}</div>
+                        <div className="text-gray-600 text-sm font-medium">{cfg.label}</div>
                         {cfg.protected && (
                           <div className="flex items-center gap-1 mt-0.5">
-                            <Lock className="w-3 h-3 text-ash-600" />
-                            <span className="text-ash-600 text-xs">Requires access code</span>
+                            <Lock className="w-3 h-3 text-gray-400" />
+                            <span className="text-gray-400 text-xs">Requires access code</span>
                           </div>
                         )}
                       </div>
-                      <Plus className="w-4 h-4 text-ash-600 shrink-0" />
+                      <Plus className="w-4 h-4 text-gray-400 shrink-0" />
                     </button>
                   )
                 })}
