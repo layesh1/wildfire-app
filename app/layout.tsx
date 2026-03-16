@@ -25,6 +25,10 @@ export const metadata: Metadata = {
   title: 'Minutes Matter | Wildfire Evacuation Intelligence',
   description: 'Real-time wildfire signal gap analysis and caregiver alert system. WiDS Datathon 2025.',
   keywords: ['wildfire', 'evacuation', 'alert', 'equity', 'SVI', 'emergency'],
+  icons: {
+    icon: '/flameo1.png',
+    apple: '/flameo1.png',
+  },
   openGraph: {
     title: 'Minutes Matter',
     description: 'Equity-driven wildfire evacuation intelligence',
