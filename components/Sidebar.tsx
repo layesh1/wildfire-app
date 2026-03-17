@@ -20,6 +20,8 @@ const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> 
   emergency_responder: [
     { label: 'Live Map', href: '/dashboard/responder', icon: Map },
     { label: 'ICS Incident Board', href: '/dashboard/responder/ics', icon: ClipboardList },
+    { label: 'Coverage Gaps', href: '/dashboard/responder/coverage', icon: Shield },
+    { label: 'Signal Gaps', href: '/dashboard/responder/signals', icon: AlertTriangle },
     { label: 'ML Predictor', href: '/dashboard/responder/ml', icon: Brain },
     { label: 'COMMAND-INTEL', href: '/dashboard/responder/ai', icon: Activity },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
