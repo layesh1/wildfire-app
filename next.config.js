@@ -17,17 +17,17 @@ const securityHeaders = [
     value: [
       "default-src 'self'",
       // Next.js needs unsafe-inline and unsafe-eval for its runtime
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com",
-      // Styles: self + inline (Tailwind) + Google Fonts
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://translate.googleapis.com https://translate.google.com",
+      // Styles: self + inline (Tailwind) + Google Fonts + Google Translate
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://translate.googleapis.com",
       // Fonts
       "font-src 'self' https://fonts.gstatic.com",
-      // Images: self + data URIs (Leaflet SVG icons) + tile servers + Supabase
-      "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.supabase.co https://firms.modaps.eosdis.nasa.gov",
-      // API calls: self + Supabase + external APIs your routes use
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.anthropic.com https://firms.modaps.eosdis.nasa.gov https://services3.arcgis.com https://opendata.arcgis.com",
-      // Google OAuth iframe
-      "frame-src https://accounts.google.com",
+      // Images: self + data URIs (Leaflet SVG icons) + tile servers + Supabase + Google Translate
+      "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.supabase.co https://firms.modaps.eosdis.nasa.gov https://www.gstatic.com https://translate.googleapis.com",
+      // API calls: self + Supabase + external APIs + Google Translate
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.anthropic.com https://firms.modaps.eosdis.nasa.gov https://services3.arcgis.com https://opendata.arcgis.com https://translate.googleapis.com https://translate.google.com",
+      // Google OAuth + Google Translate iframes
+      "frame-src https://accounts.google.com https://translate.google.com https://translate.googleapis.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
