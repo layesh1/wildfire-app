@@ -222,9 +222,10 @@ export default function FirePatternsPage() {
 
           <div className="card p-5 border border-signal-danger/20 bg-signal-danger/5">
             <p className="text-ash-400 text-sm leading-relaxed">
-              <strong className="text-signal-danger">High-SVI states have the worst skip rates.</strong> New Mexico (SVI 0.74) and Arizona (SVI 0.71)
+              <strong className="text-signal-danger">States with the most rural infrastructure gaps skip warnings most often.</strong> New Mexico and Arizona
               skip warnings at 48.2% and 44.1% respectively — meaning nearly half of all escalations gave residents
               zero advance notice. They went from normal zone status to mandatory evacuation with no warning tier.
+              Note: these states also have high SVI scores, but zone skip rates reflect infrastructure and terrain constraints, not SVI directly.
             </p>
           </div>
         </div>
