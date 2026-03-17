@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import { Playfair_Display, DM_Sans, DM_Mono } from 'next/font/google'
-import Script from 'next/script'
 import './globals.css'
 
 const playfair = Playfair_Display({
@@ -40,16 +39,16 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${playfair.variable} ${dmSans.variable} ${dmMono.variable}`}>
-      <head />
+      <head>
+        {/* Google Translate: inline init must come before the GT loader script */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script dangerouslySetInnerHTML={{ __html: `function googleTranslateElementInit(){new google.translate.TranslateElement({pageLanguage:'en',autoDisplay:false},'google_translate_element');}` }} />
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script async src="https://translate.googleapis.com/translate_a/element.js?cb=googleTranslateElementInit" />
+      </head>
       <body className="bg-gray-50 text-gray-900 font-body antialiased" suppressHydrationWarning>
         {children}
         <div id="google_translate_element" style={{ display: 'none' }} />
-        {/* gt-init.js defines googleTranslateElementInit before the GT callback fires */}
-        <Script src="/gt-init.js" strategy="beforeInteractive" />
-        <Script
-          src="https://translate.googleapis.com/translate_a/element.js?cb=googleTranslateElementInit"
-          strategy="afterInteractive"
-        />
       </body>
     </html>
   )

@@ -86,21 +86,17 @@ export default function LanguageProvider({ children, initialLang }: Props) {
     setLang(selected)
     localStorage.setItem(LS_KEY, code)
 
-    // Persist to Supabase
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await supabase.from('profiles').upsert({ id: user.id, language_preference: code })
-    }
+    // Persist to Supabase in the background — don't block the reload
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) supabase.from('profiles').upsert({ id: user.id, language_preference: code })
+    })
 
     if (code === 'en') {
       clearGoogCookie()
       window.location.reload()
     } else {
       setGoogCookie(code)
-      // Try soft trigger first (no reload)
-      triggerGT(code)
-      // Reload after short delay to let Google Translate pick up the cookie
-      setTimeout(() => window.location.reload(), 800)
+      window.location.reload()
     }
   }, [supabase])
 
