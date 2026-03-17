@@ -44,11 +44,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-gray-50 text-gray-900 font-body antialiased" suppressHydrationWarning>
         {children}
         <div id="google_translate_element" style={{ display: 'none' }} />
-        <Script id="gt-init" strategy="beforeInteractive">{`
-          function googleTranslateElementInit() {
-            new google.translate.TranslateElement({ pageLanguage: 'en', autoDisplay: false }, 'google_translate_element');
-          }
-        `}</Script>
+        {/* gt-init.js defines googleTranslateElementInit before the GT callback fires */}
+        <Script src="/gt-init.js" strategy="beforeInteractive" />
         <Script
           src="https://translate.googleapis.com/translate_a/element.js?cb=googleTranslateElementInit"
           strategy="afterInteractive"
