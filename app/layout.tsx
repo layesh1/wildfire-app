@@ -48,7 +48,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="bg-gray-50 text-gray-900 font-body antialiased" suppressHydrationWarning>
         {children}
-        <div id="google_translate_element" style={{ display: 'none' }} />
+        {/* Off-screen but not display:none — GT won't populate options if the container is hidden */}
+        <div id="google_translate_element" style={{ position: 'absolute', top: '-9999px', left: '-9999px', width: '1px', height: '1px', overflow: 'hidden' }} />
       </body>
     </html>
   )
