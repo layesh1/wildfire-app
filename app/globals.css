@@ -4,6 +4,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide Google Translate UI artifacts */
+.skiptranslate,
+.goog-te-banner-frame { display: none !important; }
+body { top: 0 !important; }
+.goog-te-gadget { font-size: 0 !important; }
+#google_translate_element { display: none !important; }
+
 @layer base {
   :root {
     --forest-glow: 0 0 40px rgba(22, 163, 74, 0.12);
