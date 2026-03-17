@@ -77,10 +77,10 @@ function triggerGT(code: string) {
       sel.value = code
       sel.dispatchEvent(new Event('change'))
     } else if (tries > 0) {
-      setTimeout(() => attempt(tries - 1), 300)
+      setTimeout(() => attempt(tries - 1), 500)
     }
   }
-  attempt(10)
+  attempt(30)
 }
 
 interface Props {
@@ -109,7 +109,7 @@ export default function LanguageProvider({ children, initialLang }: Props) {
     const activeLang = ls ?? initialLang ?? 'en'
     if (activeLang !== 'en') {
       setGoogCookie(activeLang)
-      setTimeout(() => triggerGT(activeLang), 1500)
+      setTimeout(() => triggerGT(activeLang), 2500)
     }
   }, [initialLang])
 
@@ -132,7 +132,7 @@ export default function LanguageProvider({ children, initialLang }: Props) {
       // Try soft trigger first (no reload)
       triggerGT(code)
       // Reload after short delay to let Google Translate pick up the cookie
-      setTimeout(() => window.location.reload(), 400)
+      setTimeout(() => window.location.reload(), 800)
     }
   }, [supabase])
 

@@ -53,6 +53,7 @@ function PostLoginRedirect() {
       } else {
         // Open role — add it
         const updatedRoles = [...new Set([...existingRoles, intendedRole])]
+        const isNewUser = !profile || !profile.role
         if (!profile) {
           await supabase.from('profiles').insert({
             id: user.id,
@@ -64,8 +65,12 @@ function PostLoginRedirect() {
         } else {
           await supabase.from('profiles').update({ role: intendedRole, roles: updatedRoles }).eq('id', user.id)
         }
-        // First-time users go to settings for onboarding
-        router.replace(`/dashboard/settings?role=${intendedRole}&onboarding=true`)
+        // New users go through onboarding wizard; returning users go straight to dashboard
+        if (isNewUser) {
+          router.replace(`/auth/onboarding?role=${intendedRole}`)
+        } else {
+          router.replace(ROLE_DESTINATIONS[intendedRole] ?? '/dashboard')
+        }
       }
     }
     route()
