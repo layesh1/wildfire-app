@@ -110,7 +110,7 @@ export default function EquityMetricsPage() {
         {(['gap', 'svi', 'order'] as const).map(s => (
           <button key={s} onClick={() => setSort(s)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${sort === s ? 'bg-ash-700 border-ash-600 text-white' : 'border-ash-800 text-ash-400 hover:text-white hover:border-ash-700'}`}>
-            {s === 'gap' ? 'Signal Gap' : s === 'svi' ? 'SVI Score' : 'Order Rate'}
+            {s === 'gap' ? 'Lead Time†' : s === 'svi' ? 'SVI Score' : 'Order Rate'}
           </button>
         ))}
       </div>
@@ -121,7 +121,7 @@ export default function EquityMetricsPage() {
             <tr className="border-b border-ash-800 text-left">
               <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">State</th>
               <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">Avg SVI</th>
-              <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">Median Gap</th>
+              <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider" title="Median signal-to-order lead time for fires that received orders — does NOT represent typical wait time across all fires">Signal Lead Time†</th>
               <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">Order Rate</th>
               <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">High-SVI Fires</th>
             </tr>
@@ -159,6 +159,9 @@ export default function EquityMetricsPage() {
             ))}
           </tbody>
         </table>
+        <div className="px-5 py-2 border-t border-ash-800 text-ash-600 text-xs">
+          † Signal Lead Time = median hours from first external signal to first evacuation order, for fires that received both. SVI does NOT predict these hours — when orders occur, timing is ~1.1h across all SVI tiers. SVI predicts whether orders happen at all.
+        </div>
       </div>
 
       <div className="card p-5 mt-6 border border-signal-warn/20 bg-signal-warn/5">
