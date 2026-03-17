@@ -120,10 +120,13 @@ const COUNTY_DATA = [
   { county: 'Boulder', state: 'CO', svi: 0.45, delay: 3.1, fires: 78 },
 ]
 
+// ORDER RATE by SVI tier — the verified finding is that SVI predicts WHETHER orders are issued,
+// NOT how long they take. When orders DO occur, timing is ~1.1h across ALL SVI tiers.
+// Order rate values are derived from the WiDS dataset (653 orders / 50,664 true wildfires = 1.3% overall).
 const SVI_TIER_DATA = [
-  { tier: 'Low SVI', range: '< 0.55', avg_delay: 4.2, fire_count: 1066, fill: '#22c55e' },
-  { tier: 'Medium SVI', range: '0.55 – 0.70', avg_delay: 13.3, fire_count: 24481, fill: '#f59e0b' },
-  { tier: 'High SVI', range: '> 0.70', avg_delay: 40.3, fire_count: 17149, fill: '#ef4444' },
+  { tier: 'Low SVI', range: '< 0.55', order_rate: 2.4, fire_count: 1066, fill: '#22c55e' },
+  { tier: 'Medium SVI', range: '0.55 – 0.70', order_rate: 1.3, fire_count: 24481, fill: '#f59e0b' },
+  { tier: 'High SVI', range: '> 0.70', order_rate: 0.7, fire_count: 17149, fill: '#ef4444' },
 ]
 
 const STATE_CONTEXT: Record<string, string> = {
@@ -202,8 +205,9 @@ export default function SignalGapPage() {
     load()
   }, [])
 
-  const barColor = (row: { avg_svi: number }) =>
-    row.avg_svi > 0.7 ? '#ef4444' : row.avg_svi > 0.6 ? '#f59e0b' : '#22c55e'
+  // Color bars by delay severity (not by SVI — SVI predicts order rates, not delay hours)
+  const barColor = (row: { median_delay_hours: number }) =>
+    row.median_delay_hours > 20 ? '#ef4444' : row.median_delay_hours > 10 ? '#f59e0b' : '#22c55e'
 
   const regions = ['All', ...Array.from(new Set(ALL_STATES.map(s => s.region)))]
   const filteredStates = ALL_STATES
@@ -268,8 +272,9 @@ export default function SignalGapPage() {
     return (
       <div className="bg-ash-900 border border-ash-700 rounded-lg px-3 py-2 text-xs shadow-lg">
         <p className="text-white font-semibold">{d.tier} ({d.range})</p>
-        <p style={{ color: d.fill }}>{d.avg_delay}h avg delay</p>
-        <p className="text-ash-400">{d.fire_count.toLocaleString()} fires</p>
+        <p style={{ color: d.fill }}>{d.order_rate}% received an order</p>
+        <p className="text-ash-400">{d.fire_count.toLocaleString()} fires in tier</p>
+        <p className="text-ash-500 mt-1">When orders do occur: ~1.1h across all tiers</p>
       </div>
     )
   }
@@ -403,7 +408,7 @@ export default function SignalGapPage() {
             {/* State bar chart */}
             <div className="card p-6">
               <div className="flex items-start justify-between gap-2 mb-1">
-                <h3 className="font-display text-lg font-bold text-white">Median Delay by State (Top 15)</h3>
+                <h3 className="font-display text-lg font-bold text-white">Signal Lead Time by State (Top 15)</h3>
                 <button
                   onClick={() => exportSignalGapCsv(gapData)}
                   disabled={!gapData.length}
@@ -413,9 +418,9 @@ export default function SignalGapPage() {
                   Export CSV
                 </button>
               </div>
-              <p className="text-ash-500 text-xs mb-1">Click a bar to see state detail below · Switch to &quot;All States&quot; for full list</p>
+              <p className="text-ash-500 text-xs mb-1">Median hours from first external signal to first evacuation order, by state · Click a bar for detail · Switch to &quot;All States&quot; for full list</p>
               <div className="flex gap-3 mb-4">
-                {[['#ef4444','High SVI'],['#f59e0b','Medium'],['#22c55e','Low SVI']].map(([c, l]) => (
+                {[['#ef4444','> 20h'],['#f59e0b','10–20h'],['#22c55e','< 10h']].map(([c, l]) => (
                   <span key={l} className="text-xs flex items-center gap-1 text-ash-400">
                     <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: c }} /> {l}
                   </span>
@@ -454,14 +459,14 @@ export default function SignalGapPage() {
 
             {/* SVI tier comparison */}
             <div className="card p-6">
-              <h3 className="font-display text-lg font-bold text-white mb-1">Delay by Vulnerability Level</h3>
-              <p className="text-ash-500 text-xs mb-6">Average alert delay grouped by Social Vulnerability Index tier. Higher SVI = more vulnerable.</p>
+              <h3 className="font-display text-lg font-bold text-white mb-1">Order Rate by Vulnerability Level</h3>
+              <p className="text-ash-500 text-xs mb-6">% of fires that received a formal evacuation order, by SVI tier. SVI predicts <strong className="text-signal-danger">whether</strong> orders are issued — not how long they take.</p>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={SVI_TIER_DATA} barSize={48}>
                   <XAxis dataKey="tier" tick={{ fill: '#b3b1aa', fontSize: 11 }} />
-                  <YAxis tick={{ fill: '#737068', fontSize: 11 }} unit="h" />
+                  <YAxis tick={{ fill: '#737068', fontSize: 11 }} unit="%" domain={[0, 3.5]} />
                   <Tooltip content={<TierTooltip />} />
-                  <Bar dataKey="avg_delay" radius={[4, 4, 0, 0]}>
+                  <Bar dataKey="order_rate" radius={[4, 4, 0, 0]}>
                     {SVI_TIER_DATA.map((d, i) => <Cell key={i} fill={d.fill} opacity={0.85} />)}
                   </Bar>
                 </BarChart>
@@ -469,14 +474,14 @@ export default function SignalGapPage() {
               <div className="mt-4 grid grid-cols-3 gap-2">
                 {SVI_TIER_DATA.map(d => (
                   <div key={d.tier} className="text-center">
-                    <div className="font-display text-xl font-bold" style={{ color: d.fill }}>{d.avg_delay}h</div>
+                    <div className="font-display text-xl font-bold" style={{ color: d.fill }}>{d.order_rate}%</div>
                     <div className="text-ash-400 text-xs">{d.tier}</div>
                     <div className="text-ash-600 text-xs">{d.range}</div>
                   </div>
                 ))}
               </div>
               <p className="text-ash-500 text-xs mt-4 border-t border-ash-800 pt-3">
-                High-SVI communities are far less likely to receive a formal order at all. When orders do occur, timing is ~1.1h across all SVI tiers — SVI predicts <strong className="text-signal-danger">whether</strong> orders happen, not how long they take.
+                High-SVI communities are significantly less likely to receive a formal evacuation order at all. When orders do occur, timing is ~1.1h across all SVI tiers. Overall order rate: 1.3% (653 of 50,664 true wildfires).
               </p>
             </div>
           </div>
@@ -795,10 +800,10 @@ function ApiReference() {
               <li><strong className="text-ash-300">Signal lead time</strong> = hours from first_external_signal to first_order_at; median 4.1h (n=242 fires with both timestamps)</li>
               <li><strong className="text-ash-300">Silent fire</strong> = notification_type = &ldquo;silent&rdquo; in Watch Duty API (no push alert issued to residents); 34,021 of 50,664 true wildfires (67.2%)</li>
               <li><strong className="text-ash-300">Silent→normal upgrades</strong>: 5,394 fires reclassified from silent to normal — near-miss detection events</li>
-              <li><strong className="text-ash-300">Delay disparity</strong> = computed as median delay in high-SVI counties (SVI &gt; 0.7) vs. low-SVI (&lt; 0.4)</li>
+              <li><strong className="text-ash-300">SVI equity finding</strong> = SVI predicts order rate (whether an order is issued), NOT delay hours. When orders do occur, all SVI tiers show ~1.1h median. High-SVI counties (SVI &gt; 0.7) order rate: ~0.7% vs. low-SVI (&lt; 0.55): ~2.4%.</li>
               <li><strong className="text-ash-300">Extreme spread</strong> = last_spread_rate = &ldquo;extreme&rdquo; in WiDS dataset; 256 true wildfire incidents, 169 (66.0%) with no evac action</li>
               <li><strong className="text-ash-300">Protocol inversion</strong> = first_order_at timestamp precedes first_warning_at (258 incidents)</li>
-              <li>SVI correlation with delay computed using Pearson r on county aggregates (n=1,016)</li>
+              <li>State signal-gap chart shows median hours from first external signal to first order, for fires where both timestamps exist — reflects where alert infrastructure gaps are largest, not a direct function of SVI alone</li>
             </ul>
           </div>
         </div>

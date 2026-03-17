@@ -139,7 +139,7 @@ function LoginForm() {
           )}
         </div>
         <div className="text-green-200/40 text-xs">
-          WiDS Datathon 2025 · 60,000+ incidents analyzed
+          WiDS Datathon 2025 · 62,696 records · 50,664 true wildfires
         </div>
       </div>
 
