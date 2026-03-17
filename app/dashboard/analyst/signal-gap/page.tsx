@@ -320,7 +320,7 @@ export default function SignalGapPage() {
           <div>
             <p className="text-signal-danger text-sm font-semibold mb-1">Single-Channel Vulnerability</p>
             <p className="text-ash-400 text-xs leading-relaxed">
-              <strong className="text-white">99.7% of monitored fires have only ONE external signal source.</strong> If that source fails, there is zero backup detection — no redundancy for the communities that need it most.
+              <strong className="text-white">99.7% of monitored fires have only ONE external signal source.</strong> If that source fails, there is zero backup detection. Further: <strong className="text-signal-warn">100% of signal channels are regional dispatch</strong> — there is no AlertWest AI or NIFC satellite detection in the dataset. Communities without active dispatch coverage have no signal path at all.
             </p>
           </div>
         </div>
