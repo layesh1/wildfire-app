@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Playfair_Display, DM_Sans, DM_Mono } from 'next/font/google'
+import Script from 'next/script'
 import './globals.css'
 
 const playfair = Playfair_Display({
@@ -42,6 +43,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head />
       <body className="bg-gray-50 text-gray-900 font-body antialiased" suppressHydrationWarning>
         {children}
+        <div id="google_translate_element" style={{ display: 'none' }} />
+        <Script id="gt-init" strategy="beforeInteractive">{`
+          function googleTranslateElementInit() {
+            new google.translate.TranslateElement({ pageLanguage: 'en', autoDisplay: false }, 'google_translate_element');
+          }
+        `}</Script>
+        <Script
+          src="https://translate.googleapis.com/translate_a/element.js?cb=googleTranslateElementInit"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   )
