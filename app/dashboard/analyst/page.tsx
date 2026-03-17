@@ -142,7 +142,7 @@ export default function AnalystDashboard() {
       {/* Data note */}
       <div className="mt-8 p-4 bg-ash-900/50 border border-ash-800 rounded-lg">
         <p className="text-ash-500 text-xs">
-          <span className="text-ash-400 font-medium">Note:</span> The fire_events table contains a known duplicate upload issue (124,696 rows → deduplicated to 60,000+ unique incidents). All analyses use deduplicated geo_event_id counts.
+          <span className="text-ash-400 font-medium">Note:</span> The fire_events table contains a known duplicate upload issue (124,696 rows → deduplicated to 62,696 unique incidents). Of those, 11,115 are prescribed burns (17.7%) and 917 are location records — true wildfire count is 50,664. All analyses filter to <code className="text-ash-400">is_true_wildfire=1</code>.
         </p>
       </div>
     </div>
