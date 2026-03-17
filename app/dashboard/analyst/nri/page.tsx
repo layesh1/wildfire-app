@@ -404,7 +404,7 @@ export default function NRIPage() {
               <ul className="text-ash-400 text-sm space-y-0.5 list-disc list-inside">
                 <li>FEMA National Risk Index (NRI) v2.5 — hazards.fema.gov/nri</li>
                 <li>CDC Social Vulnerability Index (SVI) 2022 — at.cdc.gov/svi</li>
-                <li>WiDS 2025 Datathon dataset — WatchDuty/IRWIN fire records, 60,000+ incidents (2021–2025)</li>
+                <li>WiDS 2025 Datathon dataset — WatchDuty/IRWIN fire records, 62,696 records · 50,664 true wildfires (2021–2025)</li>
               </ul>
             </div>
           </div>

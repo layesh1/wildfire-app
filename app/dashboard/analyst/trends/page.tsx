@@ -142,7 +142,7 @@ export default function TrendsPage() {
         </p>
         <div className="mt-3 flex items-center gap-2">
           <span className="text-xs px-2 py-0.5 rounded-full bg-ash-800 border border-ash-700 text-ash-400 font-mono">
-            Source: WiDS 2025 · WatchDuty dataset · 60,000+ incidents
+            Source: WiDS 2025 · WatchDuty dataset · 62,696 records (50,664 true wildfires)
           </span>
         </div>
       </div>

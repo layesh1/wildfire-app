@@ -146,7 +146,7 @@ function Marquee() {
     'Real-time wildfire intelligence',
     'Equity-driven evacuation alerts',
     'AI-powered safety planning',
-    '60,000+ incidents analyzed',
+    '62,696 incidents analyzed',
     'Protecting vulnerable communities',
     'WiDS Datathon 2025',
   ]
@@ -581,7 +581,7 @@ export default function Home() {
             {[
               { icon: Heart, title: 'Caregivers', desc: 'Managing the safety of elderly parents, children, or loved ones with mobility challenges during a wildfire event.', color: '#be185d', bg: '#fdf2f8', border: '#fce7f3' },
               { icon: Shield, title: 'Emergency Responders', desc: 'Fire departments and emergency management teams who need real-time signal gap data and ML-powered spread predictions.', color: '#dc2626', bg: '#fff5f5', border: '#fee2e2' },
-              { icon: BarChart3, title: 'Data Analysts', desc: 'Academics and policy teams studying equity gaps in wildfire evacuation using 60,000+ real incidents with SVI cross-analysis.', color: '#2563eb', bg: '#eff6ff', border: '#dbeafe' },
+              { icon: BarChart3, title: 'Data Analysts', desc: 'Academics and policy teams studying equity gaps in wildfire evacuation using 62,696 records (50,664 true wildfires) with SVI cross-analysis.', color: '#2563eb', bg: '#eff6ff', border: '#dbeafe' },
             ].map(({ icon: Icon, title, desc, color, bg, border }) => (
               <div key={title} className="rounded-2xl p-7 border" style={{ background: bg, borderColor: border }}>
                 <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-5" style={{ background: 'white', border: `1px solid ${border}` }}>
