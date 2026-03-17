@@ -51,9 +51,15 @@ const KNOWN_ISSUES = [
     fix: 'Filter to date_created >= 2023-01-01 for trend analysis',
   },
   {
+    severity: 'critical',
+    title: '917 "location" records are not fires',
+    detail: '62,696 total records = 61,779 geo_event_type=wildfire + 917 geo_event_type=location (venue/landmark records, not fire incidents). is_prescribed=False gives 51,581 but still includes location records. Use is_true_wildfire=1 for the correct 50,664 true wildfires.',
+    fix: 'Always use is_true_wildfire = 1 (excludes both 11,115 prescribed burns AND 917 location records)',
+  },
+  {
     severity: 'high',
     title: '99.7% of fires monitored through only ONE channel',
-    detail: 'Of 33,423 true wildfires with external signals, 99.7% are single-channel. This means if that one monitoring channel fails, there is zero redundancy. High-risk fires should have 3+ independent confirmation sources before an all-clear is issued.',
+    detail: 'Of 33,423 true wildfires with external signals, 99.72% are single-channel (33,328 fires). All signal channels are incidents-* format (regional dispatch) — there is NO AlertWest AI or NIFC satellite detection in the dataset. Zero automated backup detection.',
     fix: 'Use n_signal_channels column; flag fires where n_signal_channels < 2',
   },
   {
@@ -83,7 +89,7 @@ const KNOWN_ISSUES = [
 ]
 
 const STAT_IMPACT = [
-  { metric: 'Total fire records',         all: '62,696',   wildfire: '50,664',  change: '−17.7%', severity: 'warn' },
+  { metric: 'Total fire records',         all: '62,696',   wildfire: '50,664',  change: '−19.3% (−11,115 burns, −917 location records)', severity: 'warn' },
   { metric: 'Signal gap rate',            all: '66.5%',    wildfire: '65.5%',   change: '−1.0pp', severity: 'ok'   },
   { metric: 'Silent notification rate',   all: '73.5%',    wildfire: '67.2%',   change: '−6.3pp', severity: 'warn' },
   { metric: 'Extreme spread count',       all: '298',      wildfire: '256',     change: '−14.1%', severity: 'warn' },
