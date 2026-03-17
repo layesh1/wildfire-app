@@ -6,10 +6,10 @@ import { createClient } from '@/lib/supabase'
 
 export default function AnalystDashboard() {
   const [stats, setStats] = useState({
-    totalFires: 62696,
-    withSignals: 41906,
-    withOrders: 108,
-    gapRate: 99.74,
+    totalFires: 50664,
+    withSignals: 33423,
+    withOrders: 653,
+    gapRate: 99.3,
   })
 
   const SECTIONS = [
@@ -19,7 +19,7 @@ export default function AnalystDashboard() {
       href: '/dashboard/analyst/signal-gap',
       icon: AlertTriangle,
       color: 'text-signal-danger',
-      stat: '99.74% gap rate',
+      stat: '99.3% gap rate',
     },
     {
       title: 'Equity Metrics',
@@ -82,31 +82,31 @@ export default function AnalystDashboard() {
           Research Overview
         </h1>
         <p className="text-ash-400 text-lg">
-          WiDS Datathon 2025 · WatchDuty Dataset · 60,000+ Wildfire Incidents
+          WiDS Datathon 2025 · WatchDuty Dataset · 62,696 records · 50,664 true wildfires
         </p>
       </div>
 
       {/* Core stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
         <div className="card p-5">
-          <div className="stat-value text-white">60,000+</div>
-          <div className="stat-label">Total fire incidents</div>
-          <div className="text-ash-600 text-xs mt-0.5">2021–2025</div>
+          <div className="stat-value text-white">50,664</div>
+          <div className="stat-label">True wildfire incidents</div>
+          <div className="text-ash-600 text-xs mt-0.5">62,696 total; 11,115 prescribed burns excluded</div>
         </div>
         <div className="card p-5">
-          <div className="stat-value text-ember-400">41,906</div>
+          <div className="stat-value text-ember-400">33,423</div>
           <div className="stat-label">Fires with signals</div>
           <div className="text-ash-600 text-xs mt-0.5">External detection</div>
         </div>
         <div className="card p-5">
-          <div className="stat-value text-signal-danger">108</div>
+          <div className="stat-value text-signal-danger">653</div>
           <div className="stat-label">With formal orders</div>
-          <div className="text-ash-600 text-xs mt-0.5">Of 41,906 signaled</div>
+          <div className="text-ash-600 text-xs mt-0.5">Of 33,423 signaled (99.3% gap)</div>
         </div>
         <div className="card p-5">
-          <div className="stat-value text-signal-warn">11.5h</div>
-          <div className="stat-label">Median delay</div>
-          <div className="text-ash-600 text-xs mt-0.5">Signal → formal order</div>
+          <div className="stat-value text-signal-warn">4.1h</div>
+          <div className="stat-label">Signal lead time</div>
+          <div className="text-ash-600 text-xs mt-0.5">Median: signal → order (n=242)</div>
         </div>
       </div>
 

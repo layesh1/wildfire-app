@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Bell, MapPin, Users, AlertTriangle, CheckCircle, Phone, ChevronRight, Eye, EyeOff, Clock, Shield, Flame, Package } from 'lucide-react'
+import { Bell, MapPin, Users, AlertTriangle, CheckCircle, Phone, ChevronRight, Eye, EyeOff, Clock, Shield, Flame, Package, Radio } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
@@ -173,20 +173,46 @@ export default function CaregiverDashboard() {
           <EyeOff className="w-5 h-5 text-signal-warn mt-0.5 shrink-0" />
           <div className="flex-1">
             <div className="text-gray-900 font-semibold text-sm mb-1">
-              73.5% of wildfires start with NO alert
+              67.2% of true wildfires start with NO push alert
             </div>
             <p className="text-gray-500 text-xs leading-relaxed">
-              Analysis of 62,696 fire incidents (2021–2025) shows most fires are &quot;silent&quot; — no push notification reaches nearby residents.
+              Analysis of 50,664 true wildfire incidents (2021–2025) shows most fires are &quot;silent&quot; — no push notification reaches nearby residents. (17.7% of records are prescribed burns and excluded.)
               {stateDelay != null ? (
                 <span className="text-signal-warn font-medium"> In {userState}, the median time between fire detection and an evacuation order is <strong>{stateDelay}h</strong>.</span>
               ) : (
-                <span> Even when signals exist, 99.74% of fires result in no formal evacuation order.</span>
+                <span> Even when signals exist, 99.3% of true wildfires result in no formal evacuation order.</span>
               )}
               {' '}Don&apos;t wait for an alert — check this app during fire weather.
             </p>
             <Link href="/dashboard/caregiver/alert" className="mt-2 inline-flex items-center gap-1 text-signal-info text-xs hover:underline">
               <Eye className="w-3 h-3" /> Check fire proximity for my address →
             </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Digital gap warning */}
+      <div className="card p-5 mb-6 border-l-4 border-signal-danger">
+        <div className="flex items-start gap-3">
+          <Radio className="w-5 h-5 text-signal-danger mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <div className="text-gray-900 font-semibold text-sm mb-1">
+              Digital gap puts you at higher risk
+            </div>
+            <div className="grid grid-cols-2 gap-3 mt-2 mb-2">
+              <div className="bg-signal-danger/10 border border-signal-danger/20 rounded-lg p-2.5 text-center">
+                <div className="text-signal-danger font-bold text-lg font-mono">93.2%</div>
+                <div className="text-gray-500 text-xs">signal gap in counties<br/>with low internet access</div>
+              </div>
+              <div className="bg-signal-safe/10 border border-signal-safe/20 rounded-lg p-2.5 text-center">
+                <div className="text-signal-safe font-bold text-lg font-mono">49.1%</div>
+                <div className="text-gray-500 text-xs">signal gap in counties<br/>with high internet access</div>
+              </div>
+            </div>
+            <p className="text-gray-500 text-xs leading-relaxed">
+              If you or someone you care for has limited internet or relies on a single channel (99.7% of fires have only one signal source),
+              evacuate early — don&apos;t wait for an official order. Sign up for your county&apos;s emergency text alerts as a backup channel.
+            </p>
           </div>
         </div>
       </div>
@@ -280,20 +306,20 @@ export default function CaregiverDashboard() {
         <div className="flex items-center gap-2 mb-4">
           <Shield className="w-4 h-4 text-gray-400" />
           <h2 className="text-gray-900 font-semibold text-sm">Know Your Risk</h2>
-          <span className="ml-auto text-gray-400 text-xs">WiDS 2021–2025 · 62,696 incidents</span>
+          <span className="ml-auto text-gray-400 text-xs">WiDS 2021–2025 · 50,664 true wildfires</span>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {[
             {
               label: 'Silent fire rate',
-              value: '73.5%',
-              sub: 'of fires start with no push alert',
+              value: '67.2%',
+              sub: 'of true wildfires start with no push alert',
               color: 'text-signal-danger',
             },
             {
               label: stateDelay != null ? `${userState} median alert delay` : 'National median delay',
-              value: stateDelay != null ? `${stateDelay}h` : '11.5h',
-              sub: 'from fire detection to evacuation order',
+              value: stateDelay != null ? `${stateDelay}h` : '1.1h',
+              sub: stateDelay != null ? 'detection to order (your state)' : 'median hours to order (when issued, n=653)',
               color: stateDelay != null && stateDelay > 20 ? 'text-signal-danger' : 'text-signal-warn',
             },
             {
@@ -310,14 +336,14 @@ export default function CaregiverDashboard() {
             },
             {
               label: 'Fires w/ extreme spread',
-              value: '298',
-              sub: '70.8% received zero evacuation action',
+              value: '256',
+              sub: '66.0% received zero evacuation action',
               color: 'text-signal-danger',
             },
             {
               label: 'Early signal, no action',
-              value: '99.7%',
-              sub: 'of fires with early signals got no order',
+              value: '99.3%',
+              sub: 'of true wildfires with signals got no order',
               color: 'text-signal-warn',
             },
           ].map(stat => (
@@ -351,7 +377,7 @@ export default function CaregiverDashboard() {
           {[
             { stage: 'Watch (now)', action: 'Pack go-bag, fill gas, locate pets, know your route', color: 'text-signal-safe', border: 'border-signal-safe/30', bg: 'bg-signal-safe/5' },
             { stage: 'Advisory issued', action: 'Load car, move valuables, prepare to leave immediately', color: 'text-signal-warn', border: 'border-signal-warn/30', bg: 'bg-signal-warn/5' },
-            { stage: 'Warning issued', action: 'Leave NOW — do not wait for Order. High-SVI areas average 40h delay.', color: 'text-amber-500', border: 'border-amber-400/30', bg: 'bg-amber-400/5' },
+            { stage: 'Warning issued', action: 'Leave NOW — do not wait for Order. In high-SVI counties, a formal order may never be issued.', color: 'text-amber-500', border: 'border-amber-400/30', bg: 'bg-amber-400/5' },
             { stage: 'Order issued', action: 'Mandatory evacuation — go immediately. Shelter info on map.', color: 'text-signal-danger', border: 'border-signal-danger/30', bg: 'bg-signal-danger/5' },
           ].map(row => (
             <div key={row.stage} className={`flex items-start gap-3 px-3 py-2.5 rounded-lg border ${row.border} ${row.bg}`}>
@@ -361,7 +387,7 @@ export default function CaregiverDashboard() {
           ))}
         </div>
         <p className="text-gray-400 text-xs mt-3">
-          Source: WiDS 2021–2025 dataset · High-SVI communities wait 9.6× longer for formal orders than low-SVI areas
+          Source: WiDS 2021–2025 dataset · High-SVI communities are significantly less likely to receive a formal evacuation order at all
         </p>
       </div>
 
@@ -487,7 +513,7 @@ export default function CaregiverDashboard() {
           <div>
             <div className="text-gray-900 font-semibold mb-1">Why delays matter for caregivers</div>
             <p className="text-gray-500 text-sm leading-relaxed">
-              Our research found that high-vulnerability counties experience significantly longer delays before receiving formal evacuation orders. Caregivers and evacuees in these areas are more likely to rely on informal signals — which is why SAFE-PATH monitors all signal channels, not just official orders.
+              Our research found that high-vulnerability counties are significantly less likely to receive a formal evacuation order at all — not just slower to receive one. Caregivers in these areas cannot rely on official orders arriving. SAFE-PATH monitors all signal channels (social media, news, smoke reports) so you don&apos;t have to wait for an order that may never come.
             </p>
           </div>
         </div>

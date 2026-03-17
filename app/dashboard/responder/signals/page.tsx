@@ -52,8 +52,8 @@ export default function SignalGapsPage() {
 
       <div className="grid grid-cols-3 gap-4 mb-8">
         {[
-          { value: '99.74%', label: 'Fires with no formal order', color: 'text-signal-danger' },
-          { value: '11.5h', label: 'Median delay to order', color: 'text-signal-warn' },
+          { value: '99.3%', label: 'True wildfires with no formal order', color: 'text-signal-danger' },
+          { value: '1.1h', label: 'Median time to order (when issued)', color: 'text-signal-warn' },
           { value: '9×', label: 'Worst vs best state gap', color: 'text-ember-400' },
         ].map(s => (
           <div key={s.label} className="card p-5">

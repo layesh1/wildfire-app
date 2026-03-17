@@ -581,7 +581,24 @@ function WiDSIntelligencePanel({ activeFires, loading }: { activeFires: any[]; l
       <div className="flex items-center gap-2 mb-4">
         <Brain className="w-4 h-4 text-signal-info" />
         <h2 className="section-title">WiDS Intelligence</h2>
-        <span className="ml-auto text-ash-600 text-xs">62,696 incidents · 2021–2025</span>
+        <span className="ml-auto text-ash-600 text-xs">50,664 true wildfires · 2021–2025</span>
+      </div>
+
+      {/* Key dataset stats for command decision-making */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+        {[
+          { label: 'Signal lead time', value: '4.1h', sub: 'median: signal → order (n=242)', color: 'text-signal-info' },
+          { label: 'Time to order', value: '1.1h', sub: 'median when orders ARE issued (n=653)', color: 'text-signal-warn' },
+          { label: 'Signal gap rate', value: '99.3%', sub: 'true wildfires with signal, no order', color: 'text-signal-danger' },
+          { label: 'Single-channel', value: '99.7%', sub: 'fires with only 1 external signal source', color: 'text-ember-400' },
+          { label: 'Upgrade events', value: '5,394', sub: 'silent fires escalated to normal alert', color: 'text-signal-safe' },
+        ].map(s => (
+          <div key={s.label} className="card p-3 text-center">
+            <div className={`font-display text-xl font-bold ${s.color}`}>{s.value}</div>
+            <div className="text-white text-xs font-medium mt-0.5">{s.label}</div>
+            <div className="text-ash-600 text-xs mt-0.5 leading-tight">{s.sub}</div>
+          </div>
+        ))}
       </div>
 
       <div className="grid md:grid-cols-3 gap-4 mb-4">
@@ -607,7 +624,7 @@ function WiDSIntelligencePanel({ activeFires, loading }: { activeFires: any[]; l
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-ash-400">Silent fire rate</span>
-              <span className="text-signal-danger font-mono font-bold">73.5%</span>
+              <span className="text-signal-danger font-mono font-bold">67.2%</span>
             </div>
           </div>
           <p className="text-ash-600 text-xs mt-3 border-t border-ash-800 pt-2">
@@ -636,14 +653,14 @@ function WiDSIntelligencePanel({ activeFires, loading }: { activeFires: any[]; l
                 ))}
               </div>
               <p className="text-signal-warn text-xs mt-2 font-medium">
-                Issue pre-emptive warnings. High-SVI areas average 40h delay.
+                Issue pre-emptive warnings — high-SVI communities are less likely to receive ANY order, not just slower to receive one.
               </p>
             </>
           ) : (
             <div className="text-signal-safe text-xs">No current incidents in high-SVI zones</div>
           )}
           <p className="text-ash-600 text-xs mt-3 border-t border-ash-800 pt-2">
-            WiDS: high-SVI communities wait 9.6× longer for formal orders.
+            WiDS: SVI predicts whether orders are issued at all — not how long they take. When orders do occur, median time is ~1.1h across all SVI tiers.
           </p>
         </div>
 
@@ -686,7 +703,7 @@ function WiDSIntelligencePanel({ activeFires, loading }: { activeFires: any[]; l
             <p className="text-signal-danger text-sm font-semibold mb-1">Pre-Alert Recommended</p>
             <p className="text-ash-400 text-xs leading-relaxed">
               {highSviFires.length} active incident{highSviFires.length !== 1 ? 's are' : ' is'} in communities with SVI ≥ 0.75.
-              WiDS data shows these populations receive formal orders up to <strong className="text-white">40h later</strong> than low-SVI areas.
+              WiDS data shows these communities are significantly less likely to receive a formal evacuation order at all — SVI predicts <strong className="text-white">whether orders happen</strong>, not how long they take.
               Issue advisory-level notifications proactively — do not wait for &quot;order&quot; threshold.
             </p>
           </div>

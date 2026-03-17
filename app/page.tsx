@@ -255,7 +255,7 @@ const HOW_STEPS = [
     title: 'Gap Analysis',
     tag: 'Intelligence Layer',
     desc: 'We identify where formal evacuation orders are missing despite clear fire signals, closing the critical information gap.',
-    detail: 'Across 60,000+ incidents, 99.74% of fires with external detection signals never received a formal order. Our gap analysis flags these silent emergencies immediately.',
+    detail: 'Across 50,664 true wildfires, 99.3% of fires with external detection signals never received a formal order (prescribed burns excluded). Our gap analysis flags these silent emergencies immediately.',
     color: '#d97706',
   },
   {
@@ -263,7 +263,7 @@ const HOW_STEPS = [
     title: 'Equity Scoring',
     tag: 'Vulnerability Mapping',
     desc: 'CDC Social Vulnerability Index data identifies which communities are most at risk and least likely to receive timely alerts.',
-    detail: 'High-SVI counties experience up to 9× longer delays before evacuation orders. We weight our alert priority by vulnerability score so the most at-risk residents hear first.',
+    detail: 'High-SVI counties are significantly less likely to receive a formal evacuation order at all — not just slower to receive one. We weight our alert priority by vulnerability score so the most at-risk residents are never left without a warning.',
     color: '#dc2626',
   },
   {
@@ -475,9 +475,9 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-0 divide-x divide-gray-100">
             {[
-              { value: '60,000+', label: 'Fire incidents analyzed', sub: '2021–2025' },
-              { value: '11.5h', label: 'Median evacuation delay', sub: 'across all counties' },
-              { value: '99.74%', label: 'Fires with no formal order', sub: 'despite external signals' },
+              { value: '62,696', label: 'Total fire records', sub: '50,664 true wildfires after filtering' },
+              { value: '1.1h', label: 'Median time to order', sub: 'when orders are issued (n=653)' },
+              { value: '99.3%', label: 'True wildfires, no order', sub: 'despite external signals' },
               { value: '9×', label: 'State disparity gap', sub: 'fastest vs slowest' },
             ].map((s, i) => (
               <div key={s.label} className={`px-8 py-4 ${i === 0 ? 'pl-0' : ''} ${i === 3 ? 'pr-0' : ''}`}>
@@ -512,7 +512,7 @@ export default function Home() {
                 Minutes Matter was built for the WiDS Datathon 2025 to address a critical failure in wildfire response: evacuation alerts consistently miss the communities that need them most.
               </p>
               <p className="text-gray-600 leading-relaxed mb-8">
-                Using the WatchDuty dataset of 60,000+ fire incidents cross-referenced with the CDC Social Vulnerability Index, we found that <strong className="text-gray-900">99.74% of fires with external detection signals never received a formal evacuation order</strong>, with median delays of 11.5 hours.
+                Using the WatchDuty dataset of 62,696 fire incidents (50,664 true wildfires) cross-referenced with the CDC Social Vulnerability Index, we found that <strong className="text-gray-900">99.3% of true wildfires with external detection signals never received a formal evacuation order</strong>. When orders are issued, the median response window is just 1.1 hours — yet most fires get nothing.
               </p>
               <p className="text-gray-600 leading-relaxed mb-12">
                 For elderly residents, people with disabilities, and non-English speakers, these delays can be fatal. Minutes Matter closes that gap with real-time signal analysis, ML-powered predictions, and accessible alerts.
@@ -520,10 +520,10 @@ export default function Home() {
               {/* Data grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
-                  { value: '60,000+', label: 'Total incidents', color: '#16a34a' },
-                  { value: '108', label: 'With formal orders', color: '#dc2626' },
-                  { value: '41,906', label: 'Fires with signals', color: '#d97706' },
-                  { value: '11.5h', label: 'Median delay', color: '#2563eb' },
+                  { value: '50,664', label: 'True wildfire incidents', color: '#16a34a' },
+                  { value: '653', label: 'With formal orders', color: '#dc2626' },
+                  { value: '33,423', label: 'Fires with signals', color: '#d97706' },
+                  { value: '4.1h', label: 'Signal lead time', color: '#2563eb' },
                 ].map(s => (
                   <div key={s.label} className="border border-gray-100 rounded-2xl p-5 text-center">
                     <div className="font-display text-2xl font-bold mb-1" style={{ color: s.color }}>{s.value}</div>
