@@ -70,8 +70,8 @@ module.exports = {
           '100%': { opacity: 1, transform: 'translateY(0)' },
         },
         phoneRise: {
-          '0%':   { opacity: '0', transform: 'translateY(80px) scale(0.96)' },
-          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+          '0%':   { transform: 'translateY(120px)' },
+          '100%': { transform: 'translateY(0)' },
         },
         glow: {
           '0%':   { boxShadow: '0 0 5px #16a34a30' },

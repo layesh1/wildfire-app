@@ -1,7 +1,61 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Flame, Shield, Heart, Monitor, X, Send, ArrowRight } from 'lucide-react'
+import { Flame, Shield, Heart, Monitor, X, Send, ArrowRight, Home as HomeIcon, User, TreePine } from 'lucide-react'
+
+// ── Phone 3D tilt ─────────────────────────────────────────────────────────────
+function PhoneTilt({ crop = true }: { crop?: boolean }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const frameRef = useRef<number>(0)
+  const [tilt, setTilt] = useState({ x: 0, y: 0 })
+  const [isHovered, setIsHovered] = useState(false)
+
+  const onMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!ref.current) return
+    cancelAnimationFrame(frameRef.current)
+    frameRef.current = requestAnimationFrame(() => {
+      const rect = ref.current!.getBoundingClientRect()
+      const cx = rect.left + rect.width / 2
+      const cy = rect.top + rect.height / 2
+      const dx = (e.clientX - cx) / (rect.width / 2)
+      const dy = (e.clientY - cy) / (rect.height / 2)
+      setTilt({ x: dy * -12, y: dx * 12 })
+    })
+  }, [])
+
+  const onLeave = useCallback(() => {
+    setIsHovered(false)
+    setTilt({ x: 0, y: 0 })
+  }, [])
+
+  return (
+    <div
+      ref={ref}
+      onMouseMove={onMove}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={onLeave}
+      style={{ perspective: 800, flexShrink: 0 }}
+    >
+      <div
+        className="phone-shine"
+        style={{
+          overflow: 'hidden',
+          width: 340,
+          ...(crop ? { height: 513, marginLeft: -80, borderRadius: '2.75rem 2.75rem 0 0' } : { borderRadius: '2.75rem' }),
+          transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) scale(${isHovered ? 1.03 : 1})`,
+          transition: isHovered ? 'transform 0.08s linear' : 'transform 0.5s cubic-bezier(0.23,1,0.32,1)',
+          boxShadow: isHovered
+            ? '0 30px 60px rgba(0,0,0,0.35), 0 0 40px rgba(22,163,74,0.15)'
+            : '0 10px 30px rgba(0,0,0,0.2)',
+          willChange: 'transform',
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/phone.png" alt="Minutes Matter app" style={{ width: '100%', display: 'block' }} />
+      </div>
+    </div>
+  )
+}
 
 // ── Homepage Flameo chat (prompts login) ─────────────────────────────────────
 function HomepageChat() {
@@ -140,85 +194,11 @@ function HomepageChat() {
   )
 }
 
-// ── Phone mockup ──────────────────────────────────────────────────────────────
-function PhoneMockup() {
-  return (
-    <div className="relative shrink-0 drop-shadow-2xl" style={{ width: 340 }}>
-      {/* Phone shell */}
-      <div className="relative bg-[#1c1c1e] rounded-[3rem] shadow-2xl overflow-hidden border-[7px] border-[#2c2c2e]" style={{ height: 700 }}>
-        {/* Dynamic island */}
-        <div className="absolute top-3 left-1/2 -translate-x-1/2 w-20 h-5 bg-[#1c1c1e] rounded-full z-10" />
-        {/* Screen */}
-        <div className="h-full flex flex-col">
-          {/* Green gradient header */}
-          <div className="px-5 pt-10 pb-5" style={{ background: 'linear-gradient(160deg, #14532d 0%, #16a34a 100%)' }}>
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-white/60 text-xs">9:41</span>
-              <div className="flex items-center gap-1">
-                <div className="w-3 h-2 border border-white/60 rounded-[2px]"><div className="w-2 h-full bg-green-300 rounded-[1px]" /></div>
-              </div>
-            </div>
-            <div className="text-white/70 text-xs font-semibold tracking-widest mb-1">MINUTES MATTER</div>
-            <div className="text-white font-bold text-lg leading-snug mb-1">Active alerts<br/>near you</div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse inline-block" />
-              <span className="text-green-200 text-xs">2 fires monitored</span>
-            </div>
-          </div>
-          {/* White content area */}
-          <div className="flex-1 bg-[#f0fdf4] px-3 pt-4 pb-3 space-y-2.5 overflow-hidden">
-            {/* Alert card */}
-            <div className="bg-white rounded-2xl p-3 shadow-sm border border-red-100">
-              <div className="flex items-start justify-between mb-1">
-                <span className="text-gray-900 font-semibold text-xs">Mosquito Fire</span>
-                <span className="bg-red-100 text-red-600 text-[10px] px-1.5 py-0.5 rounded-full font-semibold">ACTIVE</span>
-              </div>
-              <div className="text-gray-400 text-[10px] mb-2">Placer County, CA · 76,788 ac</div>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 bg-gray-100 rounded-full h-1"><div className="bg-amber-500 h-1 rounded-full" style={{ width: '10%' }} /></div>
-                <span className="text-amber-600 text-[10px] font-semibold">10%</span>
-              </div>
-            </div>
-            {/* Flameo card */}
-            <div className="bg-white rounded-2xl px-3 py-2.5 shadow-sm border border-green-100 flex items-center gap-2.5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/flameo1.png" alt="Flameo" width={28} height={28} style={{ objectFit: 'contain' }} />
-              <div>
-                <div className="text-gray-900 font-semibold text-[11px]">Ask Flameo AI</div>
-                <div className="text-gray-400 text-[10px]">Evacuation help &amp; routes</div>
-              </div>
-            </div>
-            {/* Check-in button */}
-            <div className="bg-green-600 rounded-2xl px-3 py-2.5 flex items-center justify-between">
-              <div>
-                <div className="text-white font-semibold text-[11px]">Check in safe</div>
-                <div className="text-green-200 text-[10px]">Let your family know</div>
-              </div>
-              <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
-                <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 13l4 4L19 7"/></svg>
-              </div>
-            </div>
-          </div>
-          {/* Bottom tab bar */}
-          <div className="bg-white border-t border-gray-100 px-4 py-2.5 flex justify-around items-center">
-            {['Alerts', 'Map', 'Chat', 'Profile'].map((t, i) => (
-              <div key={t} className={`flex flex-col items-center gap-0.5 ${i === 0 ? 'text-green-700' : 'text-gray-300'}`}>
-                <div className={`w-1 h-1 rounded-full ${i === 0 ? 'bg-green-600' : 'bg-transparent'}`} />
-                <span className="text-[9px] font-medium">{t}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 
 // ── How It Works ──────────────────────────────────────────────────────────────
 const HOW_STEPS = [
   {
-    num: '01',
+    num: '1',
     title: 'Signal Detection',
     tag: 'Data Ingestion',
     desc: 'NASA FIRMS and WatchDuty data streams detect fire incidents in real time, before formal evacuation orders are ever issued.',
@@ -226,7 +206,7 @@ const HOW_STEPS = [
     color: '#16a34a',
   },
   {
-    num: '02',
+    num: '2',
     title: 'Gap Analysis',
     tag: 'Intelligence Layer',
     desc: 'We identify where formal evacuation orders are missing despite clear fire signals, closing the critical information gap.',
@@ -234,7 +214,7 @@ const HOW_STEPS = [
     color: '#d97706',
   },
   {
-    num: '03',
+    num: '3',
     title: 'Equity Scoring',
     tag: 'Vulnerability Mapping',
     desc: 'CDC Social Vulnerability Index data identifies which communities are most at risk and least likely to receive timely alerts.',
@@ -242,7 +222,7 @@ const HOW_STEPS = [
     color: '#dc2626',
   },
   {
-    num: '04',
+    num: '4',
     title: 'Personalized Alerts',
     tag: 'Delivery',
     desc: 'Caregivers receive tailored alerts, accessible evacuation routes, and safe shelter locations in plain, accessible language.',
@@ -256,11 +236,9 @@ function HowItWorks() {
     <section id="how" className="overflow-hidden" style={{ background: '#f0fdf4' }}>
       <div className="max-w-7xl mx-auto lg:grid lg:grid-cols-2 min-h-[640px]">
 
-        {/* Left: phone mockup — top half visible, bottom cropped */}
-        <div className="relative hidden lg:flex items-start justify-center" style={{ background: 'linear-gradient(160deg, #14532d 0%, #16a34a 100%)' }}>
-          <div style={{ paddingTop: 48, overflow: 'hidden', height: 430, width: 340, flexShrink: 0 }}>
-            <PhoneMockup />
-          </div>
+        {/* Left: phone mockup — full, 3D tilt on hover */}
+        <div className="relative hidden lg:flex items-center justify-center overflow-hidden">
+          <PhoneTilt crop={false} />
         </div>
 
         {/* Right: steps */}
@@ -279,11 +257,10 @@ function HowItWorks() {
                 <div key={step.num} className="flex gap-5">
                   {/* Number + line */}
                   <div className="flex flex-col items-center shrink-0">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-display font-bold text-sm text-white shrink-0"
-                      style={{ background: 'linear-gradient(135deg, #14532d, #16a34a)' }}>
+                    <div className="w-9 h-9 rounded-xl border-2 border-green-200 bg-white flex items-center justify-center font-display font-bold text-base text-green-700 shrink-0">
                       {step.num}
                     </div>
-                    {!isLast && <div className="w-px flex-1 my-2" style={{ background: '#bbf7d0' }} />}
+                    {!isLast && <div className="w-px flex-1 my-2 border-l border-dashed border-green-200" />}
                   </div>
                   {/* Content */}
                   <div className={`pb-10 ${isLast ? '' : ''}`}>
@@ -322,7 +299,7 @@ export default function Home() {
           <nav className="hidden md:flex items-center gap-8 text-sm text-green-200/70 font-medium">
             <a href="#who" className="hover:text-white transition-colors">Who It's For</a>
             <a href="#mission" className="hover:text-white transition-colors">Our Mission</a>
-            <a href="#about" className="hover:text-white transition-colors">About</a>
+            <a href="/about" className="hover:text-white transition-colors">About</a>
             <a href="#how" className="hover:text-white transition-colors">How It Works</a>
           </nav>
           <div className="flex items-center gap-2">
@@ -339,7 +316,7 @@ export default function Home() {
       </header>
 
       {/* ── HERO ── */}
-      <section className="relative min-h-screen flex flex-col overflow-hidden">
+      <section className="relative flex flex-col overflow-hidden" style={{ minHeight: '70vh' }}>
         {/* Background forest photo */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -365,17 +342,17 @@ export default function Home() {
           <div className="flex-1 pt-8 lg:pt-0 lg:pb-16">
             <h1 className="leading-none mb-8">
               <span className="block font-display font-bold text-white" style={{ fontSize: 'clamp(3rem, 8vw, 6rem)', lineHeight: 1 }}>
-                Stay Safe
+                Every minute
               </span>
               <span className="block font-display italic text-green-400" style={{ fontSize: 'clamp(2.5rem, 7vw, 5.5rem)', lineHeight: 1.05 }}>
-                From Wildfires
+                counts.
               </span>
               <span className="block text-white/50 font-body font-medium tracking-tight mt-3" style={{ fontSize: 'clamp(1.1rem, 2.5vw, 1.75rem)' }}>
-                When minutes matter.
+                For the people you love.
               </span>
             </h1>
             <p className="text-green-200/60 text-lg mb-10 leading-relaxed max-w-lg">
-              Equity-driven evacuation intelligence for caregivers, elderly residents, and vulnerable communities.
+              Real-time wildfire alerts for caregivers, elderly residents, and communities that need them most — before it's too late.
             </p>
             {/* CTA buttons */}
             <div className="flex flex-wrap gap-3">
@@ -403,15 +380,79 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right: phone mockup — flush to bottom of hero */}
-          <div className="flex items-start justify-center shrink-0 lg:flex-1 animate-phone-rise" style={{ overflow: 'hidden', alignSelf: 'stretch' }}>
-            <PhoneMockup />
+          {/* Right: phone mockup — 3D tilt on hover */}
+          <div className="flex items-start justify-center shrink-0 lg:flex-1 animate-phone-rise">
+            <PhoneTilt />
           </div>
         </div>
       </section>
 
+      {/* ── PEACE OF MIND ── */}
+      <section className="pt-24 pb-12 bg-white">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <div className="text-green-600 text-xs font-semibold uppercase tracking-widest mb-5">For Caregivers Everywhere</div>
+          <h2 className="font-display font-bold text-gray-900 leading-tight mb-6" style={{ fontSize: 'clamp(2.25rem, 5vw, 3.75rem)' }}>
+            Know they're safe.<br />
+            <span className="italic" style={{ color: '#16a34a' }}>From anywhere.</span>
+          </h2>
+          <p className="text-gray-400 text-lg leading-relaxed max-w-2xl mx-auto mb-14">
+            Whether you're across the street or across the country, Minutes Matter keeps you connected to the people you care for — so you can breathe easier, no matter what's burning.
+          </p>
+          <div className="grid sm:grid-cols-3 gap-6">
+            {[
+              {
+                icon: (
+                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                ),
+                title: 'Alerts Before Orders',
+                desc: 'Get notified the moment satellite data detects a fire — before official evacuations are even called.',
+              },
+              {
+                icon: (
+                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                ),
+                title: 'Safe Check-Ins',
+                desc: 'Your loved one taps once to confirm they are safe. You see it instantly, wherever you are.',
+              },
+              {
+                icon: (
+                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 9m0 8V9m0 0L9 7"/></svg>
+                ),
+                title: 'Accessible Routes',
+                desc: 'Evacuation guidance adapted for elderly or disabled family members, in plain language and 30+ languages.',
+              },
+            ].map(item => (
+              <div key={item.title} className="flex flex-col items-center gap-4 p-8 rounded-2xl border border-gray-100 bg-gray-50 hover:border-green-200 hover:bg-green-50/40 transition-colors">
+                <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center text-green-700">
+                  {item.icon}
+                </div>
+                <h3 className="font-display font-bold text-gray-900 text-base">{item.title}</h3>
+                <p className="text-gray-400 text-sm leading-relaxed text-center">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── DIVIDER ── */}
+      {(() => {
+        // h=house, t=tree, f=fire, p=person
+        const slots = ['h','t','h','h','t','f','h','t','h','h','t','p','t','h','h','t','h']
+        return (
+          <div className="bg-white flex items-center justify-center gap-2 pt-8 pb-8 overflow-hidden">
+            {slots.map((type, i) => {
+              const base = "shrink-0 cursor-pointer transition-all duration-200 hover:scale-125 w-7 h-7"
+              if (type === 'f') return <Flame key={i} className={`${base} text-orange-500 hover:text-orange-400`} />
+              if (type === 'p') return <User key={i} className={`${base} text-green-600 hover:text-green-400`} />
+              if (type === 't') return <TreePine key={i} className={`${base} text-green-600 hover:text-green-400`} />
+              return <HomeIcon key={i} className={`${base} text-green-800 hover:text-green-500`} />
+            })}
+          </div>
+        )
+      })()}
+
       {/* ── WHO IT'S FOR ── */}
-      <section id="who" className="py-28 bg-white">
+      <section id="who" className="pt-12 pb-28 bg-white">
         <div className="max-w-7xl mx-auto px-6">
           <div className="mb-16 text-center">
             <div className="text-green-600 text-xs font-semibold uppercase tracking-widest mb-4">Who It's For</div>
@@ -518,32 +559,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── ABOUT ── */}
-      <section id="about" className="py-16 relative overflow-hidden" style={{ minHeight: 520 }}>
-        {/* Background design image — fully visible */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/forest-blur-image.png"
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
-        />
-        {/* Content bubble */}
-        <div className="relative max-w-3xl mx-auto px-6 flex items-center justify-center" style={{ minHeight: 420 }}>
-          <div className="w-full rounded-3xl p-10 lg:p-14" style={{ background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.6)', boxShadow: '0 20px 60px rgba(0,0,0,0.10)' }}>
-            <div className="text-green-600 text-xs font-semibold uppercase tracking-widest mb-4">About the Project</div>
-            <h2 className="font-display font-bold text-gray-900 leading-tight mb-5" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.25rem)' }}>
-              A WiDS Datathon 2026 submission<br />from California.
-            </h2>
-            <p className="text-gray-500 leading-relaxed mb-5">
-              Minutes Matter started as a research question: why do so many wildfires go unannounced? We dug into the data and found a systemic gap — fire signals exist, but formal alerts rarely follow. The communities hit hardest are also the least likely to be reached in time.
-            </p>
-            <p className="text-gray-500 leading-relaxed">
-              We built this platform to turn that finding into action. It is open to caregivers and evacuees for free, with a mission to make every minute count for the people who need it most.
-            </p>
-          </div>
-        </div>
-      </section>
 
       {/* ── JOIN ── */}
       <section className="relative py-28 overflow-hidden">
