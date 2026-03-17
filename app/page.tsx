@@ -1,52 +1,46 @@
 'use client'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Flame, Shield, Heart, Monitor, X, Send, ArrowRight, Home as HomeIcon, User, TreePine } from 'lucide-react'
+import { Flame, Heart, Monitor, X, Send, ArrowRight, Home as HomeIcon, User, TreePine, Check } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { SmokeBackground } from '@/components/ui/spooky-smoke-animation'
+import { LiquidMetalFab } from '@/components/ui/liquid-metal-button'
+import { useScroll } from '@/components/ui/use-scroll'
 
-// ── Phone 3D tilt ─────────────────────────────────────────────────────────────
-function PhoneTilt({ crop = true }: { crop?: boolean }) {
+// ── Phone mockup ──────────────────────────────────────────────────────────────
+function PhoneTilt({ crop = true, scale = 1 }: { crop?: boolean; scale?: number }) {
   const ref = useRef<HTMLDivElement>(null)
   const frameRef = useRef<number>(0)
-  const [tilt, setTilt] = useState({ x: 0, y: 0 })
+  const [tiltY, setTiltY] = useState(0)
   const [isHovered, setIsHovered] = useState(false)
 
-  const onMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  function onMove(e: React.MouseEvent<HTMLDivElement>) {
     if (!ref.current) return
     cancelAnimationFrame(frameRef.current)
     frameRef.current = requestAnimationFrame(() => {
       const rect = ref.current!.getBoundingClientRect()
-      const cx = rect.left + rect.width / 2
-      const cy = rect.top + rect.height / 2
-      const dx = (e.clientX - cx) / (rect.width / 2)
-      const dy = (e.clientY - cy) / (rect.height / 2)
-      setTilt({ x: dy * -12, y: dx * 12 })
+      const dx = (e.clientX - (rect.left + rect.width / 2)) / (rect.width / 2)
+      setTiltY(dx * 12)
     })
-  }, [])
-
-  const onLeave = useCallback(() => {
-    setIsHovered(false)
-    setTilt({ x: 0, y: 0 })
-  }, [])
+  }
 
   return (
     <div
       ref={ref}
       onMouseMove={onMove}
       onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={onLeave}
+      onMouseLeave={() => { setIsHovered(false); setTiltY(0) }}
       style={{ perspective: 800, flexShrink: 0 }}
     >
       <div
         className="phone-shine"
         style={{
           overflow: 'hidden',
-          width: 340,
-          ...(crop ? { height: 513, marginLeft: -80, borderRadius: '2.75rem 2.75rem 0 0' } : { borderRadius: '2.75rem' }),
-          transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) scale(${isHovered ? 1.03 : 1})`,
+          width: 340 * scale,
+          ...(crop ? { height: 513 * scale, marginLeft: -80 * scale, borderRadius: '2.75rem 2.75rem 0 0' } : { borderRadius: '2.75rem' }),
+          transform: `rotateY(${tiltY}deg) scale(${isHovered ? 1.03 : 1})`,
           transition: isHovered ? 'transform 0.08s linear' : 'transform 0.5s cubic-bezier(0.23,1,0.32,1)',
-          boxShadow: isHovered
-            ? '0 30px 60px rgba(0,0,0,0.35), 0 0 40px rgba(22,163,74,0.15)'
-            : '0 10px 30px rgba(0,0,0,0.2)',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
           willChange: 'transform',
         }}
       >
@@ -57,13 +51,111 @@ function PhoneTilt({ crop = true }: { crop?: boolean }) {
   )
 }
 
+// ── Hero cycling word ─────────────────────────────────────────────────────────
+function HeroCyclingWord() {
+  const words = useMemo(() => ['counts.', 'saves.', 'matters.'], [])
+  const [index, setIndex] = useState(0)
+
+  useEffect(() => {
+    if (index === words.length - 1) return
+    const id = setTimeout(() => setIndex(i => i + 1), 2000)
+    return () => clearTimeout(id)
+  }, [index, words])
+
+  return (
+    <span
+      className="block font-display italic text-green-400 relative overflow-hidden"
+      style={{ fontSize: 'clamp(2.5rem, 7vw, 5.5rem)', lineHeight: 1.2, height: 'clamp(3rem, 8.5vw, 6.6rem)' }}
+    >
+      {words.map((word, i) => (
+        <motion.span
+          key={word}
+          className="absolute inset-0 flex items-center"
+          initial={{ opacity: 0, y: 60 }}
+          transition={{ type: 'spring', stiffness: 60, damping: 14 }}
+          animate={
+            index === i
+              ? { y: 0, opacity: 1 }
+              : { y: index > i ? -60 : 60, opacity: 0 }
+          }
+        >
+          {word}
+        </motion.span>
+      ))}
+    </span>
+  )
+}
+
 // ── Homepage Flameo chat (prompts login) ─────────────────────────────────────
+const HP_FIRE_COLORS = [
+  [180, 180, 180],
+  [180, 180, 180],
+  [180, 180, 180],
+  [180, 180, 180],
+  [255, 100,  15],
+]
+
+function HomepageFabSmoke({ active }: { active: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const particlesRef = useRef<{ x: number; y: number; size: number; speedX: number; speedY: number; life: number; initialSize: number; color: number[] }[]>([])
+  const rafRef = useRef<number>(0)
+  const activeRef = useRef(active)
+  const frameRef = useRef(0)
+  useEffect(() => { activeRef.current = active }, [active])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')!
+    canvas.width = 160; canvas.height = 400
+    const cx = 80, cy = 395 // canvas bottom = icon centre, cy near canvas bottom
+
+    const loop = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      frameRef.current++
+      if (activeRef.current && frameRef.current % 3 === 0) {
+        const size = Math.random() * 5 + 2
+        const color = HP_FIRE_COLORS[Math.floor(Math.random() * HP_FIRE_COLORS.length)]
+        particlesRef.current.push({
+          x: cx + (Math.random() * 20 - 10),
+          y: cy + (Math.random() * 10 - 5),
+          size, initialSize: size, color,
+          speedX: Math.random() * 2 - 1,
+          speedY: -Math.random() * 2.5 - 0.8,
+          life: 100,
+        })
+      }
+      particlesRef.current = particlesRef.current.filter(p => p.life > 0 && p.size > 0)
+      for (const p of particlesRef.current) {
+        p.x += p.speedX; p.y += p.speedY; p.life -= 1.0
+        p.size = Math.max(0, p.initialSize * (p.life / 100))
+        if (p.size > 0) {
+          const [r, g, b] = p.color
+          ctx.fillStyle = `rgba(${r},${g},${b},${(p.life / 100) * 0.85})`
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill()
+        }
+      }
+      rafRef.current = requestAnimationFrame(loop)
+    }
+    loop()
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [])
+
+  return (
+    <canvas ref={canvasRef} className="pointer-events-none" style={{
+      position: 'absolute', width: 160, height: 400,
+      bottom: 32, left: '50%', transform: 'translateX(-50%)', zIndex: 1,
+    }} />
+  )
+}
+
 function HomepageChat() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const [hasTyped, setHasTyped] = useState(false)
   const [showIntro, setShowIntro] = useState(false)
+  const [fabHovered, setFabHovered] = useState(false)
 
   useEffect(() => {
     const seen = typeof window !== 'undefined' && localStorage.getItem('wfa_flameo_intro_home')
@@ -91,7 +183,7 @@ function HomepageChat() {
   return (
     <>
       {open && (
-        <div className="fixed bottom-20 right-4 z-50 flex flex-col bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden" style={{ width: 340, maxHeight: 420 }}>
+        <div className="fixed bottom-24 right-4 z-50 flex flex-col bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden" style={{ width: 340, maxHeight: 420 }}>
           <div className="flex items-center gap-3 p-4 border-b border-gray-100 shrink-0" style={{ background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)' }}>
             <div className="w-9 h-9 rounded-xl bg-white border border-green-200 flex items-center justify-center shadow-sm">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -154,18 +246,23 @@ function HomepageChat() {
           </div>
         </div>
       )}
-      <button onClick={handleOpen}
-        className="fixed bottom-4 right-4 z-50 w-16 h-16 rounded-2xl bg-forest-600 hover:bg-forest-700 shadow-xl shadow-forest-600/30 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
-        title="Chat with Flameo">
-        <span className={`transition-all duration-200 ${open ? 'scale-75 opacity-0 absolute' : 'scale-100 opacity-100'}`}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/flameo1.png" alt="Flameo" width={40} height={40} style={{ objectFit: 'contain' }} />
-        </span>
-        <X className={`w-6 h-6 text-white absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
-      </button>
-      {!open && (
-        <div className="fixed bottom-[72px] right-3 z-50 w-4 h-4 rounded-full bg-red-500 border-2 border-white animate-pulse pointer-events-none" />
-      )}
+      <div className="fixed bottom-4 right-4 z-50 w-16 h-16">
+        {!open && <HomepageFabSmoke active={fabHovered} />}
+        <LiquidMetalFab
+          onClick={handleOpen}
+          onMouseEnter={() => setFabHovered(true)}
+          onMouseLeave={() => setFabHovered(false)}
+          title="Chat with Flameo"
+          aria-label="Chat with Flameo"
+          style={{ position: 'absolute', inset: 0, zIndex: 2 }}
+        >
+          <span className={`transition-all duration-200 ${open ? 'scale-75 opacity-0 absolute' : 'scale-100 opacity-100'}`}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/flameo1.png" alt="Flameo" width={46} height={46} style={{ objectFit: 'contain' }} />
+          </span>
+          <X className={`w-6 h-6 text-white absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
+        </LiquidMetalFab>
+      </div>
       {showIntro && !open && (
         <div className="fixed bottom-24 right-4 z-50">
           <div className="bg-white border border-gray-200 rounded-2xl shadow-xl p-4 w-56 relative">
@@ -282,59 +379,58 @@ function HowItWorks() {
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function Home() {
   const router = useRouter()
+  const scrolled = useScroll(60)
 
   return (
     <main className="min-h-screen bg-white overflow-hidden">
 
-      {/* ── NAVBAR ── */}
-      <header className="sticky top-0 z-20 border-b border-white/10" style={{ background: 'rgba(10,31,18,0.95)', backdropFilter: 'blur(12px)' }}>
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-8">
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="w-9 h-9 rounded-xl bg-green-600 flex items-center justify-center">
-              <Flame className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-display font-bold text-white text-xl tracking-tight">Minutes Matter</span>
-          </div>
+      {/* ── NAVBAR (fixed, overlays hero) ── */}
+      <div className="fixed top-0 left-0 right-0 z-50 px-6 pt-7 pointer-events-none">
+        <header
+          className="pointer-events-auto max-w-5xl mx-auto flex items-center gap-6 rounded-full border transition-all duration-300 ease-out"
+          style={{
+            background: scrolled ? 'rgba(10,31,18,0.88)' : 'rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            boxShadow: scrolled
+              ? '0 4px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)'
+              : '0 2px 24px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.15)',
+            borderColor: scrolled ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.2)',
+            padding: scrolled ? '8px 16px' : '12px 20px',
+          }}
+        >
+          <span className="font-display font-bold text-white tracking-tight transition-all duration-300" style={{ fontSize: scrolled ? '1rem' : '1.125rem' }}>
+            Minutes Matter
+          </span>
           <div className="flex-1" />
-          <nav className="hidden md:flex items-center gap-8 text-sm text-green-200/70 font-medium">
-            <a href="#who" className="hover:text-white transition-colors">Who It's For</a>
-            <a href="#mission" className="hover:text-white transition-colors">Our Mission</a>
-            <a href="/about" className="hover:text-white transition-colors">About</a>
-            <a href="#how" className="hover:text-white transition-colors">How It Works</a>
+          <nav className="hidden md:flex items-center gap-1 text-sm font-medium">
+            <a href="#who" className="text-green-100/70 hover:text-white hover:bg-white/10 transition-colors px-3.5 py-1.5 rounded-full">Who It's For</a>
+            <a href="#mission" className="text-green-100/70 hover:text-white hover:bg-white/10 transition-colors px-3.5 py-1.5 rounded-full">Our Mission</a>
+            <a href="/about" className="text-green-100/70 hover:text-white hover:bg-white/10 transition-colors px-3.5 py-1.5 rounded-full">About</a>
+            <a href="#how" className="text-green-100/70 hover:text-white hover:bg-white/10 transition-colors px-3.5 py-1.5 rounded-full">How It Works</a>
           </nav>
           <div className="flex items-center gap-2">
             <button onClick={() => router.push('/auth/login')}
-              className="text-green-200/80 hover:text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-white/10 transition-colors">
+              className="text-green-200/80 hover:text-white text-sm font-medium px-4 py-1.5 rounded-full hover:bg-white/10 transition-colors">
               Log in
             </button>
             <button onClick={() => router.push('/auth/login?mode=signup')}
-              className="bg-green-600 hover:bg-green-500 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors">
+              className="bg-green-600 hover:bg-green-500 text-white text-sm font-semibold px-4 py-1.5 rounded-full transition-colors">
               Sign up
             </button>
           </div>
-        </div>
-      </header>
+        </header>
+      </div>
 
       {/* ── HERO ── */}
-      <section className="relative flex flex-col overflow-hidden" style={{ minHeight: '70vh' }}>
-        {/* Background forest photo */}
+      <section className="relative flex flex-col overflow-hidden" style={{ minHeight: 'calc(100vh - 76px)' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/hero-forest.jpg"
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
-        />
-        {/* Dark overlay for text readability */}
+        <img src="/hero-forest.jpg" alt="" aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none" />
         <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(5,20,10,0.82) 0%, rgba(10,31,18,0.70) 50%, rgba(5,20,10,0.60) 100%)' }} />
 
-        {/* Live badge */}
-        <div className="relative max-w-7xl mx-auto px-6 pt-12 pb-4 w-full">
-          <div className="inline-flex items-center gap-2 border border-green-700/50 rounded-full px-3 py-1.5 text-xs text-green-400 font-medium bg-green-950/50">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-            WiDS Datathon 2026 · California
-          </div>
-        </div>
+
+        {/* Live badge — pushed down to clear the fixed nav */}
 
         {/* Main content */}
         <div className="relative flex-1 max-w-7xl mx-auto px-6 flex flex-col lg:flex-row items-center lg:items-end gap-12 w-full">
@@ -344,9 +440,7 @@ export default function Home() {
               <span className="block font-display font-bold text-white" style={{ fontSize: 'clamp(3rem, 8vw, 6rem)', lineHeight: 1 }}>
                 Every minute
               </span>
-              <span className="block font-display italic text-green-400" style={{ fontSize: 'clamp(2.5rem, 7vw, 5.5rem)', lineHeight: 1.05 }}>
-                counts.
-              </span>
+              <HeroCyclingWord />
               <span className="block text-white/50 font-body font-medium tracking-tight mt-3" style={{ fontSize: 'clamp(1.1rem, 2.5vw, 1.75rem)' }}>
                 For the people you love.
               </span>
@@ -382,10 +476,27 @@ export default function Home() {
 
           {/* Right: phone mockup — 3D tilt on hover */}
           <div className="flex items-start justify-center shrink-0 lg:flex-1 animate-phone-rise">
-            <PhoneTilt />
+            <PhoneTilt scale={1.08} />
           </div>
         </div>
+
       </section>
+
+      {/* ── House & tree icon divider (same as above Who It's For) ── */}
+      {(() => {
+        const slots = ['h','t','h','h','t','f','h','t','h','h','t','p','t','h','h','t','h']
+        return (
+          <div className="bg-white flex items-center justify-center gap-2 pt-8 pb-8 overflow-hidden">
+            {slots.map((type, i) => {
+              const base = "shrink-0 cursor-pointer transition-all duration-200 hover:scale-125 w-7 h-7"
+              if (type === 'f') return <Flame key={i} className={`${base} text-orange-500 hover:text-orange-400`} />
+              if (type === 'p') return <User key={i} className={`${base} text-green-600 hover:text-green-400`} />
+              if (type === 't') return <TreePine key={i} className={`${base} text-green-600 hover:text-green-400`} />
+              return <HomeIcon key={i} className={`${base} text-green-800 hover:text-green-500`} />
+            })}
+          </div>
+        )
+      })()}
 
       {/* ── PEACE OF MIND ── */}
       <section className="pt-24 pb-12 bg-white">
@@ -569,7 +680,11 @@ export default function Home() {
           aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
         />
-        <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(5,20,10,0.80)' }} />
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(5,20,10,0.72)' }} />
+        {/* WebGL smoke */}
+        <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.45, mixBlendMode: 'screen' }}>
+          <SmokeBackground smokeColor="#4a7c3f" />
+        </div>
         <div className="relative max-w-5xl mx-auto px-6 text-center">
           <div className="text-green-500 text-xs font-semibold uppercase tracking-widest mb-4">Get Started</div>
           <h2 className="font-display font-bold text-white mb-6" style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', lineHeight: 1.1 }}>
@@ -578,15 +693,83 @@ export default function Home() {
           <p className="text-green-200/60 text-lg mb-12 max-w-xl mx-auto leading-relaxed">
             Access real-time wildfire intelligence tailored to your role. Free for caregivers and evacuees.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button onClick={() => router.push('/auth/login?role=caregiver')}
-              className="bg-green-600 hover:bg-green-500 text-white font-semibold px-8 py-4 rounded-xl transition-colors text-base flex items-center justify-center gap-2">
-              <Heart className="w-5 h-5" /> Caregiver / Evacuee
-            </button>
-            <button onClick={() => router.push('/auth/login?role=emergency_responder')}
-              className="bg-red-600 hover:bg-red-500 text-white font-semibold px-8 py-4 rounded-xl transition-colors text-base flex items-center justify-center gap-2">
-              <Shield className="w-5 h-5" /> Emergency Responder
-            </button>
+          <div className="flex flex-col sm:flex-row gap-5 justify-center items-center mt-4">
+            {/* Caregiver card — featured */}
+            <motion.div
+              initial={{ y: 50, opacity: 0 }}
+              whileInView={{ y: -16, opacity: 1, scale: 1.03 }}
+              viewport={{ once: true }}
+              transition={{ duration: 1.4, type: 'spring', stiffness: 90, damping: 26, delay: 0.15 }}
+              onClick={() => router.push('/auth/login?mode=signup&role=caregiver')}
+              className="role-card role-card--green text-left px-7 py-7 w-full sm:w-80 cursor-pointer z-10 relative"
+            >
+              {/* Featured badge */}
+              <div className="absolute top-0 right-0 bg-green-500 py-0.5 px-3 rounded-bl-xl rounded-tr-xl flex items-center gap-1">
+                <Heart className="w-3 h-3 text-white fill-current" />
+                <span className="text-white text-xs font-semibold">Free Access</span>
+              </div>
+              <div className="relative z-10 flex flex-col h-full">
+                <p className="text-green-400 text-xs font-semibold uppercase tracking-widest mb-1">Caregiver / Evacuee</p>
+                <p className="font-display font-bold text-white text-3xl mb-1">Free</p>
+                <p className="text-green-200/50 text-xs mb-5">always free for those who need it most</p>
+                <ul className="space-y-2.5 mb-6 flex-1">
+                  {[
+                    'Real-time wildfire alerts near you',
+                    'Evacuation route guidance',
+                    'Go-bag & prep checklists',
+                    'Flameo AI assistant',
+                    '30+ language support',
+                    'Accessible for elderly & caregivers',
+                  ].map(f => (
+                    <li key={f} className="flex items-start gap-2 text-sm text-green-100/80">
+                      <Check className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <hr className="border-white/10 mb-5" />
+                <button className="w-full bg-green-600 hover:bg-green-500 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm">
+                  Get started free <ArrowRight className="w-4 h-4" />
+                </button>
+                <p className="mt-3 text-green-200/40 text-xs text-center">No account required to browse alerts</p>
+              </div>
+            </motion.div>
+
+            {/* Responder card */}
+            <motion.div
+              initial={{ y: 50, opacity: 0 }}
+              whileInView={{ y: 0, opacity: 1, scale: 0.96 }}
+              viewport={{ once: true }}
+              transition={{ duration: 1.4, type: 'spring', stiffness: 90, damping: 26, delay: 0.3 }}
+              onClick={() => router.push('/auth/login?mode=signup&role=emergency_responder')}
+              className="role-card role-card--white text-left px-7 py-7 w-full sm:w-80 cursor-pointer mt-5 sm:mt-0"
+            >
+              <div className="relative z-10 flex flex-col h-full">
+                <p className="text-white/50 text-xs font-semibold uppercase tracking-widest mb-1">Emergency Responder</p>
+                <p className="font-display font-bold text-white text-3xl mb-1">Org Access</p>
+                <p className="text-white/30 text-xs mb-5">invite code required from your organization</p>
+                <ul className="space-y-2.5 mb-6 flex-1">
+                  {[
+                    'ML-powered signal gap maps',
+                    'Incident command dashboard',
+                    'Equity-weighted alert tools',
+                    'CDC SVI risk overlays',
+                    'Resource deployment tracking',
+                    'Multi-agency coordination view',
+                  ].map(f => (
+                    <li key={f} className="flex items-start gap-2 text-sm text-white/60">
+                      <Check className="w-4 h-4 text-white/40 mt-0.5 shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <hr className="border-white/10 mb-5" />
+                <button className="w-full bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm backdrop-blur-sm">
+                  Request access <ArrowRight className="w-4 h-4" />
+                </button>
+                <p className="mt-3 text-white/25 text-xs text-center">Contact your emergency coordinator for an invite</p>
+              </div>
+            </motion.div>
           </div>
         </div>
       </section>
@@ -603,7 +786,7 @@ export default function Home() {
             </div>
             <span className="text-gray-400 text-sm font-medium">Minutes Matter</span>
           </div>
-          <p className="text-gray-600 text-xs text-center">WiDS Datathon 2025 · Data: WatchDuty · CDC SVI · NASA FIRMS</p>
+          <p className="text-gray-600 text-xs text-center">WiDS Datathon 2026 · Data: WatchDuty · CDC SVI · NASA FIRMS</p>
           <p className="text-gray-600 text-xs">Not a replacement for official emergency directives.</p>
         </div>
       </footer>

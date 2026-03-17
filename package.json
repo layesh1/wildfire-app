@@ -10,9 +10,13 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
+    "@paper-design/shaders": "^0.0.72",
+    "@radix-ui/react-slot": "^1.2.4",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.49.1",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "framer-motion": "^12.38.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.469.0",
     "next": "^16.1.6",
@@ -20,7 +24,7 @@
     "react-dom": "^19.0.0",
     "react-leaflet": "^4.2.1",
     "recharts": "^2.15.1",
-    "tailwind-merge": "^2.6.0"
+    "tailwind-merge": "^2.6.1"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.14",

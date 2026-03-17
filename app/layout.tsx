@@ -23,7 +23,7 @@ const dmMono = DM_Mono({
 
 export const metadata: Metadata = {
   title: 'Minutes Matter | Wildfire Evacuation Intelligence',
-  description: 'Real-time wildfire signal gap analysis and caregiver alert system. WiDS Datathon 2025.',
+  description: 'Real-time wildfire signal gap analysis and caregiver alert system. WiDS Datathon 2026.',
   keywords: ['wildfire', 'evacuation', 'alert', 'equity', 'SVI', 'emergency'],
   icons: {
     icon: '/flameo1.png',
