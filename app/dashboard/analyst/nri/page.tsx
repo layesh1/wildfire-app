@@ -396,7 +396,7 @@ export default function NRIPage() {
             <div>
               <div className="text-white font-semibold text-sm mb-1">Why Compound Vulnerability Matters</div>
               <p className="text-ash-400 text-sm leading-relaxed">
-                A county with high wildfire risk AND high social vulnerability faces the greatest gap between threat and response capacity. Social vulnerability (SVI) captures factors like poverty, disability, language barriers, and lack of vehicle access — all of which impede self-evacuation and reduce resilience to delayed official alerts. When both dimensions are elevated, the human cost of an inadequate warning system is maximized. The WiDS dataset confirms that high-SVI counties see median evacuation signal gaps 9× longer than low-SVI counties.
+                A county with high wildfire risk AND high social vulnerability faces the greatest gap between threat and response capacity. Social vulnerability (SVI) captures factors like poverty, disability, language barriers, and lack of vehicle access — all of which impede self-evacuation and reduce resilience to delayed official alerts. When both dimensions are elevated, the human cost of an inadequate warning system is maximized. The WiDS dataset confirms that high-SVI counties are significantly less likely to receive a formal evacuation order at all — SVI predicts whether orders happen, not how long they take. When orders do occur, the median time is ~1.1h across all SVI tiers.
               </p>
             </div>
             <div>

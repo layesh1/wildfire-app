@@ -90,8 +90,8 @@ export default function SafePathAIPage() {
         <div className="flex items-start gap-3">
           <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
           <p className="text-ash-400 text-xs leading-relaxed">
-            SAFE-PATH is trained on wildfire research showing high-vulnerability communities face up to 11.5h longer
-            alert delays. It advises based on all signal types — not only official orders.
+            SAFE-PATH is trained on WiDS wildfire research: 99.3% of true wildfires with signals received no formal order.
+            High-SVI communities are less likely to receive any order at all. It advises on all signal types — not only official orders.
           </p>
         </div>
       </div>

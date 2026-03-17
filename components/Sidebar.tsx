@@ -5,7 +5,7 @@ import {
   Flame, Shield, Heart, BarChart3, Map, AlertTriangle,
   Users, Brain, LogOut, ChevronLeft, ChevronRight, ChevronDown,
   Activity, TrendingUp, Bell, Settings, BarChart2, Globe,
-  ClipboardList, Thermometer, FileText
+  ClipboardList, Thermometer, FileText, Database
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/components/LanguageProvider'
@@ -52,6 +52,7 @@ const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> 
     { label: 'Trends', href: '/dashboard/analyst/trends', icon: TrendingUp },
     { label: 'NRI Analysis', href: '/dashboard/analyst/nri', icon: BarChart2 },
     { label: 'Fire Weather', href: '/dashboard/analyst/fire-weather', icon: Thermometer },
+    { label: 'Data Health', href: '/dashboard/analyst/data-health', icon: Database },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
 }

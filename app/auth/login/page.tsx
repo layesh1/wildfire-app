@@ -101,8 +101,8 @@ function LoginForm() {
               </p>
               <div className="space-y-5">
                 {[
-                  { stat: '11.5h', label: 'median delay before evacuation orders reach vulnerable communities' },
-                  { stat: '99.74%', label: 'of fires with signals had no formal evacuation order' },
+                  { stat: '1.1h', label: 'median time from fire start to evacuation order (when orders ARE issued)' },
+                  { stat: '99.3%', label: 'of true wildfires with signals had no formal evacuation order' },
                   { stat: '9×', label: 'disparity between fastest and slowest-alerted states' },
                 ].map(({ stat, label }) => (
                   <div key={stat} className="flex items-start gap-4 border-l-2 border-green-500/40 pl-4">

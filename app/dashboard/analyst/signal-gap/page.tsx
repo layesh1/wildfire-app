@@ -1,14 +1,14 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { AlertTriangle, TrendingUp, Clock, MapPin, ChevronRight, Search, Table2, Map, Download, Code, ShieldAlert } from 'lucide-react'
+import { AlertTriangle, TrendingUp, Clock, MapPin, ChevronRight, Search, Table2, Map, Download, Code, ShieldAlert, Radio } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 
 const KEY_FINDINGS = [
-  { icon: Clock, value: '11.5h', label: 'Median evacuation delay', sub: 'Across all 60,000+ incidents', color: 'text-signal-warn' },
-  { icon: AlertTriangle, value: '99.74%', label: 'Fires with no formal order', sub: '41,906 had signals; only 108 linked to actions', color: 'text-signal-danger' },
-  { icon: TrendingUp, value: '9×', label: 'State-level disparity', sub: 'Fastest vs. slowest response states', color: 'text-ember-400' },
-  { icon: MapPin, value: 'High SVI', label: 'Counties hit hardest', sub: 'Significantly longer delays in vulnerable areas', color: 'text-signal-info' },
+  { icon: Clock, value: '1.1h', label: 'Median time to order', sub: 'From fire start, when orders ARE issued (n=653 true wildfires)', color: 'text-signal-warn' },
+  { icon: AlertTriangle, value: '99.3%', label: 'Signal gap rate', sub: '33,181 of 33,423 true wildfires with signals never got an order', color: 'text-signal-danger' },
+  { icon: TrendingUp, value: '9×', label: 'State-level disparity', sub: 'Idaho 19.2h median vs. California 0.9h (fires that DID get orders)', color: 'text-ember-400' },
+  { icon: Radio, value: '4.1h', label: 'Signal lead time', sub: 'Median hours from first external signal to evacuation order (n=242)', color: 'text-signal-info' },
 ]
 
 const DEMO_STATE_DATA = [
@@ -133,7 +133,7 @@ const STATE_CONTEXT: Record<string, string> = {
   OK: "Oklahoma's eastern counties have high poverty rates and delayed wireless alert rollout.",
   MT: "Montana's Glacier County (tribal land, SVI 0.63) sees nearly 20h delays — far above the national median.",
   AK: 'Alaska has vast fire-prone areas with extremely limited cell coverage, high tribal SVI, and long logistical delays.',
-  ID: "Owyhee County is one of the least-covered areas in FEMA's wireless alert network.",
+  ID: "Idaho 19.2h median vs. California 0.9h — the largest state-level response gap in the dataset. Owyhee County is one of the least-covered areas in FEMA's wireless alert network.",
   WA: 'Okanogan County has improved coverage but still lags due to mountainous terrain reducing cell reach.',
   KS: 'Kansas has limited fire alert infrastructure relative to its grass fire risk, especially in western counties.',
   OR: 'Oregon performs near the national median. Klamath County drives most of the state delay.',
@@ -283,7 +283,7 @@ export default function SignalGapPage() {
         </div>
         <h1 className="font-display text-4xl font-bold text-white mb-3">Signal Gap Analysis</h1>
         <p className="text-ash-400 text-lg max-w-2xl">
-          High-SVI counties experience significantly longer delays between fire detection and formal evacuation orders — a systemic equity failure in wildfire emergency response.
+          62,696 total records (11,115 prescribed burns excluded). Among 50,664 true wildfires: 33,423 had external signals, yet 99.3% never received a formal evacuation order — a systemic failure in wildfire emergency response.
         </p>
       </div>
 
@@ -302,6 +302,30 @@ export default function SignalGapPage() {
         })}
       </div>
 
+      {/* Prescribed Burns + Single-Channel info block */}
+      <div className="grid md:grid-cols-2 gap-4 mb-6">
+        {/* LEFT: Prescribed Burns Excluded */}
+        <div className="p-4 rounded-xl border border-ember-500/30 bg-ember-500/5 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-ember-400 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-ember-400 text-sm font-semibold mb-1">Prescribed Burns Excluded</p>
+            <p className="text-ash-400 text-xs leading-relaxed">
+              <strong className="text-white">11,115 prescribed burns (17.7%)</strong> removed from signal gap analysis. These intentional fires have no evacuation orders by design. True wildfire signal gap: <strong className="text-ember-300">99.3%</strong> — was 99.74% with prescribed burns included.
+            </p>
+          </div>
+        </div>
+        {/* RIGHT: Single-Channel Vulnerability */}
+        <div className="p-4 rounded-xl border border-signal-danger/30 bg-signal-danger/5 flex items-start gap-3">
+          <Radio className="w-5 h-5 text-signal-danger mt-0.5 shrink-0" />
+          <div>
+            <p className="text-signal-danger text-sm font-semibold mb-1">Single-Channel Vulnerability</p>
+            <p className="text-ash-400 text-xs leading-relaxed">
+              <strong className="text-white">99.7% of monitored fires have only ONE external signal source.</strong> If that source fails, there is zero backup detection — no redundancy for the communities that need it most.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Protocol Inversion Banner */}
       <div className="mb-6 p-4 rounded-xl border border-signal-danger/30 bg-signal-danger/5 flex items-start gap-3">
         <ShieldAlert className="w-5 h-5 text-signal-danger mt-0.5 shrink-0" />
@@ -311,6 +335,22 @@ export default function SignalGapPage() {
             In 258 fire incidents, evacuation <strong className="text-white">orders were issued before warnings</strong> — skipping the standard advisory→warning→order escalation. This bypasses the early-warning window that vulnerable populations rely on most. The 10 most extreme cases are shown in the Overview tab.
           </p>
         </div>
+      </div>
+
+      {/* Response Window stat block */}
+      <div className="mb-6 p-4 rounded-xl border border-signal-info/20 bg-signal-info/5">
+        <div className="flex items-center gap-2 mb-2">
+          <Clock className="w-4 h-4 text-signal-info" />
+          <span className="text-signal-info text-sm font-semibold">Response Window</span>
+        </div>
+        <p className="text-ash-300 text-sm leading-relaxed">
+          When a responder acts: <strong className="text-white">median 1.1h from fire start to order</strong> (n=653 true wildfires that received orders).
+          When signals are available first: <strong className="text-white">4.1h lead time before order</strong> (n=242 fires with signal→order linkage).
+          This means responders have a <strong className="text-signal-info">~4 hour window</strong> from first external signal detection to act — time that is currently unused in 99.3% of cases.
+        </p>
+        <p className="text-ash-500 text-xs mt-2">
+          Additionally: <strong className="text-ash-300">5,394 fires</strong> started as silent notifications and were later upgraded to normal — near-miss detection events the system almost missed entirely.
+        </p>
       </div>
 
       {/* View mode tabs */}
@@ -407,7 +447,7 @@ export default function SignalGapPage() {
                 ))}
               </div>
               <p className="text-ash-500 text-xs mt-4 border-t border-ash-800 pt-3">
-                High-SVI communities wait <strong className="text-signal-danger">9.6×</strong> longer for a formal alert than low-SVI areas.
+                High-SVI communities are far less likely to receive a formal order at all. When orders do occur, timing is ~1.1h across all SVI tiers — SVI predicts <strong className="text-signal-danger">whether</strong> orders happen, not how long they take.
               </p>
             </div>
           </div>
@@ -499,7 +539,7 @@ export default function SignalGapPage() {
           <div className="card p-6 border-l-4 border-ember-500">
             <h4 className="text-white font-semibold mb-2">Data &amp; Methodology</h4>
             <p className="text-ash-400 text-sm leading-relaxed">
-              Analysis based on 60,000+ wildfire incidents (2021–2025) from the WatchDuty/WiDS dataset, cross-referenced with CDC Social Vulnerability Index scores at the county level. Signal gap = time between first external signal detection and issuance of formal evacuation order. Of 41,906 fire geo_event_ids with external signals, only 108 had linked evacuation actions — a 99.74% gap rate.
+              Analysis based on 62,696 total records (2021–2025) from the WatchDuty/WiDS dataset, with 11,115 prescribed burns (17.7%) excluded to yield 50,664 true wildfire incidents. Cross-referenced with CDC Social Vulnerability Index scores at the county level. Signal gap = time between first external signal detection and issuance of formal evacuation order. Of 33,423 true wildfire geo_event_ids with external signals, 33,181 (99.3%) had no linked evacuation action. Signal→order lead time: 4.1h median (n=242). Extreme spread true wildfires: 256 total, 169 (66.0%) received no evacuation action.
             </p>
           </div>
         </>
@@ -682,7 +722,7 @@ function ApiReference() {
             {[
               {
                 name: 'Watch Duty / WiDS Dataset',
-                desc: '60,000+ fire incidents 2021–2025 with evacuation order timestamps, notification type, and spread rates.',
+                desc: '62,696 total records (2021–2025), 50,664 true wildfires after excluding 11,115 prescribed burns. Includes evacuation order timestamps, notification type, and spread rates.',
                 endpoint: 'Internal CSV — fire_events_with_svi_and_delays.csv',
                 fields: 'geo_event_id, notification_type, fire_start, first_order_at, hours_to_order, evacuation_occurred, county_fips',
                 note: 'Not publicly available. Contact WiDS 2025 for access.'
@@ -721,10 +761,13 @@ function ApiReference() {
           <div className="bg-ash-800/40 border border-ash-700 rounded-xl p-4">
             <div className="font-semibold text-white text-xs mb-2">Methodology Notes</div>
             <ul className="text-ash-400 text-xs space-y-1.5 list-disc list-inside">
+              <li><strong className="text-ash-300">Prescribed burns excluded</strong>: 11,115 records (17.7%) with geo_event_type = prescribed burn removed; true wildfire n = 50,664</li>
               <li><strong className="text-ash-300">Signal gap</strong> = time between first satellite/sensor detection and first official evacuation order (hours_to_order)</li>
-              <li><strong className="text-ash-300">Silent fire</strong> = notification_type = &ldquo;silent&rdquo; in Watch Duty API (no push alert issued to residents)</li>
+              <li><strong className="text-ash-300">Signal lead time</strong> = hours from first_external_signal to first_order_at; median 4.1h (n=242 fires with both timestamps)</li>
+              <li><strong className="text-ash-300">Silent fire</strong> = notification_type = &ldquo;silent&rdquo; in Watch Duty API (no push alert issued to residents); 34,021 of 50,664 true wildfires (67.2%)</li>
+              <li><strong className="text-ash-300">Silent→normal upgrades</strong>: 5,394 fires reclassified from silent to normal — near-miss detection events</li>
               <li><strong className="text-ash-300">Delay disparity</strong> = computed as median delay in high-SVI counties (SVI &gt; 0.7) vs. low-SVI (&lt; 0.4)</li>
-              <li><strong className="text-ash-300">Extreme spread</strong> = last_spread_rate = &ldquo;extreme&rdquo; in WiDS dataset (~298 incidents)</li>
+              <li><strong className="text-ash-300">Extreme spread</strong> = last_spread_rate = &ldquo;extreme&rdquo; in WiDS dataset; 256 true wildfire incidents, 169 (66.0%) with no evac action</li>
               <li><strong className="text-ash-300">Protocol inversion</strong> = first_order_at timestamp precedes first_warning_at (258 incidents)</li>
               <li>SVI correlation with delay computed using Pearson r on county aggregates (n=1,016)</li>
             </ul>

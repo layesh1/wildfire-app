@@ -66,11 +66,11 @@ export default function EquityMetricsPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
         {[
           { value: '0.26', label: 'SVI spread (best vs worst state)', color: 'text-signal-info' },
-          { value: `${((totalHighSvi / totalFires) * 100).toFixed(0)}%`, label: 'Fires in high-SVI (>0.7) counties', color: 'text-signal-warn' },
+          { value: '40.4%', label: '20,488 of 50,664 true wildfires in high-SVI ≥0.75 counties', color: 'text-signal-warn' },
           { value: '38.7h', label: 'Worst median gap (NM)', color: 'text-signal-danger' },
           { value: '9x', label: 'Evacuation order rate disparity', color: 'text-ember-400' },
-          { value: '19.8%', label: 'Highest limited-English county (Webb, TX)', color: 'text-signal-warn' },
-          { value: '52.5%', label: 'Highest no-internet county (Apache, AZ)', color: 'text-signal-danger' },
+          { value: '19.8%', label: 'Highest limited-English county (Webb, TX) — CDC SVI EP_LIMENG; max 36.4% in dataset', color: 'text-signal-warn' },
+          { value: '93.2%', label: 'Signal gap in no-internet counties vs 49.1% in connected counties', color: 'text-signal-danger' },
         ].map(s => (
           <div key={s.label} className="card p-5">
             <div className={`font-display text-3xl font-bold ${s.color}`}>{s.value}</div>
@@ -175,6 +175,19 @@ export default function EquityMetricsPage() {
         </div>
       </div>
 
+      <div className="card p-5 mt-4 border border-signal-danger/30 bg-signal-danger/5">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-signal-danger shrink-0 mt-0.5" />
+          <div>
+            <div className="text-signal-danger font-semibold text-sm mb-1">Critical: SVI Does NOT Predict How Long Orders Take</div>
+            <p className="text-ash-400 text-sm leading-relaxed">
+              SVI score does NOT predict delay hours — all SVI tiers average ~1.1h when orders DO happen. SVI predicts WHETHER an order is issued at all.
+              High-SVI counties don't get slower service — they get NO service.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="card p-6 mt-6">
         <div className="flex items-center gap-2 mb-1">
           <Globe className="w-4 h-4 text-signal-warn" />
@@ -183,7 +196,7 @@ export default function EquityMetricsPage() {
         </div>
         <p className="text-ash-500 text-xs mb-5">
           Counties with more than 8% limited-English-proficiency AND significant wildfire exposure.
-          English-only alert systems structurally cannot reach these communities.
+          Max limited-English exposure: 36.4% of county population. These residents cannot act on English-only emergency alerts regardless of delivery method.
         </p>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={LANGUAGE_GAP_DATA} layout="vertical" margin={{ left: 20 }}>
@@ -218,9 +231,13 @@ export default function EquityMetricsPage() {
           <h2 className="text-white font-semibold text-sm">No-Internet Coverage Gap</h2>
           <span className="ml-auto text-ash-500 text-xs">Source: CDC SVI EP_NOINT</span>
         </div>
-        <p className="text-ash-500 text-xs mb-5">
+        <p className="text-ash-500 text-xs mb-2">
           Counties where digital alert systems cannot reach residents -- only broadcast radio and in-person outreach work here.
         </p>
+        <div className="p-3 rounded-lg bg-signal-danger/10 border border-signal-danger/20 mb-5">
+          <p className="text-signal-danger text-xs font-medium">Signal gap by internet access: counties in the top 25% for no-internet have a 93.2% signal gap rate — nearly double the 49.1% rate in well-connected counties. Digital-only alert systems structurally fail these communities.</p>
+          <p className="text-ash-500 text-xs mt-1">Median pct_no_internet: 12.3% · P90: 23.0%</p>
+        </div>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={NO_INTERNET_DATA} layout="vertical" margin={{ left: 20 }}>
             <XAxis type="number" tick={{ fill: '#737068', fontSize: 11 }} unit="%" />

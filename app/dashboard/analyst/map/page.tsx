@@ -94,7 +94,7 @@ const WIDS_FIRES: FirePoint[] = [
 ]
 
 const WIDS_STATS = {
-  total: 62696, silent: 46053, highSviNoOrder: 1823, medianDelayHr: 3.5, extremeFires: 298
+  total: 50664, silent: 34021, highSviNoOrder: 1823, medianDelayHr: 4.1, extremeFires: 256
 }
 
 const STATES = ['All', ...Array.from(new Set(WIDS_FIRES.map(f => f.state))).sort()]
@@ -475,8 +475,8 @@ export default function AnalystMapPage() {
           <p className="text-ash-400 text-xs leading-relaxed">
             <span className="text-signal-info font-medium">WiDS Dataset:</span>{' '}
             {WIDS_STATS.total.toLocaleString()} total incidents (2021–2025) across 17 states ·{' '}
-            {WIDS_STATS.silent.toLocaleString()} (73.5%) silent with no public channel ·{' '}
-            Median signal-to-order delay: <strong>{WIDS_STATS.medianDelayHr}h</strong> ·{' '}
+            {WIDS_STATS.silent.toLocaleString()} (67.2%) silent with no public channel ·{' '}
+            Median signal lead time: <strong>{WIDS_STATS.medianDelayHr}h</strong> (n=242) ·{' '}
             Showing {WIDS_FIRES.length} representative incidents. Full dataset queryable via Signal Gap and ML Predictor.
           </p>
         </div>
