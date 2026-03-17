@@ -326,6 +326,35 @@ export default function SignalGapPage() {
         </div>
       </div>
 
+      {/* Signal Source Breakdown */}
+      <div className="mb-6 card p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Radio className="w-4 h-4 text-signal-info" />
+          <span className="text-white text-sm font-semibold">Signal Source Analysis</span>
+          <span className="ml-auto text-ash-600 text-xs">geo_events_externalgeoevent.csv · 1.5M rows</span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          {[
+            { label: 'Regional Dispatch', value: '99.9%', sub: '33,389 of 33,423 fires', color: 'text-signal-warn', desc: 'incidents-* channels (human-reported)' },
+            { label: 'NIFC Extra', value: '0.4%', sub: '117 fires', color: 'text-signal-info', desc: 'bots-extra channels (federal)' },
+            { label: 'AlertWest AI', value: '0%', sub: '0 fires in dataset', color: 'text-ash-500', desc: 'No AI detection signals present' },
+            { label: 'NIFC Satellite', value: '0%', sub: '0 fires in dataset', color: 'text-ash-500', desc: 'No NIFC bot signals present' },
+          ].map(s => (
+            <div key={s.label} className="bg-ash-800/50 border border-ash-700 rounded-lg p-3">
+              <div className={`font-display text-2xl font-bold ${s.color}`}>{s.value}</div>
+              <div className="text-white text-xs font-medium mt-0.5">{s.label}</div>
+              <div className="text-ash-500 text-xs mt-1 leading-tight">{s.sub}</div>
+              <div className="text-ash-600 text-xs mt-1 italic leading-tight">{s.desc}</div>
+            </div>
+          ))}
+        </div>
+        <div className="p-3 rounded-lg bg-signal-warn/5 border border-signal-warn/20">
+          <p className="text-ash-400 text-xs leading-relaxed">
+            <strong className="text-signal-warn">Critical finding:</strong> The WatchDuty external signal system is 100% reliant on human-operated regional dispatch channels. There is no automated satellite or AI detection redundancy. Gaps in dispatch coverage — common in rural and high-SVI counties — create complete signal blackouts with no backup detection path.
+          </p>
+        </div>
+      </div>
+
       {/* Protocol Inversion Banner */}
       <div className="mb-6 p-4 rounded-xl border border-signal-danger/30 bg-signal-danger/5 flex items-start gap-3">
         <ShieldAlert className="w-5 h-5 text-signal-danger mt-0.5 shrink-0" />

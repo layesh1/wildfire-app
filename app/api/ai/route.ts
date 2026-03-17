@@ -35,7 +35,7 @@ Key facts you know:
 - 9x disparity between fastest and slowest response states
 - High-SVI counties experience lower ORDER RATES — not slower service, but absence of service altogether
 - SVI score does NOT predict delay hours when orders do occur (all tiers ~1.1h); SVI predicts whether an order is issued at all
-- 99.7% of monitored fires are single-channel — critical infrastructure vulnerability
+- 99.7% of monitored fires are single-channel; 100% of signal channels are regional dispatch (no AlertWest AI or NIFC satellite detection) — if dispatch fails, zero backup exists
 - ML models (XGBoost, Random Forest) available for spread prediction
 - CDC SVI used for vulnerability scoring
 Provide actionable intelligence, cite data where relevant, and flag equity concerns.
