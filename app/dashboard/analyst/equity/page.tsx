@@ -67,8 +67,8 @@ export default function EquityMetricsPage() {
         {[
           { value: '0.26', label: 'SVI spread (best vs worst state)', color: 'text-signal-info' },
           { value: '40.4%', label: '20,488 of 50,664 true wildfires in high-SVI ≥0.75 counties', color: 'text-signal-warn' },
-          { value: '38.7h', label: 'Worst median gap (NM)', color: 'text-signal-danger' },
-          { value: '9x', label: 'Evacuation order rate disparity', color: 'text-ember-400' },
+          { value: '0.1%', label: 'NM order rate (worst state) vs 1.8% in CO — an 18× disparity', color: 'text-signal-danger' },
+          { value: '18×', label: 'Evacuation order rate disparity (worst vs best state)', color: 'text-ember-400' },
           { value: '19.8%', label: 'Highest limited-English county (Webb, TX) — CDC SVI EP_LIMENG; max 36.4% in dataset', color: 'text-signal-warn' },
           { value: '93.2%', label: 'Signal gap in no-internet counties vs 49.1% in connected counties', color: 'text-signal-danger' },
         ].map(s => (
@@ -82,18 +82,18 @@ export default function EquityMetricsPage() {
       <div className="card p-5 mb-6">
         <div className="flex items-center gap-2 mb-4">
           <TrendingUp className="w-4 h-4 text-ash-400" />
-          <h2 className="text-white font-semibold text-sm">SVI vs Signal Gap Correlation</h2>
-          <span className="ml-auto text-ash-500 text-xs">Pearson r approximately 0.74 (strong positive)</span>
+          <h2 className="text-white font-semibold text-sm">SVI vs Evacuation Order Rate</h2>
+          <span className="ml-auto text-ash-500 text-xs">SVI predicts WHETHER orders are issued — not how long they take</span>
         </div>
         <div className="flex gap-1.5" style={{ height: 120 }}>
           {sorted.map(row => {
-            const barH = Math.max(4, Math.round((row.median_gap / MAX_GAP) * BAR_MAX_PX))
+            const barH = Math.max(4, Math.round((row.pct_with_order / 2) * BAR_MAX_PX))
             const bg = row.avg_svi > 0.7 ? '#ef4444' : row.avg_svi > 0.6 ? '#f59e0b' : '#22c55e'
             return (
               <div key={row.state} className="flex-1 flex flex-col items-center">
                 <div className="flex-1" />
                 <div className="w-full rounded-t-sm transition-all" style={{ height: barH, background: bg, opacity: 0.85 }}
-                  title={`${row.state}: ${row.median_gap}h gap, SVI ${row.avg_svi}`} />
+                  title={`${row.state}: ${row.pct_with_order}% order rate, SVI ${row.avg_svi}`} />
                 <span className="text-ash-500 text-xs mt-1">{row.state}</span>
               </div>
             )
@@ -101,7 +101,7 @@ export default function EquityMetricsPage() {
         </div>
         <div className="flex justify-between text-ash-600 text-xs mt-2">
           <span>Color: green = SVI &lt;0.6 / amber = 0.6-0.7 / red = &gt;0.7</span>
-          <span>Bar height = median signal gap (hours)</span>
+          <span>Bar height = % of fires that received an evacuation order (higher = better)</span>
         </div>
       </div>
 
@@ -165,11 +165,12 @@ export default function EquityMetricsPage() {
         <div className="flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-signal-warn shrink-0 mt-0.5" />
           <div>
-            <div className="text-signal-warn font-semibold text-sm mb-1">Key Finding: SVI Predicts Response Gaps</div>
+            <div className="text-signal-warn font-semibold text-sm mb-1">Key Finding: SVI Predicts Whether Orders Are Issued at All</div>
             <p className="text-ash-400 text-sm leading-relaxed">
-              States with higher Social Vulnerability Index scores consistently show longer signal gaps and lower evacuation order rates.
-              New Mexico (SVI 0.74) has a 38.7h median gap vs Colorado (SVI 0.48) at 5.2h -- a 7.4x disparity.
-              This pattern suggests systemic underinvestment in early warning infrastructure for vulnerable communities.
+              States with higher SVI scores show dramatically lower evacuation order rates.
+              New Mexico (SVI 0.74) has only a 0.1% order rate vs Colorado (SVI 0.48) at 1.8% — an 18× disparity.
+              When orders DO occur, timing is ~1.1h across all SVI tiers. High-SVI communities don't get slower service — they get NO service.
+              This suggests systemic underinvestment in early warning infrastructure for vulnerable communities.
             </p>
           </div>
         </div>
