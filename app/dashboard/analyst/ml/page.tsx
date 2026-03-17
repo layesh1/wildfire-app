@@ -175,7 +175,7 @@ export default function AnalystMLPage() {
           <Brain className="w-4 h-4" /> ML PREDICTOR · ANALYST
         </div>
         <h1 className="font-display text-3xl font-bold text-white mb-2">ML Spread Predictor</h1>
-        <p className="text-ash-400 text-sm">Model trained on 60,000+ WiDS wildfire incidents. Predicts spread, evacuation probability, and estimated signal gap.</p>
+        <p className="text-ash-400 text-sm">Model trained on 50,664 true wildfire incidents (prescribed burns excluded). Predicts spread, evacuation probability, and estimated signal gap.</p>
       </div>
 
       {/* Location auto-fill */}
