@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { BarChart3, AlertTriangle, Clock, TrendingUp, Database, ArrowRight, Flame, Activity, MapPin } from 'lucide-react'
+import { BarChart3, AlertTriangle, Clock, TrendingUp, Database, ArrowRight, Flame, Activity, MapPin, ShieldAlert } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
@@ -15,11 +15,19 @@ export default function AnalystDashboard() {
   const SECTIONS = [
     {
       title: 'Signal Gap Analysis',
-      desc: 'SVI correlation with evacuation delays across states and counties.',
+      desc: '99.3% of true wildfires with external signals never received a formal order. SVI predicts whether orders happen, not how long they take.',
       href: '/dashboard/analyst/signal-gap',
       icon: AlertTriangle,
       color: 'text-signal-danger',
       stat: '99.3% gap rate',
+    },
+    {
+      title: 'Data Health',
+      desc: 'Prescribed burn filtering, field completeness, known issues, and stat corrections. Start here before any analysis.',
+      href: '/dashboard/analyst/data-health',
+      icon: ShieldAlert,
+      color: 'text-amber-400',
+      stat: '17.7% prescribed burns',
     },
     {
       title: 'Equity Metrics',
