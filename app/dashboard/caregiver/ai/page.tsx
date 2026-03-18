@@ -1,6 +1,6 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import { Flame, User, Loader, Sparkles } from 'lucide-react'
+import { User, Loader, Sparkles } from 'lucide-react'
 import { PlaceholdersAndVanishInput } from '@/components/ui/placeholders-and-vanish-input'
 import { motion } from 'framer-motion'
 
@@ -84,7 +84,7 @@ export default function SafePathAIPage() {
       {/* Header */}
       <div className="shrink-0 px-6 sm:px-8 pt-8 pb-5 border-b border-gray-200 bg-white">
         <div className="flex items-center gap-2 text-forest-600 text-sm font-medium mb-3">
-          <Flame className="w-4 h-4" />
+          <img src="/flameo1.png" alt="Flameo" className="w-4 h-4 object-contain" />
           CAREGIVER · FLAMEO AI
         </div>
         <h1 className="font-display text-3xl font-bold text-gray-900 mb-1">Ask Flameo</h1>
@@ -97,8 +97,8 @@ export default function SafePathAIPage() {
       {!hasMessages && (
         <div className="flex flex-col items-center justify-center flex-1 px-6 pb-8 text-center">
           <div className="relative mb-6">
-            <div className="w-20 h-20 rounded-full bg-forest-50 border-2 border-forest-200 flex items-center justify-center shadow-lg">
-              <Flame className="w-9 h-9 text-forest-600" />
+            <div className="w-20 h-20 rounded-full bg-forest-50 border-2 border-forest-200 flex items-center justify-center shadow-lg overflow-hidden">
+              <img src="/flameo1.png" alt="Flameo" className="w-14 h-14 object-contain" />
             </div>
             <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center">
               <Sparkles className="w-3 h-3 text-white" />
@@ -144,8 +144,8 @@ export default function SafePathAIPage() {
                 className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {msg.role === 'assistant' && (
-                  <div className="w-7 h-7 rounded-full bg-forest-100 border border-forest-200 flex items-center justify-center shrink-0 mt-0.5">
-                    <Flame className="w-3.5 h-3.5 text-forest-600" />
+                  <div className="w-7 h-7 rounded-full bg-forest-50 border border-forest-200 flex items-center justify-center shrink-0 mt-0.5 overflow-hidden">
+                    <img src="/flameo1.png" alt="Flameo" className="w-5 h-5 object-contain" />
                   </div>
                 )}
                 <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
@@ -164,8 +164,8 @@ export default function SafePathAIPage() {
             ))}
             {loading && (
               <div className="flex gap-3 justify-start">
-                <div className="w-7 h-7 rounded-full bg-forest-100 border border-forest-200 flex items-center justify-center shrink-0">
-                  <Flame className="w-3.5 h-3.5 text-forest-600" />
+                <div className="w-7 h-7 rounded-full bg-forest-50 border border-forest-200 flex items-center justify-center shrink-0 overflow-hidden">
+                  <img src="/flameo1.png" alt="Flameo" className="w-5 h-5 object-contain" />
                 </div>
                 <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">
                   <Loader className="w-4 h-4 text-gray-400 animate-spin" />
