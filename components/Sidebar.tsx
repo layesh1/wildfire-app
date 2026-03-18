@@ -89,10 +89,6 @@ function SidebarInner({ user, profile }: Props) {
   const supabase = createClient()
   const { lang, setLanguage } = useLanguage()
 
-  const [claimedRoles, setClaimedRoles] = useState<string[]>(
-    profile?.role ? [profile.role] : ['caregiver']
-  )
-
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (langRef.current && !langRef.current.contains(e.target as Node)) {
@@ -116,22 +112,6 @@ function SidebarInner({ user, profile }: Props) {
   const nav = NAV_BY_ROLE[role] || NAV_BY_ROLE.caregiver
   const RoleIcon = ROLE_ICONS[role] || Heart
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('wfa_roles')
-      const localRoles: string[] = stored ? JSON.parse(stored) : []
-      const serverRoles: string[] = Array.isArray(profile?.roles) && profile.roles.length > 0
-        ? profile.roles
-        : profile?.role ? [profile.role] : []
-      const merged = [...new Set([...serverRoles, ...localRoles])].filter(r =>
-        ['emergency_responder', 'caregiver', 'evacuee', 'data_analyst'].includes(r)
-      )
-      setClaimedRoles(merged.length > 0 ? merged : [role])
-    } catch {
-      setClaimedRoles([role])
-    }
-  }, []) // eslint-disable-line
-
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     router.push('/')
@@ -142,21 +122,30 @@ function SidebarInner({ user, profile }: Props) {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Logo */}
-      <div className={cn('flex items-center gap-3 pb-4 border-b border-gray-100', collapsed ? 'justify-center' : '')}>
-        <div className="w-8 h-8 rounded-lg bg-forest-50 border border-forest-200 flex items-center justify-center shrink-0">
-          <Flame className="w-4 h-4 text-forest-600" />
-        </div>
+      <div className={cn('flex items-center pb-4 border-b border-gray-100', collapsed ? 'justify-center' : '')}>
         <AnimatePresence>
-          {open && (
+          {open ? (
             <motion.div
-              initial={{ opacity: 0, width: 0 }}
-              animate={{ opacity: 1, width: 'auto' }}
-              exit={{ opacity: 0, width: 0 }}
+              key="expanded"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
               className="overflow-hidden"
             >
-              <div className="font-display font-bold text-gray-900 text-sm leading-none whitespace-nowrap">Minutes Matter</div>
-              <div className="text-gray-400 text-xs">v2.0</div>
+              <div className="font-display font-bold text-gray-900 text-xl leading-none whitespace-nowrap">Minutes Matter</div>
+              <div className="text-gray-400 text-xs mt-0.5">v2.0</div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="collapsed"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="w-8 h-8 rounded-lg bg-forest-50 border border-forest-200 flex items-center justify-center"
+            >
+              <Flame className="w-4 h-4 text-forest-600" />
             </motion.div>
           )}
         </AnimatePresence>
@@ -176,44 +165,6 @@ function SidebarInner({ user, profile }: Props) {
               <RoleIcon className="w-3.5 h-3.5" />
               <span className="font-medium capitalize whitespace-nowrap">{role.replace('_', ' ')}</span>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* My Dashboards */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.15 }}
-            className="py-2 border-b border-gray-100 overflow-hidden"
-          >
-            <p className="text-gray-400 text-xs uppercase tracking-wider mb-1.5">My Dashboards</p>
-            {[
-              { r: 'caregiver', label: 'Caregiver', dest: '/dashboard/caregiver', Icon: Heart },
-              { r: 'emergency_responder', label: 'Responder', dest: '/dashboard/responder', Icon: Shield },
-              { r: 'data_analyst', label: 'Data Analyst', dest: '/dashboard/analyst', Icon: BarChart3 },
-            ].filter(({ r }) => claimedRoles.includes(r)).map(({ r, label, dest, Icon }) => {
-              const isActive = r === role
-              return (
-                <button
-                  key={r}
-                  onClick={() => router.push(dest)}
-                  className={cn(
-                    'w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors mb-0.5',
-                    isActive
-                      ? 'bg-forest-50 text-forest-700 border border-forest-200'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  )}
-                >
-                  <Icon className="w-3.5 h-3.5 shrink-0" />
-                  <span className="flex-1 text-left whitespace-nowrap">{label}</span>
-                  {isActive && <span className="w-1.5 h-1.5 rounded-full bg-forest-600" />}
-                </button>
-              )
-            })}
           </motion.div>
         )}
       </AnimatePresence>

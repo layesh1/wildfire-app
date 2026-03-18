@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
-import { Bell, MapPin, Users, AlertTriangle, CheckCircle, Phone, ChevronRight, Eye, EyeOff, Clock, Shield, Flame, Package, Radio, Brain, Send, Loader, User, Sparkles } from 'lucide-react'
+import { Bell, MapPin, Users, AlertTriangle, CheckCircle, Phone, ChevronRight, Eye, EyeOff, Clock, Shield, Flame, Package, Brain, Send, Loader, User, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
@@ -57,18 +57,6 @@ const GO_BAG_ITEMS = [
   { id: 'radio', label: 'Battery/crank weather radio', critical: false },
   { id: 'map', label: 'Paper map of your area (offline backup)', critical: false },
 ]
-
-function getPeakRisk() {
-  const now = new Date()
-  const hour = now.getHours()
-  const month = now.getMonth() + 1
-  return {
-    hour: hour >= 20 || hour <= 23,
-    month: month >= 6 && month <= 9,
-    peakHour: '9 PM',
-    peakMonth: 'July',
-  }
-}
 
 // ─── Flameo Tab ───────────────────────────────────────────────────────────────
 function FlameoTab() {
@@ -264,8 +252,6 @@ function HubTab() {
   const [bagLoaded, setBagLoaded] = useState(false)
   const [userState, setUserState] = useState<string | null>(null)
 
-  const peak = getPeakRisk()
-
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('wfa_gobag') || '[]')
@@ -330,24 +316,6 @@ function HubTab() {
         </div>
       </div>
 
-      {/* Peak time warning */}
-      {(peak.hour || peak.month) && (
-        <div className="bg-signal-warn/10 border border-signal-warn/30 rounded-xl p-4 flex items-start gap-3 mb-6">
-          <Flame className="w-4 h-4 text-signal-warn mt-0.5 shrink-0" />
-          <div>
-            <p className="text-signal-warn text-sm font-semibold mb-0.5">
-              {peak.hour ? 'Peak Fire Hour Active' : 'Peak Fire Season'}
-            </p>
-            <p className="text-gray-500 text-xs leading-relaxed">
-              {peak.hour
-                ? `WiDS data shows wildfires peak around ${peak.peakHour}. Stay alert — keep your phone charged and unlocked.`
-                : `${peak.peakMonth} through August is when wildfire incidents peak nationally. Check this app daily.`
-              }
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Silent fire awareness */}
       <div className="card p-5 mb-6 border-l-4 border-signal-warn">
         <div className="flex items-start gap-3">
@@ -368,29 +336,6 @@ function HubTab() {
             <Link href="/dashboard/caregiver/alert" className="mt-2 inline-flex items-center gap-1 text-signal-info text-xs hover:underline">
               <Eye className="w-3 h-3" /> Check fire proximity for my address →
             </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Digital gap */}
-      <div className="card p-5 mb-6 border-l-4 border-signal-danger">
-        <div className="flex items-start gap-3">
-          <Radio className="w-5 h-5 text-signal-danger mt-0.5 shrink-0" />
-          <div className="flex-1">
-            <div className="text-gray-900 font-semibold text-sm mb-1">Digital gap puts you at higher risk</div>
-            <div className="grid grid-cols-2 gap-3 mt-2 mb-2">
-              <div className="bg-signal-danger/10 border border-signal-danger/20 rounded-lg p-2.5 text-center">
-                <div className="text-signal-danger font-bold text-lg font-mono">93.2%</div>
-                <div className="text-gray-500 text-xs">signal gap in counties<br/>with low internet access</div>
-              </div>
-              <div className="bg-signal-safe/10 border border-signal-safe/20 rounded-lg p-2.5 text-center">
-                <div className="text-signal-safe font-bold text-lg font-mono">49.1%</div>
-                <div className="text-gray-500 text-xs">signal gap in counties<br/>with high internet access</div>
-              </div>
-            </div>
-            <p className="text-gray-500 text-xs leading-relaxed">
-              If you or someone you care for has limited internet or relies on a single channel, evacuate early — don&apos;t wait for an official order.
-            </p>
           </div>
         </div>
       </div>
@@ -476,7 +421,6 @@ function HubTab() {
           {[
             { label: 'Silent fire rate', value: '67.2%', sub: 'of true wildfires start with no push alert', color: 'text-signal-danger' },
             { label: stateDelay != null ? `${userState} median alert delay` : 'National median delay', value: stateDelay != null ? `${stateDelay}h` : '1.1h', sub: stateDelay != null ? 'detection to order (your state)' : 'median hours to order (when issued)', color: stateDelay != null && stateDelay > 20 ? 'text-signal-danger' : 'text-signal-warn' },
-            { label: 'Peak fire hour', value: '9 PM', sub: 'when fires are most likely to start', color: 'text-amber-500' },
             { label: 'Peak fire month', value: 'July', sub: '13,650 fires recorded in July alone', color: 'text-amber-500' },
             { label: 'Fires w/ extreme spread', value: '256', sub: '66.0% received zero evacuation action', color: 'text-signal-danger' },
             { label: 'Early signal, no action', value: '99.3%', sub: 'of true wildfires with signals got no order', color: 'text-signal-warn' },
