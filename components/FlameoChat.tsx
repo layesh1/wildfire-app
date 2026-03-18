@@ -170,8 +170,8 @@ export default function FlameoChat() {
           style={{ width: 360, maxHeight: '72vh' }}
         >
           {/* Header */}
-          <div className="flex items-center gap-3 p-4 border-b border-gray-100 shrink-0" style={{ background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)' }}>
-            <div className="w-9 h-9 rounded-xl bg-white border border-forest-200 flex items-center justify-center select-none shadow-sm">
+          <div className="flex items-center gap-3 p-4 border-b border-orange-100 shrink-0" style={{ background: 'linear-gradient(135deg, #fff7ed, #ffedd5)' }}>
+            <div className="w-9 h-9 rounded-xl bg-white border border-orange-200 flex items-center justify-center select-none shadow-sm">
               <FlameoIcon size={28} />
             </div>
             <div className="flex-1 min-w-0">
