@@ -55,7 +55,7 @@ export default function SafePathAIPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          persona: 'SAFE-PATH',
+          persona: 'FLAMEO',
           messages: next.map(m => ({ role: m.role, content: m.content })),
         }),
       })
