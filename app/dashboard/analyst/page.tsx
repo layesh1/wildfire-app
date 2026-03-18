@@ -1,25 +1,33 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { BarChart3, AlertTriangle, Clock, TrendingUp, Database, ArrowRight, Flame, Activity, MapPin } from 'lucide-react'
+import { BarChart3, AlertTriangle, Clock, TrendingUp, Database, ArrowRight, Flame, Activity, MapPin, ShieldAlert } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
 export default function AnalystDashboard() {
   const [stats, setStats] = useState({
-    totalFires: 62696,
-    withSignals: 41906,
-    withOrders: 108,
-    gapRate: 99.74,
+    totalFires: 50664,
+    withSignals: 33423,
+    withOrders: 653,
+    gapRate: 99.3,
   })
 
   const SECTIONS = [
     {
       title: 'Signal Gap Analysis',
-      desc: 'SVI correlation with evacuation delays across states and counties.',
+      desc: '99.3% of true wildfires with external signals never received a formal order. SVI predicts whether orders happen, not how long they take.',
       href: '/dashboard/analyst/signal-gap',
       icon: AlertTriangle,
       color: 'text-signal-danger',
-      stat: '99.74% gap rate',
+      stat: '99.3% gap rate',
+    },
+    {
+      title: 'Data Health',
+      desc: 'Prescribed burn filtering, field completeness, known issues, and stat corrections. Start here before any analysis.',
+      href: '/dashboard/analyst/data-health',
+      icon: ShieldAlert,
+      color: 'text-amber-400',
+      stat: '17.7% prescribed burns',
     },
     {
       title: 'Equity Metrics',
@@ -82,31 +90,31 @@ export default function AnalystDashboard() {
           Research Overview
         </h1>
         <p className="text-ash-400 text-lg">
-          WiDS Datathon 2025 · WatchDuty Dataset · 60,000+ Wildfire Incidents
+          WiDS Datathon 2026 · WatchDuty Dataset · 60,000+ Wildfire Incidents
         </p>
       </div>
 
       {/* Core stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
         <div className="card p-5">
-          <div className="stat-value text-white">60,000+</div>
-          <div className="stat-label">Total fire incidents</div>
-          <div className="text-ash-600 text-xs mt-0.5">2021–2025</div>
+          <div className="stat-value text-white">50,664</div>
+          <div className="stat-label">True wildfire incidents</div>
+          <div className="text-ash-600 text-xs mt-0.5">62,696 total; 11,115 prescribed burns excluded</div>
         </div>
         <div className="card p-5">
-          <div className="stat-value text-ember-400">41,906</div>
+          <div className="stat-value text-ember-400">33,423</div>
           <div className="stat-label">Fires with signals</div>
           <div className="text-ash-600 text-xs mt-0.5">External detection</div>
         </div>
         <div className="card p-5">
-          <div className="stat-value text-signal-danger">108</div>
+          <div className="stat-value text-signal-danger">653</div>
           <div className="stat-label">With formal orders</div>
-          <div className="text-ash-600 text-xs mt-0.5">Of 41,906 signaled</div>
+          <div className="text-ash-600 text-xs mt-0.5">Of 33,423 signaled (99.3% gap)</div>
         </div>
         <div className="card p-5">
-          <div className="stat-value text-signal-warn">11.5h</div>
-          <div className="stat-label">Median delay</div>
-          <div className="text-ash-600 text-xs mt-0.5">Signal → formal order</div>
+          <div className="stat-value text-signal-warn">4.1h</div>
+          <div className="stat-label">Signal lead time</div>
+          <div className="text-ash-600 text-xs mt-0.5">Median: signal → order (n=242)</div>
         </div>
       </div>
 
@@ -134,7 +142,7 @@ export default function AnalystDashboard() {
       {/* Data note */}
       <div className="mt-8 p-4 bg-ash-900/50 border border-ash-800 rounded-lg">
         <p className="text-ash-500 text-xs">
-          <span className="text-ash-400 font-medium">Note:</span> The fire_events table contains a known duplicate upload issue (124,696 rows → deduplicated to 60,000+ unique incidents). All analyses use deduplicated geo_event_id counts.
+          <span className="text-ash-400 font-medium">Note:</span> The fire_events table contains a known duplicate upload issue (124,696 rows → deduplicated to 62,696 unique incidents). Of those, 11,115 are prescribed burns (17.7%) and 917 are location records — true wildfire count is 50,664. All analyses filter to <code className="text-ash-400">is_true_wildfire=1</code>.
         </p>
       </div>
     </div>

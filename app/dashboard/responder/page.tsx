@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Shield, Flame, AlertTriangle, Activity, TrendingUp, Clock, ChevronRight, Wind, Droplets, Users, Truck, Radio, Map, ChevronDown, ChevronUp, Building2, ExternalLink } from 'lucide-react'
+import { Shield, Flame, AlertTriangle, Activity, TrendingUp, Clock, ChevronRight, Wind, Droplets, Users, Truck, Radio, Map, ChevronDown, ChevronUp, Building2, ExternalLink, ShieldAlert, Brain } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
@@ -564,6 +564,155 @@ function ShelterSection() {
   )
 }
 
+// ─── WiDS Intelligence Panel ─────────────────────────────────────────────────
+
+function WiDSIntelligencePanel({ activeFires, loading }: { activeFires: any[]; loading: boolean }) {
+  const now = new Date()
+  const hour = now.getHours()
+  const month = now.getMonth() + 1
+  const isPeakHour = hour >= 20 || hour <= 1
+  const isPeakMonth = month >= 6 && month <= 9
+
+  const highSviFires = activeFires.filter(f => f.svi_score != null && f.svi_score >= 0.75)
+  const longGapFires = activeFires.filter(f => f.signal_gap_hours != null && f.signal_gap_hours > 12)
+
+  return (
+    <div className="mb-8">
+      <div className="flex items-center gap-2 mb-4">
+        <Brain className="w-4 h-4 text-signal-info" />
+        <h2 className="section-title">WiDS Intelligence</h2>
+        <span className="ml-auto text-ash-600 text-xs">50,664 true wildfires · 2021–2025</span>
+      </div>
+
+      {/* Key dataset stats for command decision-making */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+        {[
+          { label: 'Signal lead time', value: '4.1h', sub: 'median: signal → order (n=242)', color: 'text-signal-info' },
+          { label: 'Time to order', value: '1.1h', sub: 'median when orders ARE issued (n=653)', color: 'text-signal-warn' },
+          { label: 'Signal gap rate', value: '99.3%', sub: 'true wildfires with signal, no order', color: 'text-signal-danger' },
+          { label: 'Single-channel', value: '99.7%', sub: 'fires with only 1 external signal source', color: 'text-ember-400' },
+          { label: 'Upgrade events', value: '5,394', sub: 'silent fires escalated to normal alert', color: 'text-signal-safe' },
+        ].map(s => (
+          <div key={s.label} className="card p-3 text-center">
+            <div className={`font-display text-xl font-bold ${s.color}`}>{s.value}</div>
+            <div className="text-white text-xs font-medium mt-0.5">{s.label}</div>
+            <div className="text-ash-600 text-xs mt-0.5 leading-tight">{s.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid md:grid-cols-3 gap-4 mb-4">
+        {/* Peak timing */}
+        <div className={`card p-4 ${isPeakHour || isPeakMonth ? 'border-signal-warn/40' : ''}`}>
+          <div className="flex items-center gap-2 mb-3">
+            <Clock className={`w-4 h-4 ${isPeakHour || isPeakMonth ? 'text-signal-warn' : 'text-ash-500'}`} />
+            <span className="text-white text-xs font-semibold">Fire Timing Intelligence</span>
+          </div>
+          {(isPeakHour || isPeakMonth) && (
+            <div className={`text-xs font-medium mb-2 ${isPeakHour ? 'text-signal-warn' : 'text-ember-400'}`}>
+              {isPeakHour ? '⚡ Peak fire hour active (9 PM)' : '🔥 Peak fire season (Jul–Aug)'}
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-xs">
+              <span className="text-ash-400">Peak hour</span>
+              <span className="text-white font-mono">9 PM (hour 21)</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-ash-400">Peak month</span>
+              <span className="text-white font-mono">July (13,650 fires)</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-ash-400">Silent fire rate</span>
+              <span className="text-signal-danger font-mono font-bold">67.2%</span>
+            </div>
+          </div>
+          <p className="text-ash-600 text-xs mt-3 border-t border-ash-800 pt-2">
+            Pre-position resources and increase patrol frequency during peak windows.
+          </p>
+        </div>
+
+        {/* High-SVI fires */}
+        <div className={`card p-4 ${highSviFires.length > 0 ? 'border-signal-danger/30' : ''}`}>
+          <div className="flex items-center gap-2 mb-3">
+            <ShieldAlert className={`w-4 h-4 ${highSviFires.length > 0 ? 'text-signal-danger' : 'text-ash-500'}`} />
+            <span className="text-white text-xs font-semibold">Vulnerable Population Zones</span>
+          </div>
+          {loading ? (
+            <div className="text-ash-600 text-xs">Loading incidents…</div>
+          ) : highSviFires.length > 0 ? (
+            <>
+              <div className="text-signal-danger font-display text-2xl font-bold mb-1">{highSviFires.length}</div>
+              <div className="text-ash-400 text-xs mb-3">active incident{highSviFires.length !== 1 ? 's' : ''} in high-SVI communities (SVI ≥ 0.75)</div>
+              <div className="space-y-1">
+                {highSviFires.slice(0, 3).map(f => (
+                  <div key={f.id} className="flex justify-between text-xs">
+                    <span className="text-ash-300 truncate max-w-[120px]">{f.incident_name || 'Unnamed'}</span>
+                    <span className="text-signal-danger font-mono font-bold ml-2">SVI {f.svi_score?.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-signal-warn text-xs mt-2 font-medium">
+                Issue pre-emptive warnings — high-SVI communities are less likely to receive ANY order, not just slower to receive one.
+              </p>
+            </>
+          ) : (
+            <div className="text-signal-safe text-xs">No current incidents in high-SVI zones</div>
+          )}
+          <p className="text-ash-600 text-xs mt-3 border-t border-ash-800 pt-2">
+            WiDS: SVI predicts whether orders are issued at all — not how long they take. When orders do occur, median time is ~1.1h across all SVI tiers.
+          </p>
+        </div>
+
+        {/* Protocol inversions / gaps */}
+        <div className={`card p-4 ${longGapFires.length > 0 ? 'border-signal-warn/30' : ''}`}>
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className={`w-4 h-4 ${longGapFires.length > 0 ? 'text-signal-warn' : 'text-ash-500'}`} />
+            <span className="text-white text-xs font-semibold">Signal Gap Alerts</span>
+          </div>
+          {loading ? (
+            <div className="text-ash-600 text-xs">Loading…</div>
+          ) : longGapFires.length > 0 ? (
+            <>
+              <div className="text-signal-warn font-display text-2xl font-bold mb-1">{longGapFires.length}</div>
+              <div className="text-ash-400 text-xs mb-3">incident{longGapFires.length !== 1 ? 's' : ''} with &gt;12h signal gap (order delay)</div>
+              <div className="space-y-1">
+                {longGapFires.slice(0, 3).map(f => (
+                  <div key={f.id} className="flex justify-between text-xs">
+                    <span className="text-ash-300 truncate max-w-[120px]">{f.incident_name || 'Unnamed'}</span>
+                    <span className="text-signal-warn font-mono font-bold ml-2">{f.signal_gap_hours?.toFixed(0)}h gap</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="text-signal-safe text-xs">No critical signal gaps in current incidents</div>
+          )}
+          <div className="text-ash-600 text-xs mt-3 border-t border-ash-800 pt-2 space-y-0.5">
+            <div>258 protocol inversions in WiDS dataset</div>
+            <div>Orders issued before warnings — skipping early-warning window</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Pre-alert recommendation */}
+      {highSviFires.length > 0 && (
+        <div className="p-4 rounded-xl border border-signal-danger/30 bg-signal-danger/5 flex items-start gap-3">
+          <ShieldAlert className="w-4 h-4 text-signal-danger mt-0.5 shrink-0" />
+          <div>
+            <p className="text-signal-danger text-sm font-semibold mb-1">Pre-Alert Recommended</p>
+            <p className="text-ash-400 text-xs leading-relaxed">
+              {highSviFires.length} active incident{highSviFires.length !== 1 ? 's are' : ' is'} in communities with SVI ≥ 0.75.
+              WiDS data shows these communities are significantly less likely to receive a formal evacuation order at all — SVI predicts <strong className="text-white">whether orders happen</strong>, not how long they take.
+              Issue advisory-level notifications proactively — do not wait for &quot;order&quot; threshold.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ResponderDashboard() {
@@ -771,6 +920,9 @@ export default function ResponderDashboard() {
 
       {/* Live NIFC Incidents — added section */}
       <NifcSection />
+
+      {/* WiDS Intelligence Panel */}
+      <WiDSIntelligencePanel activeFires={activeFires} loading={loading} />
 
       {/* Active fires table */}
       <div>

@@ -94,7 +94,7 @@ const WIDS_FIRES: FirePoint[] = [
 ]
 
 const WIDS_STATS = {
-  total: 62696, silent: 46053, highSviNoOrder: 1823, medianDelayHr: 3.5, extremeFires: 298
+  total: 50664, silent: 34021, highSviNoOrder: 1823, medianDelayHr: 4.1, extremeFires: 256
 }
 
 const STATES = ['All', ...Array.from(new Set(WIDS_FIRES.map(f => f.state))).sort()]
@@ -195,7 +195,7 @@ export default function AnalystMapPage() {
         </div>
         <h1 className="font-display text-3xl font-bold text-white mb-2">Fire Incident Map</h1>
         <p className="text-ash-400 text-sm">
-          Live active fires via NIFC EGP (public) · WiDS 2025 dataset (60,000+ incidents) with SVI overlay · Click markers for details.
+          Live active fires via NIFC EGP (public) · WiDS 2025 dataset (62,696 records · 50,664 true wildfires) with SVI overlay · Click markers for details.
         </p>
       </div>
 
@@ -203,7 +203,7 @@ export default function AnalystMapPage() {
       <div className="flex gap-1 mb-5 border-b border-ash-800">
         {([
           { key: 'live', label: 'Live Active Fires', sub: 'NIFC real-time', color: 'text-signal-danger' },
-          { key: 'wids', label: 'WiDS Dataset', sub: '60,000+ incidents', color: 'text-signal-info' },
+          { key: 'wids', label: 'WiDS Dataset', sub: '50,664 true wildfires', color: 'text-signal-info' },
         ] as const).map(t => (
           <button key={t.key} onClick={() => { setTab(t.key); setSelected(null) }}
             className={`px-5 py-3 text-sm font-medium border-b-2 transition-all -mb-px ${
@@ -475,8 +475,8 @@ export default function AnalystMapPage() {
           <p className="text-ash-400 text-xs leading-relaxed">
             <span className="text-signal-info font-medium">WiDS Dataset:</span>{' '}
             {WIDS_STATS.total.toLocaleString()} total incidents (2021–2025) across 17 states ·{' '}
-            {WIDS_STATS.silent.toLocaleString()} (73.5%) silent with no public channel ·{' '}
-            Median signal-to-order delay: <strong>{WIDS_STATS.medianDelayHr}h</strong> ·{' '}
+            {WIDS_STATS.silent.toLocaleString()} (67.2%) silent with no public channel ·{' '}
+            Median signal lead time: <strong>{WIDS_STATS.medianDelayHr}h</strong> (n=242) ·{' '}
             Showing {WIDS_FIRES.length} representative incidents. Full dataset queryable via Signal Gap and ML Predictor.
           </p>
         </div>

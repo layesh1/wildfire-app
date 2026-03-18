@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { checkRateLimit, getClientIp } from '@/lib/ratelimit'
 
 function adminClient() {
   return createClient(
@@ -9,6 +10,12 @@ function adminClient() {
 }
 
 export async function POST(req: NextRequest) {
+  // Rate limit: 10 attempts per minute per IP
+  const ip = getClientIp(req)
+  if (!checkRateLimit(ip, 'invite', 10, 60_000)) {
+    return NextResponse.json({ error: 'Too many attempts. Try again in a minute.' }, { status: 429 })
+  }
+
   const { code, email, role: requestedRole } = await req.json()
 
   if (!code || typeof code !== 'string') {
@@ -19,8 +26,8 @@ export async function POST(req: NextRequest) {
 
   // Admin bypass — lets admin/devs claim any role without invite_codes table
   // Falls back to hardcoded value if env var is not set in Vercel
-  const bypassCode = process.env.ADMIN_BYPASS_CODE || 'ADMIN-BYPASS-2024'
-  if (upperCode === bypassCode.toUpperCase()) {
+  const bypassCode = process.env.ADMIN_BYPASS_CODE
+  if (bypassCode && upperCode === bypassCode.toUpperCase()) {
     if (!requestedRole) {
       return NextResponse.json({ error: 'Role is required with bypass code.' }, { status: 400 })
     }
@@ -49,7 +56,7 @@ export async function POST(req: NextRequest) {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!serviceKey || serviceKey === 'your_service_role_key_here') {
     return NextResponse.json(
-      { error: 'Invite system not configured. Use the admin bypass code.' },
+      { error: 'Invite system not configured.' },
       { status: 503 }
     )
   }

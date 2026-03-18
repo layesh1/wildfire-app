@@ -295,6 +295,8 @@ function HomepageChat() {
 }
 
 
+
+
 // ── How It Works ──────────────────────────────────────────────────────────────
 const HOW_STEPS = [
   {
@@ -310,7 +312,7 @@ const HOW_STEPS = [
     title: 'Gap Analysis',
     tag: 'Intelligence Layer',
     desc: 'We identify where formal evacuation orders are missing despite clear fire signals, closing the critical information gap.',
-    detail: 'Across 60,000+ incidents, 99.74% of fires with external detection signals never received a formal order. Our gap analysis flags these silent emergencies immediately.',
+    detail: 'Across 50,664 true wildfires, 99.3% of fires with external detection signals never received a formal order (prescribed burns excluded). Our gap analysis flags these silent emergencies immediately.',
     color: '#d97706',
   },
   {
@@ -318,7 +320,7 @@ const HOW_STEPS = [
     title: 'Equity Scoring',
     tag: 'Vulnerability Mapping',
     desc: 'CDC Social Vulnerability Index data identifies which communities are most at risk and least likely to receive timely alerts.',
-    detail: 'High-SVI counties experience up to 9× longer delays before evacuation orders. We weight our alert priority by vulnerability score so the most at-risk residents hear first.',
+    detail: 'High-SVI counties are significantly less likely to receive a formal evacuation order at all — not just slower to receive one. We weight our alert priority by vulnerability score so the most at-risk residents are never left without a warning.',
     color: '#dc2626',
   },
   {
@@ -395,7 +397,7 @@ export default function Home() {
   const scrolled = useScroll(60)
 
   return (
-    <main className="min-h-screen bg-white overflow-hidden">
+    <main className="lp min-h-screen bg-white overflow-hidden">
 
       {/* ── NAVBAR (fixed, overlays hero) ── */}
       <div className="fixed top-0 left-0 right-0 z-50 px-6 pt-7 pointer-events-none">
@@ -558,6 +560,52 @@ export default function Home() {
                 <p className="text-gray-600 text-sm leading-relaxed text-center">{item.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── ABOUT ── */}
+      <section id="about" className="py-28 bg-white">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid lg:grid-cols-[1fr_2fr] gap-20 items-start">
+            {/* Left label */}
+            <div className="lg:sticky lg:top-32">
+              <div className="text-green-600 text-xs font-semibold uppercase tracking-widest mb-4">About the Project</div>
+              <h2 className="font-display font-bold text-gray-900 leading-tight" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>
+                Built for equity.<br />Powered by data.
+              </h2>
+              <div className="mt-8 flex flex-wrap gap-2">
+                {['WatchDuty', 'CDC SVI', 'NASA FIRMS', 'XGBoost'].map(tag => (
+                  <span key={tag} className="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-sm">{tag}</span>
+                ))}
+              </div>
+            </div>
+            {/* Right content */}
+            <div>
+              <p className="text-gray-500 text-xl leading-relaxed mb-8 font-light">
+                Minutes Matter was built for the WiDS Datathon 2025 to address a critical failure in wildfire response: evacuation alerts consistently miss the communities that need them most.
+              </p>
+              <p className="text-gray-600 leading-relaxed mb-8">
+                Using the WatchDuty dataset of 62,696 fire incidents (50,664 true wildfires) cross-referenced with the CDC Social Vulnerability Index, we found that <strong className="text-gray-900">99.3% of true wildfires with external detection signals never received a formal evacuation order</strong>. When orders are issued, the median response window is just 1.1 hours — yet most fires get nothing.
+              </p>
+              <p className="text-gray-600 leading-relaxed mb-12">
+                For elderly residents, people with disabilities, and non-English speakers, these delays can be fatal. Minutes Matter closes that gap with real-time signal analysis, ML-powered predictions, and accessible alerts.
+              </p>
+              {/* Data grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {[
+                  { value: '50,664', label: 'True wildfire incidents', color: '#16a34a' },
+                  { value: '653', label: 'With formal orders', color: '#dc2626' },
+                  { value: '33,423', label: 'Fires with signals', color: '#d97706' },
+                  { value: '4.1h', label: 'Signal lead time', color: '#2563eb' },
+                ].map(s => (
+                  <div key={s.label} className="border border-gray-100 rounded-2xl p-5 text-center">
+                    <div className="font-display text-2xl font-bold mb-1" style={{ color: s.color }}>{s.value}</div>
+                    <div className="text-gray-400 text-xs">{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>

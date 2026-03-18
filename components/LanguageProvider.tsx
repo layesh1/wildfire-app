@@ -38,36 +38,6 @@ function clearGoogCookie() {
   document.cookie = 'googtrans=;expires=Thu, 01 Jan 1970 00:00:00 GMT'
 }
 
-function loadGoogleTranslate() {
-  if (document.getElementById('gt-script')) return
-  // Hide all Google Translate UI artifacts
-  const style = document.createElement('style')
-  style.textContent = `
-    .skiptranslate, .goog-te-banner-frame { display: none !important; }
-    body { top: 0 !important; }
-    .goog-te-gadget { font-size: 0 !important; }
-    #google_translate_element { display: none !important; }
-  `
-  document.head.appendChild(style)
-
-  const div = document.createElement('div')
-  div.id = 'google_translate_element'
-  div.style.display = 'none'
-  document.body.appendChild(div)
-
-  ;(window as any).googleTranslateElementInit = () => {
-    new (window as any).google.translate.TranslateElement(
-      { pageLanguage: 'en', autoDisplay: false },
-      'google_translate_element'
-    )
-  }
-
-  const script = document.createElement('script')
-  script.id = 'gt-script'
-  script.src = '//translate.googleapis.com/translate_a/element.js?cb=googleTranslateElementInit'
-  script.async = true
-  document.head.appendChild(script)
-}
 
 /** Triggers translation by manipulating the hidden Google Translate select */
 function triggerGT(code: string) {
@@ -77,10 +47,10 @@ function triggerGT(code: string) {
       sel.value = code
       sel.dispatchEvent(new Event('change'))
     } else if (tries > 0) {
-      setTimeout(() => attempt(tries - 1), 300)
+      setTimeout(() => attempt(tries - 1), 500)
     }
   }
-  attempt(10)
+  attempt(30)
 }
 
 interface Props {
@@ -104,12 +74,10 @@ export default function LanguageProvider({ children, initialLang }: Props) {
     // Silently default to English — no popup
     if (!ls) localStorage.setItem(LS_KEY, initialLang ?? 'en')
 
-    loadGoogleTranslate()
-
     const activeLang = ls ?? initialLang ?? 'en'
     if (activeLang !== 'en') {
       setGoogCookie(activeLang)
-      setTimeout(() => triggerGT(activeLang), 1500)
+      setTimeout(() => triggerGT(activeLang), 2500)
     }
   }, [initialLang])
 
@@ -118,21 +86,17 @@ export default function LanguageProvider({ children, initialLang }: Props) {
     setLang(selected)
     localStorage.setItem(LS_KEY, code)
 
-    // Persist to Supabase
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await supabase.from('profiles').upsert({ id: user.id, language_preference: code })
-    }
+    // Persist to Supabase in the background — don't block the reload
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) supabase.from('profiles').upsert({ id: user.id, language_preference: code })
+    })
 
     if (code === 'en') {
       clearGoogCookie()
       window.location.reload()
     } else {
       setGoogCookie(code)
-      // Try soft trigger first (no reload)
-      triggerGT(code)
-      // Reload after short delay to let Google Translate pick up the cookie
-      setTimeout(() => window.location.reload(), 400)
+      window.location.reload()
     }
   }, [supabase])
 

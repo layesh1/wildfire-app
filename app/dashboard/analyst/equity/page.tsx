@@ -66,11 +66,11 @@ export default function EquityMetricsPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
         {[
           { value: '0.26', label: 'SVI spread (best vs worst state)', color: 'text-signal-info' },
-          { value: `${((totalHighSvi / totalFires) * 100).toFixed(0)}%`, label: 'Fires in high-SVI (>0.7) counties', color: 'text-signal-warn' },
-          { value: '38.7h', label: 'Worst median gap (NM)', color: 'text-signal-danger' },
-          { value: '9x', label: 'Evacuation order rate disparity', color: 'text-ember-400' },
-          { value: '19.8%', label: 'Highest limited-English county (Webb, TX)', color: 'text-signal-warn' },
-          { value: '52.5%', label: 'Highest no-internet county (Apache, AZ)', color: 'text-signal-danger' },
+          { value: '40.4%', label: '20,488 of 50,664 true wildfires in high-SVI ≥0.75 counties', color: 'text-signal-warn' },
+          { value: '0.1%', label: 'NM order rate (worst state) vs 1.8% in CO — an 18× disparity', color: 'text-signal-danger' },
+          { value: '18×', label: 'Evacuation order rate disparity (worst vs best state)', color: 'text-ember-400' },
+          { value: '19.8%', label: 'Highest limited-English county (Webb, TX) — CDC SVI EP_LIMENG; max 36.4% in dataset', color: 'text-signal-warn' },
+          { value: '93.2%', label: 'Signal gap in no-internet counties vs 49.1% in connected counties', color: 'text-signal-danger' },
         ].map(s => (
           <div key={s.label} className="card p-5">
             <div className={`font-display text-3xl font-bold ${s.color}`}>{s.value}</div>
@@ -82,18 +82,18 @@ export default function EquityMetricsPage() {
       <div className="card p-5 mb-6">
         <div className="flex items-center gap-2 mb-4">
           <TrendingUp className="w-4 h-4 text-ash-400" />
-          <h2 className="text-white font-semibold text-sm">SVI vs Signal Gap Correlation</h2>
-          <span className="ml-auto text-ash-500 text-xs">Pearson r approximately 0.74 (strong positive)</span>
+          <h2 className="text-white font-semibold text-sm">SVI vs Evacuation Order Rate</h2>
+          <span className="ml-auto text-ash-500 text-xs">SVI predicts WHETHER orders are issued — not how long they take</span>
         </div>
         <div className="flex gap-1.5" style={{ height: 120 }}>
           {sorted.map(row => {
-            const barH = Math.max(4, Math.round((row.median_gap / MAX_GAP) * BAR_MAX_PX))
+            const barH = Math.max(4, Math.round((row.pct_with_order / 2) * BAR_MAX_PX))
             const bg = row.avg_svi > 0.7 ? '#ef4444' : row.avg_svi > 0.6 ? '#f59e0b' : '#22c55e'
             return (
               <div key={row.state} className="flex-1 flex flex-col items-center">
                 <div className="flex-1" />
                 <div className="w-full rounded-t-sm transition-all" style={{ height: barH, background: bg, opacity: 0.85 }}
-                  title={`${row.state}: ${row.median_gap}h gap, SVI ${row.avg_svi}`} />
+                  title={`${row.state}: ${row.pct_with_order}% order rate, SVI ${row.avg_svi}`} />
                 <span className="text-ash-500 text-xs mt-1">{row.state}</span>
               </div>
             )
@@ -101,7 +101,7 @@ export default function EquityMetricsPage() {
         </div>
         <div className="flex justify-between text-ash-600 text-xs mt-2">
           <span>Color: green = SVI &lt;0.6 / amber = 0.6-0.7 / red = &gt;0.7</span>
-          <span>Bar height = median signal gap (hours)</span>
+          <span>Bar height = % of fires that received an evacuation order (higher = better)</span>
         </div>
       </div>
 
@@ -110,7 +110,7 @@ export default function EquityMetricsPage() {
         {(['gap', 'svi', 'order'] as const).map(s => (
           <button key={s} onClick={() => setSort(s)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${sort === s ? 'bg-ash-700 border-ash-600 text-white' : 'border-ash-800 text-ash-400 hover:text-white hover:border-ash-700'}`}>
-            {s === 'gap' ? 'Signal Gap' : s === 'svi' ? 'SVI Score' : 'Order Rate'}
+            {s === 'gap' ? 'Lead Time†' : s === 'svi' ? 'SVI Score' : 'Order Rate'}
           </button>
         ))}
       </div>
@@ -121,7 +121,7 @@ export default function EquityMetricsPage() {
             <tr className="border-b border-ash-800 text-left">
               <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">State</th>
               <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">Avg SVI</th>
-              <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">Median Gap</th>
+              <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider" title="Median signal-to-order lead time for fires that received orders — does NOT represent typical wait time across all fires">Signal Lead Time†</th>
               <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">Order Rate</th>
               <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">High-SVI Fires</th>
             </tr>
@@ -159,17 +159,34 @@ export default function EquityMetricsPage() {
             ))}
           </tbody>
         </table>
+        <div className="px-5 py-2 border-t border-ash-800 text-ash-600 text-xs">
+          † Signal Lead Time = median hours from first external signal to first evacuation order, for fires that received both. SVI does NOT predict these hours — when orders occur, timing is ~1.1h across all SVI tiers. SVI predicts whether orders happen at all.
+        </div>
       </div>
 
       <div className="card p-5 mt-6 border border-signal-warn/20 bg-signal-warn/5">
         <div className="flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-signal-warn shrink-0 mt-0.5" />
           <div>
-            <div className="text-signal-warn font-semibold text-sm mb-1">Key Finding: SVI Predicts Response Gaps</div>
+            <div className="text-signal-warn font-semibold text-sm mb-1">Key Finding: SVI Predicts Whether Orders Are Issued at All</div>
             <p className="text-ash-400 text-sm leading-relaxed">
-              States with higher Social Vulnerability Index scores consistently show longer signal gaps and lower evacuation order rates.
-              New Mexico (SVI 0.74) has a 38.7h median gap vs Colorado (SVI 0.48) at 5.2h -- a 7.4x disparity.
-              This pattern suggests systemic underinvestment in early warning infrastructure for vulnerable communities.
+              States with higher SVI scores show dramatically lower evacuation order rates.
+              New Mexico (SVI 0.74) has only a 0.1% order rate vs Colorado (SVI 0.48) at 1.8% — an 18× disparity.
+              When orders DO occur, timing is ~1.1h across all SVI tiers. High-SVI communities don't get slower service — they get NO service.
+              This suggests systemic underinvestment in early warning infrastructure for vulnerable communities.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="card p-5 mt-4 border border-signal-danger/30 bg-signal-danger/5">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-signal-danger shrink-0 mt-0.5" />
+          <div>
+            <div className="text-signal-danger font-semibold text-sm mb-1">Critical: SVI Does NOT Predict How Long Orders Take</div>
+            <p className="text-ash-400 text-sm leading-relaxed">
+              SVI score does NOT predict delay hours — all SVI tiers average ~1.1h when orders DO happen. SVI predicts WHETHER an order is issued at all.
+              High-SVI counties don't get slower service — they get NO service.
             </p>
           </div>
         </div>
@@ -183,7 +200,7 @@ export default function EquityMetricsPage() {
         </div>
         <p className="text-ash-500 text-xs mb-5">
           Counties with more than 8% limited-English-proficiency AND significant wildfire exposure.
-          English-only alert systems structurally cannot reach these communities.
+          Max limited-English exposure: 36.4% of county population. These residents cannot act on English-only emergency alerts regardless of delivery method.
         </p>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={LANGUAGE_GAP_DATA} layout="vertical" margin={{ left: 20 }}>
@@ -218,9 +235,13 @@ export default function EquityMetricsPage() {
           <h2 className="text-white font-semibold text-sm">No-Internet Coverage Gap</h2>
           <span className="ml-auto text-ash-500 text-xs">Source: CDC SVI EP_NOINT</span>
         </div>
-        <p className="text-ash-500 text-xs mb-5">
+        <p className="text-ash-500 text-xs mb-2">
           Counties where digital alert systems cannot reach residents -- only broadcast radio and in-person outreach work here.
         </p>
+        <div className="p-3 rounded-lg bg-signal-danger/10 border border-signal-danger/20 mb-5">
+          <p className="text-signal-danger text-xs font-medium">Signal gap by internet access: counties in the top 25% for no-internet have a 93.2% signal gap rate — nearly double the 49.1% rate in well-connected counties. Digital-only alert systems structurally fail these communities.</p>
+          <p className="text-ash-500 text-xs mt-1">Median pct_no_internet: 12.3% · P90: 23.0%</p>
+        </div>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={NO_INTERNET_DATA} layout="vertical" margin={{ left: 20 }}>
             <XAxis type="number" tick={{ fill: '#737068', fontSize: 11 }} unit="%" />

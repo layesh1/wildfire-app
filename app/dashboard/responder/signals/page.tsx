@@ -47,14 +47,14 @@ export default function SignalGapsPage() {
           <AlertTriangle className="w-4 h-4" /> SIGNAL GAP ANALYSIS
         </div>
         <h1 className="font-display text-3xl font-bold text-white mb-2">Evacuation Order Signal Gaps</h1>
-        <p className="text-ash-400 text-sm">Time between fire ignition and formal evacuation order, by state. Gaps above 12h indicate under-served populations.</p>
+        <p className="text-ash-400 text-sm">Signal lead time from first external detection to formal evacuation order, by state — for fires that received orders. <strong className="text-signal-danger">99.3%</strong> of true wildfires never receive a formal order at all.</p>
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-8">
         {[
-          { value: '99.74%', label: 'Fires with no formal order', color: 'text-signal-danger' },
-          { value: '11.5h', label: 'Median delay to order', color: 'text-signal-warn' },
-          { value: '9×', label: 'Worst vs best state gap', color: 'text-ember-400' },
+          { value: '99.3%', label: 'True wildfires with no formal order (50,664 total)', color: 'text-signal-danger' },
+          { value: '1.1h', label: 'Median signal lead time when orders ARE issued (n=653)', color: 'text-signal-warn' },
+          { value: '9×', label: 'Worst vs best state order-rate disparity', color: 'text-ember-400' },
         ].map(s => (
           <div key={s.label} className="card p-5">
             <div className={`font-display text-3xl font-bold ${s.color}`}>{s.value}</div>
@@ -73,7 +73,7 @@ export default function SignalGapsPage() {
           <thead>
             <tr className="border-b border-ash-800 text-left">
               <th className="px-6 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">State</th>
-              <th className="px-6 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">Avg Gap (hrs)</th>
+              <th className="px-6 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider" title="Median hours from first external signal to first evacuation order — only for fires that received orders">Signal Lead Time†</th>
               <th className="px-6 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">Fires</th>
               <th className="px-6 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">Gap Distribution</th>
             </tr>
@@ -103,6 +103,15 @@ export default function SignalGapsPage() {
             })}
           </tbody>
         </table>
+        <div className="px-6 py-3 border-t border-ash-800 text-ash-600 text-xs">
+          † Signal Lead Time applies only to fires that received a formal evacuation order (653 of 50,664 true wildfires = 1.3%). When orders DO occur, timing is ~1.1h across all SVI tiers — SVI predicts WHETHER orders are issued, not how long they take.
+        </div>
+      </div>
+
+      <div className="mt-4 card p-4 border-l-4 border-signal-danger">
+        <p className="text-ash-400 text-sm leading-relaxed">
+          <strong className="text-signal-danger">Equity finding:</strong> High-SVI counties (SVI &gt; 0.70) have significantly lower evacuation order rates than low-SVI counties. The gap is in whether orders happen at all — not in how long they take when they do. Prioritize proactive outreach and multi-channel alerting for high-SVI jurisdictions.
+        </p>
       </div>
     </div>
   )
