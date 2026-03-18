@@ -497,7 +497,7 @@ export default function Home() {
       </section>
 
       {/* Green spacer */}
-      <div style={{ height: '62px', background: '#14532d' }} />
+      <div style={{ height: '31px', background: '#14532d' }} />
 
       {/* ── House & tree icon divider (same as above Who It's For) ── */}
       {(() => {
@@ -530,82 +530,24 @@ export default function Home() {
           <div className="grid sm:grid-cols-3 gap-6">
             {[
               {
-                icon: (
-                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-                ),
                 title: 'Alerts Before Orders',
                 desc: 'Get notified the moment satellite data detects a fire — before official evacuations are even called.',
               },
               {
-                icon: (
-                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                ),
                 title: 'Safe Check-Ins',
                 desc: 'Your loved one taps once to confirm they are safe. You see it instantly, wherever you are.',
               },
               {
-                icon: (
-                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 9m0 8V9m0 0L9 7"/></svg>
-                ),
                 title: 'Accessible Routes',
                 desc: 'Evacuation guidance adapted for elderly or disabled family members, in plain language and 30+ languages.',
               },
             ].map(item => (
               <div key={item.title} className="relative flex flex-col items-center gap-4 p-8 rounded-2xl border border-gray-200 bg-gray-100 hover:border-green-300 hover:bg-green-50 transition-colors">
                 <GlowingEffect spread={30} glow={true} disabled={false} proximity={64} inactiveZone={0.01} borderWidth={2} variant="fire" />
-                <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center text-green-700 border border-green-200">
-                  {item.icon}
-                </div>
                 <h3 className="font-display font-bold text-gray-900 text-base">{item.title}</h3>
                 <p className="text-gray-600 text-sm leading-relaxed text-center">{item.desc}</p>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── ABOUT ── */}
-      <section id="about" className="py-28 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid lg:grid-cols-[1fr_2fr] gap-20 items-start">
-            {/* Left label */}
-            <div className="lg:sticky lg:top-32">
-              <div className="text-green-600 text-xs font-semibold uppercase tracking-widest mb-4">About the Project</div>
-              <h2 className="font-display font-bold text-gray-900 leading-tight" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>
-                Built for equity.<br />Powered by data.
-              </h2>
-              <div className="mt-8 flex flex-wrap gap-2">
-                {['WatchDuty', 'CDC SVI', 'NASA FIRMS', 'XGBoost'].map(tag => (
-                  <span key={tag} className="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-sm">{tag}</span>
-                ))}
-              </div>
-            </div>
-            {/* Right content */}
-            <div>
-              <p className="text-gray-500 text-xl leading-relaxed mb-8 font-light">
-                Minutes Matter was built for the WiDS Datathon 2025 to address a critical failure in wildfire response: evacuation alerts consistently miss the communities that need them most.
-              </p>
-              <p className="text-gray-600 leading-relaxed mb-8">
-                Using the WatchDuty dataset of 62,696 fire incidents (50,664 true wildfires) cross-referenced with the CDC Social Vulnerability Index, we found that <strong className="text-gray-900">99.3% of true wildfires with external detection signals never received a formal evacuation order</strong>. When orders are issued, the median response window is just 1.1 hours — yet most fires get nothing.
-              </p>
-              <p className="text-gray-600 leading-relaxed mb-12">
-                For elderly residents, people with disabilities, and non-English speakers, these delays can be fatal. Minutes Matter closes that gap with real-time signal analysis, ML-powered predictions, and accessible alerts.
-              </p>
-              {/* Data grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {[
-                  { value: '50,664', label: 'True wildfire incidents', color: '#16a34a' },
-                  { value: '653', label: 'With formal orders', color: '#dc2626' },
-                  { value: '33,423', label: 'Fires with signals', color: '#d97706' },
-                  { value: '4.1h', label: 'Signal lead time', color: '#2563eb' },
-                ].map(s => (
-                  <div key={s.label} className="border border-gray-100 rounded-2xl p-5 text-center">
-                    <div className="font-display text-2xl font-bold mb-1" style={{ color: s.color }}>{s.value}</div>
-                    <div className="text-gray-400 text-xs">{s.label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -628,20 +570,21 @@ export default function Home() {
       })()}
 
       {/* Green spacer */}
-      <div style={{ height: '62px', background: '#14532d' }} />
+      <div style={{ height: '31px', background: '#14532d' }} />
 
       {/* ── MISSION ── */}
-      <section id="mission" className="relative py-24 overflow-hidden">
+      <section id="mission" className="relative py-12 overflow-hidden">
         {/* Nature background */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="https://images.unsplash.com/photo-1448375240586-882707db888b?w=1600&auto=format&fit=crop&q=80"
+          src="/hero-forest.jpg"
           alt=""
           aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
+          style={{ transform: 'scaleX(-1)', filter: 'brightness(0.7)' }}
         />
-        {/* Dark green overlay to keep original color theme */}
-        <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(5,20,10,0.92) 0%, rgba(10,31,18,0.85) 60%, rgba(5,20,10,0.92) 100%)' }} />
+        {/* Dark green overlay */}
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(5,20,10,0.72)' }} />
 
         <div className="relative max-w-7xl mx-auto px-6">
           {/* Header */}
@@ -658,7 +601,7 @@ export default function Home() {
               <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} borderWidth={2} variant="fire" />
               <div>
                 <div className="text-green-400 text-xs font-semibold uppercase tracking-widest mb-4">The Problem</div>
-                <h3 className="font-display text-2xl font-bold text-white mb-4">Alerts arrive too late —<br />or not at all.</h3>
+                <h3 className="font-display text-2xl font-bold text-white mb-4">Alerts arrive too late.<br />Or not at all.</h3>
                 <p className="text-white/70 text-sm leading-relaxed mb-4">
                   Fires can double in size in minutes. Official warnings come too late — and in rural areas, for minorities and caregivers, they often don't come at all.
                 </p>

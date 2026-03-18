@@ -1,7 +1,7 @@
 'use client'
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Flame, Eye, EyeOff, ArrowLeft } from 'lucide-react'
+import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 
 function LoginForm() {
@@ -65,19 +65,17 @@ const handleSubmit = async () => {
   return (
     <div className="min-h-screen flex">
       {/* Left panel — branding */}
-      <div className="hidden lg:flex flex-col justify-between w-[45%] p-12" style={{ background: 'linear-gradient(160deg, #052e16 0%, #14532d 50%, #166534 100%)' }}>
-        <button onClick={() => router.push('/')} className="flex items-center gap-2 text-green-200/70 hover:text-white transition-colors text-sm w-fit">
+      <div className="hidden lg:flex flex-col justify-between w-[45%] p-12 relative overflow-hidden">
+        {/* Hero background */}
+        <img src="/hero-forest.jpg" alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none" style={{ transform: 'scaleX(-1)', filter: 'brightness(0.55)' }} />
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(5,20,10,0.65)' }} />
+        <button onClick={() => router.push('/')} className="relative flex items-center gap-2 text-green-200/70 hover:text-white transition-colors text-sm w-fit">
           <ArrowLeft className="w-4 h-4" /> Back to home
         </button>
-        <div>
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center">
-              <Flame className="w-6 h-6 text-green-300" />
-            </div>
-            <div>
-              <div className="font-display font-bold text-white text-xl leading-none">Minutes Matter</div>
-              <div className="text-green-300/70 text-xs">Wildfire evacuation intelligence</div>
-            </div>
+        <div className="relative">
+          <div className="mb-8">
+            <div className="font-display font-bold text-white text-xl leading-none">Minutes Matter</div>
+            <div className="text-green-300/70 text-xs">Wildfire evacuation intelligence</div>
           </div>
 
           {mode === 'login' ? (
@@ -127,7 +125,7 @@ const handleSubmit = async () => {
             </>
           )}
         </div>
-        <div className="text-green-200/40 text-xs">
+        <div className="relative text-green-200/40 text-xs">
           WiDS Datathon 2026 · 60,000+ incidents analyzed
         </div>
       </div>
@@ -141,20 +139,15 @@ const handleSubmit = async () => {
         </div>
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="w-full max-w-md">
-            <div className="lg:hidden flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 rounded-xl bg-forest-50 border border-forest-200 flex items-center justify-center">
-                <Flame className="w-5 h-5 text-forest-600" />
-              </div>
-              <div>
-                <div className="font-display font-bold text-gray-900 text-xl leading-none">Minutes Matter</div>
-                <div className="text-gray-400 text-xs">Equity-driven evacuation intelligence</div>
-              </div>
+            <div className="lg:hidden mb-8">
+              <div className="font-display font-bold text-gray-900 text-xl leading-none">Minutes Matter</div>
+              <div className="text-gray-400 text-xs">Equity-driven evacuation intelligence</div>
             </div>
 
-            <h2 className="font-display text-2xl font-bold text-gray-900 mb-1">
+            <h2 className="font-display text-2xl font-bold text-gray-900 mb-1 text-center">
               {mode === 'login' ? 'Welcome back' : 'Create your account'}
             </h2>
-            <p className="text-gray-500 text-sm mb-6">
+            <p className="text-gray-500 text-sm mb-6 text-center">
               {mode === 'login'
                 ? 'Sign in to your dashboard. Switch roles or request access after logging in.'
                 : 'Free to use. No credit card required.'}
