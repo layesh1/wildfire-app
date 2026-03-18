@@ -84,7 +84,9 @@ export default function Sidebar({ user, profile }: Props) {
   const supabase = createClient()
   const { lang, setLanguage } = useLanguage()
 
-  const [claimedRoles, setClaimedRoles] = useState<string[]>([])
+  const [claimedRoles, setClaimedRoles] = useState<string[]>(
+    profile?.role ? [profile.role] : ['caregiver']
+  )
 
   // Close language dropdown on click-outside
   useEffect(() => {
@@ -180,37 +182,28 @@ export default function Sidebar({ user, profile }: Props) {
             { r: 'caregiver', label: 'Caregiver', dest: '/dashboard/caregiver', Icon: Heart },
             { r: 'emergency_responder', label: 'Responder', dest: '/dashboard/responder', Icon: Shield },
             { r: 'data_analyst', label: 'Data Analyst', dest: '/dashboard/analyst', Icon: BarChart3 },
-          ].map(({ r, label, dest, Icon }) => {
+          ].filter(({ r }) => claimedRoles.includes(r)).map(({ r, label, dest, Icon }) => {
             const isActive = r === role
-            const isClaimed = claimedRoles.includes(r)
             return (
               <button
                 key={r}
                 onClick={() => {
-                  if (isClaimed) {
-                    if (r === 'caregiver' || r === 'emergency_responder') {
-                      if (typeof navigator !== 'undefined' && navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition(() => {}, () => {})
-                      }
+                  if (r === 'caregiver' || r === 'emergency_responder') {
+                    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+                      navigator.geolocation.getCurrentPosition(() => {}, () => {})
                     }
-                    router.push(dest)
-                  } else {
-                    router.push(`/auth/add-role?role=${r}`)
                   }
+                  router.push(dest)
                 }}
                 className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors mb-0.5 ${
                   isActive
                     ? 'bg-forest-50 text-forest-700 border border-forest-200'
-                    : isClaimed
-                      ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                 }`}
-                title={!isClaimed ? `Add ${label} access` : undefined}
               >
                 <Icon className="w-3.5 h-3.5 shrink-0" />
                 <span className="flex-1 text-left">{label}</span>
                 {isActive && <span className="w-1.5 h-1.5 rounded-full bg-forest-600" />}
-                {!isClaimed && <span className="text-gray-400 text-xs">+</span>}
               </button>
             )
           })}
