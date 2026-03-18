@@ -34,19 +34,19 @@ const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> 
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
   caregiver: [
+    { label: 'My Hub', href: '/dashboard/caregiver', icon: Bell },
+    { label: 'Ask Flameo', href: '/dashboard/caregiver/ai', icon: Activity },
     { label: 'My Persons', href: '/dashboard/caregiver/persons', icon: Users },
     { label: 'Early Fire Alert', href: '/dashboard/caregiver/alert', icon: AlertTriangle },
     { label: 'Check-In', href: '/dashboard/caregiver/checkin', icon: Users },
     { label: 'Emergency Card', href: '/dashboard/caregiver/emergency-card', icon: FileText },
-    { label: 'My Alerts', href: '/dashboard/caregiver', icon: Bell },
     { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: Map },
-    { label: 'Ask Flameo', href: '/dashboard/caregiver/ai', icon: Activity },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
   evacuee: [
-    { label: 'My Alerts', href: '/dashboard/caregiver', icon: Bell },
-    { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: Map },
+    { label: 'My Hub', href: '/dashboard/caregiver', icon: Bell },
     { label: 'Ask Flameo', href: '/dashboard/caregiver/ai', icon: Activity },
+    { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: Map },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
   data_analyst: [
@@ -206,8 +206,68 @@ function SidebarInner({ user, profile }: Props) {
         })}
       </nav>
 
+      {/* Language switcher */}
+      <div ref={langRef} className="relative border-t border-gray-100 pt-1 pb-1">
+        <button
+          onClick={() => setLangOpen(v => !v)}
+          title={collapsed ? `Language: ${lang.name}` : undefined}
+          className={cn(
+            'flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors px-2 py-2 rounded-lg hover:bg-gray-100 w-full',
+            collapsed ? 'justify-center' : ''
+          )}
+        >
+          <Globe className="w-4 h-4 shrink-0" />
+          <AnimatePresence>
+            {open && (
+              <motion.span
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.12 }}
+                className="text-sm flex-1 text-left overflow-hidden whitespace-nowrap"
+              >
+                {lang.flag} <span className="uppercase text-xs font-medium">{lang.code.split('-')[0]}</span>
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </button>
+
+        {langOpen && (
+          <div
+            className={cn(
+              'absolute bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden z-50',
+              'bottom-full mb-1 left-0',
+            )}
+            style={{ width: open ? undefined : '240px', right: open ? 0 : undefined }}
+          >
+            <div className="px-3 py-2 border-b border-gray-100">
+              <p className="text-gray-400 text-xs font-medium uppercase tracking-wide">Language</p>
+            </div>
+            <div className="overflow-y-auto p-2" style={{ maxHeight: '240px' }}>
+              <div className="grid grid-cols-2 gap-1">
+                {LANGUAGES.map(l => (
+                  <button
+                    key={l.code}
+                    onClick={() => { setLanguage(l.code); setLangOpen(false) }}
+                    className={cn(
+                      'text-xs px-2 py-1.5 rounded-lg text-left flex items-center gap-1.5 transition-colors',
+                      l.code === lang.code
+                        ? 'border border-forest-300 bg-forest-50 text-forest-700'
+                        : 'border border-transparent hover:bg-gray-50 text-gray-600 hover:text-gray-900'
+                    )}
+                  >
+                    <span className="text-sm leading-none">{l.flag}</span>
+                    <span className="truncate">{l.native}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* User + signout */}
-      <div className={cn('pt-3 border-t border-gray-100', collapsed ? 'flex flex-col items-center gap-1' : '')}>
+      <div className={cn('pb-3 border-t border-gray-100', collapsed ? 'flex flex-col items-center gap-1' : '')}>
         <AnimatePresence>
           {open && (
             <motion.div
@@ -224,66 +284,6 @@ function SidebarInner({ user, profile }: Props) {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Language switcher */}
-        <div ref={langRef} className="relative">
-          <button
-            onClick={() => setLangOpen(v => !v)}
-            title={collapsed ? `Language: ${lang.name}` : undefined}
-            className={cn(
-              'flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors px-2 py-2 rounded-lg hover:bg-gray-100 w-full',
-              collapsed ? 'justify-center' : ''
-            )}
-          >
-            <Globe className="w-4 h-4 shrink-0" />
-            <AnimatePresence>
-              {open && (
-                <motion.span
-                  initial={{ opacity: 0, width: 0 }}
-                  animate={{ opacity: 1, width: 'auto' }}
-                  exit={{ opacity: 0, width: 0 }}
-                  transition={{ duration: 0.12 }}
-                  className="text-sm flex-1 text-left overflow-hidden whitespace-nowrap"
-                >
-                  {lang.flag} <span className="uppercase text-xs font-medium">{lang.code.split('-')[0]}</span>
-                </motion.span>
-              )}
-            </AnimatePresence>
-          </button>
-
-          {langOpen && (
-            <div
-              className={cn(
-                'absolute bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden z-50',
-                collapsed ? 'left-full ml-2 bottom-0' : 'bottom-full mb-1 left-0 right-0'
-              )}
-              style={{ width: collapsed ? '240px' : undefined }}
-            >
-              <div className="px-3 py-2 border-b border-gray-100">
-                <p className="text-gray-400 text-xs font-medium uppercase tracking-wide">Language</p>
-              </div>
-              <div className="overflow-y-auto p-2" style={{ maxHeight: '240px' }}>
-                <div className="grid grid-cols-2 gap-1">
-                  {LANGUAGES.map(l => (
-                    <button
-                      key={l.code}
-                      onClick={() => { setLanguage(l.code); setLangOpen(false) }}
-                      className={cn(
-                        'text-xs px-2 py-1.5 rounded-lg text-left flex items-center gap-1.5 transition-colors',
-                        l.code === lang.code
-                          ? 'border border-forest-300 bg-forest-50 text-forest-700'
-                          : 'border border-transparent hover:bg-gray-50 text-gray-600 hover:text-gray-900'
-                      )}
-                    >
-                      <span className="text-sm leading-none">{l.flag}</span>
-                      <span className="truncate">{l.native}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
 
         <button
           onClick={handleSignOut}
