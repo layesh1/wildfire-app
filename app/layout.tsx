@@ -46,8 +46,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: `function googleTranslateElementInit(){var d=document.createElement('div');d.id='google_translate_element';d.style.cssText='position:absolute;top:-9999px;left:-9999px;width:1px;height:1px;overflow:hidden';document.body.appendChild(d);new google.translate.TranslateElement({pageLanguage:'en',layout:google.translate.TranslateElement.InlineLayout.SIMPLE,autoDisplay:false},'google_translate_element');}` }} />
         {/* eslint-disable-next-line @next/next/no-sync-scripts */}
         <script async src="https://translate.googleapis.com/translate_a/element.js?cb=googleTranslateElementInit" />
-        {/* Always light theme — remove any persisted dark class */}
-        <script dangerouslySetInnerHTML={{ __html: `document.documentElement.classList.remove('dark');` }} />
+        {/* Apply saved theme before first paint to avoid flash */}
+        <script dangerouslySetInnerHTML={{ __html: `try{if(localStorage.getItem('wfa_theme')==='dark')document.documentElement.classList.add('dark');else document.documentElement.classList.remove('dark');}catch(e){}` }} />
       </head>
       <body className="bg-gray-50 text-gray-900 font-body antialiased" suppressHydrationWarning>
         <ScrollToTop />
