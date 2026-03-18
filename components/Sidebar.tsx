@@ -274,7 +274,7 @@ export default function Sidebar({ user, profile }: Props) {
             {(evacueeOpen || collapsed) && [
               { label: 'My Alerts', href: '/dashboard/caregiver', icon: Bell },
               { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: Map },
-              { label: 'Ask SAFE-PATH AI', href: '/dashboard/caregiver/ai', icon: Activity },
+              { label: 'Ask Flameo', href: '/dashboard/caregiver/ai', icon: Activity },
             ].map(({ label, href, icon: Icon }) => {
               const active = pathname === href
               return (
