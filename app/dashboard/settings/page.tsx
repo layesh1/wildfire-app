@@ -213,7 +213,7 @@ function SettingsInner() {
   function applyTheme(t: Theme) {
     setThemeState(t)
     localStorage.setItem('wfa_theme', t)
-    window.dispatchEvent(new Event('wfa-theme-change'))
+    window.dispatchEvent(new CustomEvent('wfa-theme-change', { detail: t }))
   }
 
   async function switchActive(role: string) {
