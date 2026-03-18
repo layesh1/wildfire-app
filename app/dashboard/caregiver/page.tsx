@@ -1,34 +1,9 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
-import { Bell, MapPin, Users, AlertTriangle, CheckCircle, Phone, ChevronRight, Eye, EyeOff, Clock, Shield, Flame, Package, Brain, Send, Loader, User, Sparkles } from 'lucide-react'
+import { Bell, MapPin, Users, AlertTriangle, CheckCircle, Phone, ChevronRight, Eye, EyeOff, Clock, Shield, Flame, Package, Brain, Send, Loader, User } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
-import { PlaceholdersAndVanishInput } from '@/components/ui/placeholders-and-vanish-input'
-import { motion, AnimatePresence } from 'framer-motion'
-
-// ─── Types ───────────────────────────────────────────────────────────────────
-interface Message {
-  role: 'user' | 'assistant'
-  content: string
-}
-
-// ─── Constants ───────────────────────────────────────────────────────────────
-const FLAMEO_PLACEHOLDERS = [
-  'What should I pack in my go-bag?',
-  'How early should I evacuate before an order?',
-  'What signals should I watch for before an alert?',
-  'Where can I find accessible evacuation shelters?',
-  'How do I create an emergency plan for my family?',
-  'What do I do if I have mobility needs during evacuation?',
-]
-
-const STARTER_PROMPTS = [
-  'What should I do if I need to evacuate with mobility needs?',
-  'How do I build an emergency kit for my family?',
-  'What signals should I watch for before an official order?',
-  'Where can I find accessible evacuation shelters near me?',
-]
 
 const QUICK_ACTIONS = [
   { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: MapPin, color: 'text-forest-600' },
@@ -58,180 +33,24 @@ const GO_BAG_ITEMS = [
   { id: 'map', label: 'Paper map of your area (offline backup)', critical: false },
 ]
 
-// ─── Flameo Tab ───────────────────────────────────────────────────────────────
-function FlameoTab() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: "Hello, I'm Flameo — your wildfire evacuation guide. I monitor all signal channels so you don't have to wait for an official order that may never come.\n\nAsk me anything about wildfire safety, evacuation steps, go-bag packing, or finding shelter.",
-    },
-  ])
-  const [pendingInput, setPendingInput] = useState('')
-  const [loading, setLoading] = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const hasMessages = messages.length > 1
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
-
-  async function sendMessage(text: string) {
-    const userText = text.trim()
-    if (!userText || loading) return
-
-    const next: Message[] = [...messages, { role: 'user', content: userText }]
-    setMessages(next)
-    setPendingInput('')
-    setLoading(true)
-
-    try {
-      const res = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          persona: 'FLAMEO',
-          messages: next.map(m => ({ role: m.role, content: m.content })),
-        }),
-      })
-      const data = await res.json()
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: data.content || 'Sorry, I encountered an error. Please try again.',
-      }])
-    } catch {
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: 'Connection error. Please check your connection and try again.',
-      }])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  function handleVanishSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    if (pendingInput.trim()) sendMessage(pendingInput)
-  }
-
+// ─── Evac Stage Row (hover to expand detail) ──────────────────────────────────
+function EvacStageRow({ stage, action, detail, color, border, bg, hoverBg }: {
+  stage: string; action: string; detail: string
+  color: string; border: string; bg: string; hoverBg: string
+}) {
+  const [hovered, setHovered] = useState(false)
   return (
-    <div className="flex flex-col h-full">
-      {/* Empty state hero */}
-      <AnimatePresence>
-        {!hasMessages && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            transition={{ duration: 0.4 }}
-            className="flex flex-col items-center justify-center flex-1 px-6 pb-8 text-center"
-          >
-            {/* Flameo icon ring */}
-            <div className="relative mb-6">
-              <div className="w-20 h-20 rounded-full bg-forest-50 border-2 border-forest-200 flex items-center justify-center shadow-lg overflow-hidden">
-                <img src="/flameo1.png" alt="Flameo" className="w-14 h-14 object-contain" />
-              </div>
-              <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center">
-                <Sparkles className="w-3 h-3 text-white" />
-              </div>
-            </div>
-
-            <h2 className="font-display text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
-              Ask Flameo
-            </h2>
-            <p className="text-gray-500 text-base max-w-md leading-relaxed mb-2">
-              AI-powered evacuation guidance. Monitors all signal channels — not just official orders.
-            </p>
-            <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-4 py-1.5 mb-10">
-              Supplements — does not replace — official emergency directives. Always follow local authorities.
-            </p>
-
-            {/* Starter prompts */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-xl mb-10">
-              {STARTER_PROMPTS.map(prompt => (
-                <button
-                  key={prompt}
-                  onClick={() => sendMessage(prompt)}
-                  className="text-left text-xs p-3.5 rounded-xl bg-gray-50 border border-gray-200 text-gray-600 hover:border-forest-300 hover:bg-forest-50 hover:text-forest-700 transition-all"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
-
-            {/* Animated input */}
-            <div className="w-full max-w-2xl">
-              <PlaceholdersAndVanishInput
-                placeholders={FLAMEO_PLACEHOLDERS}
-                onChange={e => setPendingInput(e.target.value)}
-                onSubmit={handleVanishSubmit}
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Chat messages */}
-      {hasMessages && (
-        <>
-          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4 min-h-0">
-            {messages.map((msg, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.25 }}
-                className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                {msg.role === 'assistant' && (
-                  <div className="w-7 h-7 rounded-full bg-forest-50 border border-forest-200 flex items-center justify-center shrink-0 mt-0.5 overflow-hidden">
-                    <img src="/flameo1.png" alt="Flameo" className="w-5 h-5 object-contain" />
-                  </div>
-                )}
-                <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
-                    msg.role === 'user'
-                      ? 'bg-forest-600 text-white rounded-tr-none'
-                      : 'bg-white border border-gray-200 text-gray-700 rounded-tl-none shadow-sm'
-                  }`}
-                >
-                  {msg.content}
-                </div>
-                {msg.role === 'user' && (
-                  <div className="w-7 h-7 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0 mt-0.5">
-                    <User className="w-3.5 h-3.5 text-gray-500" />
-                  </div>
-                )}
-              </motion.div>
-            ))}
-            {loading && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex gap-3 justify-start"
-              >
-                <div className="w-7 h-7 rounded-full bg-forest-50 border border-forest-200 flex items-center justify-center shrink-0 overflow-hidden">
-                  <img src="/flameo1.png" alt="Flameo" className="w-5 h-5 object-contain" />
-                </div>
-                <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">
-                  <Loader className="w-4 h-4 text-gray-400 animate-spin" />
-                </div>
-              </motion.div>
-            )}
-            <div ref={bottomRef} />
-          </div>
-
-          {/* Input bar (after conversation starts) */}
-          <div className="shrink-0 px-4 sm:px-6 pb-6 pt-2">
-            <PlaceholdersAndVanishInput
-              placeholders={FLAMEO_PLACEHOLDERS}
-              onChange={e => setPendingInput(e.target.value)}
-              onSubmit={handleVanishSubmit}
-            />
-            <p className="mt-2 text-center text-gray-400 text-xs">
-              Flameo supplements — does not replace — official emergency directives. Call 911 in emergencies.
-            </p>
-          </div>
-        </>
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className={`px-3 py-2.5 rounded-lg border cursor-default transition-colors ${border} ${bg} ${hoverBg}`}
+    >
+      <div className="flex items-start gap-3">
+        <span className={`text-xs font-bold w-28 shrink-0 mt-0.5 ${color}`}>{stage}</span>
+        <span className="text-gray-600 text-xs leading-relaxed">{action}</span>
+      </div>
+      {hovered && (
+        <p className={`mt-2 text-xs leading-relaxed pl-[7.25rem] ${color} opacity-80`}>{detail}</p>
       )}
     </div>
   )
@@ -313,30 +132,6 @@ function HubTab() {
         <div>
           <div className="text-gray-900 font-semibold">No active evacuation orders in your area</div>
           <div className="text-gray-500 text-sm">Last checked: just now · Alerts update automatically</div>
-        </div>
-      </div>
-
-      {/* Silent fire awareness */}
-      <div className="card p-5 mb-6 border-l-4 border-signal-warn">
-        <div className="flex items-start gap-3">
-          <EyeOff className="w-5 h-5 text-signal-warn mt-0.5 shrink-0" />
-          <div className="flex-1">
-            <div className="text-gray-900 font-semibold text-sm mb-1">
-              67.2% of true wildfires start with NO push alert
-            </div>
-            <p className="text-gray-500 text-xs leading-relaxed">
-              Analysis of 50,664 true wildfire incidents (2021–2025) shows most fires are &quot;silent&quot; — no push notification reaches nearby residents.
-              {stateDelay != null ? (
-                <span className="text-signal-warn font-medium"> In {userState}, the median time between fire detection and an evacuation order is <strong>{stateDelay}h</strong>.</span>
-              ) : (
-                <span> Even when signals exist, 99.3% of true wildfires result in no formal evacuation order.</span>
-              )}
-              {' '}Don&apos;t wait for an alert — check this app during fire weather.
-            </p>
-            <Link href="/dashboard/caregiver/alert" className="mt-2 inline-flex items-center gap-1 text-signal-info text-xs hover:underline">
-              <Eye className="w-3 h-3" /> Check fire proximity for my address →
-            </Link>
-          </div>
         </div>
       </div>
 
@@ -434,40 +229,59 @@ function HubTab() {
         </div>
       </div>
 
-      {/* When to Leave */}
-      <div className="card p-5 mb-8">
-        <div className="flex items-center gap-2 mb-4">
-          <Clock className="w-4 h-4 text-gray-400" />
-          <h2 className="text-gray-900 font-semibold text-sm">When to Leave — Don&apos;t Wait for an Order</h2>
-        </div>
-        <div className="space-y-2">
-          {[
-            { stage: 'Watch (now)', action: 'Pack go-bag, fill gas, locate pets, know your route', color: 'text-signal-safe', border: 'border-signal-safe/30', bg: 'bg-signal-safe/5' },
-            { stage: 'Advisory issued', action: 'Load car, move valuables, prepare to leave immediately', color: 'text-signal-warn', border: 'border-signal-warn/30', bg: 'bg-signal-warn/5' },
-            { stage: 'Warning issued', action: 'Leave NOW — do not wait for Order. In high-SVI counties, a formal order may never be issued.', color: 'text-amber-500', border: 'border-amber-400/30', bg: 'bg-amber-400/5' },
-            { stage: 'Order issued', action: 'Mandatory evacuation — go immediately. Shelter info on map.', color: 'text-signal-danger', border: 'border-signal-danger/30', bg: 'bg-signal-danger/5' },
-          ].map(row => (
-            <div key={row.stage} className={`flex items-start gap-3 px-3 py-2.5 rounded-lg border ${row.border} ${row.bg}`}>
-              <span className={`text-xs font-bold w-28 shrink-0 mt-0.5 ${row.color}`}>{row.stage}</span>
-              <span className="text-gray-600 text-xs leading-relaxed">{row.action}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Evacuation Assist */}
-      <div className={`rounded-xl border p-5 mb-8 ${showHelpForm ? 'border-signal-danger/40 bg-signal-danger/5' : 'border-gray-200 bg-gray-50'}`}>
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-signal-danger" />
-            <span className="text-gray-900 font-semibold text-sm">Need evacuation assistance?</span>
+      {/* When to Leave + Evacuation Assist — split screen */}
+      <div className="grid md:grid-cols-2 gap-4 mb-8">
+        {/* Left: When to Leave */}
+        <div className="card p-5 flex flex-col">
+          <div className="flex items-center gap-2 mb-4">
+            <Clock className="w-4 h-4 text-gray-400" />
+            <h2 className="text-gray-900 font-semibold text-sm">When to Leave — Don&apos;t Wait for an Order</h2>
           </div>
-          <button onClick={() => setShowHelpForm(v => !v)}
-            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${showHelpForm ? 'bg-gray-100 text-gray-500 border border-gray-200' : 'bg-signal-danger/20 border border-signal-danger/40 text-signal-danger hover:bg-signal-danger/30'}`}>
-            {showHelpForm ? 'Cancel' : 'Request Help'}
-          </button>
+          <div className="space-y-2 flex-1">
+            {[
+              {
+                stage: 'Watch (now)',
+                action: 'Pack go-bag, fill gas, locate pets, know your route',
+                detail: 'Don\'t wait for a push notification — 67% of wildfires issue no alert. Confirm your evacuation route now while roads are clear.',
+                color: 'text-signal-safe', border: 'border-signal-safe/30', bg: 'bg-signal-safe/5', hoverBg: 'hover:bg-signal-safe/10',
+              },
+              {
+                stage: 'Advisory issued',
+                action: 'Load car, move valuables, prepare to leave immediately',
+                detail: 'An advisory means conditions are threatening. Move medications, documents, and irreplaceable items to your car now. Be ready to leave in minutes.',
+                color: 'text-signal-warn', border: 'border-signal-warn/30', bg: 'bg-signal-warn/5', hoverBg: 'hover:bg-signal-warn/10',
+              },
+              {
+                stage: 'Warning issued',
+                action: 'Leave NOW — do not wait for Order. In high-SVI counties, a formal order may never be issued.',
+                detail: 'WiDS data: 99.3% of fires with signals never received a formal order. High-SVI counties are significantly less likely to get one. A Warning is your signal to go.',
+                color: 'text-amber-500', border: 'border-amber-400/30', bg: 'bg-amber-400/5', hoverBg: 'hover:bg-amber-400/10',
+              },
+              {
+                stage: 'Order issued',
+                action: 'Mandatory evacuation — go immediately. Shelter info on map.',
+                detail: 'This is mandatory. Do not shelter in place. Leave immediately via your planned route. Check the Evacuation Map for open shelter locations.',
+                color: 'text-signal-danger', border: 'border-signal-danger/30', bg: 'bg-signal-danger/5', hoverBg: 'hover:bg-signal-danger/10',
+              },
+            ].map(row => (
+              <EvacStageRow key={row.stage} {...row} />
+            ))}
+          </div>
         </div>
-        <p className="text-gray-500 text-xs mb-3">Can&apos;t self-evacuate? Submit a request — emergency responders will be notified to assist.</p>
+
+        {/* Right: Evacuation Assist */}
+        <div className={`rounded-xl border p-5 flex flex-col ${showHelpForm ? 'border-signal-danger/40 bg-signal-danger/5' : 'border-gray-200 bg-gray-50'}`}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-signal-danger" />
+              <span className="text-gray-900 font-semibold text-sm">Need evacuation assistance?</span>
+            </div>
+            <button onClick={() => setShowHelpForm(v => !v)}
+              className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${showHelpForm ? 'bg-gray-100 text-gray-500 border border-gray-200' : 'bg-signal-danger/20 border border-signal-danger/40 text-signal-danger hover:bg-signal-danger/30'}`}>
+              {showHelpForm ? 'Cancel' : 'Request Help'}
+            </button>
+          </div>
+          <p className="text-gray-500 text-xs mb-3">Can&apos;t self-evacuate? Submit a request — emergency responders will be notified to assist.</p>
         {showHelpForm && (helpSubmitted ? (
           <div className="flex items-center gap-3 p-3 bg-signal-safe/10 border border-signal-safe/30 rounded-xl">
             <CheckCircle className="w-5 h-5 text-signal-safe shrink-0" />
@@ -524,6 +338,31 @@ function HubTab() {
             </button>
           </div>
         ))}
+        </div>
+      </div>
+
+      {/* Silent fire awareness */}
+      <div className="card p-5 mb-6 border-l-4 border-signal-warn">
+        <div className="flex items-start gap-3">
+          <EyeOff className="w-5 h-5 text-signal-warn mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <div className="text-gray-900 font-semibold text-sm mb-1">
+              67.2% of true wildfires start with NO push alert
+            </div>
+            <p className="text-gray-500 text-xs leading-relaxed">
+              Analysis of 50,664 true wildfire incidents (2021–2025) shows most fires are &quot;silent&quot; — no push notification reaches nearby residents.
+              {stateDelay != null ? (
+                <span className="text-signal-warn font-medium"> In {userState}, the median time between fire detection and an evacuation order is <strong>{stateDelay}h</strong>.</span>
+              ) : (
+                <span> Even when signals exist, 99.3% of true wildfires result in no formal evacuation order.</span>
+              )}
+              {' '}Don&apos;t wait for an alert — check this app during fire weather.
+            </p>
+            <Link href="/dashboard/caregiver/alert" className="mt-2 inline-flex items-center gap-1 text-signal-info text-xs hover:underline">
+              <Eye className="w-3 h-3" /> Check fire proximity for my address →
+            </Link>
+          </div>
+        </div>
       </div>
 
       {/* Recent fires */}
@@ -569,80 +408,23 @@ function HubTab() {
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-type Tab = 'flameo' | 'hub'
-
 export default function CaregiverDashboard() {
-  const [tab, setTab] = useState<Tab>('flameo')
-
   return (
     <>
       <LanguageSwitcher />
       <div className="flex flex-col h-screen overflow-hidden">
-
-        {/* Page header + tab bar */}
-        <div className="shrink-0 px-6 sm:px-8 pt-8 pb-0 border-b border-gray-200 bg-white">
+        {/* Page header */}
+        <div className="shrink-0 px-6 sm:px-8 pt-8 pb-5 border-b border-gray-200 bg-white">
           <div className="flex items-center gap-2 text-forest-600 text-sm font-medium mb-3">
             <Bell className="w-4 h-4" />
-            CAREGIVER DASHBOARD · FLAMEO
+            CAREGIVER DASHBOARD
           </div>
-          <h1 className="font-display text-3xl sm:text-4xl font-bold text-gray-900 mb-5">
-            Your Evacuation Hub
+          <h1 className="font-display text-3xl sm:text-4xl font-bold text-gray-900">
+            My Hub
           </h1>
-
-          {/* Tabs */}
-          <div className="flex gap-1">
-            <button
-              onClick={() => setTab('flameo')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-t-xl text-sm font-medium border-b-2 transition-all ${
-                tab === 'flameo'
-                  ? 'border-forest-600 text-forest-700 bg-forest-50'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <Flame className="w-4 h-4" />
-              Ask Flameo
-            </button>
-            <button
-              onClick={() => setTab('hub')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-t-xl text-sm font-medium border-b-2 transition-all ${
-                tab === 'hub'
-                  ? 'border-forest-600 text-forest-700 bg-forest-50'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <Shield className="w-4 h-4" />
-              My Hub
-            </button>
-          </div>
         </div>
-
-        {/* Tab content */}
         <div className="flex-1 overflow-hidden flex flex-col">
-          <AnimatePresence mode="wait">
-            {tab === 'flameo' ? (
-              <motion.div
-                key="flameo"
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -8 }}
-                transition={{ duration: 0.2 }}
-                className="flex-1 overflow-hidden flex flex-col"
-              >
-                <FlameoTab />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="hub"
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 8 }}
-                transition={{ duration: 0.2 }}
-                className="flex-1 overflow-hidden flex flex-col"
-              >
-                <HubTab />
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <HubTab />
         </div>
       </div>
     </>
