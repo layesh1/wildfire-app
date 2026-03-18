@@ -308,7 +308,22 @@ export default function AgencyCoveragePage() {
             <div className="flex items-center gap-2 mb-3">
               <WifiOff className="w-4 h-4 text-signal-danger" />
               <h3 className="text-white font-semibold text-sm">No-Internet Coverage Gaps</h3>
-              <span className="ml-auto text-ash-500 text-xs">Source: CDC SVI EP_NOINT</span>
+              <span className="ml-auto text-ash-500 text-xs">Source: CDC SVI EP_NOINT · WiDS 2021–2025</span>
+            </div>
+            {/* WiDS key finding */}
+            <div className="flex gap-4 mb-4 p-3 rounded-xl bg-signal-danger/5 border border-signal-danger/20">
+              <div className="text-center shrink-0">
+                <div className="text-signal-danger font-bold text-2xl font-mono">93.2%</div>
+                <div className="text-ash-500 text-xs mt-0.5">signal gap<br/>low-internet counties</div>
+              </div>
+              <div className="flex items-center text-ash-600 font-bold text-lg shrink-0">vs</div>
+              <div className="text-center shrink-0">
+                <div className="text-signal-safe font-bold text-2xl font-mono">49.1%</div>
+                <div className="text-ash-500 text-xs mt-0.5">signal gap<br/>connected counties</div>
+              </div>
+              <div className="text-ash-400 text-xs leading-relaxed ml-2 self-center">
+                WiDS dataset: 99.7% of fires in low-internet counties with signals received <strong className="text-white">no formal evacuation order</strong>. Physical outreach and broadcast radio are the only reliable channels in these zones.
+              </div>
             </div>
             <p className="text-ash-400 text-sm mb-4">
               Counties where digital alert systems cannot reach residents — only broadcast radio and in-person outreach work here.

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, Suspense } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Shield, Heart, BarChart3, Lock, Check, ShieldCheck, Globe,
@@ -191,7 +191,15 @@ function SettingsInner() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaveError('Not signed in'); setSaving(false); return }
     const { error } = await supabase.from('profiles').upsert({ id: user.id, ...profile })
-    if (error) setSaveError(error.message); else setSaved(true)
+    if (error) {
+      if (error.message.includes('column') || error.message.includes('schema cache') || error.message.includes('address') || error.message.includes('phone')) {
+        setSaveError('Database needs updating. Run the migration in supabase/migrations/20260316_ensure_profile_columns.sql in your Supabase SQL editor, then try again.')
+      } else {
+        setSaveError(error.message)
+      }
+    } else {
+      setSaved(true)
+    }
     setSaving(false)
   }
 
@@ -205,19 +213,7 @@ function SettingsInner() {
   function applyTheme(t: Theme) {
     setThemeState(t)
     localStorage.setItem('wfa_theme', t)
-    const html = document.documentElement
-    if (t === 'dark') {
-      html.classList.add('dark')
-    } else if (t === 'light') {
-      html.classList.remove('dark')
-    } else {
-      // system
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        html.classList.add('dark')
-      } else {
-        html.classList.remove('dark')
-      }
-    }
+    window.dispatchEvent(new Event('wfa-theme-change'))
   }
 
   async function switchActive(role: string) {
@@ -408,7 +404,7 @@ function SettingsInner() {
 
           <div className="flex items-center gap-4 pb-8">
             <button onClick={save} disabled={saving}
-              className="flex items-center gap-2 px-6 py-3 bg-ember-500 hover:bg-ember-400 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors text-sm">
+              className="flex items-center gap-2 px-6 py-3 bg-forest-700 hover:bg-forest-600 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors text-sm">
               <Save className="w-4 h-4" />{saving ? 'Saving…' : 'Save profile'}
             </button>
             {saved && <div className="flex items-center gap-2 text-signal-safe text-sm"><CheckCircle className="w-4 h-4" /> Saved</div>}
@@ -517,7 +513,7 @@ function SettingsInner() {
 
           <div className="flex items-center gap-4 pb-8">
             <button onClick={async () => { await save(); saveAnalystPrefs() }} disabled={saving}
-              className="flex items-center gap-2 px-6 py-3 bg-ember-500 hover:bg-ember-400 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors text-sm">
+              className="flex items-center gap-2 px-6 py-3 bg-forest-700 hover:bg-forest-600 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors text-sm">
               <Save className="w-4 h-4" />{saving ? 'Saving…' : 'Save analyst profile'}
             </button>
             {saved && <div className="flex items-center gap-2 text-signal-safe text-sm"><CheckCircle className="w-4 h-4" /> Saved</div>}
@@ -616,9 +612,6 @@ function SettingsInner() {
                 })}
               </div>
             </div>
-            <Field label="Languages spoken in this household" hint="e.g. 'Spanish and English', 'Cantonese only'">
-              <FInput value={profile.household_languages} onChange={v => update('household_languages', v)} placeholder="e.g. Spanish only, no English" />
-            </Field>
             <div className="border-t border-ash-800 my-4" />
             <Field label="Additional notes for first responders" hint="e.g. front door code, oxygen on 2nd floor, dog may be scared">
               <FTextarea value={profile.special_notes} onChange={v => update('special_notes', v)} placeholder="Any information that could help emergency personnel…" rows={3} />
@@ -654,7 +647,7 @@ function SettingsInner() {
 
           <div className="flex items-center gap-4 pb-8">
             <button onClick={save} disabled={saving}
-              className="flex items-center gap-2 px-6 py-3 bg-ember-500 hover:bg-ember-400 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors text-sm">
+              className="flex items-center gap-2 px-6 py-3 bg-forest-700 hover:bg-forest-600 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors text-sm">
               <Save className="w-4 h-4" />{saving ? 'Saving…' : 'Save profile'}
             </button>
             {saved && <div className="flex items-center gap-2 text-signal-safe text-sm"><CheckCircle className="w-4 h-4" /> Saved</div>}
@@ -798,16 +791,41 @@ function SettingsInner() {
       {tab === 'preferences' && (
         <div className="space-y-5">
           <section className="card p-6">
-            <div className="flex items-center gap-2 mb-1"><Globe className="w-4 h-4 text-forest-600" /><h2 className="font-semibold text-gray-900">Language</h2></div>
-            <p className="text-gray-500 text-sm mb-4">The app will be translated to your selected language.</p>
-            <input type="text" value={langSearch} onChange={e => setLangSearch(e.target.value)} placeholder="Search language…" className="input w-full mb-3 text-sm" />
+            <div className="flex items-center gap-2 mb-1"><Moon className="w-4 h-4 text-ash-400" /><h2 className="font-semibold text-white">Appearance</h2></div>
+            <p className="text-ash-400 text-sm mb-4">Choose how the app looks on your device.</p>
+            <div className="flex gap-2">
+              {([
+                { value: 'light', label: 'Light', Icon: Sun },
+                { value: 'dark', label: 'Dark', Icon: Moon },
+                { value: 'system', label: 'System', Icon: Monitor },
+              ] as { value: Theme; label: string; Icon: React.ElementType }[]).map(({ value, label, Icon }) => (
+                <button
+                  key={value}
+                  onClick={() => applyTheme(value)}
+                  className={`flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl border text-sm font-medium transition-all ${
+                    theme === value
+                      ? 'bg-forest-900/40 border-forest-600/50 text-forest-400'
+                      : 'border-ash-700 text-ash-400 hover:border-ash-600 hover:bg-ash-800'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="card p-6">
+            <div className="flex items-center gap-2 mb-1"><Globe className="w-4 h-4 text-signal-safe" /><h2 className="font-semibold text-white">Language</h2></div>
+            <p className="text-ash-400 text-sm mb-4">The app will be translated to your selected language.</p>
+            <input type="text" value={langSearch} onChange={e => setLangSearch(e.target.value)} placeholder="Search language…" className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600 mb-3" />
             <div className="grid grid-cols-2 gap-1.5 max-h-64 overflow-y-auto pr-1">
               {LANGUAGES.filter(l => !langSearch || l.name.toLowerCase().includes(langSearch.toLowerCase()) || l.native.toLowerCase().includes(langSearch.toLowerCase())).map(l => (
                 <button key={l.code} onClick={() => setLanguage(l.code)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors ${l.code === lang.code ? 'bg-forest-50 border border-forest-200 text-forest-700' : 'text-gray-600 hover:bg-gray-50 border border-transparent'}`}>
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors ${l.code === lang.code ? 'bg-forest-900/40 border border-forest-600/50 text-forest-400' : 'text-ash-300 hover:bg-ash-800 border border-transparent'}`}>
                   <span className="text-base shrink-0">{l.flag}</span>
-                  <div className="min-w-0"><div className="truncate text-xs font-medium">{l.native}</div>{l.code !== 'en' && <div className="truncate text-gray-400 text-xs">{l.name}</div>}</div>
-                  {l.code === lang.code && <Check className="w-3 h-3 ml-auto shrink-0 text-forest-600" />}
+                  <div className="min-w-0"><div className="truncate text-xs font-medium">{l.native}</div>{l.code !== 'en' && <div className="truncate text-ash-500 text-xs">{l.name}</div>}</div>
+                  {l.code === lang.code && <Check className="w-3 h-3 ml-auto shrink-0 text-forest-400" />}
                 </button>
               ))}
             </div>
@@ -816,7 +834,7 @@ function SettingsInner() {
       )}
 
       {isOnboarding && (
-        <div className="mt-8 pt-6 border-t border-gray-200">
+        <div className="mt-8 pt-6 border-t border-ash-800">
           <button
             onClick={() => router.push(dashDest)}
             className="w-full py-3 rounded-xl bg-forest-600 hover:bg-forest-700 text-white font-semibold transition-colors"

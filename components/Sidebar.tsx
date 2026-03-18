@@ -5,7 +5,7 @@ import {
   Flame, Shield, Heart, BarChart3, Map, AlertTriangle,
   Users, Brain, LogOut, ChevronLeft, ChevronRight, ChevronDown,
   Activity, TrendingUp, Bell, Settings, BarChart2, Globe,
-  ClipboardList, Thermometer, FileText
+  ClipboardList, Thermometer, FileText, Database
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/components/LanguageProvider'
@@ -20,6 +20,8 @@ const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> 
   emergency_responder: [
     { label: 'Live Map', href: '/dashboard/responder', icon: Map },
     { label: 'ICS Incident Board', href: '/dashboard/responder/ics', icon: ClipboardList },
+    { label: 'Coverage Gaps', href: '/dashboard/responder/coverage', icon: Shield },
+    { label: 'Signal Gaps', href: '/dashboard/responder/signals', icon: AlertTriangle },
     { label: 'ML Predictor', href: '/dashboard/responder/ml', icon: Brain },
     { label: 'COMMAND-INTEL', href: '/dashboard/responder/ai', icon: Activity },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
@@ -52,6 +54,7 @@ const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> 
     { label: 'Trends', href: '/dashboard/analyst/trends', icon: TrendingUp },
     { label: 'NRI Analysis', href: '/dashboard/analyst/nri', icon: BarChart2 },
     { label: 'Fire Weather', href: '/dashboard/analyst/fire-weather', icon: Thermometer },
+    { label: 'Data Health', href: '/dashboard/analyst/data-health', icon: Database },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
 }
@@ -135,7 +138,7 @@ export default function Sidebar({ user, profile }: Props) {
   return (
     <aside className={`
       relative flex flex-col bg-white border-r border-gray-200
-      transition-all duration-300 shrink-0
+      transition-all duration-300 shrink-0 h-screen sticky top-0 overflow-y-auto
       ${collapsed ? 'w-16' : 'w-60'}
     `}>
       {/* Toggle */}

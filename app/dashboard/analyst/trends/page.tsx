@@ -142,7 +142,7 @@ export default function TrendsPage() {
         </p>
         <div className="mt-3 flex items-center gap-2">
           <span className="text-xs px-2 py-0.5 rounded-full bg-ash-800 border border-ash-700 text-ash-400 font-mono">
-            Source: WiDS 2025 · WatchDuty dataset · 60,000+ incidents
+            Source: WiDS 2025 · WatchDuty dataset · 62,696 records (50,664 true wildfires)
           </span>
         </div>
       </div>
@@ -150,9 +150,9 @@ export default function TrendsPage() {
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {[
-          { icon: Flame, value: '60,000+', label: 'Total fire incidents', sub: '2021–2025 full dataset', color: 'text-ember-500' },
-          { icon: AlertTriangle, value: '73.5%', label: 'Silent fires', sub: '46,053 of 60,000+', color: 'text-signal-warn' },
-          { icon: TrendingUp, value: '99.74%', label: 'No evacuation action', sub: '41,906 signals, only 108 acted on', color: 'text-signal-danger' },
+          { icon: Flame, value: '62,696', label: 'Total fire records', sub: '50,664 true wildfires · 11,115 prescribed burns', color: 'text-ember-500' },
+          { icon: AlertTriangle, value: '67.2%', label: 'Silent fires', sub: '34,021 of 50,664 true wildfires', color: 'text-signal-warn' },
+          { icon: TrendingUp, value: '99.3%', label: 'No evacuation action', sub: '33,423 with signal; 33,181 got no order', color: 'text-signal-danger' },
           { icon: Clock, value: '3.5h', label: 'Median delay (all years)', sub: 'Signal→evacuation order', color: 'text-ash-300' },
         ].map(({ icon: Icon, value, label, sub, color }) => (
           <div key={label} className="card p-5">
