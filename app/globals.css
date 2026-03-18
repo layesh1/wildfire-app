@@ -100,58 +100,59 @@ body { top: 0 !important; }
 }
 
 /* ── Dark mode: toggle html.dark class via ThemeWrapper ──────────────────── */
-html.dark body { background-color: #0d1117; color: #e6edf3; }
+/* Earthy forest dark palette — not GitHub */
+html.dark body { background-color: #0F1F17; color: #E8F1EC; }
 
 /* Backgrounds */
-html.dark .bg-white          { background-color: #161b22 !important; }
-html.dark .bg-gray-50        { background-color: #0d1117 !important; }
-html.dark .bg-gray-100       { background-color: #21262d !important; }
-html.dark .bg-gray-200       { background-color: #30363d !important; }
-html.dark .hover\:bg-gray-50:hover  { background-color: #21262d !important; }
-html.dark .hover\:bg-gray-100:hover { background-color: #30363d !important; }
-html.dark .hover\:bg-white:hover    { background-color: #21262d !important; }
+html.dark .bg-white          { background-color: #162A21 !important; }
+html.dark .bg-gray-50        { background-color: #0F1F17 !important; }
+html.dark .bg-gray-100       { background-color: #1F3A2F !important; }
+html.dark .bg-gray-200       { background-color: #2D4A3E !important; }
+html.dark .hover\:bg-gray-50:hover  { background-color: #1F3A2F !important; }
+html.dark .hover\:bg-gray-100:hover { background-color: #2D4A3E !important; }
+html.dark .hover\:bg-white:hover    { background-color: #1F3A2F !important; }
 
 /* Borders */
-html.dark .border-gray-200   { border-color: #30363d !important; }
-html.dark .border-gray-300   { border-color: #30363d !important; }
-html.dark .border-gray-100   { border-color: #21262d !important; }
+html.dark .border-gray-200   { border-color: #2D4A3E !important; }
+html.dark .border-gray-300   { border-color: #2D4A3E !important; }
+html.dark .border-gray-100   { border-color: #1F3A2F !important; }
 
 /* Text */
-html.dark .text-gray-900     { color: #e6edf3 !important; }
-html.dark .text-gray-800     { color: #c9d1d9 !important; }
-html.dark .text-gray-700     { color: #c9d1d9 !important; }
-html.dark .text-gray-600     { color: #8b949e !important; }
-html.dark .text-gray-500     { color: #8b949e !important; }
-html.dark .text-gray-400     { color: #6e7681 !important; }
-html.dark .text-gray-300     { color: #484f58 !important; }
+html.dark .text-gray-900     { color: #E8F1EC !important; }
+html.dark .text-gray-800     { color: #D0DDD7 !important; }
+html.dark .text-gray-700     { color: #B7C8BF !important; }
+html.dark .text-gray-600     { color: #B7C8BF !important; }
+html.dark .text-gray-500     { color: #7F948A !important; }
+html.dark .text-gray-400     { color: #5E7268 !important; }
+html.dark .text-gray-300     { color: #3D5247 !important; }
 
 /* Component classes */
-html.dark .card              { background-color: #161b22 !important; border-color: #30363d !important; }
-html.dark .input             { background-color: #21262d !important; border-color: #30363d !important; color: #e6edf3 !important; }
-html.dark select             { background-color: #21262d !important; border-color: #30363d !important; color: #e6edf3 !important; }
-html.dark textarea           { background-color: #21262d !important; border-color: #30363d !important; color: #e6edf3 !important; }
-html.dark input:not([type=checkbox]):not([type=radio]) { background-color: #21262d !important; border-color: #30363d !important; color: #e6edf3 !important; }
-html.dark ::placeholder      { color: #6e7681 !important; }
+html.dark .card              { background-color: #162A21 !important; border-color: #2D4A3E !important; }
+html.dark .input             { background-color: #1F3A2F !important; border-color: #2D4A3E !important; color: #E8F1EC !important; }
+html.dark select             { background-color: #1F3A2F !important; border-color: #2D4A3E !important; color: #E8F1EC !important; }
+html.dark textarea           { background-color: #1F3A2F !important; border-color: #2D4A3E !important; color: #E8F1EC !important; }
+html.dark input:not([type=checkbox]):not([type=radio]) { background-color: #1F3A2F !important; border-color: #2D4A3E !important; color: #E8F1EC !important; }
+html.dark ::placeholder      { color: #5E7268 !important; }
 
 /* Nav links */
-html.dark .nav-link          { color: #8b949e !important; }
-html.dark .nav-link:hover    { background-color: #21262d !important; color: #e6edf3 !important; }
-html.dark .nav-link-active   { background-color: #161b22 !important; color: #3fb950 !important; border-color: #3fb950 !important; }
+html.dark .nav-link          { color: #7F948A !important; }
+html.dark .nav-link:hover    { background-color: #1F3A2F !important; color: #E8F1EC !important; }
+html.dark .nav-link-active   { background-color: #162A21 !important; color: #2A9D8F !important; border-color: #2A9D8F !important; }
 
-/* Forest accent → green in dark mode */
-html.dark .text-forest-600   { color: #3fb950 !important; }
-html.dark .text-forest-700   { color: #2ea043 !important; }
-html.dark .bg-forest-50      { background-color: #0d2818 !important; }
-html.dark .border-forest-200 { border-color: #1a4731 !important; }
-html.dark .border-forest-300 { border-color: #2ea043 !important; }
-html.dark .bg-forest-600     { background-color: #238636 !important; }
-html.dark .hover\:bg-forest-700:hover { background-color: #2ea043 !important; }
+/* Forest accent in dark mode */
+html.dark .text-forest-600   { color: #2A9D8F !important; }
+html.dark .text-forest-700   { color: #3A7D5D !important; }
+html.dark .bg-forest-50      { background-color: #0F2A1F !important; }
+html.dark .border-forest-200 { border-color: #1F4A3A !important; }
+html.dark .border-forest-300 { border-color: #2A9D8F !important; }
+html.dark .bg-forest-600     { background-color: #1F5C3F !important; }
+html.dark .hover\:bg-forest-700:hover { background-color: #3A7D5D !important; }
 
-/* Sidebar/Tab ash overrides for pages that still use ash tokens */
-html.dark [class*="bg-ash-9"] { background-color: #161b22 !important; }
-html.dark [class*="bg-ash-8"] { background-color: #21262d !important; }
-html.dark [class*="border-ash-"] { border-color: #30363d !important; }
-html.dark .text-white         { color: #e6edf3 !important; }
+/* Ash token overrides for dark mode */
+html.dark [class*="bg-ash-9"] { background-color: #162A21 !important; }
+html.dark [class*="bg-ash-8"] { background-color: #1F3A2F !important; }
+html.dark [class*="border-ash-"] { border-color: #2D4A3E !important; }
+html.dark .text-white         { color: #E8F1EC !important; }
 html.dark [class*="bg-forest-"] .text-white,
 html.dark [class*="bg-red-"] .text-white,
 html.dark .bg-signal-danger .text-white { color: #ffffff !important; }
