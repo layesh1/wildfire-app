@@ -4,8 +4,11 @@ import { useRouter } from 'next/navigation'
 import { Flame, Heart, Monitor, X, Send, ArrowRight, Home as HomeIcon, User, TreePine, Check } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { SmokeBackground } from '@/components/ui/spooky-smoke-animation'
+import { CaregiverSlideshow } from '@/components/CaregiverSlideshow'
 import { LiquidMetalFab } from '@/components/ui/liquid-metal-button'
 import { useScroll } from '@/components/ui/use-scroll'
+import SocialButton from '@/components/ui/social-button'
+import { GlowingEffect } from '@/components/ui/glowing-effect'
 
 // ── Phone mockup ──────────────────────────────────────────────────────────────
 function PhoneTilt({ crop = true, scale = 1 }: { crop?: boolean; scale?: number }) {
@@ -184,8 +187,8 @@ function HomepageChat() {
     <>
       {open && (
         <div className="fixed bottom-24 right-4 z-50 flex flex-col bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden" style={{ width: 340, maxHeight: 420 }}>
-          <div className="flex items-center gap-3 p-4 border-b border-gray-100 shrink-0" style={{ background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)' }}>
-            <div className="w-9 h-9 rounded-xl bg-white border border-green-200 flex items-center justify-center shadow-sm">
+          <div className="flex items-center gap-3 p-4 border-b border-orange-100 shrink-0" style={{ background: 'linear-gradient(135deg, #fff7ed, #ffedd5)' }}>
+            <div className="w-9 h-9 rounded-xl bg-white border border-orange-200 flex items-center justify-center shadow-sm">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/flameo1.png" alt="Flameo" width={28} height={28} style={{ objectFit: 'contain' }} />
             </div>
@@ -341,7 +344,7 @@ function HowItWorks() {
         {/* Right: steps */}
         <div className="py-20 px-8 lg:px-14">
           <div className="mb-12">
-            <div className="text-green-600 text-xs font-semibold uppercase tracking-widest mb-3">How It Works</div>
+            <div className="text-green-600 text-sm font-semibold uppercase tracking-widest mb-3">How It Works</div>
             <h2 className="font-display font-bold text-gray-900" style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)' }}>
               Four steps to safer evacuations.
             </h2>
@@ -354,14 +357,24 @@ function HowItWorks() {
                 <div key={step.num} className="flex gap-5">
                   {/* Number + line */}
                   <div className="flex flex-col items-center shrink-0">
-                    <div className="w-9 h-9 rounded-xl border-2 border-green-200 bg-white flex items-center justify-center font-display font-bold text-base text-green-700 shrink-0">
+                    <div className="w-9 h-9 rounded-xl border-2 border-orange-300/40 bg-white flex items-center justify-center font-mono font-bold text-base text-orange-400 shrink-0">
                       {step.num}
                     </div>
-                    {!isLast && <div className="w-px flex-1 my-2 border-l border-dashed border-green-200" />}
+                    {!isLast && (
+                      <div
+                        className="flex-1 my-2"
+                        style={{
+                          width: 2,
+                          background: 'linear-gradient(to bottom, rgba(251,146,60,0.4), rgba(239,68,68,0.3), rgba(251,146,60,0.4))',
+                          boxShadow: '0 0 4px 1px rgba(251,146,60,0.15)',
+                          borderRadius: 2,
+                        }}
+                      />
+                    )}
                   </div>
                   {/* Content */}
                   <div className={`pb-10 ${isLast ? '' : ''}`}>
-                    <div className="text-green-600 text-[10px] font-semibold uppercase tracking-widest mb-1">{step.tag}</div>
+                    <div className="font-mono text-orange-400/80 text-[10px] uppercase tracking-widest mb-1">{step.tag}</div>
                     <h3 className="font-display font-bold text-gray-900 text-lg mb-1">{step.title}</h3>
                     <p className="text-gray-500 text-sm leading-relaxed">{step.desc}</p>
                   </div>
@@ -389,7 +402,7 @@ export default function Home() {
         <header
           className="pointer-events-auto max-w-5xl mx-auto flex items-center gap-6 rounded-full border transition-all duration-300 ease-out"
           style={{
-            background: scrolled ? 'rgba(10,31,18,0.88)' : 'rgba(255,255,255,0.1)',
+            background: scrolled ? 'rgba(10,31,18,0.55)' : 'rgba(255,255,255,0.1)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
             boxShadow: scrolled
@@ -404,10 +417,9 @@ export default function Home() {
           </span>
           <div className="flex-1" />
           <nav className="hidden md:flex items-center gap-1 text-sm font-medium">
-            <a href="#who" className="text-green-100/70 hover:text-white hover:bg-white/10 transition-colors px-3.5 py-1.5 rounded-full">Who It's For</a>
             <a href="#mission" className="text-green-100/70 hover:text-white hover:bg-white/10 transition-colors px-3.5 py-1.5 rounded-full">Our Mission</a>
-            <a href="/about" className="text-green-100/70 hover:text-white hover:bg-white/10 transition-colors px-3.5 py-1.5 rounded-full">About</a>
             <a href="#how" className="text-green-100/70 hover:text-white hover:bg-white/10 transition-colors px-3.5 py-1.5 rounded-full">How It Works</a>
+            <a href="#who" className="text-green-100/70 hover:text-white hover:bg-white/10 transition-colors px-3.5 py-1.5 rounded-full">Who It's For</a>
           </nav>
           <div className="flex items-center gap-2">
             <button onClick={() => router.push('/auth/login')}
@@ -423,7 +435,7 @@ export default function Home() {
       </div>
 
       {/* ── HERO ── */}
-      <section className="relative flex flex-col overflow-hidden" style={{ minHeight: 'calc(100vh - 76px)' }}>
+      <section className="relative flex flex-col overflow-hidden" style={{ minHeight: 'calc(100vh - 28px)' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/hero-forest.jpg" alt="" aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none" />
@@ -450,16 +462,16 @@ export default function Home() {
             </p>
             {/* CTA buttons */}
             <div className="flex flex-wrap gap-3">
-              <button onClick={() => router.push('/auth/login?role=caregiver')}
-                className="flex items-center gap-2.5 font-semibold px-5 py-3 rounded-xl transition-all duration-200 hover:scale-[1.02] text-gray-900"
+              <button
+                className="flex items-center gap-2.5 font-semibold px-5 py-3 rounded-xl transition-all duration-200 hover:scale-[1.02] text-gray-900 cursor-default"
                 style={{ background: '#e8f5e9' }}>
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
                 </svg>
                 App Store
               </button>
-              <button onClick={() => router.push('/auth/login?role=caregiver')}
-                className="flex items-center gap-2.5 font-semibold px-5 py-3 rounded-xl transition-all duration-200 hover:scale-[1.02] text-gray-900"
+              <button
+                className="flex items-center gap-2.5 font-semibold px-5 py-3 rounded-xl transition-all duration-200 hover:scale-[1.02] text-gray-900 cursor-default"
                 style={{ background: '#e8f5e9' }}>
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M3.18 23.76c.3.17.64.24.99.2l12.89-7.43-2.79-2.79L3.18 23.76zM.1 1.22C.04 1.46 0 1.72 0 2v20c0 .28.04.54.1.78l.06.06 11.2-11.2v-.28L.16 1.16.1 1.22zM20.84 10.6l-2.66-1.54-3.14 3.14 3.14 3.14 2.67-1.54c.76-.44.76-1.16-.01-1.2zM4.17.24l12.01 6.93-2.79 2.79L4.17.24z"/>
@@ -482,6 +494,9 @@ export default function Home() {
 
       </section>
 
+      {/* Green spacer */}
+      <div style={{ height: '62px', background: '#14532d' }} />
+
       {/* ── House & tree icon divider (same as above Who It's For) ── */}
       {(() => {
         const slots = ['h','t','h','h','t','f','h','t','h','h','t','p','t','h','h','t','h']
@@ -498,16 +513,17 @@ export default function Home() {
         )
       })()}
 
+
       {/* ── PEACE OF MIND ── */}
-      <section className="pt-24 pb-12 bg-white">
+      <section className="pt-8 pb-12 bg-white">
         <div className="max-w-4xl mx-auto px-6 text-center">
-          <div className="text-green-600 text-xs font-semibold uppercase tracking-widest mb-5">For Caregivers Everywhere</div>
+          <div className="text-green-600 text-sm font-semibold uppercase tracking-widest mb-5">For Caregivers Everywhere</div>
           <h2 className="font-display font-bold text-gray-900 leading-tight mb-6" style={{ fontSize: 'clamp(2.25rem, 5vw, 3.75rem)' }}>
             Know they're safe.<br />
-            <span className="italic" style={{ color: '#16a34a' }}>From anywhere.</span>
+            <span className="italic" style={{ color: '#92400e' }}>From anywhere.</span>
           </h2>
           <p className="text-gray-400 text-lg leading-relaxed max-w-2xl mx-auto mb-14">
-            Whether you're across the street or across the country, Minutes Matter keeps you connected to the people you care for — so you can breathe easier, no matter what's burning.
+            Whether you're across the street or across the country, Minutes Matter keeps you connected to the people you care for — so you can breathe easier.
           </p>
           <div className="grid sm:grid-cols-3 gap-6">
             {[
@@ -533,12 +549,13 @@ export default function Home() {
                 desc: 'Evacuation guidance adapted for elderly or disabled family members, in plain language and 30+ languages.',
               },
             ].map(item => (
-              <div key={item.title} className="flex flex-col items-center gap-4 p-8 rounded-2xl border border-gray-100 bg-gray-50 hover:border-green-200 hover:bg-green-50/40 transition-colors">
-                <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center text-green-700">
+              <div key={item.title} className="relative flex flex-col items-center gap-4 p-8 rounded-2xl border border-gray-200 bg-gray-100 hover:border-green-300 hover:bg-green-50 transition-colors">
+                <GlowingEffect spread={30} glow={true} disabled={false} proximity={64} inactiveZone={0.01} borderWidth={2} variant="fire" />
+                <div className="w-12 h-12 rounded-2xl bg-green-100 flex items-center justify-center text-green-700 border border-green-200">
                   {item.icon}
                 </div>
                 <h3 className="font-display font-bold text-gray-900 text-base">{item.title}</h3>
-                <p className="text-gray-400 text-sm leading-relaxed text-center">{item.desc}</p>
+                <p className="text-gray-600 text-sm leading-relaxed text-center">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -562,114 +579,83 @@ export default function Home() {
         )
       })()}
 
-      {/* ── WHO IT'S FOR ── */}
-      <section id="who" className="pt-12 pb-28 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="mb-16 text-center">
-            <div className="text-green-600 text-xs font-semibold uppercase tracking-widest mb-4">Who It's For</div>
-            <h2 className="font-display font-bold text-gray-900" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>
-              Protecting those who<br />need it most.
-            </h2>
-          </div>
-
-          {/* Caregiver spotlight */}
-          <div className="rounded-3xl overflow-hidden mb-6 grid lg:grid-cols-[1fr_340px]" style={{ background: '#0a1f12', minHeight: 380 }}>
-            {/* Text — left */}
-            <div className="p-8 lg:p-10 flex flex-col justify-center">
-              <div className="text-green-500 text-xs font-semibold uppercase tracking-widest mb-2">Primary Users</div>
-              <h3 className="font-display text-2xl font-bold text-white mb-3">Caregivers &amp; Families</h3>
-              <p className="text-green-200/70 text-sm leading-relaxed mb-3">When a wildfire breaks out, caregivers managing elderly parents, young children, or family members with disabilities face unique challenges. Standard alerts often arrive too late, use inaccessible language, or fail to account for slower evacuation needs.</p>
-              <p className="text-green-200/50 text-sm leading-relaxed mb-7">Minutes Matter gives caregivers personalised, actionable alerts with accessible route guidance, check-in tools, and Flameo — an AI assistant that helps plan evacuations in plain language.</p>
-              <button onClick={() => router.push('/auth/login?role=caregiver')} className="self-start flex items-center gap-2 bg-green-600 hover:bg-green-500 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm">
-                Get started <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-            {/* Image — right, tall */}
-            <div className="relative overflow-hidden" style={{ minHeight: 320 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/caregiver.png" alt="Caregiver supporting an elderly person" className="absolute inset-0 w-full h-full object-cover object-center" />
-              <div className="absolute inset-0" style={{ background: 'linear-gradient(to left, transparent 60%, #0a1f12 100%)' }} />
-            </div>
-          </div>
-
-        </div>
-      </section>
+      {/* Green spacer */}
+      <div style={{ height: '62px', background: '#14532d' }} />
 
       {/* ── MISSION ── */}
-      <section id="mission" className="py-20" style={{ background: '#f5f0e8' }}>
-        <div className="max-w-7xl mx-auto px-6">
+      <section id="mission" className="relative py-24 overflow-hidden">
+        {/* Nature background */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="https://images.unsplash.com/photo-1448375240586-882707db888b?w=1600&auto=format&fit=crop&q=80"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none"
+        />
+        {/* Dark green overlay to keep original color theme */}
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(5,20,10,0.92) 0%, rgba(10,31,18,0.85) 60%, rgba(5,20,10,0.92) 100%)' }} />
 
+        <div className="relative max-w-7xl mx-auto px-6">
           {/* Header */}
-          <div className="mb-12">
-            <div className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: '#9a7a50' }}>Our Mission</div>
-            <h2 className="font-display font-bold leading-tight" style={{ fontSize: 'clamp(2rem, 4vw, 2.75rem)', color: '#2c2416' }}>
+          <div className="mb-14">
+            <div className="text-green-400 text-sm font-semibold uppercase tracking-widest mb-3">Our Mission</div>
+            <h2 className="font-display font-bold text-white leading-tight" style={{ fontSize: 'clamp(2rem, 4vw, 2.75rem)' }}>
               Closing the gap between<br />signal and safety.
             </h2>
           </div>
 
-          {/* Bento grid */}
-          <div className="grid lg:grid-cols-12 gap-4">
-
-            {/* Problem — left card */}
-            <div className="mission-card lg:col-span-5">
-              <div className="mc-glow" />
-              <div className="mc-inner p-8 border h-full flex flex-col justify-between" style={{ background: '#fdf3ec', borderColor: '#e8c9aa' }}>
-                <div>
-                  <div className="text-xs font-semibold uppercase tracking-widest mb-5" style={{ color: '#b05a2a' }}>The Problem</div>
-                  <h3 className="font-display text-xl font-bold mb-4" style={{ color: '#2c2416' }}>Alerts arrive too late — or not at all.</h3>
-                  <p className="text-sm leading-relaxed" style={{ color: '#7a6050' }}>
-                    Across 60,000+ wildfire incidents in California, the vast majority had detectable fire signals but never triggered a formal evacuation order. The most vulnerable communities wait longest.
-                  </p>
-                </div>
-                <div className="mt-8 grid grid-cols-2 gap-3">
-                  {[
-                    { val: '99.74%', sub: 'fires with no order' },
-                    { val: '11.5h', sub: 'median delay' },
-                    { val: '9×', sub: 'disparity gap' },
-                    { val: '60K+', sub: 'incidents studied' },
-                  ].map(s => (
-                    <div key={s.sub} className="rounded-2xl p-4" style={{ background: 'rgba(176,90,42,0.07)', border: '1px solid #e8c9aa' }}>
-                      <div className="font-display font-bold text-xl" style={{ color: '#b05a2a' }}>{s.val}</div>
-                      <div className="text-xs mt-0.5" style={{ color: '#9a7060' }}>{s.sub}</div>
-                    </div>
-                  ))}
-                </div>
+          <div className="grid lg:grid-cols-2 gap-6 items-start">
+            {/* Problem card */}
+            <div className="relative rounded-3xl p-8 flex flex-col justify-between" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)' }}>
+              <GlowingEffect spread={40} glow={true} disabled={false} proximity={64} inactiveZone={0.01} borderWidth={2} variant="fire" />
+              <div>
+                <div className="text-green-400 text-xs font-semibold uppercase tracking-widest mb-4">The Problem</div>
+                <h3 className="font-display text-2xl font-bold text-white mb-4">Alerts arrive too late —<br />or not at all.</h3>
+                <p className="text-white/70 text-sm leading-relaxed mb-4">
+                  Fires can double in size in minutes. Official warnings come too late — and in rural areas, for minorities and caregivers, they often don't come at all.
+                </p>
+                <p className="text-orange-300/80 text-xs italic leading-relaxed border-l-2 border-orange-500/50 pl-3 mb-4">
+                  "By the time an evacuation order is issued, the safe window to leave may already be closing." — National Wildfire Coordinating Group
+                </p>
+                <p className="text-green-400/90 text-xs font-semibold uppercase tracking-widest">We built a fix.</p>
               </div>
             </div>
 
-            {/* Right: Solution */}
-            <div className="mission-card lg:col-span-7">
-              <div className="mc-glow" style={{ background: 'conic-gradient(from var(--angle, 0deg), #d4a853, #8a6020, #c8903a, #6a4a18, #d4a853)' }} />
-              <div className="mc-inner p-8 h-full" style={{ background: 'linear-gradient(135deg, #2c1f0e 0%, #4a3018 100%)' }}>
-                <div className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: '#c8a97a' }}>What We Built</div>
-                <h3 className="font-display font-bold text-white text-xl mb-6">An early-warning platform for those who need it most.</h3>
-                <div className="grid sm:grid-cols-2 gap-6 mb-8">
-                  {[
-                    { title: 'Signal Detection', desc: 'NASA FIRMS satellite data and WatchDuty reports surface fire activity before formal orders are issued.' },
-                    { title: 'Equity Scoring', desc: 'CDC Social Vulnerability Index weights alerts so high-risk communities hear first, not last.' },
-                    { title: 'Caregiver Portal', desc: 'Free, accessible alerts with evacuation routes and Flameo AI — in 30+ languages.' },
-                    { title: 'Responder Command', desc: 'ML-powered gap maps and incident intelligence for emergency coordinators.' },
-                  ].map(item => (
-                    <div key={item.title}>
-                      <div className="w-1 h-4 rounded-full mb-2" style={{ background: '#d4a853' }} />
-                      <h4 className="font-semibold text-white text-sm mb-1">{item.title}</h4>
-                      <p className="text-xs leading-relaxed" style={{ color: '#c8b89a' }}>{item.desc}</p>
-                    </div>
-                  ))}
+            {/* Stats grid */}
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { val: '99.74%', sub: 'fires with no order' },
+                { val: '11.5h', sub: 'median delay' },
+                { val: '9×', sub: 'disparity gap' },
+                { val: '60K+', sub: 'incidents studied' },
+              ].map(s => (
+                <div key={s.sub} className="relative rounded-2xl p-6 flex flex-col justify-between" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)' }}>
+                  <GlowingEffect spread={30} glow={true} disabled={false} proximity={48} inactiveZone={0.01} borderWidth={2} variant="fire" />
+                  <div className="font-mono font-bold text-orange-300 tracking-tight" style={{ fontSize: 'clamp(1.75rem, 3vw, 2.5rem)' }}>{s.val}</div>
+                  <div className="text-white/50 text-xs mt-2 uppercase tracking-widest">{s.sub}</div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {['XGBoost · 96% accuracy', 'NASA FIRMS', 'CDC SVI', 'WatchDuty'].map(tag => (
-                    <span key={tag} className="text-xs px-2.5 py-1 rounded-full" style={{ background: 'rgba(255,255,255,0.08)', color: '#c8b89a', border: '1px solid rgba(255,255,255,0.1)' }}>{tag}</span>
-                  ))}
-                </div>
-              </div>
+              ))}
             </div>
-
           </div>
-
         </div>
       </section>
 
+      {/* ── HOW IT WORKS ── */}
+      <HowItWorks />
+
+      {/* ── WHO IT'S FOR ── */}
+      <section id="who" className="pt-12 pb-28" style={{ background: '#92400e' }}>
+        <div className="max-w-7xl mx-auto px-6">
+          <h2 className="font-display font-bold text-white leading-tight mb-8" style={{ fontSize: 'clamp(2rem, 4.5vw, 3.25rem)' }}>
+            Protecting those who<br />
+            <span className="italic text-orange-200">need it most.</span>
+          </h2>
+
+          {/* Caregiver slideshow */}
+          <CaregiverSlideshow onGetStarted={() => router.push('/auth/login?role=caregiver')} />
+
+        </div>
+      </section>
 
       {/* ── JOIN ── */}
       <section className="relative py-28 overflow-hidden">
@@ -686,22 +672,25 @@ export default function Home() {
           <SmokeBackground smokeColor="#4a7c3f" />
         </div>
         <div className="relative max-w-5xl mx-auto px-6 text-center">
-          <div className="text-green-500 text-xs font-semibold uppercase tracking-widest mb-4">Get Started</div>
+          <div className="text-green-500 text-sm font-semibold uppercase tracking-widest mb-4">Get Started</div>
           <h2 className="font-display font-bold text-white mb-6" style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', lineHeight: 1.1 }}>
             Join Minutes Matter
           </h2>
-          <p className="text-green-200/60 text-lg mb-12 max-w-xl mx-auto leading-relaxed">
-            Access real-time wildfire intelligence tailored to your role. Free for caregivers and evacuees.
+          <p className="text-green-200/60 text-lg mb-4 max-w-xl mx-auto leading-relaxed">
+            Access real-time wildfire intelligence tailored to your role.
           </p>
-          <div className="flex flex-col sm:flex-row gap-5 justify-center items-center mt-4">
+          <p className="mb-12" style={{ filter: 'drop-shadow(0 0 8px rgba(134,239,172,0.6))' }}>
+            <strong className="text-green-200/80 font-bold text-lg">Free for all users.</strong>
+          </p>
+          <div className="flex flex-col sm:flex-row justify-center items-stretch mt-4" style={{ gap: '1cm' }}>
             {/* Caregiver card — featured */}
             <motion.div
               initial={{ y: 50, opacity: 0 }}
               whileInView={{ y: -16, opacity: 1, scale: 1.03 }}
-              viewport={{ once: true }}
+              viewport={{ once: true, amount: 0.3 }}
               transition={{ duration: 1.4, type: 'spring', stiffness: 90, damping: 26, delay: 0.15 }}
               onClick={() => router.push('/auth/login?mode=signup&role=caregiver')}
-              className="role-card role-card--green text-left px-7 py-7 w-full sm:w-80 cursor-pointer z-10 relative"
+              className="role-card role-card--green text-left px-7 py-7 w-full sm:w-80 cursor-pointer z-10 relative flex flex-col"
             >
               {/* Featured badge */}
               <div className="absolute top-0 right-0 bg-green-500 py-0.5 px-3 rounded-bl-xl rounded-tr-xl flex items-center gap-1">
@@ -709,9 +698,9 @@ export default function Home() {
                 <span className="text-white text-xs font-semibold">Free Access</span>
               </div>
               <div className="relative z-10 flex flex-col h-full">
-                <p className="text-green-400 text-xs font-semibold uppercase tracking-widest mb-1">Caregiver / Evacuee</p>
-                <p className="font-display font-bold text-white text-3xl mb-1">Free</p>
-                <p className="text-green-200/50 text-xs mb-5">always free for those who need it most</p>
+                <p className="font-mono text-orange-400/80 text-xs uppercase tracking-widest mb-1">Caregiver / Evacuee</p>
+                <p className="font-display font-bold text-white text-3xl mb-3">Free</p>
+                <p className="text-green-100/70 text-sm font-medium mb-5 leading-snug">Because when every second counts, you shouldn&apos;t have to search for answers.</p>
                 <ul className="space-y-2.5 mb-6 flex-1">
                   {[
                     'Real-time wildfire alerts near you',
@@ -731,7 +720,7 @@ export default function Home() {
                 <button className="w-full bg-green-600 hover:bg-green-500 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm">
                   Get started free <ArrowRight className="w-4 h-4" />
                 </button>
-                <p className="mt-3 text-green-200/40 text-xs text-center">No account required to browse alerts</p>
+                <p className="mt-3 text-green-200/40 text-xs text-center">Free to sign up — no add-on fees</p>
               </div>
             </motion.div>
 
@@ -739,15 +728,14 @@ export default function Home() {
             <motion.div
               initial={{ y: 50, opacity: 0 }}
               whileInView={{ y: 0, opacity: 1, scale: 0.96 }}
-              viewport={{ once: true }}
+              viewport={{ once: true, amount: 0.3 }}
               transition={{ duration: 1.4, type: 'spring', stiffness: 90, damping: 26, delay: 0.3 }}
               onClick={() => router.push('/auth/login?mode=signup&role=emergency_responder')}
-              className="role-card role-card--white text-left px-7 py-7 w-full sm:w-80 cursor-pointer mt-5 sm:mt-0"
+              className="role-card role-card--white text-left px-7 py-7 w-full sm:w-80 cursor-pointer flex flex-col"
             >
               <div className="relative z-10 flex flex-col h-full">
-                <p className="text-white/50 text-xs font-semibold uppercase tracking-widest mb-1">Emergency Responder</p>
-                <p className="font-display font-bold text-white text-3xl mb-1">Org Access</p>
-                <p className="text-white/30 text-xs mb-5">invite code required from your organization</p>
+                <p className="font-mono text-orange-400/80 text-xs uppercase tracking-widest mb-1">Emergency Responder</p>
+                <p className="font-display font-bold text-white text-3xl mb-5">Org Access</p>
                 <ul className="space-y-2.5 mb-6 flex-1">
                   {[
                     'ML-powered signal gap maps',
@@ -774,20 +762,15 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ── */}
-      <HowItWorks />
-
       {/* ── FOOTER ── */}
-      <footer className="py-8 px-6" style={{ background: '#050f08' }}>
+      <footer className="relative py-8 px-6 border-t border-gray-200 bg-white">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg bg-green-600 flex items-center justify-center">
-              <Flame className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-gray-400 text-sm font-medium">Minutes Matter</span>
+          <div className="flex items-center gap-4">
+            <span className="font-display text-gray-800 text-xl font-bold">Minutes Matter</span>
+            <SocialButton />
           </div>
-          <p className="text-gray-600 text-xs text-center">WiDS Datathon 2026 · Data: WatchDuty · CDC SVI · NASA FIRMS</p>
-          <p className="text-gray-600 text-xs">Not a replacement for official emergency directives.</p>
+          <p className="text-gray-400 text-sm text-center absolute left-1/2 -translate-x-1/2">Made by 49ers Intelligence Lab · WiDS Datathon 2026</p>
+          <p className="text-gray-400 text-sm">Not a replacement for official emergency directives.</p>
         </div>
       </footer>
 
