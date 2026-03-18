@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
-import { Bell, MapPin, Users, AlertTriangle, CheckCircle, Phone, ChevronRight, Eye, EyeOff, Clock, Shield, Flame, Package, Brain, Send, Loader, User } from 'lucide-react'
+import { Bell, MapPin, Users, AlertTriangle, CheckCircle, Phone, ChevronRight, Clock, Shield, Flame, Package, Brain, Send, Loader, User } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
@@ -338,30 +338,6 @@ function HubTab() {
             </button>
           </div>
         ))}
-        </div>
-      </div>
-
-      {/* Silent fire awareness */}
-      <div className="card p-5 mb-6 border-l-4 border-signal-warn">
-        <div className="flex items-start gap-3">
-          <EyeOff className="w-5 h-5 text-signal-warn mt-0.5 shrink-0" />
-          <div className="flex-1">
-            <div className="text-gray-900 font-semibold text-sm mb-1">
-              67.2% of true wildfires start with NO push alert
-            </div>
-            <p className="text-gray-500 text-xs leading-relaxed">
-              Analysis of 50,664 true wildfire incidents (2021–2025) shows most fires are &quot;silent&quot; — no push notification reaches nearby residents.
-              {stateDelay != null ? (
-                <span className="text-signal-warn font-medium"> In {userState}, the median time between fire detection and an evacuation order is <strong>{stateDelay}h</strong>.</span>
-              ) : (
-                <span> Even when signals exist, 99.3% of true wildfires result in no formal evacuation order.</span>
-              )}
-              {' '}Don&apos;t wait for an alert — check this app during fire weather.
-            </p>
-            <Link href="/dashboard/caregiver/alert" className="mt-2 inline-flex items-center gap-1 text-signal-info text-xs hover:underline">
-              <Eye className="w-3 h-3" /> Check fire proximity for my address →
-            </Link>
-          </div>
         </div>
       </div>
 
