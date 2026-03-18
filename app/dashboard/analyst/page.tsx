@@ -90,7 +90,7 @@ export default function AnalystDashboard() {
           Research Overview
         </h1>
         <p className="text-ash-400 text-lg">
-          WiDS Datathon 2025 · WatchDuty Dataset · 62,696 records · 50,664 true wildfires
+          WiDS Datathon 2026 · WatchDuty Dataset · 60,000+ Wildfire Incidents
         </p>
       </div>
 

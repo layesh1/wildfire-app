@@ -334,3 +334,47 @@ html.dark .lp .hover\:text-gray-700:hover { color: #374151 !important; }
   .animate-delay-300 { animation-delay: 300ms; }
   .animate-delay-400 { animation-delay: 400ms; }
 }
+
+/* ── Join role cards glow effect ─────────────────────────────────────────── */
+.role-card {
+  position: relative;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  backdrop-filter: blur(12px);
+  border-radius: 1.25rem;
+  transition: background 0.25s ease, border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+  overflow: hidden;
+}
+.role-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+.role-card.role-card--green::before {
+  background: radial-gradient(ellipse at 50% 0%, rgba(34,197,94,0.25) 0%, transparent 70%);
+}
+.role-card.role-card--white::before {
+  background: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.18) 0%, transparent 70%);
+}
+.role-card:hover {
+  transform: translateY(-4px);
+  background: rgba(255,255,255,0.13);
+  border-color: rgba(255,255,255,0.28);
+}
+.role-card.role-card--green:hover {
+  box-shadow: 0 0 32px rgba(34,197,94,0.3), 0 16px 40px rgba(0,0,0,0.3);
+  border-color: rgba(34,197,94,0.4);
+}
+.role-card.role-card--white:hover {
+  box-shadow: 0 0 32px rgba(255,255,255,0.12), 0 16px 40px rgba(0,0,0,0.3);
+}
+.role-card:hover::before {
+  opacity: 1;
+}
+.role-card:active {
+  transform: translateY(-2px) scale(0.99);
+}

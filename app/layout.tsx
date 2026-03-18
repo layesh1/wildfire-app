@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Playfair_Display, DM_Sans, DM_Mono } from 'next/font/google'
 import './globals.css'
+import ScrollToTop from '@/components/ScrollToTop'
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -23,7 +24,7 @@ const dmMono = DM_Mono({
 
 export const metadata: Metadata = {
   title: 'Minutes Matter | Wildfire Evacuation Intelligence',
-  description: 'Real-time wildfire signal gap analysis and caregiver alert system. WiDS Datathon 2025.',
+  description: 'Real-time wildfire signal gap analysis and caregiver alert system. WiDS Datathon 2026.',
   keywords: ['wildfire', 'evacuation', 'alert', 'equity', 'SVI', 'emergency'],
   icons: {
     icon: '/flameo1.png',
@@ -38,7 +39,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${playfair.variable} ${dmSans.variable} ${dmMono.variable}`}>
+    <html lang="en" className={`${playfair.variable} ${dmSans.variable} ${dmMono.variable}`} suppressHydrationWarning>
       <head>
         {/* Google Translate: creates its own div so React never reconciles it */}
         {/* eslint-disable-next-line @next/next/no-sync-scripts */}
@@ -47,6 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script async src="https://translate.googleapis.com/translate_a/element.js?cb=googleTranslateElementInit" />
       </head>
       <body className="bg-gray-50 text-gray-900 font-body antialiased" suppressHydrationWarning>
+        <ScrollToTop />
         {children}
         {/* GT div is created by gt-init.js — kept outside React's tree to prevent hydration conflicts */}
       </body>

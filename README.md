@@ -1,7 +1,7 @@
 # WildfireAlert — Next.js App
 
 Equity-driven wildfire evacuation intelligence system.  
-WiDS Datathon 2025 · Built with Next.js 15, Supabase, Vercel.
+WiDS Datathon 2026 · Built with Next.js 15, Supabase, Vercel.
 
 ---
 
