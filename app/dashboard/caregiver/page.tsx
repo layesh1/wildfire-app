@@ -139,8 +139,8 @@ function FlameoTab() {
           >
             {/* Flameo icon ring */}
             <div className="relative mb-6">
-              <div className="w-20 h-20 rounded-full bg-forest-50 border-2 border-forest-200 flex items-center justify-center shadow-lg">
-                <Flame className="w-9 h-9 text-forest-600" />
+              <div className="w-20 h-20 rounded-full bg-forest-50 border-2 border-forest-200 flex items-center justify-center shadow-lg overflow-hidden">
+                <img src="/flameo1.png" alt="Flameo" className="w-14 h-14 object-contain" />
               </div>
               <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center">
                 <Sparkles className="w-3 h-3 text-white" />
@@ -195,8 +195,8 @@ function FlameoTab() {
                 className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {msg.role === 'assistant' && (
-                  <div className="w-7 h-7 rounded-full bg-forest-100 border border-forest-200 flex items-center justify-center shrink-0 mt-0.5">
-                    <Flame className="w-3.5 h-3.5 text-forest-600" />
+                  <div className="w-7 h-7 rounded-full bg-forest-50 border border-forest-200 flex items-center justify-center shrink-0 mt-0.5 overflow-hidden">
+                    <img src="/flameo1.png" alt="Flameo" className="w-5 h-5 object-contain" />
                   </div>
                 )}
                 <div
@@ -221,8 +221,8 @@ function FlameoTab() {
                 animate={{ opacity: 1 }}
                 className="flex gap-3 justify-start"
               >
-                <div className="w-7 h-7 rounded-full bg-forest-100 border border-forest-200 flex items-center justify-center shrink-0">
-                  <Flame className="w-3.5 h-3.5 text-forest-600" />
+                <div className="w-7 h-7 rounded-full bg-forest-50 border border-forest-200 flex items-center justify-center shrink-0 overflow-hidden">
+                  <img src="/flameo1.png" alt="Flameo" className="w-5 h-5 object-contain" />
                 </div>
                 <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">
                   <Loader className="w-4 h-4 text-gray-400 animate-spin" />
