@@ -151,7 +151,7 @@ export default function FlameoChat() {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [...messages, userMsg], persona: 'SAFE-PATH' }),
+        body: JSON.stringify({ messages: [...messages, userMsg], persona: 'FLAMEO' }),
       })
       const { content } = await res.json()
       setMessages(m => [...m, { role: 'assistant', content: content || 'Sorry, something went wrong.' }])

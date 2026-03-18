@@ -1,20 +1,24 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 export default function ThemeWrapper({ children }: { children: React.ReactNode }) {
+  const [isDark, setIsDark] = useState(false)
+
   useEffect(() => {
-    // Apply saved theme on mount
     const saved = localStorage.getItem('wfa_theme') || 'light'
-    if (saved === 'dark') {
+    const dark = saved === 'dark'
+    setIsDark(dark)
+    if (dark) {
       document.documentElement.classList.add('dark')
     } else {
       document.documentElement.classList.remove('dark')
     }
 
-    // Listen for theme changes dispatched by the settings page
     function handleThemeChange(e: Event) {
       const theme = (e as CustomEvent<string>).detail
-      if (theme === 'dark') {
+      const nextDark = theme === 'dark'
+      setIsDark(nextDark)
+      if (nextDark) {
         document.documentElement.classList.add('dark')
       } else {
         document.documentElement.classList.remove('dark')
@@ -26,7 +30,7 @@ export default function ThemeWrapper({ children }: { children: React.ReactNode }
   }, [])
 
   return (
-    <div className="min-h-screen flex">
+    <div className={`min-h-screen flex ${isDark ? '' : 'light-theme'}`}>
       {children}
     </div>
   )

@@ -101,7 +101,7 @@ function FlameoTab() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          persona: 'SAFE-PATH',
+          persona: 'FLAMEO',
           messages: next.map(m => ({ role: m.role, content: m.content })),
         }),
       })
@@ -639,7 +639,7 @@ export default function CaregiverDashboard() {
         <div className="shrink-0 px-6 sm:px-8 pt-8 pb-0 border-b border-gray-200 bg-white">
           <div className="flex items-center gap-2 text-forest-600 text-sm font-medium mb-3">
             <Bell className="w-4 h-4" />
-            CAREGIVER DASHBOARD · SAFE-PATH
+            CAREGIVER DASHBOARD · FLAMEO
           </div>
           <h1 className="font-display text-3xl sm:text-4xl font-bold text-gray-900 mb-5">
             Your Evacuation Hub

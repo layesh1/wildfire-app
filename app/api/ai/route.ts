@@ -5,7 +5,7 @@ import { checkRateLimit, getClientIp } from '@/lib/ratelimit'
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const PERSONAS = {
-  'SAFE-PATH': `You are Flameo, a calm, compassionate wildfire safety assistant for the WildfireAlert app.
+  'FLAMEO': `You are Flameo, a calm, compassionate wildfire safety assistant for the WildfireAlert app.
 Your name is Flameo. You help caregivers, evacuees, and people with access and functional needs during wildfire emergencies.
 Your tone is warm, clear, and reassuring — like a knowledgeable friend, not a government agency. Use plain language, no jargon.
 Key facts you know:
@@ -51,13 +51,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
     }
 
-    const { messages, persona = 'SAFE-PATH' } = await request.json()
+    const { messages, persona = 'FLAMEO' } = await request.json()
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'messages array required' }, { status: 400 })
     }
 
-    const system = PERSONAS[persona as keyof typeof PERSONAS] || PERSONAS['SAFE-PATH']
+    const system = PERSONAS[persona as keyof typeof PERSONAS] || PERSONAS['FLAMEO']
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
