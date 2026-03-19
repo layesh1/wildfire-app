@@ -1,6 +1,7 @@
 'use client'
 import { Sun, Moon } from 'lucide-react'
 import WildfireTracker from '@/components/WildfireTracker'
+import JarDemo from '@/components/JarDemo'
 
 export default function PreviewPage() {
   return (
@@ -61,6 +62,11 @@ export default function PreviewPage() {
             </div>
           </div>
 
+        </div>
+
+        {/* Jar alert demo */}
+        <div className="mt-8 rounded-3xl overflow-hidden border border-gray-200 shadow-xl">
+          <JarDemo />
         </div>
 
         {/* Color palette legend */}
