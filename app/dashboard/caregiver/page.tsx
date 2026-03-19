@@ -652,7 +652,7 @@ export default function CaregiverDashboard() {
               </div>
 
               {/* Location overlay on hover */}
-              <div className="absolute inset-0 rounded-2xl flex flex-col justify-end p-5 opacity-0 group-hover:opacity-100 transition-all duration-200" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}>
+              <div className="absolute inset-0 rounded-2xl flex flex-col justify-end p-5 opacity-0 group-hover:opacity-100 transition-all duration-200" style={{ background: 'rgba(62,39,35,0.92)', backdropFilter: 'blur(2px)' }}>
                 <div className="flex items-center gap-1.5 mb-1">
                   <MapPin className="w-3 h-3 text-white/70 shrink-0" />
                   <div className="text-white/50 text-[10px] uppercase tracking-widest">Location</div>
