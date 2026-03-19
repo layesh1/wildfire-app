@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { RoleProvider } from '@/components/RoleContext'
 
 function resolveTheme(saved: string | null): boolean {
   if (saved === 'dark') return true
@@ -56,8 +57,10 @@ export default function ThemeWrapper({ children }: { children: React.ReactNode }
   }, [])
 
   return (
-    <div className={`min-h-screen flex ${isDark ? '' : 'light-theme'}`}>
-      {children}
-    </div>
+    <RoleProvider>
+      <div className={`min-h-screen flex ${isDark ? '' : 'light-theme'}`}>
+        {children}
+      </div>
+    </RoleProvider>
   )
 }

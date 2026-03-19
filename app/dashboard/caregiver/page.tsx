@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import type { NifcFire } from './map/LeafletMap'
 import AlertJar from '@/components/AlertJar'
+import { useRoleContext } from '@/components/RoleContext'
 
 const LeafletMap = dynamic(() => import('./map/LeafletMap'), { ssr: false })
 
@@ -183,6 +184,8 @@ export default function CaregiverDashboard() {
   const [loading, setLoading] = useState(true)
   const [bagChecked, setBagChecked] = useState<Set<string>>(new Set())
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
+  const { mode, activePerson } = useRoleContext()
+  const isCaregiverMode = mode === 'caregiver' && activePerson !== null
 
   const supabase = createClient()
 
@@ -358,7 +361,7 @@ export default function CaregiverDashboard() {
                 style={{ color: 'var(--wfa-accent)' }}
               >
                 <Bell className="w-3.5 h-3.5" />
-                Caregiver Hub
+                {isCaregiverMode ? `Caring for ${activePerson!.name}` : 'My Safety'}
               </div>
               <h1 className="font-display font-bold text-2xl" style={{ color: 'var(--wfa-text)' }}>My Hub</h1>
             </div>
@@ -387,13 +390,13 @@ export default function CaregiverDashboard() {
                   style={{ background: 'var(--wfa-checkin-bg)', color: 'var(--wfa-text)', border: '1px solid var(--wfa-border)' }}
                 >
                   <CheckCircle className="w-3.5 h-3.5" style={{ color: '#7cb342' }} />
-                  Check In Safe
+                  {isCaregiverMode ? `Ping ${activePerson!.name.split(' ')[0]}` : 'Check In Safe'}
                 </Link>
                 <div
                   className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2.5 py-1.5 rounded-lg text-[11px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 z-10 shadow-lg"
                   style={{ background: 'var(--wfa-tooltip-bg)' }}
                 >
-                  Mark yourself safe &amp; notify your network
+                  {isCaregiverMode ? `Send ${activePerson!.name.split(' ')[0]} a safety check-in` : 'Mark yourself safe & notify your network'}
                   <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45" style={{ background: 'var(--wfa-tooltip-bg)' }} />
                 </div>
               </div>
@@ -464,10 +467,10 @@ export default function CaregiverDashboard() {
                 {/* 4 quick-action cards */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   {[
-                    { label: 'Evacuation Map', href: '/dashboard/caregiver/map',              icon: MapPin,       desc: 'View fires & shelters' },
-                    { label: 'Check In Safe',  href: '/dashboard/caregiver/checkin',           icon: CheckCircle,  desc: 'Mark yourself safe'    },
-                    { label: 'Find Shelter',   href: '/dashboard/caregiver/map?filter=shelter',icon: Shield,       desc: 'Nearby evac shelters'  },
-                    { label: 'Fire Alert',     href: '/dashboard/caregiver/alert',             icon: AlertTriangle,desc: 'Report or view alerts' },
+                    { label: 'Evacuation Map', href: '/dashboard/caregiver/map',               icon: MapPin,        desc: 'View fires & shelters' },
+                    { label: isCaregiverMode ? `Ping ${activePerson!.name.split(' ')[0]}` : 'Check In Safe', href: '/dashboard/caregiver/checkin', icon: CheckCircle, desc: isCaregiverMode ? `Send ${activePerson!.name.split(' ')[0]} a check-in` : 'Mark yourself safe' },
+                    { label: 'Find Shelter',   href: '/dashboard/caregiver/map?filter=shelter', icon: Shield,        desc: 'Nearby evac shelters'  },
+                    { label: 'Fire Alert',     href: '/dashboard/caregiver/alert',              icon: AlertTriangle, desc: 'Report or view alerts' },
                   ].map(action => (
                     <Link
                       key={action.label}
