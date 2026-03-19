@@ -41,7 +41,6 @@ const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> 
     { label: 'Check-In', href: '/dashboard/caregiver/checkin', icon: Users },
     { label: 'Emergency Card', href: '/dashboard/caregiver/emergency-card', icon: FileText },
     { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: Map },
-    { label: 'Design Preview', href: '/dashboard/preview', icon: BarChart2 },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
   evacuee: [
