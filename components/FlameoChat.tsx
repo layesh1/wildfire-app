@@ -116,14 +116,8 @@ export default function FlameoChat() {
   const popupStyle = { bottom: 96, right: 16, left: 'auto' } as React.CSSProperties
 
   const [open, setOpen] = useState(false)
-  const [messages, setMessages] = useState<Message[]>(() => {
-    if (typeof window === 'undefined') return [INTRO]
-    try {
-      const saved = JSON.parse(localStorage.getItem('wfa_flameo_history') || 'null')
-      if (Array.isArray(saved) && saved.length > 0) return saved
-    } catch {}
-    return [INTRO]
-  })
+  const [messages, setMessages] = useState<Message[]>([INTRO])
+  const [historyLoaded, setHistoryLoaded] = useState(false)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [latestAssistantIdx, setLatestAssistantIdx] = useState<number | null>(null)
@@ -132,10 +126,20 @@ export default function FlameoChat() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({ minHeight: 40, maxHeight: 120 })
 
-  // Persist chat history on every change
+  // Load chat history from localStorage on mount (client-only, avoids SSR hydration mismatch)
   useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('wfa_flameo_history') || 'null')
+      if (Array.isArray(saved) && saved.length > 0) setMessages(saved)
+    } catch {}
+    setHistoryLoaded(true)
+  }, [])
+
+  // Persist chat history on every change (only after initial load to avoid overwriting with INTRO)
+  useEffect(() => {
+    if (!historyLoaded) return
     try { localStorage.setItem('wfa_flameo_history', JSON.stringify(messages)) } catch {}
-  }, [messages])
+  }, [messages, historyLoaded])
 
   useEffect(() => {
     if (open) {

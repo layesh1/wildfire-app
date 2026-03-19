@@ -408,7 +408,7 @@ export default function CaregiverDashboard() {
               <div className="h-72 rounded-3xl animate-pulse" style={{ background: 'var(--wfa-accent-lite)' }} />
             ) : topFire ? (
               <div
-                className="rounded-3xl p-8 relative overflow-hidden"
+                className="wfa-dark-panel rounded-3xl p-8 relative overflow-hidden"
                 style={{
                   background: 'var(--wfa-hero-bg)',
                   minHeight: 280,
@@ -484,7 +484,7 @@ export default function CaregiverDashboard() {
               </div>
             ) : (
               <div
-                className="rounded-3xl p-8 flex flex-col items-center"
+                className="wfa-dark-panel rounded-3xl p-8 flex flex-col items-center"
                 style={{ background: 'var(--wfa-empty-bg)' }}
               >
                 <AlertJar level="safe" size={160} />
