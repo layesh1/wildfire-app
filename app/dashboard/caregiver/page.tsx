@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import {
   Flame, MapPin, Phone, AlertTriangle, CheckCircle,
   Clock, Shield, ChevronRight, Package, User, Users, Bell
@@ -7,6 +8,9 @@ import {
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
+import type { NifcFire } from './map/LeafletMap'
+
+const LeafletMap = dynamic(() => import('./map/LeafletMap'), { ssr: false })
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const GO_BAG_ITEMS = [
@@ -167,6 +171,7 @@ function PersonCard({ person, index }: { person: MonitoredPerson; index: number 
 // ── Main dashboard ────────────────────────────────────────────────────────────
 export default function CaregiverDashboard() {
   const [fires, setFires]     = useState<FireEvent[]>([])
+  const [nifc, setNifc]       = useState<NifcFire[]>([])
   const [persons, setPersons] = useState<MonitoredPerson[]>([])
   const [userProfile, setUserProfile] = useState<{ full_name?: string; email?: string } | null>(null)
   const [loading, setLoading] = useState(true)
@@ -186,16 +191,21 @@ export default function CaregiverDashboard() {
       setBagChecked(new Set(saved))
     } catch {}
 
-    // Supabase data
+    // Supabase data + NIFC live fires
     async function load() {
-      const [{ data: firesData }, { data: { user } }] = await Promise.all([
+      const [{ data: firesData }, { data: { user } }, nifcRes] = await Promise.all([
         supabase
           .from('fire_events')
           .select('id, incident_name, county, state, acres_burned, containment_pct, started_at, signal_gap_hours, has_evacuation_order')
           .order('started_at', { ascending: false })
           .limit(6),
         supabase.auth.getUser(),
+        fetch('/api/fires/nifc').catch(() => null),
       ])
+      if (nifcRes?.ok) {
+        const json = await nifcRes.json().catch(() => ({}))
+        if (json?.data) setNifc(json.data)
+      }
       if (firesData) setFires(firesData)
       if (user) {
         // Try localStorage emergency card first for full_name
@@ -518,28 +528,21 @@ export default function CaregiverDashboard() {
             </div>
           </div>
 
-          {/* Map preview */}
-          <div className="flex-1 relative overflow-hidden m-4 rounded-2xl" style={{ minHeight: 180 }}>
-            <iframe
-              src="https://www.openstreetmap.org/export/embed.html?bbox=-124.5,32.5,-114.1,42.0&layer=mapnik"
-              className="absolute inset-0 w-full h-full"
-              style={{ border: 'none', borderRadius: 16 }}
-              title="Evacuation Map Preview"
+          {/* Map preview — same LeafletMap as the Evacuation Map tab */}
+          <div className="flex-1 relative overflow-hidden m-4 rounded-2xl" style={{ minHeight: 200 }}>
+            <LeafletMap
+              nifc={nifc}
+              userLocation={null}
+              center={[37.5, -119.5]}
+              shelters={[]}
+              showShelters={false}
+              watchedLocations={[]}
             />
-            {/* Zoom hint */}
-            <div
-              className="absolute top-3 right-3 flex flex-col gap-1.5 rounded-xl overflow-hidden shadow"
-              style={{ background: 'rgba(255,255,255,0.9)' }}
-            >
-              <span className="w-7 h-7 flex items-center justify-center text-[#3e2723] text-base font-bold cursor-default select-none">+</span>
-              <div style={{ height: 1, background: '#e5e7eb' }} />
-              <span className="w-7 h-7 flex items-center justify-center text-[#3e2723] text-base font-bold cursor-default select-none">−</span>
-            </div>
-            {/* View full map button */}
-            <div className="absolute inset-x-0 bottom-0 p-3">
+            {/* "View Full Map" overlay button at bottom */}
+            <div className="absolute inset-x-0 bottom-0 p-3 pointer-events-none">
               <Link
                 href="/dashboard/caregiver/map"
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                className="pointer-events-auto w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90"
                 style={{ background: 'rgba(62,39,35,0.88)', backdropFilter: 'blur(8px)' }}
               >
                 <MapPin className="w-3.5 h-3.5" />
