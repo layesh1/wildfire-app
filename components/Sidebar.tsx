@@ -75,10 +75,10 @@ const ROLE_ICONS: Record<string, any> = {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  emergency_responder: 'text-red-600 bg-red-50 border-red-200',
-  caregiver: 'text-forest-700 bg-forest-50 border-forest-200',
-  evacuee: 'text-forest-700 bg-forest-50 border-forest-200',
-  data_analyst: 'text-blue-600 bg-blue-50 border-blue-200',
+  emergency_responder: 'text-white/80 border-white/20',
+  caregiver: 'text-white/80 border-white/20',
+  evacuee: 'text-white/80 border-white/20',
+  data_analyst: 'text-white/80 border-white/20',
 }
 
 function SidebarInner({ user, profile }: Props) {
@@ -123,7 +123,7 @@ function SidebarInner({ user, profile }: Props) {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Logo */}
-      <div className={cn('flex items-center pb-4 border-b border-gray-100', collapsed ? 'justify-center' : '')}>
+      <div className={cn('flex items-center pb-4 border-b border-white/10', collapsed ? 'justify-center' : '')}>
         <AnimatePresence>
           {open ? (
             <motion.div
@@ -134,8 +134,8 @@ function SidebarInner({ user, profile }: Props) {
               transition={{ duration: 0.15 }}
               className="overflow-hidden"
             >
-              <div className="font-display font-bold text-gray-900 text-xl leading-none whitespace-nowrap">Minutes Matter</div>
-              <div className="text-gray-400 text-xs mt-0.5">v2.0</div>
+              <div className="font-display font-bold text-white text-xl leading-none whitespace-nowrap">Minutes Matter</div>
+              <div className="text-white/40 text-xs mt-0.5">v2.0</div>
             </motion.div>
           ) : (
             <motion.div
@@ -144,9 +144,10 @@ function SidebarInner({ user, profile }: Props) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="w-8 h-8 rounded-lg bg-forest-50 border border-forest-200 flex items-center justify-center"
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)' }}
             >
-              <Flame className="w-4 h-4 text-forest-600" />
+              <Flame className="w-4 h-4" style={{ color: '#d4a574' }} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -160,9 +161,9 @@ function SidebarInner({ user, profile }: Props) {
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.15 }}
-            className="py-3 border-b border-gray-100 overflow-hidden"
+            className="py-3 border-b border-white/10 overflow-hidden"
           >
-            <div className={cn('flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border', ROLE_COLORS[role])}>
+            <div className={cn('flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border', ROLE_COLORS[role])} style={{ background: 'rgba(255,255,255,0.08)' }}>
               <RoleIcon className="w-3.5 h-3.5" />
               <span className="font-medium capitalize whitespace-nowrap">{role.replace('_', ' ')}</span>
             </div>
@@ -183,10 +184,11 @@ function SidebarInner({ user, profile }: Props) {
               className={cn(
                 'w-full flex items-center gap-3 px-2 py-2.5 rounded-lg transition-all duration-150 text-left',
                 active
-                  ? 'bg-forest-50 text-forest-700 border-l-2 border-forest-500 font-medium'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100',
+                  ? 'border-l-2 border-[#c86432] font-medium'
+                  : 'hover:bg-white/10',
                 collapsed ? 'justify-center' : ''
               )}
+              style={{ color: active ? '#d4a574' : 'rgba(255,255,255,0.55)' }}
             >
               <Icon className="w-4 h-4 shrink-0" />
               <AnimatePresence>
@@ -208,14 +210,15 @@ function SidebarInner({ user, profile }: Props) {
       </nav>
 
       {/* Language switcher */}
-      <div ref={langRef} className="relative border-t border-gray-100 pt-1 pb-1">
+      <div ref={langRef} className="relative border-t border-white/10 pt-1 pb-1">
         <button
           onClick={() => setLangOpen(v => !v)}
           title={collapsed ? `Language: ${lang.name}` : undefined}
           className={cn(
-            'flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors px-2 py-2 rounded-lg hover:bg-gray-100 w-full',
+            'flex items-center gap-2 transition-colors px-2 py-2 rounded-lg hover:bg-white/10 w-full',
             collapsed ? 'justify-center' : ''
           )}
+          style={{ color: 'rgba(255,255,255,0.5)' }}
         >
           <Globe className="w-4 h-4 shrink-0" />
           <AnimatePresence>
@@ -236,13 +239,13 @@ function SidebarInner({ user, profile }: Props) {
         {langOpen && (
           <div
             className={cn(
-              'absolute bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden z-50',
+              'absolute rounded-xl shadow-xl overflow-hidden z-50',
               'bottom-full mb-1 left-0',
             )}
-            style={{ width: open ? undefined : '240px', right: open ? 0 : undefined }}
+            style={{ width: open ? undefined : '240px', right: open ? 0 : undefined, background: '#2a1810', border: '1px solid rgba(255,255,255,0.12)' }}
           >
-            <div className="px-3 py-2 border-b border-gray-100">
-              <p className="text-gray-400 text-xs font-medium uppercase tracking-wide">Language</p>
+            <div className="px-3 py-2 border-b border-white/10">
+              <p className="text-white/40 text-xs font-medium uppercase tracking-wide">Language</p>
             </div>
             <div className="overflow-y-auto p-2" style={{ maxHeight: '240px' }}>
               <div className="grid grid-cols-2 gap-1">
@@ -253,9 +256,10 @@ function SidebarInner({ user, profile }: Props) {
                     className={cn(
                       'text-xs px-2 py-1.5 rounded-lg text-left flex items-center gap-1.5 transition-colors',
                       l.code === lang.code
-                        ? 'border border-forest-300 bg-forest-50 text-forest-700'
-                        : 'border border-transparent hover:bg-gray-50 text-gray-600 hover:text-gray-900'
+                        ? 'border border-[#c86432]/50 text-[#d4a574]'
+                        : 'border border-transparent text-white/50 hover:text-white hover:bg-white/10'
                     )}
+                    style={l.code === lang.code ? { background: 'rgba(200,100,50,0.2)' } : undefined}
                   >
                     <span className="text-sm leading-none">{l.flag}</span>
                     <span className="truncate">{l.native}</span>
@@ -268,7 +272,7 @@ function SidebarInner({ user, profile }: Props) {
       </div>
 
       {/* User + signout */}
-      <div className={cn('pb-3 border-t border-gray-100', collapsed ? 'flex flex-col items-center gap-1' : '')}>
+      <div className={cn('pb-3 border-t border-white/10', collapsed ? 'flex flex-col items-center gap-1' : '')}>
         <AnimatePresence>
           {open && (
             <motion.div
@@ -278,10 +282,10 @@ function SidebarInner({ user, profile }: Props) {
               transition={{ duration: 0.12 }}
               className="px-2 py-2 mb-1 overflow-hidden"
             >
-              <div className="text-gray-900 text-sm font-medium truncate">
+              <div className="text-white text-sm font-medium truncate">
                 {profile?.full_name || user?.email?.split('@')[0]}
               </div>
-              <div className="text-gray-400 text-xs truncate">{user?.email}</div>
+              <div className="text-white/40 text-xs truncate">{user?.email}</div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -290,9 +294,10 @@ function SidebarInner({ user, profile }: Props) {
           onClick={handleSignOut}
           title={collapsed ? 'Sign out' : undefined}
           className={cn(
-            'flex items-center gap-2 text-gray-400 hover:text-red-500 transition-colors px-2 py-2 rounded-lg hover:bg-red-50 w-full',
+            'flex items-center gap-2 transition-colors px-2 py-2 rounded-lg hover:bg-white/10 w-full',
             collapsed ? 'justify-center' : ''
           )}
+          style={{ color: 'rgba(255,255,255,0.4)' }}
         >
           <LogOut className="w-4 h-4 shrink-0" />
           <AnimatePresence>
