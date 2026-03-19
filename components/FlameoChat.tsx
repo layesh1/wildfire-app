@@ -1,5 +1,6 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { usePathname } from 'next/navigation'
 import { X, CornerRightUp, Trash2 } from 'lucide-react'
 import { useAutoResizeTextarea } from '@/components/hooks/use-auto-resize-textarea'
@@ -201,7 +202,9 @@ export default function FlameoChat() {
     setLoading(false)
   }
 
-  return (
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
     <>
       {/* Chat panel */}
       {open && (
@@ -359,6 +362,7 @@ export default function FlameoChat() {
         </div>
       )}
 
-    </>
+    </>,
+    document.body
   )
 }
