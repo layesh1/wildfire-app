@@ -4,6 +4,7 @@ import Sidebar from '@/components/Sidebar'
 import FlameoChat from '@/components/FlameoChat'
 import LanguageProvider from '@/components/LanguageProvider'
 import ThemeWrapper from '@/components/ThemeWrapper'
+import UserSessionGuard from '@/components/UserSessionGuard'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerSupabaseClient()
@@ -20,6 +21,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <LanguageProvider initialLang={profile?.language_preference ?? null}>
       <ThemeWrapper>
+        <UserSessionGuard />
         <Sidebar user={user} profile={profile} />
         <main className="flex-1 overflow-auto">
           {children}
