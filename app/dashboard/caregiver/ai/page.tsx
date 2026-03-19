@@ -82,7 +82,7 @@ export default function SafePathAIPage() {
           <img src="/flameo1.png" alt="Flameo" className="w-4 h-4 object-contain" />
           CAREGIVER · FLAMEO AI
         </div>
-        <h1 className="font-display text-3xl font-bold text-gray-900 mb-1">Ask Flameo</h1>
+        <h1 className="font-display text-3xl font-bold text-gray-900 mb-1">Ask FlameoAI</h1>
         <p className="text-gray-500 text-sm">
           AI-powered evacuation guidance. Monitors all signal channels — not just official orders.
         </p>
