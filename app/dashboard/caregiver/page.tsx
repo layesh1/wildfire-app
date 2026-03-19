@@ -610,6 +610,7 @@ export default function CaregiverDashboard() {
 
           {/* First Person card — square, location on hover */}
           <div className="px-4 pb-4">
+            <div className="w-1/2">
             <div
               className="rounded-2xl text-white group relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.02] cursor-default"
               style={{ background: 'linear-gradient(135deg, #4a6621, #7cb342)', aspectRatio: '1 / 1' }}
@@ -661,6 +662,7 @@ export default function CaregiverDashboard() {
                 </div>
                 <div className="text-white/40 text-[10px]">Last Update: —</div>
               </div>
+            </div>
             </div>
           </div>
         </div>
