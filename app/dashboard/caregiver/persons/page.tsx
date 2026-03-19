@@ -95,8 +95,8 @@ function AddressInput({
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Relationship = 'Parent' | 'Client' | 'Neighbor' | 'Self' | 'Other'
-type Mobility = 'Mobile Adult' | 'Elderly' | 'Disabled' | 'No Vehicle' | 'Medical Equipment'
+type Relationship = 'Family Member' | 'Client' | 'Neighbor' | 'Self' | 'Other'
+type Mobility = 'Mobile Adult' | 'Elderly' | 'Disabled' | 'No Vehicle' | 'Medical Equipment' | 'Other'
 type CheckinStatus = 'confirmed_safe' | 'waiting' | 'needs_help' | 'unknown'
 
 interface Person {
@@ -117,8 +117,9 @@ interface Person {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const RELATIONSHIPS: Relationship[] = ['Parent', 'Client', 'Neighbor', 'Self', 'Other']
-const MOBILITIES: Mobility[] = ['Mobile Adult', 'Elderly', 'Disabled', 'No Vehicle', 'Medical Equipment']
+const RELATIONSHIPS: Relationship[] = ['Family Member', 'Client', 'Neighbor', 'Self', 'Other']
+const FAMILY_RELATIONS = ['Parent', 'Child', 'Sibling', 'Spouse / Partner', 'Grandparent', 'Grandchild', 'Aunt / Uncle', 'Cousin', 'Other']
+const MOBILITIES: Mobility[] = ['Mobile Adult', 'Elderly', 'Disabled', 'No Vehicle', 'Medical Equipment', 'Other']
 const PERSON_LANGUAGES = [
   { code: 'en', label: 'English', flag: '🇺🇸' },
   { code: 'es', label: 'Spanish', flag: '🇲🇽' },
@@ -241,8 +242,10 @@ function emptyForm() {
   return {
     name: '',
     address: '',
-    relationship: 'Parent' as Relationship,
+    relationship: 'Family Member' as Relationship,
+    familyRelation: '',
     mobility: 'Mobile Adult' as Mobility,
+    mobilityOther: '',
     phone: '',
     languages: [] as string[],
     notes: '',
@@ -449,12 +452,19 @@ export default function PersonsPage() {
     if (!form.address.trim()) { setFormError('Address is required'); return }
     setFormError(null)
 
+    const resolvedRelationship = form.relationship === 'Family Member' && form.familyRelation
+      ? form.familyRelation as Relationship
+      : form.relationship
+    const resolvedMobility = form.mobility === 'Other' && form.mobilityOther.trim()
+      ? form.mobilityOther.trim() as Mobility
+      : form.mobility
+
     const newPerson: Person = {
       id: Date.now().toString(),
       name: form.name.trim(),
       address: form.address.trim(),
-      relationship: form.relationship,
-      mobility: form.mobility,
+      relationship: resolvedRelationship,
+      mobility: resolvedMobility,
       phone: form.phone.trim(),
       languages: form.languages,
       notes: form.notes.trim(),
@@ -645,13 +655,25 @@ export default function PersonsPage() {
               <label className="label">Relationship *</label>
               <select
                 value={form.relationship}
-                onChange={e => setForm(f => ({ ...f, relationship: e.target.value as Relationship }))}
+                onChange={e => setForm(f => ({ ...f, relationship: e.target.value as Relationship, familyRelation: '' }))}
                 className="input appearance-none cursor-pointer"
               >
                 {RELATIONSHIPS.map(r => (
                   <option key={r} value={r}>{r}</option>
                 ))}
               </select>
+              {form.relationship === 'Family Member' && (
+                <select
+                  value={form.familyRelation}
+                  onChange={e => setForm(f => ({ ...f, familyRelation: e.target.value }))}
+                  className="input appearance-none cursor-pointer mt-2"
+                >
+                  <option value="">Select relation type...</option>
+                  {FAMILY_RELATIONS.map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* Address */}
@@ -673,13 +695,22 @@ export default function PersonsPage() {
               <label className="label">Mobility level</label>
               <select
                 value={form.mobility}
-                onChange={e => setForm(f => ({ ...f, mobility: e.target.value as Mobility }))}
+                onChange={e => setForm(f => ({ ...f, mobility: e.target.value as Mobility, mobilityOther: '' }))}
                 className="input appearance-none cursor-pointer"
               >
                 {MOBILITIES.map(m => (
                   <option key={m} value={m}>{m}</option>
                 ))}
               </select>
+              {form.mobility === 'Other' && (
+                <input
+                  type="text"
+                  value={form.mobilityOther}
+                  onChange={e => setForm(f => ({ ...f, mobilityOther: e.target.value }))}
+                  placeholder="Describe mobility needs..."
+                  className="input mt-2"
+                />
+              )}
             </div>
 
             {/* Phone */}

@@ -186,7 +186,7 @@ function HomepageChat() {
   return (
     <>
       {open && (
-        <div className="fixed bottom-24 right-4 z-50 flex flex-col bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden" style={{ width: 340, maxHeight: 420 }}>
+        <div className="fixed bottom-24 right-4 z-50 flex flex-col bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden" style={{ width: 340, maxWidth: 'calc(100vw - 2rem)', maxHeight: 420 }}>
           <div className="flex items-center gap-3 p-4 border-b border-orange-100 shrink-0" style={{ background: 'linear-gradient(135deg, #fff7ed, #ffedd5)' }}>
             <div className="w-9 h-9 rounded-xl bg-white border border-orange-200 flex items-center justify-center shadow-sm">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -336,15 +336,15 @@ const HOW_STEPS = [
 function HowItWorks() {
   return (
     <section id="how" className="overflow-hidden" style={{ background: '#f0fdf4' }}>
-      <div className="max-w-7xl mx-auto lg:grid lg:grid-cols-2 min-h-[640px]">
+      <div className="max-w-7xl mx-auto lg:grid lg:grid-cols-2">
 
         {/* Left: phone mockup — full, 3D tilt on hover */}
-        <div className="relative hidden lg:flex items-center justify-center overflow-hidden">
+        <div className="relative flex items-center justify-center overflow-hidden py-10 lg:py-0">
           <PhoneTilt crop={false} />
         </div>
 
         {/* Right: steps */}
-        <div className="py-20 px-8 lg:px-14">
+        <div className="py-12 px-6 lg:py-20 lg:px-14">
           <div className="mb-12">
             <div className="text-green-600 text-sm font-semibold uppercase tracking-widest mb-3">How It Works</div>
             <h2 className="font-display font-bold text-gray-900" style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)' }}>
@@ -400,7 +400,7 @@ export default function Home() {
     <main className="lp min-h-screen bg-white overflow-hidden">
 
       {/* ── NAVBAR (fixed, overlays hero) ── */}
-      <div className="fixed top-0 left-0 right-0 z-50 px-6 pt-7 pointer-events-none">
+      <div className="fixed top-0 left-0 right-0 z-50 px-3 sm:px-6 pt-4 sm:pt-7 pointer-events-none">
         <header
           className="pointer-events-auto max-w-5xl mx-auto flex items-center gap-6 rounded-full border transition-all duration-300 ease-out"
           style={{
@@ -449,7 +449,7 @@ export default function Home() {
         {/* Main content */}
         <div className="relative flex-1 max-w-7xl mx-auto px-6 flex flex-col lg:flex-row items-center lg:items-end gap-12 w-full">
           {/* Left: text */}
-          <div className="flex-1 pt-8 lg:pt-0 lg:pb-16">
+          <div className="flex-1 pt-28 lg:pt-0 lg:pb-16">
             <h1 className="leading-none mb-8">
               <span className="block font-display font-bold text-white" style={{ fontSize: 'clamp(3rem, 8vw, 6rem)', lineHeight: 1 }}>
                 Every minute
@@ -459,7 +459,7 @@ export default function Home() {
                 For the people you love.
               </span>
             </h1>
-            <p className="text-green-200/60 text-lg mb-10 leading-relaxed max-w-lg">
+            <p className="text-green-200/60 text-base lg:text-lg mb-10 leading-relaxed max-w-lg">
               Real-time wildfire alerts for caregivers, elderly residents, and communities that need them most — before it's too late.
             </p>
             {/* CTA buttons */}
@@ -488,8 +488,8 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right: phone mockup — 3D tilt on hover */}
-          <div className="flex items-start justify-center shrink-0 lg:flex-1 animate-phone-rise">
+          {/* Right: phone mockup — 3D tilt on hover, hidden on mobile */}
+          <div className="hidden lg:flex items-start justify-center shrink-0 lg:flex-1 animate-phone-rise">
             <PhoneTilt scale={1.08} />
           </div>
         </div>
@@ -588,9 +588,9 @@ export default function Home() {
 
         <div className="relative max-w-7xl mx-auto px-6">
           {/* Header */}
-          <div className="mb-14">
+          <div className="mb-10 lg:mb-14">
             <div className="text-green-400 text-sm font-semibold uppercase tracking-widest mb-3">Our Mission</div>
-            <h2 className="font-display font-bold text-white leading-tight" style={{ fontSize: 'clamp(2rem, 4vw, 2.75rem)' }}>
+            <h2 className="font-display font-bold text-white leading-tight" style={{ fontSize: 'clamp(1.75rem, 4vw, 2.75rem)' }}>
               Closing the gap between<br />signal and safety.
             </h2>
           </div>
@@ -635,8 +635,8 @@ export default function Home() {
       <HowItWorks />
 
       {/* ── WHO IT'S FOR ── */}
-      <section id="who" className="pt-12 pb-28" style={{ background: '#92400e' }}>
-        <div className="max-w-7xl mx-auto px-6">
+      <section id="who" className="pt-12 pb-16 lg:pb-28" style={{ background: '#92400e' }}>
+        <div className="max-w-7xl mx-auto px-4 lg:px-6">
           <h2 className="font-display font-bold text-white leading-tight mb-8" style={{ fontSize: 'clamp(2rem, 4.5vw, 3.25rem)' }}>
             Protecting those who<br />
             <span className="italic text-orange-200">need it most.</span>
@@ -649,7 +649,7 @@ export default function Home() {
       </section>
 
       {/* ── JOIN ── */}
-      <section className="relative py-28 overflow-hidden">
+      <section className="relative py-16 lg:py-28 overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/hero-forest.jpg"
@@ -673,7 +673,7 @@ export default function Home() {
           <p className="mb-12" style={{ filter: 'drop-shadow(0 0 8px rgba(134,239,172,0.6))' }}>
             <strong className="text-green-200/80 font-bold text-lg">Free for all users.</strong>
           </p>
-          <div className="flex flex-col sm:flex-row justify-center items-stretch mt-4" style={{ gap: '1cm' }}>
+          <div className="flex flex-col sm:flex-row justify-center items-stretch mt-4 gap-6 sm:gap-[1cm]">
             {/* Caregiver card — featured */}
             <motion.div
               initial={{ y: 50, opacity: 0 }}
@@ -760,8 +760,8 @@ export default function Home() {
             <span className="font-display text-gray-800 text-xl font-bold">Minutes Matter</span>
             <SocialButton />
           </div>
-          <p className="text-gray-400 text-sm text-center absolute left-1/2 -translate-x-1/2">Made by 49ers Intelligence Lab · WiDS Datathon 2026</p>
-          <p className="text-gray-400 text-sm">Not a replacement for official emergency directives.</p>
+          <p className="text-gray-400 text-sm text-center md:absolute md:left-1/2 md:-translate-x-1/2">Made by 49ers Intelligence Lab · WiDS Datathon 2026</p>
+          <p className="text-gray-400 text-sm text-center md:text-right">Not a replacement for official emergency directives.</p>
         </div>
       </footer>
 
