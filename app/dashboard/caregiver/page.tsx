@@ -8,6 +8,7 @@ import {
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import type { NifcFire } from './map/LeafletMap'
+import JarDemo from '@/components/JarDemo'
 
 const LeafletMap = dynamic(() => import('./map/LeafletMap'), { ssr: false })
 
@@ -474,17 +475,41 @@ export default function CaregiverDashboard() {
               </div>
             ) : (
               <div
-                className="rounded-3xl p-8 flex flex-col items-center justify-center"
-                style={{ background: 'var(--wfa-empty-bg)', minHeight: 240 }}
+                className="rounded-3xl p-8 flex flex-col items-center"
+                style={{ background: 'var(--wfa-empty-bg)' }}
               >
+                {/* Header */}
                 <div
-                  className="w-18 h-18 w-20 h-20 rounded-full flex items-center justify-center mb-4"
+                  className="w-20 h-20 rounded-full flex items-center justify-center mb-4"
                   style={{ background: 'rgba(124,179,66,0.2)', border: '3px solid rgba(124,179,66,0.4)' }}
                 >
                   <CheckCircle className="w-9 h-9 text-[#7cb342]" />
                 </div>
                 <h2 className="font-display text-xl font-bold text-white">No Active Alerts</h2>
-                <p className="text-white/45 text-sm mt-2">Your area is currently clear. Stay prepared.</p>
+                <p className="text-white/45 text-sm mt-2 mb-6">Your area is currently clear. Stay prepared.</p>
+
+                {/* Alert level key */}
+                <div className="w-full grid grid-cols-4 gap-3 mb-6">
+                  {[
+                    { dot: '#7cb342', label: 'Safe',    sub: 'All clear'   },
+                    { dot: '#d4a574', label: 'Caution', sub: 'Stay alert'  },
+                    { dot: '#c86432', label: 'Warning', sub: 'Prepare now' },
+                    { dot: '#d32f2f', label: 'Act Now', sub: 'Evacuate!'   },
+                  ].map(({ dot, label, sub }) => (
+                    <div key={label} className="flex flex-col items-center text-center gap-1.5 p-3 rounded-2xl" style={{ background: 'rgba(255,255,255,0.07)' }}>
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: dot + '22', border: `2px solid ${dot}` }}>
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: dot }} />
+                      </div>
+                      <div className="text-xs font-semibold text-white">{label}</div>
+                      <div className="text-[10px] text-white/40">{sub}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Jar demo */}
+                <div className="w-full rounded-2xl overflow-hidden">
+                  <JarDemo />
+                </div>
               </div>
             )}
 

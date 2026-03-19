@@ -109,15 +109,9 @@ const INTRO: Message = {
 
 export default function FlameoChat() {
   const pathname = usePathname()
-  // On the caregiver hub, anchor to the bottom-left of the center block
-  // (sidebar ~64px collapsed + 340px tracking column = ~404px)
   const isCaregiverHub = pathname === '/dashboard/caregiver'
-  const fabStyle = isCaregiverHub
-    ? { bottom: 16, left: 404, right: 'auto' } as React.CSSProperties
-    : { bottom: 16, right: 16, left: 'auto' } as React.CSSProperties
-  const popupStyle = isCaregiverHub
-    ? { bottom: 96, left: 404, right: 'auto' } as React.CSSProperties
-    : { bottom: 96, right: 16, left: 'auto' } as React.CSSProperties
+  const fabStyle = { bottom: 16, right: 16, left: 'auto' } as React.CSSProperties
+  const popupStyle = { bottom: 96, right: 16, left: 'auto' } as React.CSSProperties
 
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>(() => {
