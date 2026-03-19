@@ -7,7 +7,6 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
-import LanguageSwitcher from '@/components/LanguageSwitcher'
 import type { NifcFire } from './map/LeafletMap'
 
 const LeafletMap = dynamic(() => import('./map/LeafletMap'), { ssr: false })
@@ -97,17 +96,23 @@ function PersonCard({ person, index }: { person: MonitoredPerson; index: number 
       style={{
         background: isPrimary
           ? 'linear-gradient(135deg, #c86432 0%, #8b3a1a 100%)'
-          : 'white',
+          : 'var(--wfa-panel-solid)',
         border: isPrimary ? 'none' : `1.5px solid ${color}40`,
       }}
     >
       {/* Name + badge */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0 pr-2">
-          <div className={`font-semibold text-sm truncate ${isPrimary ? 'text-white' : 'text-[#3e2723]'}`}>
+          <div
+            className={`font-semibold text-sm truncate ${isPrimary ? 'text-white' : ''}`}
+            style={isPrimary ? undefined : { color: 'var(--wfa-text)' }}
+          >
             {person.name}
           </div>
-          <div className={`text-xs mt-0.5 ${isPrimary ? 'text-white/60' : 'text-[#3e2723]/50'}`}>
+          <div
+            className={`text-xs mt-0.5 ${isPrimary ? 'text-white/60' : ''}`}
+            style={isPrimary ? undefined : { color: 'var(--wfa-text-50)' }}
+          >
             {person.familyRelation || person.relationship}
           </div>
         </div>
@@ -128,8 +133,8 @@ function PersonCard({ person, index }: { person: MonitoredPerson; index: number 
         <div
           className="inline-block text-[11px] px-2.5 py-1 rounded-xl mb-3"
           style={{
-            background: isPrimary ? 'rgba(255,255,255,0.15)' : '#f5f1e8',
-            color: isPrimary ? 'rgba(255,255,255,0.8)' : '#3e2723',
+            background: isPrimary ? 'rgba(255,255,255,0.15)' : 'var(--wfa-tag-bg)',
+            color: isPrimary ? 'rgba(255,255,255,0.8)' : 'var(--wfa-text)',
           }}
         >
           {person.mobilityOther || person.mobility}
@@ -157,8 +162,8 @@ function PersonCard({ person, index }: { person: MonitoredPerson; index: number 
       {isPrimary && person.phone && (
         <a
           href={`tel:${person.phone}`}
-          className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-[#c86432] transition-colors hover:bg-white/90"
-          style={{ background: 'rgba(255,255,255,0.9)' }}
+          className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-colors hover:bg-white/90"
+          style={{ background: 'var(--wfa-call-btn-bg)', color: 'var(--wfa-accent)' }}
         >
           <Phone className="w-3 h-3" />
           Call {person.name.split(' ')[0]}
@@ -240,27 +245,28 @@ export default function CaregiverDashboard() {
 
   return (
     <>
-      <LanguageSwitcher />
-
       {/* Root: full height 3-column layout */}
       <div
         className="flex h-screen overflow-hidden"
-        style={{ background: '#f5f1e8', fontFamily: 'var(--font-body)' }}
+        style={{ background: 'var(--wfa-page-bg)', fontFamily: 'var(--font-body)' }}
       >
 
         {/* ══ LEFT COLUMN — tracking cards (340px) ══════════════════════════ */}
         <div
           className="flex flex-col shrink-0 border-r"
-          style={{ width: 340, borderColor: '#d4a57440', background: 'rgba(255,255,255,0.6)' }}
+          style={{ width: 340, borderColor: 'var(--wfa-border)', background: 'var(--wfa-panel-l)' }}
         >
           {/* Header */}
-          <div className="px-5 pt-6 pb-4 border-b" style={{ borderColor: '#d4a57430' }}>
-            <div className="flex items-center gap-1.5 text-[#c86432] text-[11px] font-semibold uppercase tracking-widest mb-1">
+          <div className="px-5 pt-6 pb-4 border-b" style={{ borderColor: 'var(--wfa-border-lite)' }}>
+            <div
+              className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest mb-1"
+              style={{ color: 'var(--wfa-accent)' }}
+            >
               <Users className="w-3.5 h-3.5" />
               My Persons
             </div>
-            <div className="font-display font-bold text-xl text-[#3e2723]">Tracking</div>
-            <div className="text-[#3e2723]/40 text-xs mt-0.5">
+            <div className="font-display font-bold text-xl" style={{ color: 'var(--wfa-text)' }}>Tracking</div>
+            <div className="text-xs mt-0.5" style={{ color: 'var(--wfa-text-40)' }}>
               {persons.length} {persons.length === 1 ? 'person' : 'people'} monitored
             </div>
           </div>
@@ -270,13 +276,14 @@ export default function CaregiverDashboard() {
             {persons.length === 0 ? (
               <div className="flex flex-col items-center py-10 text-center">
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3"
-                  style={{ background: '#f5f1e8' }}>
-                  <User className="w-6 h-6 text-[#d4a574]" />
+                  style={{ background: 'var(--wfa-tag-bg)' }}>
+                  <User className="w-6 h-6" style={{ color: 'var(--wfa-accent-lite)' }} />
                 </div>
-                <p className="text-[#3e2723]/50 text-sm mb-3">No people added yet</p>
+                <p className="text-sm mb-3" style={{ color: 'var(--wfa-text-50)' }}>No people added yet</p>
                 <Link
                   href="/dashboard/caregiver/persons"
-                  className="text-[#c86432] text-xs font-semibold hover:underline flex items-center gap-1"
+                  className="text-xs font-semibold hover:underline flex items-center gap-1"
+                  style={{ color: 'var(--wfa-accent)' }}
                 >
                   Add someone to monitor <ChevronRight className="w-3 h-3" />
                 </Link>
@@ -286,10 +293,10 @@ export default function CaregiverDashboard() {
             )}
 
             {/* Go-bag widget */}
-            <div className="rounded-2xl p-4 bg-white border" style={{ borderColor: '#d4a57440' }}>
+            <div className="rounded-2xl p-4 bg-white border" style={{ borderColor: 'var(--wfa-border)' }}>
               <div className="flex items-center justify-between mb-2.5">
-                <div className="flex items-center gap-2 text-[#3e2723] text-sm font-semibold">
-                  <Package className="w-4 h-4 text-[#c86432]" />
+                <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--wfa-text)' }}>
+                  <Package className="w-4 h-4" style={{ color: 'var(--wfa-accent)' }} />
                   Go-Bag Ready
                 </div>
                 <span
@@ -299,7 +306,7 @@ export default function CaregiverDashboard() {
                   {readyPct}%
                 </span>
               </div>
-              <div className="h-2 rounded-full overflow-hidden" style={{ background: '#f0ece3' }}>
+              <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--wfa-progress-bg)' }}>
                 <div
                   className="h-full rounded-full transition-all"
                   style={{
@@ -308,7 +315,7 @@ export default function CaregiverDashboard() {
                   }}
                 />
               </div>
-              <div className="text-[11px] text-[#3e2723]/40 mt-1.5">
+              <div className="text-[11px] mt-1.5" style={{ color: 'var(--wfa-text-40)' }}>
                 {bagChecked.size} / {GO_BAG_ITEMS.length} items packed
               </div>
             </div>
@@ -316,10 +323,16 @@ export default function CaregiverDashboard() {
             {/* Add person CTA */}
             <Link
               href="/dashboard/caregiver/persons"
-              className="flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-medium transition-colors border border-dashed hover:bg-white"
-              style={{ borderColor: '#d4a57460', color: '#c86432' }}
+              className="group flex flex-col items-center justify-center gap-0.5 py-3 rounded-2xl text-sm font-medium transition-all border border-dashed hover:shadow-sm"
+              style={{ borderColor: 'var(--wfa-border)', color: 'var(--wfa-accent)' }}
             >
-              + Add person
+              <span className="flex items-center gap-1.5">+ Add person</span>
+              <span
+                className="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity max-h-0 group-hover:max-h-4 overflow-hidden leading-none"
+                style={{ color: 'var(--wfa-accent)' }}
+              >
+                Track location &amp; check‑in status
+              </span>
             </Link>
           </div>
         </div>
@@ -330,29 +343,50 @@ export default function CaregiverDashboard() {
           {/* Top bar */}
           <div className="shrink-0 px-8 pt-6 pb-4 flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-1.5 text-[#c86432] text-[11px] font-semibold uppercase tracking-widest mb-0.5">
+              <div
+                className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest mb-0.5"
+                style={{ color: 'var(--wfa-accent)' }}
+              >
                 <Bell className="w-3.5 h-3.5" />
                 Caregiver Hub
               </div>
-              <h1 className="font-display font-bold text-2xl text-[#3e2723]">My Hub</h1>
+              <h1 className="font-display font-bold text-2xl" style={{ color: 'var(--wfa-text)' }}>My Hub</h1>
             </div>
             <div className="flex items-center gap-2">
-              <Link
-                href="/dashboard/caregiver/map"
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90"
-                style={{ background: '#3e2723' }}
-              >
-                <MapPin className="w-3.5 h-3.5" />
-                Evac Map
-              </Link>
-              <Link
-                href="/dashboard/caregiver/checkin"
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-colors hover:bg-white"
-                style={{ background: 'rgba(255,255,255,0.6)', color: '#3e2723', border: '1px solid #d4a57440' }}
-              >
-                <CheckCircle className="w-3.5 h-3.5 text-[#7cb342]" />
-                Check In Safe
-              </Link>
+              <div className="group relative">
+                <Link
+                  href="/dashboard/caregiver/map"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 hover:scale-[1.03]"
+                  style={{ background: 'var(--wfa-btn-dark)' }}
+                >
+                  <MapPin className="w-3.5 h-3.5" />
+                  Evac Map
+                </Link>
+                <div
+                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2.5 py-1.5 rounded-lg text-[11px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 z-10 shadow-lg"
+                  style={{ background: 'var(--wfa-tooltip-bg)' }}
+                >
+                  Live fire map &amp; evacuation routes
+                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45" style={{ background: 'var(--wfa-tooltip-bg)' }} />
+                </div>
+              </div>
+              <div className="group relative">
+                <Link
+                  href="/dashboard/caregiver/checkin"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:scale-[1.03] hover:shadow-sm"
+                  style={{ background: 'var(--wfa-checkin-bg)', color: 'var(--wfa-text)', border: '1px solid var(--wfa-border)' }}
+                >
+                  <CheckCircle className="w-3.5 h-3.5" style={{ color: '#7cb342' }} />
+                  Check In Safe
+                </Link>
+                <div
+                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2.5 py-1.5 rounded-lg text-[11px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 z-10 shadow-lg"
+                  style={{ background: 'var(--wfa-tooltip-bg)' }}
+                >
+                  Mark yourself safe &amp; notify your network
+                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45" style={{ background: 'var(--wfa-tooltip-bg)' }} />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -361,12 +395,12 @@ export default function CaregiverDashboard() {
 
             {/* Big fire alert card */}
             {loading ? (
-              <div className="h-72 rounded-3xl animate-pulse" style={{ background: '#d4a574' }} />
+              <div className="h-72 rounded-3xl animate-pulse" style={{ background: 'var(--wfa-accent-lite)' }} />
             ) : topFire ? (
               <div
                 className="rounded-3xl p-8 relative overflow-hidden"
                 style={{
-                  background: 'linear-gradient(135deg, #3e2723 0%, #5d3a1a 55%, #c86432 100%)',
+                  background: 'var(--wfa-hero-bg)',
                   minHeight: 280,
                 }}
               >
@@ -441,7 +475,7 @@ export default function CaregiverDashboard() {
             ) : (
               <div
                 className="rounded-3xl p-8 flex flex-col items-center justify-center"
-                style={{ background: 'linear-gradient(135deg, #3e2723, #5d4a3a)', minHeight: 240 }}
+                style={{ background: 'var(--wfa-empty-bg)', minHeight: 240 }}
               >
                 <div
                   className="w-18 h-18 w-20 h-20 rounded-full flex items-center justify-center mb-4"
@@ -457,8 +491,8 @@ export default function CaregiverDashboard() {
             {/* Other fires */}
             {otherFires.length > 0 && (
               <div>
-                <div className="flex items-center gap-2 text-[#3e2723] font-semibold text-sm mb-3">
-                  <AlertTriangle className="w-4 h-4 text-[#c86432]" />
+                <div className="flex items-center gap-2 font-semibold text-sm mb-3" style={{ color: 'var(--wfa-text)' }}>
+                  <AlertTriangle className="w-4 h-4" style={{ color: 'var(--wfa-accent)' }} />
                   Other Recent Fires
                 </div>
                 <div className="space-y-2">
@@ -466,15 +500,15 @@ export default function CaregiverDashboard() {
                     <div
                       key={fire.id}
                       className="rounded-2xl p-4 bg-white flex items-center gap-4 shadow-sm"
-                      style={{ border: '1px solid #f0ece3' }}
+                      style={{ border: '1px solid var(--wfa-fire-border)' }}
                     >
                       <div className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse"
                         style={{ background: fire.containment_pct != null && fire.containment_pct >= 75 ? '#7cb342' : '#c86432' }} />
                       <div className="flex-1 min-w-0">
-                        <div className="text-[#3e2723] font-medium text-sm truncate">
+                        <div className="font-medium text-sm truncate" style={{ color: 'var(--wfa-text)' }}>
                           {fire.incident_name || 'Unnamed Fire'}
                         </div>
-                        <div className="text-[#3e2723]/40 text-xs">
+                        <div className="text-xs" style={{ color: 'var(--wfa-text-40)' }}>
                           {[fire.county, fire.state].filter(Boolean).join(', ')}
                         </div>
                       </div>
@@ -486,7 +520,7 @@ export default function CaregiverDashboard() {
                           {fire.containment_pct != null ? `${fire.containment_pct}% contained` : 'Uncontained'}
                         </div>
                         {fire.acres_burned != null && (
-                          <div className="text-[#3e2723]/40 text-xs">{fire.acres_burned.toLocaleString()} ac</div>
+                          <div className="text-xs" style={{ color: 'var(--wfa-text-40)' }}>{fire.acres_burned.toLocaleString()} ac</div>
                         )}
                       </div>
                     </div>
@@ -500,30 +534,30 @@ export default function CaregiverDashboard() {
         {/* ══ RIGHT COLUMN — profile + map + info cards (380px) ════════════ */}
         <div
           className="flex flex-col shrink-0 border-l"
-          style={{ width: 380, borderColor: '#d4a57440', background: 'rgba(255,255,255,0.4)' }}
+          style={{ width: 380, borderColor: 'var(--wfa-border)', background: 'var(--wfa-panel-r)' }}
         >
           {/* Profile badge */}
-          <div className="p-5 border-b" style={{ borderColor: '#d4a57430' }}>
+          <div className="p-5 border-b" style={{ borderColor: 'var(--wfa-border-lite)' }}>
             <div className="flex items-center gap-3">
               <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center font-display font-bold text-lg text-white shrink-0"
-                style={{ background: 'linear-gradient(135deg, #3e2723, #c86432)' }}
+                className="w-12 h-12 rounded-full flex items-center justify-center font-display font-bold text-lg text-white shrink-0"
+                style={{ background: 'var(--wfa-profile-grad)' }}
               >
                 {initials}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-[#3e2723] font-semibold text-sm truncate">
+                <div className="font-semibold text-sm truncate" style={{ color: 'var(--wfa-text)' }}>
                   {userProfile?.full_name || 'My Profile'}
                 </div>
                 {userProfile?.email && (
-                  <div className="text-[#3e2723]/40 text-xs truncate">{userProfile.email}</div>
+                  <div className="text-xs truncate" style={{ color: 'var(--wfa-text-40)' }}>{userProfile.email}</div>
                 )}
               </div>
               <Link
                 href="/dashboard/settings"
-                className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-[#3e2723]/10 transition-colors shrink-0"
+                className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-gray-100 transition-colors shrink-0"
               >
-                <ChevronRight className="w-4 h-4 text-[#3e2723]/40" />
+                <ChevronRight className="w-4 h-4" style={{ color: 'var(--wfa-text-40)' }} />
               </Link>
             </div>
           </div>
@@ -543,7 +577,7 @@ export default function CaregiverDashboard() {
               <Link
                 href="/dashboard/caregiver/map"
                 className="pointer-events-auto w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90"
-                style={{ background: 'rgba(62,39,35,0.88)', backdropFilter: 'blur(8px)' }}
+                style={{ background: 'var(--wfa-tooltip-bg)', backdropFilter: 'blur(8px)' }}
               >
                 <MapPin className="w-3.5 h-3.5" />
                 View Full Evacuation Map
@@ -555,7 +589,7 @@ export default function CaregiverDashboard() {
           <div className="px-4 pb-4 grid grid-cols-2 gap-3">
             {/* Emergency contact card */}
             <div
-              className="rounded-2xl p-4 text-white"
+              className="rounded-2xl p-4 text-white group relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.02] cursor-default"
               style={{ background: 'linear-gradient(135deg, #4a6621, #7cb342)' }}
             >
               <div
@@ -571,7 +605,7 @@ export default function CaregiverDashboard() {
               {firstPerson?.phone ? (
                 <a
                   href={`tel:${firstPerson.phone}`}
-                  className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-xs font-semibold transition-colors"
+                  className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-xs font-semibold transition-all hover:bg-white/30"
                   style={{ background: 'rgba(255,255,255,0.22)' }}
                 >
                   <Phone className="w-3 h-3" />
@@ -580,27 +614,55 @@ export default function CaregiverDashboard() {
               ) : (
                 <Link
                   href="/dashboard/caregiver/persons"
-                  className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-xs font-semibold transition-colors"
+                  className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-xs font-semibold transition-all hover:bg-white/30"
                   style={{ background: 'rgba(255,255,255,0.22)' }}
                 >
                   Set up
                 </Link>
               )}
+              {/* Hover detail strip */}
+              {firstPerson && (
+                <div className="absolute inset-x-0 bottom-0 px-3 py-2 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0" style={{ background: 'rgba(0,0,0,0.22)' }}>
+                  <div className="text-white/80 text-[10px] truncate">
+                    {firstPerson.relationship}
+                    {firstPerson.mobility && firstPerson.mobility !== 'Mobile Adult' ? ` · ${firstPerson.mobility}` : ''}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Location card */}
-            <div className="rounded-2xl p-4" style={{ background: '#3e2723' }}>
+            <div
+              className="rounded-2xl p-4 group relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.02]"
+              style={{ background: 'var(--wfa-loc-card)' }}
+            >
               <div
                 className="w-8 h-8 rounded-xl flex items-center justify-center mb-3"
                 style={{ background: 'rgba(255,255,255,0.1)' }}
               >
-                <MapPin className="w-4 h-4 text-[#d4a574]" />
+                <MapPin className="w-4 h-4" style={{ color: 'var(--wfa-accent-lite)' }} />
               </div>
               <div className="text-white/50 text-[10px] uppercase tracking-widest mb-0.5">Location</div>
               <div className="text-sm font-semibold text-white/90 leading-snug line-clamp-2">
                 {firstPerson?.address || 'Not set'}
               </div>
-              <div className="text-white/25 text-[10px] uppercase tracking-widest mt-3">Last Update: Now</div>
+              <div className="text-white/25 text-[10px] uppercase tracking-widest mt-3 group-hover:opacity-0 transition-opacity">Last Update: Now</div>
+              {/* Hover overlay — View on map */}
+              <Link
+                href="/dashboard/caregiver/map"
+                className="absolute inset-x-0 bottom-0 flex items-center justify-center pb-3 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0"
+              >
+                <span
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
+                  style={{
+                    color: 'var(--wfa-accent-lite)',
+                    background: 'var(--wfa-accent-lite-bg)',
+                    border: '1px solid var(--wfa-accent-lite-bdr)',
+                  }}
+                >
+                  <MapPin className="w-3 h-3" /> View on map
+                </span>
+              </Link>
             </div>
           </div>
         </div>

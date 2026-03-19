@@ -47,7 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* eslint-disable-next-line @next/next/no-sync-scripts */}
         <script async src="https://translate.googleapis.com/translate_a/element.js?cb=googleTranslateElementInit" />
         {/* Apply saved theme before first paint to avoid flash */}
-        <script dangerouslySetInnerHTML={{ __html: `try{if(localStorage.getItem('wfa_theme')==='dark')document.documentElement.classList.add('dark');else document.documentElement.classList.remove('dark');}catch(e){}` }} />
+        <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('wfa_theme')||'light';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');else document.documentElement.classList.remove('dark');}catch(e){}` }} />
       </head>
       <body className="bg-gray-50 text-gray-900 font-body antialiased" suppressHydrationWarning>
         <ScrollToTop />

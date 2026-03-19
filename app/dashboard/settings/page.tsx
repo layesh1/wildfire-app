@@ -11,6 +11,69 @@ import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/components/LanguageProvider'
 import { LANGUAGES } from '@/lib/languages'
 
+// ── Address autocomplete (Nominatim, no API key) ───────────────────────────
+interface NominatimResult { place_id: number; display_name: string }
+
+function AddressInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const [suggestions, setSuggestions] = React.useState<NominatimResult[]>([])
+  const [showDrop, setShowDrop] = React.useState(false)
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const wrapRef = React.useRef<HTMLDivElement>(null)
+
+  React.useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setShowDrop(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  function handleChange(v: string) {
+    onChange(v)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (v.length < 4) { setSuggestions([]); setShowDrop(false); return }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(v)}&format=json&addressdetails=0&limit=5&countrycodes=us`,
+          { headers: { 'Accept-Language': 'en' } }
+        )
+        const data: NominatimResult[] = await res.json()
+        setSuggestions(data)
+        setShowDrop(data.length > 0)
+      } catch { setSuggestions([]) }
+    }, 400)
+  }
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <input
+        type="text"
+        value={value}
+        onChange={e => handleChange(e.target.value)}
+        onFocus={() => suggestions.length > 0 && setShowDrop(true)}
+        placeholder={placeholder}
+        className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
+      />
+      {showDrop && (
+        <ul className="absolute z-50 top-full mt-1 left-0 right-0 bg-ash-800 border border-ash-700 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+          {suggestions.map(s => (
+            <li key={s.place_id}>
+              <button
+                type="button"
+                className="w-full text-left px-3 py-2.5 text-sm text-ash-200 hover:bg-ash-700 hover:text-white transition-colors truncate"
+                onMouseDown={() => { onChange(s.display_name); setSuggestions([]); setShowDrop(false) }}
+              >
+                {s.display_name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────
 interface ProfileData {
   full_name: string; phone: string; address: string
@@ -194,6 +257,39 @@ function SettingsInner() {
       }
     } else {
       setSaved(true)
+      // Sync to wfa_emergency_card and My Persons so hub + persons list stay current
+      try {
+        const existingCard = JSON.parse(localStorage.getItem('wfa_emergency_card') || '{}')
+        localStorage.setItem('wfa_emergency_card', JSON.stringify({
+          ...existingCard,
+          name: profile.full_name,
+          phone: profile.phone,
+          address: profile.address,
+          emergencyContacts: profile.emergency_contact_name
+            ? [{ name: profile.emergency_contact_name, phone: profile.emergency_contact_phone, relationship: '' }]
+            : (existingCard.emergencyContacts || []),
+        }))
+        const selfPerson = {
+          id: 'self-user',
+          name: profile.full_name || 'Me',
+          address: profile.address || '',
+          relationship: 'Self',
+          mobility: existingCard.mobility || 'Mobile Adult',
+          phone: profile.phone || '',
+          languages: profile.household_languages
+            ? profile.household_languages.split(',').map((l: string) => l.trim()).filter(Boolean)
+            : ['en'],
+          notes: profile.special_notes || '',
+          status: 'unknown',
+          last_confirmed: null,
+          checkin_token: null,
+          ping_sent_at: null,
+          justConfirmed: false,
+        }
+        const existing = JSON.parse(localStorage.getItem('monitored_persons_v2') || '[]')
+        const without = existing.filter((p: { id: string }) => p.id !== 'self-user')
+        localStorage.setItem('monitored_persons_v2', JSON.stringify([selfPerson, ...without]))
+      } catch {}
     }
     setSaving(false)
   }
@@ -524,7 +620,7 @@ function SettingsInner() {
               <Field label="Full name"><FInput value={profile.full_name} onChange={v => update('full_name', v)} placeholder="Jane Smith" /></Field>
               <Field label="Phone number"><FInput value={profile.phone} onChange={v => update('phone', v)} placeholder="+1 (555) 000-0000" type="tel" /></Field>
               <Field label="Home address" hint="Used to assess your proximity to active fires">
-                <FInput value={profile.address} onChange={v => update('address', v)} placeholder="123 Main St, City, CA" />
+                <AddressInput value={profile.address} onChange={v => update('address', v)} placeholder="123 Main St, City, CA" />
               </Field>
             </div>
           </Section>
