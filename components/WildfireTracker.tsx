@@ -1,4 +1,5 @@
 'use client'
+import { useState } from 'react'
 import {
   MapPin, Flame, Phone, AlertTriangle, Shield, CheckCircle,
   Bell, Map, Users, Settings, Activity, ChevronRight,
@@ -195,6 +196,7 @@ function PersonCard({ person, isDark }: { person: typeof PERSONS[0]; isDark: boo
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function WildfireTracker({ isDark }: WildfireTrackerProps) {
   const t = theme(isDark)
+  const [showPersonTooltip, setShowPersonTooltip] = useState(false)
 
   return (
     <div
@@ -373,6 +375,35 @@ export default function WildfireTracker({ isDark }: WildfireTrackerProps) {
             </div>
           </div>
 
+          {/* ── Status key ── */}
+          <div
+            className="rounded-2xl px-4 py-3 mb-4"
+            style={{ background: t.card, border: `1px solid ${t.borderLite}` }}
+          >
+            <div className="text-[9px] font-semibold uppercase tracking-widest mb-2.5" style={{ color: t.text40 }}>
+              Alert Level Key
+            </div>
+            <div className="grid grid-cols-4 gap-1.5">
+              {[
+                { dot: '#7cb342',  label: 'Safe',     sub: 'All clear'    },
+                { dot: '#d4a574',  label: 'Caution',  sub: 'Stay alert'   },
+                { dot: '#c86432',  label: 'Warning',  sub: 'Prepare now'  },
+                { dot: '#d32f2f',  label: 'Act Now',  sub: 'Evacuate!'    },
+              ].map(({ dot, label, sub }) => (
+                <div key={label} className="flex flex-col items-center text-center gap-1">
+                  <div
+                    className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+                    style={{ background: dot + '22', border: `2px solid ${dot}` }}
+                  >
+                    <div className="w-2 h-2 rounded-full" style={{ background: dot }} />
+                  </div>
+                  <div className="text-[9px] font-semibold leading-tight" style={{ color: t.text }}>{label}</div>
+                  <div className="text-[8px] leading-tight" style={{ color: t.text40 }}>{sub}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Secondary fires */}
           <div className="text-xs font-semibold mb-2 flex items-center gap-1.5" style={{ color: t.text }}>
             <AlertTriangle className="w-3.5 h-3.5" style={{ color: t.accent }} />
@@ -489,8 +520,10 @@ export default function WildfireTracker({ isDark }: WildfireTrackerProps) {
         <div className="px-3 pb-4 grid grid-cols-2 gap-2.5 shrink-0">
           {/* First person card */}
           <div
-            className="rounded-2xl p-3 text-white group relative overflow-hidden"
+            className="rounded-2xl p-3 text-white relative"
             style={{ background: 'linear-gradient(135deg, #4a6621, #7cb342)' }}
+            onMouseEnter={() => setShowPersonTooltip(true)}
+            onMouseLeave={() => setShowPersonTooltip(false)}
           >
             <div
               className="w-7 h-7 rounded-xl flex items-center justify-center mb-2.5"
@@ -499,14 +532,36 @@ export default function WildfireTracker({ isDark }: WildfireTrackerProps) {
               <Users className="w-3.5 h-3.5 text-white" />
             </div>
             <div className="text-white/60 text-[9px] uppercase tracking-widest mb-0.5">First Person</div>
-            <div className="text-xs font-semibold text-white truncate">Matthew Perry</div>
+            <div className="text-xs font-semibold text-white truncate">—</div>
+            <div className="text-white/50 text-[9px] mb-2">Not set up</div>
             <div
-              className="mt-2.5 w-full flex items-center justify-center gap-1 py-1.5 rounded-xl text-[10px] font-semibold"
+              className="w-full flex items-center justify-center gap-1 py-1.5 rounded-xl text-[10px] font-semibold"
               style={{ background: 'rgba(255,255,255,0.22)', color: '#fff' }}
             >
-              <Phone className="w-2.5 h-2.5" />
-              Call
+              Set up
             </div>
+
+            {/* Hover tooltip */}
+            {showPersonTooltip && (
+              <div
+                className="absolute bottom-full left-0 mb-2 w-48 rounded-xl p-3 shadow-xl z-30 pointer-events-none"
+                style={{ background: isDark ? '#1a1a1a' : '#3e2723' }}
+              >
+                <div className="flex items-center gap-1.5 mb-2">
+                  <MapPin className="w-3 h-3 text-[#d4a574] shrink-0" />
+                  <span className="text-[10px] font-semibold text-white/80 uppercase tracking-wider">Location</span>
+                </div>
+                <div className="text-xs font-semibold text-white leading-snug mb-1.5">
+                  No address on file
+                </div>
+                <div className="text-[9px] text-white/40 uppercase tracking-widest">Last Update: —</div>
+                {/* Arrow */}
+                <div
+                  className="absolute top-full left-5"
+                  style={{ borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: `6px solid ${isDark ? '#1a1a1a' : '#3e2723'}` }}
+                />
+              </div>
+            )}
           </div>
 
           {/* Location card */}
@@ -537,7 +592,6 @@ export default function WildfireTracker({ isDark }: WildfireTrackerProps) {
           src="/flameo1.png"
           alt="Flameo"
           className="w-full h-full object-contain drop-shadow-2xl"
-          style={{ mixBlendMode: 'screen' }}
         />
       </div>
 
