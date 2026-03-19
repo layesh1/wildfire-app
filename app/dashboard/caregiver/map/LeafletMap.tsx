@@ -59,15 +59,38 @@ export interface EvacShelter {
   capacity: number
 }
 
+export interface WatchedLocation {
+  label: string
+  lat: number
+  lng: number
+}
+
+function watchedIcon() {
+  const svg = encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 40" width="32" height="40">
+    <ellipse cx="16" cy="38" rx="6" ry="2.5" fill="#7c3aed" fill-opacity="0.25"/>
+    <path d="M16 2C10.477 2 6 6.477 6 12c0 7.5 10 24 10 24s10-16.5 10-24C26 6.477 21.523 2 16 2z" fill="#7c3aed" stroke="#5b21b6" stroke-width="1.5"/>
+    <circle cx="16" cy="12" r="4.5" fill="white" fill-opacity="0.9"/>
+    <circle cx="16" cy="12" r="2.5" fill="#7c3aed"/>
+  </svg>`)
+  return L.divIcon({
+    html: `<img src="data:image/svg+xml,${svg}" width="32" height="40" style="display:block" />`,
+    iconSize: [32, 40],
+    iconAnchor: [16, 38],
+    popupAnchor: [0, -38],
+    className: '',
+  })
+}
+
 interface Props {
   nifc: NifcFire[]
   userLocation: [number, number] | null
   center: [number, number]
   shelters?: EvacShelter[]
   showShelters?: boolean
+  watchedLocations?: WatchedLocation[]
 }
 
-export default function LeafletMap({ nifc, userLocation, center, shelters = [], showShelters = false }: Props) {
+export default function LeafletMap({ nifc, userLocation, center, shelters = [], showShelters = false, watchedLocations = [] }: Props) {
   // Filter out fully contained fires (100%)
   const activeFires = nifc.filter(f => f.containment == null || f.containment < 100)
 
@@ -93,6 +116,17 @@ export default function LeafletMap({ nifc, userLocation, center, shelters = [], 
           </Popup>
         </CircleMarker>
       )}
+
+      {/* Watched person pins — purple teardrop */}
+      {watchedLocations.map((w, i) => (
+        <Marker key={`watched-${i}`} position={[w.lat, w.lng]} icon={watchedIcon()}>
+          <Popup>
+            <div style={{ fontFamily: 'sans-serif', fontSize: 13, lineHeight: 1.7 }}>
+              <strong style={{ color: '#7c3aed' }}>{w.label}</strong>
+            </div>
+          </Popup>
+        </Marker>
+      ))}
 
       {/* Evacuation shelters — heart icon */}
       {showShelters && shelters.map(s => (

@@ -2,8 +2,8 @@
 import { useEffect, useState, Suspense, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
-import { MapPin, AlertTriangle, CheckCircle, Navigation, ExternalLink, ChevronRight, Flame, RefreshCw, Heart } from 'lucide-react'
-import type { NifcFire, EvacShelter } from './LeafletMap'
+import { MapPin, AlertTriangle, CheckCircle, Navigation, ExternalLink, ChevronRight, Flame, RefreshCw, Heart, User, Search, X } from 'lucide-react'
+import type { NifcFire, EvacShelter, WatchedLocation } from './LeafletMap'
 
 const EVAC_SHELTERS: EvacShelter[] = [
   // California
@@ -204,6 +204,8 @@ function StatusBanner({ fires, locating }: { fires: NifcFire[], locating: boolea
   )
 }
 
+interface SavedPerson { id: string; name: string; address: string }
+
 function EvacuationMapContent() {
   const [nifc, setNifc] = useState<NifcFire[]>([])
   const [loading, setLoading] = useState(true)
@@ -213,6 +215,47 @@ function EvacuationMapContent() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [showShelters, setShowShelters] = useState(false)
   const searchParams = useSearchParams()
+
+  // Person / address monitoring
+  const [savedPersons, setSavedPersons] = useState<SavedPerson[]>([])
+  const [watchedLocations, setWatchedLocations] = useState<WatchedLocation[]>([])
+  const [addressInput, setAddressInput] = useState('')
+  const [geocoding, setGeocoding] = useState(false)
+  const [geocodeError, setGeocodeError] = useState('')
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('monitored_persons_v2')
+      if (raw) setSavedPersons(JSON.parse(raw))
+    } catch {}
+  }, [])
+
+  async function geocodeAddress(address: string, label: string) {
+    if (!address.trim()) return
+    setGeocoding(true)
+    setGeocodeError('')
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`
+      const res = await fetch(url, { headers: { 'Accept-Language': 'en' } })
+      const data = await res.json()
+      if (data?.[0]) {
+        const loc: WatchedLocation = { label, lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
+        setWatchedLocations(prev => {
+          const filtered = prev.filter(w => w.label !== label)
+          return [...filtered, loc]
+        })
+      } else {
+        setGeocodeError('Address not found — try a more specific address.')
+      }
+    } catch {
+      setGeocodeError('Could not reach geocoding service.')
+    }
+    setGeocoding(false)
+  }
+
+  function removeWatched(label: string) {
+    setWatchedLocations(prev => prev.filter(w => w.label !== label))
+  }
 
   async function loadNifc() {
     setLoading(true)
@@ -358,6 +401,72 @@ function EvacuationMapContent() {
             )}
           </div>
 
+          {/* Person / address monitor */}
+          <div className="bg-ash-800/60 border border-ash-700 rounded-xl p-3 flex flex-col gap-2">
+            <div className="text-ash-400 text-xs font-medium flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5" />
+              Pin a location on the map
+            </div>
+
+            {/* Saved persons */}
+            {savedPersons.filter(p => p.address).length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {savedPersons.filter(p => p.address).map(p => {
+                  const isWatched = watchedLocations.some(w => w.label === p.name)
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => isWatched ? removeWatched(p.name) : geocodeAddress(p.address, p.name)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                        isWatched
+                          ? 'bg-violet-600/20 border-violet-500/50 text-violet-300'
+                          : 'bg-ash-700 border-ash-600 text-ash-300 hover:text-white hover:border-ash-500'
+                      }`}
+                    >
+                      <User className="w-3 h-3" />
+                      {p.name}
+                      {isWatched && <X className="w-3 h-3" />}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Manual address input */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={addressInput}
+                onChange={e => setAddressInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && geocodeAddress(addressInput, addressInput.split(',')[0]?.trim() || 'Location')}
+                placeholder="Or type any address…"
+                className="flex-1 bg-ash-900 border border-ash-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-ash-600 focus:outline-none focus:border-violet-500"
+              />
+              <button
+                onClick={() => geocodeAddress(addressInput, addressInput.split(',')[0]?.trim() || 'Location')}
+                disabled={geocoding || !addressInput.trim()}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-violet-600/20 border border-violet-500/50 text-violet-300 hover:bg-violet-600/30 transition-colors disabled:opacity-40"
+              >
+                <Search className="w-3.5 h-3.5" />
+                {geocoding ? 'Finding…' : 'Pin'}
+              </button>
+            </div>
+            {geocodeError && <p className="text-red-400 text-xs">{geocodeError}</p>}
+
+            {/* Active watched pins */}
+            {watchedLocations.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1 border-t border-ash-700">
+                {watchedLocations.map(w => (
+                  <div key={w.label} className="flex items-center gap-1 bg-violet-600/10 border border-violet-500/30 text-violet-300 text-xs px-2 py-0.5 rounded-full">
+                    <div className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                    {w.label}
+                    <button onClick={() => removeWatched(w.label)} className="ml-0.5 hover:text-white"><X className="w-2.5 h-2.5" /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="card overflow-hidden" style={{ height: 480 }}>
             {loading ? (
               <div className="h-full flex flex-col items-center justify-center gap-3">
@@ -365,7 +474,7 @@ function EvacuationMapContent() {
                 <span className="text-ash-500 text-sm">Loading active fires…</span>
               </div>
             ) : (
-              <LeafletMap nifc={sortedFires} userLocation={userLocation} center={center} shelters={EVAC_SHELTERS} showShelters={showShelters} />
+              <LeafletMap nifc={sortedFires} userLocation={userLocation} center={center} shelters={EVAC_SHELTERS} showShelters={showShelters} watchedLocations={watchedLocations} />
             )}
           </div>
 
@@ -376,6 +485,7 @@ function EvacuationMapContent() {
             <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-amber-400" /> Being controlled (50–75%)</div>
             <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-signal-safe" /> Mostly contained (75%+)</div>
             <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-blue-500" /> Your location</div>
+            {watchedLocations.length > 0 && <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-violet-500" /> Pinned location</div>}
             {showShelters && <div className="flex items-center gap-1.5"><Heart className="w-3 h-3 text-signal-safe" /> Evacuation shelters</div>}
           </div>
 

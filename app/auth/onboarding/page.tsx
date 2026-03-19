@@ -42,23 +42,56 @@ const ROLE_DESTINATIONS: Record<string, string> = {
   caregiver: '/dashboard/caregiver',
 }
 
+const MOBILITY_OPTIONS = ['Mobile Adult', 'Elderly', 'Elderly (needs driver)', 'Disabled', 'Wheelchair', 'No Vehicle', 'Medical Equipment', 'Other']
+
+function inp(value: string, onChange: (v: string) => void, placeholder: string, type = 'text') {
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
+    />
+  )
+}
+
+function Label({ children }: { children: React.ReactNode }) {
+  return <label className="block text-ash-300 text-xs font-medium mb-1">{children}</label>
+}
+
 function OnboardingInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
   const [step, setStep] = useState(1)
   const [selectedRole, setSelectedRole] = useState(searchParams.get('role') || '')
+
+  // Step 2 fields
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
+  const [bloodType, setBloodType] = useState('')
+  const [allergies, setAllergies] = useState('')
   const [notifEmail, setNotifEmail] = useState('')
   const [agency, setAgency] = useState('')
   const [institution, setInstitution] = useState('')
+
+  // Step 3 fields (caregiver only)
+  const [ecName, setEcName] = useState('')
+  const [ecPhone, setEcPhone] = useState('')
+  const [languages, setLanguages] = useState('')
+  const [mobility, setMobility] = useState('Mobile Adult')
+  const [mobilityOther, setMobilityOther] = useState('')
+  const [responderNotes, setResponderNotes] = useState('')
+  const [forOthers, setForOthers] = useState(false)
+
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  const totalSteps = selectedRole === 'caregiver' ? 3 : 2
+
   useEffect(() => {
-    // Pre-fill email from auth
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) { router.replace('/auth/login'); return }
@@ -74,50 +107,69 @@ function OnboardingInner() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setError('Not signed in'); setSaving(false); return }
 
-    // Build profile payload — only include columns that definitely exist
+    const resolvedMobility = mobility === 'Other' && mobilityOther.trim() ? mobilityOther.trim() : mobility
+
     const basePayload: Record<string, unknown> = {
       id: user.id,
       email: user.email,
       role: selectedRole,
       roles: [selectedRole],
       full_name: fullName || null,
-    }
-
-    // Extended columns (added by migration) — included optimistically
-    const extended: Record<string, unknown> = {
       notification_email: notifEmail || null,
     }
 
     if (selectedRole === 'caregiver') {
-      extended.phone = phone || null
-      extended.address = address || null
+      Object.assign(basePayload, {
+        phone: phone || null,
+        address: address || null,
+        emergency_contact_name: ecName || null,
+        emergency_contact_phone: ecPhone || null,
+        household_languages: languages || null,
+        special_notes: responderNotes || null,
+      })
     } else if (selectedRole === 'emergency_responder') {
-      extended.phone = agency || null          // reuse phone for agency/badge
+      basePayload.phone = agency || null
     } else if (selectedRole === 'data_analyst') {
-      extended.phone = institution || null     // reuse phone for institution
+      basePayload.phone = institution || null
     }
 
-    // Try full upsert first, fall back to base-only if columns are missing
-    const { error: e1 } = await supabase.from('profiles').upsert({ ...basePayload, ...extended })
+    const { error: e1 } = await supabase.from('profiles').upsert(basePayload)
     if (e1) {
-      if (e1.message.includes('column') || e1.message.includes('schema cache')) {
-        // Extended columns not yet migrated — save base only
-        await supabase.from('profiles').upsert(basePayload)
-      } else {
-        setError(e1.message)
-        setSaving(false)
-        return
-      }
+      const fallback = { id: user.id, email: user.email, role: selectedRole, roles: [selectedRole], full_name: fullName || null, notification_email: notifEmail || null }
+      const { error: e2 } = await supabase.from('profiles').upsert(fallback)
+      if (e2) { setError(e2.message); setSaving(false); return }
     }
 
-    // Set localStorage for role persistence
+    // Pre-populate emergency card in localStorage
+    if (selectedRole === 'caregiver') {
+      try {
+        const card = {
+          name: fullName,
+          phone,
+          address,
+          bloodType,
+          allergies,
+          languages,
+          mobility: resolvedMobility,
+          mobilityOther: mobility === 'Other' ? mobilityOther : '',
+          medications: '',
+          medicalEquipment: '',
+          pets: '',
+          evacuationRoute: '',
+          destinationAddress: '',
+          emergencyContacts: ecName ? [{ name: ecName, phone: ecPhone, relationship: '' }] : [{ name: '', phone: '', relationship: '' }],
+        }
+        localStorage.setItem('wfa_emergency_card', JSON.stringify(card))
+      } catch {}
+    }
+
     if (typeof window !== 'undefined') {
       localStorage.setItem('wfa_active_role', selectedRole)
       localStorage.setItem('wfa_claimed_roles', JSON.stringify([selectedRole]))
+      localStorage.setItem('wfa_user_id', user.id)
     }
 
-    // For protected roles, send to invite code page
-    if ((selectedRole === 'emergency_responder' || selectedRole === 'data_analyst')) {
+    if (selectedRole === 'emergency_responder' || selectedRole === 'data_analyst') {
       router.replace(`/auth/add-role?role=${selectedRole}`)
     } else {
       router.replace(ROLE_DESTINATIONS[selectedRole] ?? '/dashboard')
@@ -125,6 +177,9 @@ function OnboardingInner() {
   }
 
   const roleConfig = ROLES.find(r => r.id === selectedRole)
+  const stepLabels = selectedRole === 'caregiver'
+    ? ['Your role', 'Your info', 'Emergency setup']
+    : ['Your role', 'Set up profile']
 
   return (
     <div className="min-h-screen bg-ash-950 flex items-center justify-center p-4">
@@ -142,19 +197,20 @@ function OnboardingInner() {
 
         {/* Step indicators */}
         <div className="flex items-center gap-2 mb-8">
-          {[1, 2].map(s => (
-            <div key={s} className="flex items-center gap-2">
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                step > s ? 'bg-signal-safe text-white' : step === s ? 'bg-ember-500 text-white' : 'bg-ash-800 text-ash-500'
-              }`}>
-                {step > s ? <Check className="w-3.5 h-3.5" /> : s}
+          {stepLabels.map((label, idx) => {
+            const s = idx + 1
+            return (
+              <div key={s} className="flex items-center gap-2">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                  step > s ? 'bg-signal-safe text-white' : step === s ? 'bg-ember-500 text-white' : 'bg-ash-800 text-ash-500'
+                }`}>
+                  {step > s ? <Check className="w-3.5 h-3.5" /> : s}
+                </div>
+                <span className={`text-xs ${step === s ? 'text-white' : 'text-ash-500'}`}>{label}</span>
+                {s < totalSteps && <div className="w-6 h-px bg-ash-800 mx-1" />}
               </div>
-              <span className={`text-xs ${step === s ? 'text-white' : 'text-ash-500'}`}>
-                {s === 1 ? 'Choose your role' : 'Set up profile'}
-              </span>
-              {s < 2 && <div className="w-8 h-px bg-ash-800 mx-1" />}
-            </div>
-          ))}
+            )
+          })}
         </div>
 
         {/* Step 1: Role selection */}
@@ -162,7 +218,6 @@ function OnboardingInner() {
           <div>
             <h1 className="font-display text-2xl font-bold text-white mb-1">What brings you here?</h1>
             <p className="text-ash-400 text-sm mb-6">Choose the role that best describes you. You can add more roles later.</p>
-
             <div className="space-y-3 mb-8">
               {ROLES.map(role => {
                 const Icon = role.icon
@@ -176,7 +231,7 @@ function OnboardingInner() {
                     <div className="flex-1 min-w-0">
                       <div className={`font-semibold text-sm mb-0.5 ${isSelected ? 'text-white' : 'text-ash-200'}`}>
                         {role.label}
-                        {role.protected && <span className="ml-2 text-xs text-ash-500 font-normal">(requires access code)</span>}
+                        {'protected' in role && role.protected && <span className="ml-2 text-xs text-ash-500 font-normal">(requires access code)</span>}
                       </div>
                       <div className="text-ash-400 text-xs leading-relaxed">{role.desc}</div>
                     </div>
@@ -187,7 +242,6 @@ function OnboardingInner() {
                 )
               })}
             </div>
-
             <button onClick={() => setStep(2)} disabled={!selectedRole}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-forest-700 hover:bg-forest-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold transition-colors">
               Continue <ArrowRight className="w-4 h-4" />
@@ -195,77 +249,132 @@ function OnboardingInner() {
           </div>
         )}
 
-        {/* Step 2: Profile */}
+        {/* Step 2: Basic profile */}
         {step === 2 && (
           <div>
             <button onClick={() => setStep(1)} className="flex items-center gap-1.5 text-ash-400 hover:text-white text-sm mb-4 transition-colors">
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
-
             <div className="flex items-center gap-2 mb-1">
               {roleConfig && <roleConfig.icon className={`w-4 h-4 ${roleConfig.color}`} />}
-              <h1 className="font-display text-2xl font-bold text-white">Set up your profile</h1>
+              <h1 className="font-display text-2xl font-bold text-white">Your information</h1>
             </div>
             <p className="text-ash-400 text-sm mb-6">
               {selectedRole === 'caregiver'
-                ? 'This helps us personalize alerts for your location and household.'
+                ? 'Used to personalize fire alerts and pre-fill your emergency card.'
                 : selectedRole === 'emergency_responder'
-                ? 'We\'ll use this to customize incident intelligence for your agency.'
-                : 'Helps us tailor the analyst dashboard to your research context.'}
+                ? 'Customize incident intelligence for your agency.'
+                : 'Tailor the analyst dashboard to your research context.'}
             </p>
-
             <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-ash-300 text-xs font-medium mb-1">Full name</label>
-                <input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Your name"
-                  className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600" />
-              </div>
+              <div><Label>Full name</Label>{inp(fullName, setFullName, 'Your name')}</div>
 
               {selectedRole === 'caregiver' && (
                 <>
+                  <div><Label>Phone number</Label>{inp(phone, setPhone, '+1 (555) 000-0000', 'tel')}</div>
                   <div>
-                    <label className="block text-ash-300 text-xs font-medium mb-1">Phone number</label>
-                    <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+1 (555) 000-0000" type="tel"
-                      className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600" />
+                    <Label>Home address <span className="text-ash-600 font-normal">(used for nearby fire alerts)</span></Label>
+                    {inp(address, setAddress, '123 Main St, City, CA')}
                   </div>
-                  <div>
-                    <label className="block text-ash-300 text-xs font-medium mb-1">Home address <span className="text-ash-600 font-normal">(used for nearby fire alerts)</span></label>
-                    <input value={address} onChange={e => setAddress(e.target.value)} placeholder="123 Main St, City, CA"
-                      className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Blood type <span className="text-ash-600 font-normal">(optional)</span></Label>
+                      <select value={bloodType} onChange={e => setBloodType(e.target.value)}
+                        className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60">
+                        <option value="">Unknown</option>
+                        {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(t => <option key={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    <div><Label>Allergies <span className="text-ash-600 font-normal">(optional)</span></Label>{inp(allergies, setAllergies, 'e.g. penicillin, latex')}</div>
                   </div>
                 </>
               )}
 
               {selectedRole === 'emergency_responder' && (
-                <div>
-                  <label className="block text-ash-300 text-xs font-medium mb-1">Station / Agency</label>
-                  <input value={agency} onChange={e => setAgency(e.target.value)} placeholder="e.g. Clayton Station #1, Johnston County Sheriff"
-                    className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600" />
-                </div>
+                <div><Label>Station / Agency</Label>{inp(agency, setAgency, 'e.g. Clayton Station #1')}</div>
               )}
-
               {selectedRole === 'data_analyst' && (
-                <div>
-                  <label className="block text-ash-300 text-xs font-medium mb-1">Institution / Organization</label>
-                  <input value={institution} onChange={e => setInstitution(e.target.value)} placeholder="e.g. Stanford University, USGS"
-                    className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600" />
-                </div>
+                <div><Label>Institution / Organization</Label>{inp(institution, setInstitution, 'e.g. Stanford University, USGS')}</div>
               )}
+              <div><Label>Email for alerts</Label>{inp(notifEmail, setNotifEmail, 'you@example.com', 'email')}</div>
+            </div>
+            {error && <p className="text-signal-danger text-sm mb-4">{error}</p>}
+            {selectedRole !== 'caregiver' && (selectedRole === 'emergency_responder' || selectedRole === 'data_analyst') && (
+              <div className="bg-ash-800/60 border border-ash-700 rounded-xl p-3 mb-4 text-ash-400 text-xs">
+                You'll need an access code from your organization on the next step.
+              </div>
+            )}
+            <button
+              onClick={() => selectedRole === 'caregiver' ? setStep(3) : finish()}
+              disabled={saving}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-forest-700 hover:bg-forest-600 disabled:opacity-50 text-white font-semibold transition-colors">
+              {saving ? (
+                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Setting up…</>
+              ) : selectedRole === 'caregiver' ? (
+                <>Continue <ArrowRight className="w-4 h-4" /></>
+              ) : (
+                <>Set up my account <ArrowRight className="w-4 h-4" /></>
+              )}
+            </button>
+            <button onClick={() => router.replace(ROLE_DESTINATIONS[selectedRole] ?? '/dashboard')}
+              className="w-full text-center text-ash-500 hover:text-ash-300 text-sm mt-3 transition-colors py-1">
+              Skip for now
+            </button>
+          </div>
+        )}
+
+        {/* Step 3: Emergency setup (caregiver only) */}
+        {step === 3 && selectedRole === 'caregiver' && (
+          <div>
+            <button onClick={() => setStep(2)} className="flex items-center gap-1.5 text-ash-400 hover:text-white text-sm mb-4 transition-colors">
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
+            <h1 className="font-display text-2xl font-bold text-white mb-1">Emergency setup</h1>
+            <p className="text-ash-400 text-sm mb-6">This builds your emergency card — shown to shelter staff and first responders if needed.</p>
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <Label>Mobility level</Label>
+                <select value={mobility} onChange={e => setMobility(e.target.value)}
+                  className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60">
+                  {MOBILITY_OPTIONS.map(m => <option key={m}>{m}</option>)}
+                </select>
+                {mobility === 'Other' && (
+                  <input value={mobilityOther} onChange={e => setMobilityOther(e.target.value)}
+                    placeholder="Describe your mobility needs…"
+                    className="w-full mt-2 bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600" />
+                )}
+              </div>
 
               <div>
-                <label className="block text-ash-300 text-xs font-medium mb-1">Email for alerts</label>
-                <input value={notifEmail} onChange={e => setNotifEmail(e.target.value)} placeholder="you@example.com" type="email"
-                  className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600" />
+                <Label>Languages spoken <span className="text-ash-600 font-normal">(besides English)</span></Label>
+                {inp(languages, setLanguages, 'e.g. Spanish, Cantonese, Arabic')}
               </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Emergency contact name</Label>{inp(ecName, setEcName, 'Contact name')}</div>
+                <div><Label>Their phone</Label>{inp(ecPhone, setEcPhone, '+1 (555) 000-0000', 'tel')}</div>
+              </div>
+
+              <div>
+                <Label>Notes for first responders <span className="text-ash-600 font-normal">(optional)</span></Label>
+                <textarea value={responderNotes} onChange={e => setResponderNotes(e.target.value)}
+                  placeholder="e.g. front door code, oxygen on 2nd floor, non-verbal household member, dog may bark"
+                  rows={2}
+                  className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600 resize-none" />
+              </div>
+
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" checked={forOthers} onChange={e => setForOthers(e.target.checked)}
+                  className="mt-0.5 accent-ember-500" />
+                <div>
+                  <div className="text-ash-200 text-sm font-medium">I'm also setting this up for someone else</div>
+                  <div className="text-ash-500 text-xs mt-0.5">Parents, clients, neighbors — you can add them in My Persons after setup.</div>
+                </div>
+              </label>
             </div>
 
             {error && <p className="text-signal-danger text-sm mb-4">{error}</p>}
-
-            {(selectedRole === 'emergency_responder' || selectedRole === 'data_analyst') && (
-              <div className="bg-ash-800/60 border border-ash-700 rounded-xl p-3 mb-4 text-ash-400 text-xs">
-                You'll need an access code from your organization on the next step to unlock this role.
-              </div>
-            )}
 
             <button onClick={finish} disabled={saving}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-forest-700 hover:bg-forest-600 disabled:opacity-50 text-white font-semibold transition-colors">
@@ -275,7 +384,6 @@ function OnboardingInner() {
                 <>Set up my account <ArrowRight className="w-4 h-4" /></>
               )}
             </button>
-
             <button onClick={() => router.replace(ROLE_DESTINATIONS[selectedRole] ?? '/dashboard')}
               className="w-full text-center text-ash-500 hover:text-ash-300 text-sm mt-3 transition-colors py-1">
               Skip for now
