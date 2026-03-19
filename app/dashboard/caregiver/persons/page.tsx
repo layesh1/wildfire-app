@@ -13,6 +13,7 @@ import {
   Copy,
   AlertTriangle,
   Settings,
+  Pencil,
 } from 'lucide-react'
 
 // ── Address autocomplete (Nominatim/OpenStreetMap, no API key) ─────────────────
@@ -345,6 +346,7 @@ function PingPopover({
 export default function PersonsPage() {
   const [persons, setPersons] = useState<Person[]>([])
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm())
   const [formError, setFormError] = useState<string | null>(null)
   const [openPingId, setOpenPingId] = useState<string | null>(null)
@@ -445,9 +447,31 @@ export default function PersonsPage() {
     return () => clearInterval(interval)
   }, [])
 
-  // ── Add person ───────────────────────────────────────────────────────────
+  // ── Add / Edit person ─────────────────────────────────────────────────────
 
-  function addPerson() {
+  function startEdit(person: Person) {
+    setEditingId(person.id)
+    setForm({
+      name: person.name,
+      address: person.address,
+      relationship: RELATIONSHIPS.includes(person.relationship as Relationship)
+        ? person.relationship as Relationship
+        : 'Other',
+      familyRelation: '',
+      mobility: MOBILITIES.includes(person.mobility as Mobility)
+        ? person.mobility as Mobility
+        : 'Other',
+      mobilityOther: MOBILITIES.includes(person.mobility as Mobility) ? '' : person.mobility,
+      phone: person.phone,
+      languages: person.languages,
+      notes: person.notes,
+    })
+    setShowForm(true)
+    setFormError(null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function savePerson() {
     if (!form.name.trim()) { setFormError('Name is required'); return }
     if (!form.address.trim()) { setFormError('Address is required'); return }
     setFormError(null)
@@ -459,25 +483,33 @@ export default function PersonsPage() {
       ? form.mobilityOther.trim() as Mobility
       : form.mobility
 
-    const newPerson: Person = {
-      id: Date.now().toString(),
-      name: form.name.trim(),
-      address: form.address.trim(),
-      relationship: resolvedRelationship,
-      mobility: resolvedMobility,
-      phone: form.phone.trim(),
-      languages: form.languages,
-      notes: form.notes.trim(),
-      status: 'unknown',
-      last_confirmed: null,
-      checkin_token: null,
-      ping_sent_at: null,
-      justConfirmed: false,
+    if (editingId) {
+      persist(persons.map(p =>
+        p.id === editingId
+          ? { ...p, name: form.name.trim(), address: form.address.trim(), relationship: resolvedRelationship, mobility: resolvedMobility, phone: form.phone.trim(), languages: form.languages, notes: form.notes.trim() }
+          : p
+      ))
+    } else {
+      persist([{
+        id: Date.now().toString(),
+        name: form.name.trim(),
+        address: form.address.trim(),
+        relationship: resolvedRelationship,
+        mobility: resolvedMobility,
+        phone: form.phone.trim(),
+        languages: form.languages,
+        notes: form.notes.trim(),
+        status: 'unknown',
+        last_confirmed: null,
+        checkin_token: null,
+        ping_sent_at: null,
+        justConfirmed: false,
+      }, ...persons])
     }
 
-    persist([newPerson, ...persons])
     setForm(emptyForm())
     setShowForm(false)
+    setEditingId(null)
   }
 
   // ── Remove person ────────────────────────────────────────────────────────
@@ -616,7 +648,7 @@ export default function PersonsPage() {
 
       {/* Add person button */}
       <button
-        onClick={() => { setShowForm(v => !v); setFormError(null) }}
+        onClick={() => { setShowForm(v => !v); setEditingId(null); setForm(emptyForm()); setFormError(null) }}
         className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium border transition-all mb-5 ${
           showForm
             ? 'border-ash-700 text-ash-400 bg-ash-800/50 hover:bg-ash-800'
@@ -630,11 +662,11 @@ export default function PersonsPage() {
         )}
       </button>
 
-      {/* Add person form */}
+      {/* Add / Edit person form */}
       {showForm && (
         <div className="card p-5 mb-6 space-y-4 border-ember-500/20">
           <h2 className="text-white font-semibold text-sm flex items-center gap-2">
-            <Plus className="w-4 h-4 text-ember-400" /> New Person
+            <Plus className="w-4 h-4 text-ember-400" /> {editingId ? 'Edit Person' : 'New Person'}
           </h2>
 
           <div className="grid sm:grid-cols-2 gap-4">
@@ -779,11 +811,11 @@ export default function PersonsPage() {
           )}
 
           <button
-            onClick={addPerson}
+            onClick={savePerson}
             className="btn-primary w-full flex items-center justify-center gap-2"
           >
             <Plus className="w-4 h-4" />
-            Add Person
+            {editingId ? 'Save Changes' : 'Add Person'}
           </button>
         </div>
       )}
@@ -858,14 +890,23 @@ export default function PersonsPage() {
                   </div>
                 </div>
 
-                {/* Remove button */}
-                <button
-                  onClick={() => removePerson(person.id)}
-                  className="p-1.5 rounded-lg text-ash-600 hover:text-signal-danger hover:bg-signal-danger/10 transition-colors shrink-0"
-                  aria-label={`Remove ${person.name}`}
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                {/* Edit + Remove buttons */}
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => startEdit(person)}
+                    className="p-1.5 rounded-lg text-ash-600 hover:text-ember-400 hover:bg-ember-500/10 transition-colors"
+                    aria-label={`Edit ${person.name}`}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => removePerson(person.id)}
+                    className="p-1.5 rounded-lg text-ash-600 hover:text-signal-danger hover:bg-signal-danger/10 transition-colors"
+                    aria-label={`Remove ${person.name}`}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {/* Status badge */}

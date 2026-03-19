@@ -131,7 +131,7 @@ export const MobileSidebar = ({
               exit={{ x: "-100%", opacity: 0 }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
               className={cn(
-                "fixed h-full w-full inset-0 bg-white p-10 z-[100] flex flex-col justify-between",
+                "fixed h-full w-full inset-0 bg-white p-10 z-[100] flex flex-col justify-between border-r border-gray-200",
                 className
               )}
             >

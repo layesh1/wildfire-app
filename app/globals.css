@@ -14,6 +14,34 @@ body { top: 0 !important; }
 @layer base {
   :root {
     --forest-glow: 0 0 40px rgba(22, 163, 74, 0.12);
+
+    /* ── Caregiver hub: warm earth tones (light mode) ── */
+    --wfa-page-bg:          #f5f1e8;
+    --wfa-panel-l:          rgba(255,255,255,0.6);
+    --wfa-panel-r:          rgba(255,255,255,0.4);
+    --wfa-panel-solid:      #ffffff;
+    --wfa-border:           rgba(212,165,116,0.25);
+    --wfa-border-lite:      rgba(212,165,116,0.19);
+    --wfa-text:             #3e2723;
+    --wfa-text-60:          rgba(62,39,35,0.6);
+    --wfa-text-50:          rgba(62,39,35,0.5);
+    --wfa-text-40:          rgba(62,39,35,0.4);
+    --wfa-text-25:          rgba(62,39,35,0.25);
+    --wfa-accent:           #c86432;
+    --wfa-accent-lite:      #d4a574;
+    --wfa-accent-lite-bg:   rgba(212,165,116,0.18);
+    --wfa-accent-lite-bdr:  rgba(212,165,116,0.35);
+    --wfa-tag-bg:           #f5f1e8;
+    --wfa-progress-bg:      #f0ece3;
+    --wfa-btn-dark:         #3e2723;
+    --wfa-tooltip-bg:       rgba(62,39,35,0.95);
+    --wfa-loc-card:         #3e2723;
+    --wfa-profile-grad:     linear-gradient(135deg, #3e2723, #c86432);
+    --wfa-hero-bg:          linear-gradient(135deg, #3e2723 0%, #5d3a1a 55%, #c86432 100%);
+    --wfa-empty-bg:         linear-gradient(135deg, #3e2723, #5d4a3a);
+    --wfa-fire-border:      #f0ece3;
+    --wfa-checkin-bg:       rgba(255,255,255,0.6);
+    --wfa-call-btn-bg:      rgba(255,255,255,0.9);
   }
 
   * {
@@ -101,6 +129,37 @@ body { top: 0 !important; }
 
 /* ── Dark mode: toggle html.dark class via ThemeWrapper ──────────────────── */
 /* Earthy forest dark palette — not GitHub */
+
+/* CSS variable overrides for dark mode */
+html.dark {
+  --wfa-page-bg:          #0F1F17;
+  --wfa-panel-l:          rgba(10,25,16,0.85);
+  --wfa-panel-r:          rgba(10,25,16,0.7);
+  --wfa-panel-solid:      #162A21;
+  --wfa-border:           rgba(42,157,143,0.2);
+  --wfa-border-lite:      rgba(42,157,143,0.15);
+  --wfa-text:             #E8F1EC;
+  --wfa-text-60:          rgba(232,241,236,0.6);
+  --wfa-text-50:          rgba(232,241,236,0.5);
+  --wfa-text-40:          rgba(232,241,236,0.4);
+  --wfa-text-25:          rgba(232,241,236,0.25);
+  --wfa-accent:           #2A9D8F;
+  --wfa-accent-lite:      #5DBB9A;
+  --wfa-accent-lite-bg:   rgba(42,157,143,0.18);
+  --wfa-accent-lite-bdr:  rgba(42,157,143,0.35);
+  --wfa-tag-bg:           #1F3A2F;
+  --wfa-progress-bg:      #162A21;
+  --wfa-btn-dark:         #0A2917;
+  --wfa-tooltip-bg:       rgba(10,25,16,0.95);
+  --wfa-loc-card:         #0A2917;
+  --wfa-profile-grad:     linear-gradient(135deg, #0A2917, #2A9D8F);
+  --wfa-hero-bg:          linear-gradient(135deg, #1a2f20 0%, #2d4a1a 55%, #c86432 100%);
+  --wfa-empty-bg:         linear-gradient(135deg, #0A1F14, #122B1C);
+  --wfa-fire-border:      #2D4A3E;
+  --wfa-checkin-bg:       rgba(22,42,33,0.8);
+  --wfa-call-btn-bg:      rgba(232,241,236,0.12);
+}
+
 html.dark body { background-color: #0F1F17; color: #E8F1EC; }
 
 /* Backgrounds */
@@ -126,6 +185,12 @@ html.dark .text-gray-500     { color: #7F948A !important; }
 html.dark .text-gray-400     { color: #5E7268 !important; }
 html.dark .text-gray-300     { color: #3D5247 !important; }
 
+/* Hover text colors */
+html.dark .hover\:text-gray-900:hover { color: #E8F1EC !important; }
+html.dark .hover\:text-gray-700:hover { color: #B7C8BF !important; }
+html.dark .hover\:text-gray-600:hover { color: #B7C8BF !important; }
+html.dark .hover\:text-forest-600:hover { color: #2A9D8F !important; }
+
 /* Component classes */
 html.dark .card              { background-color: #162A21 !important; border-color: #2D4A3E !important; }
 html.dark .input             { background-color: #1F3A2F !important; border-color: #2D4A3E !important; color: #E8F1EC !important; }
@@ -143,10 +208,30 @@ html.dark .nav-link-active   { background-color: #162A21 !important; color: #2A9
 html.dark .text-forest-600   { color: #2A9D8F !important; }
 html.dark .text-forest-700   { color: #3A7D5D !important; }
 html.dark .bg-forest-50      { background-color: #0F2A1F !important; }
+html.dark .border-forest-100 { border-color: #1F3A2F !important; }
 html.dark .border-forest-200 { border-color: #1F4A3A !important; }
 html.dark .border-forest-300 { border-color: #2A9D8F !important; }
+html.dark .border-forest-500 { border-color: #2A9D8F !important; }
 html.dark .bg-forest-600     { background-color: #1F5C3F !important; }
 html.dark .hover\:bg-forest-700:hover { background-color: #3A7D5D !important; }
+
+/* Status / alert colors in dark mode */
+html.dark .text-red-600       { color: #f87171 !important; }
+html.dark .bg-red-50          { background-color: rgba(200,30,30,0.12) !important; }
+html.dark .border-red-200     { border-color: rgba(200,30,30,0.3) !important; }
+html.dark .hover\:bg-red-50:hover    { background-color: rgba(200,30,30,0.12) !important; }
+html.dark .hover\:text-red-500:hover { color: #f87171 !important; }
+
+html.dark .text-blue-600      { color: #60a5fa !important; }
+html.dark .bg-blue-50         { background-color: rgba(30,80,200,0.12) !important; }
+html.dark .border-blue-200    { border-color: rgba(30,80,200,0.3) !important; }
+
+html.dark .text-orange-300    { color: #fcd34d !important; }
+
+/* Amber warning colors */
+html.dark .bg-amber-50        { background-color: rgba(180,120,0,0.15) !important; }
+html.dark .text-amber-600     { color: #fbbf24 !important; }
+html.dark .border-amber-200   { border-color: rgba(180,120,0,0.3) !important; }
 
 /* Ash token overrides for dark mode */
 html.dark [class*="bg-ash-9"] { background-color: #162A21 !important; }

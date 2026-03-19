@@ -161,6 +161,30 @@ function OnboardingInner() {
         }
         localStorage.setItem('wfa_emergency_card', JSON.stringify(card))
       } catch {}
+
+      // Sync self into My Persons so hub + persons list are pre-populated
+      try {
+        const selfPerson = {
+          id: 'self-user',
+          name: fullName || 'Me',
+          address: address || '',
+          relationship: 'Self',
+          mobility: resolvedMobility || 'Mobile Adult',
+          phone: phone || '',
+          languages: languages
+            ? languages.split(',').map((l: string) => l.trim()).filter(Boolean)
+            : ['en'],
+          notes: responderNotes || '',
+          status: 'unknown',
+          last_confirmed: null,
+          checkin_token: null,
+          ping_sent_at: null,
+          justConfirmed: false,
+        }
+        const existing = JSON.parse(localStorage.getItem('monitored_persons_v2') || '[]')
+        const without = existing.filter((p: { id: string }) => p.id !== 'self-user')
+        localStorage.setItem('monitored_persons_v2', JSON.stringify([selfPerson, ...without]))
+      } catch {}
     }
 
     if (typeof window !== 'undefined') {

@@ -1,8 +1,10 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import { X, CornerRightUp } from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import { X, CornerRightUp, Trash2 } from 'lucide-react'
 import { useAutoResizeTextarea } from '@/components/hooks/use-auto-resize-textarea'
 import { LiquidMetalFab } from '@/components/ui/liquid-metal-button'
+import { ResponseStream } from '@/components/ui/response-stream'
 
 // ── Smoke particle ────────────────────────────────────────────────────────────
 const FIRE_COLORS = [
@@ -106,14 +108,38 @@ const INTRO: Message = {
 }
 
 export default function FlameoChat() {
+  const pathname = usePathname()
+  // On the caregiver hub, anchor to the bottom-left of the center block
+  // (sidebar ~64px collapsed + 340px tracking column = ~404px)
+  const isCaregiverHub = pathname === '/dashboard/caregiver'
+  const fabStyle = isCaregiverHub
+    ? { bottom: 16, left: 404, right: 'auto' } as React.CSSProperties
+    : { bottom: 16, right: 16, left: 'auto' } as React.CSSProperties
+  const popupStyle = isCaregiverHub
+    ? { bottom: 96, left: 404, right: 'auto' } as React.CSSProperties
+    : { bottom: 96, right: 16, left: 'auto' } as React.CSSProperties
+
   const [open, setOpen] = useState(false)
-  const [messages, setMessages] = useState<Message[]>([INTRO])
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (typeof window === 'undefined') return [INTRO]
+    try {
+      const saved = JSON.parse(localStorage.getItem('wfa_flameo_history') || 'null')
+      if (Array.isArray(saved) && saved.length > 0) return saved
+    } catch {}
+    return [INTRO]
+  })
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [latestAssistantIdx, setLatestAssistantIdx] = useState<number | null>(null)
   const [showIntro, setShowIntro] = useState(false)
   const [fabHovered, setFabHovered] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({ minHeight: 40, maxHeight: 120 })
+
+  // Persist chat history on every change
+  useEffect(() => {
+    try { localStorage.setItem('wfa_flameo_history', JSON.stringify(messages)) } catch {}
+  }, [messages])
 
   useEffect(() => {
     if (open) {
@@ -129,6 +155,12 @@ export default function FlameoChat() {
       return () => clearTimeout(t)
     }
   }, [])
+
+  function clearHistory() {
+    setMessages([INTRO])
+    setLatestAssistantIdx(null)
+    try { localStorage.removeItem('wfa_flameo_history') } catch {}
+  }
 
   function dismissIntro() {
     setShowIntro(false)
@@ -154,9 +186,17 @@ export default function FlameoChat() {
         body: JSON.stringify({ messages: [...messages, userMsg], persona: 'FLAMEO' }),
       })
       const { content } = await res.json()
-      setMessages(m => [...m, { role: 'assistant', content: content || 'Sorry, something went wrong.' }])
+      setMessages(m => {
+        const next = [...m, { role: 'assistant' as const, content: content || 'Sorry, something went wrong.' }]
+        setLatestAssistantIdx(next.length - 1)
+        return next
+      })
     } catch {
-      setMessages(m => [...m, { role: 'assistant', content: "I couldn't reach the server. Please try again in a moment." }])
+      setMessages(m => {
+        const next = [...m, { role: 'assistant' as const, content: "I couldn't reach the server. Please try again in a moment." }]
+        setLatestAssistantIdx(next.length - 1)
+        return next
+      })
     }
     setLoading(false)
   }
@@ -166,11 +206,11 @@ export default function FlameoChat() {
       {/* Chat panel */}
       {open && (
         <div
-          className="fixed bottom-24 right-4 z-50 flex flex-col bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden"
-          style={{ width: 360, maxHeight: '72vh' }}
+          className="fixed z-50 flex flex-col bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden"
+          style={{ width: 360, maxHeight: '72vh', ...popupStyle }}
         >
           {/* Header */}
-          <div className="flex items-center gap-3 p-4 border-b border-orange-100 shrink-0" style={{ background: 'linear-gradient(135deg, #fff7ed, #ffedd5)' }}>
+          <div className="flex items-center gap-3 p-4 border-b border-forest-100 shrink-0 bg-white">
             <div className="w-9 h-9 rounded-xl bg-white border border-orange-200 flex items-center justify-center select-none shadow-sm">
               <FlameoIcon size={28} />
             </div>
@@ -178,6 +218,13 @@ export default function FlameoChat() {
               <div className="text-gray-900 font-semibold text-sm">Flameo</div>
               <div className="text-gray-500 text-xs">Wildfire safety assistant · always here</div>
             </div>
+            <button
+              onClick={clearHistory}
+              title="Clear chat history"
+              className="text-gray-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
             <button
               onClick={() => setOpen(false)}
               className="text-gray-400 hover:text-gray-700 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
@@ -203,7 +250,16 @@ export default function FlameoChat() {
                   }`}
                   style={msg.role === 'user' ? { background: 'linear-gradient(135deg, #16a34a, #15803d)' } : undefined}
                 >
-                  {msg.content}
+                  {msg.role === 'assistant' && i === latestAssistantIdx ? (
+                    <ResponseStream
+                      textStream={msg.content}
+                      mode="typewriter"
+                      speed={75}
+                      as="span"
+                    />
+                  ) : (
+                    msg.content
+                  )}
                 </div>
               </div>
             ))}
@@ -260,7 +316,7 @@ export default function FlameoChat() {
       )}
 
       {/* Floating button */}
-      <div className="fixed bottom-4 right-4 z-50 w-16 h-16">
+      <div className="fixed z-50 w-16 h-16" style={fabStyle}>
         {!open && <FabSmoke active={fabHovered} />}
         <LiquidMetalFab
           onClick={handleOpen}
@@ -277,7 +333,7 @@ export default function FlameoChat() {
 
       {/* Meet Flameo intro popup */}
       {showIntro && !open && (
-        <div className="fixed bottom-24 right-4 z-50 animate-fade-up">
+        <div className="fixed z-50 animate-fade-up" style={popupStyle}>
           <div className="bg-white border border-gray-200 rounded-2xl shadow-xl p-4 w-56 relative">
             <button onClick={dismissIntro} className="absolute top-2 right-2 text-gray-300 hover:text-gray-600 transition-colors">
               <X className="w-3.5 h-3.5" />
@@ -297,7 +353,7 @@ export default function FlameoChat() {
               Chat with Flameo
             </button>
             {/* Arrow pointing down to FAB */}
-            <div className="absolute -bottom-2 right-6 w-4 h-4 bg-white border-r border-b border-gray-200 rotate-45" />
+            <div className={`absolute -bottom-2 w-4 h-4 bg-white border-r border-b border-gray-200 rotate-45 ${isCaregiverHub ? 'left-6' : 'right-6'}`} />
           </div>
         </div>
       )}

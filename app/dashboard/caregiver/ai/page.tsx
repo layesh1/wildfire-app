@@ -1,7 +1,7 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
 import { User, Loader, Sparkles } from 'lucide-react'
-import { PlaceholdersAndVanishInput } from '@/components/ui/placeholders-and-vanish-input'
+import { AIChatInput } from '@/components/ui/ai-chat-input'
 import { motion } from 'framer-motion'
 
 interface Message {
@@ -9,7 +9,9 @@ interface Message {
   content: string
 }
 
+// First placeholder = Flameo greeting; rest cycle through helpful prompts
 const FLAMEO_PLACEHOLDERS = [
+  "Hi, I'm Flameo! Ask me anything about wildfire safety...",
   'What should I pack in my go-bag?',
   'How early should I evacuate before an order?',
   'What signals should I watch for before an alert?',
@@ -32,7 +34,6 @@ export default function SafePathAIPage() {
       content: "Hello, I'm Flameo — your wildfire evacuation guide. I monitor all signal channels so you don't have to wait for an official order that may never come.\n\nAsk me anything about wildfire safety, evacuation steps, go-bag packing, or finding shelter.",
     },
   ])
-  const [pendingInput, setPendingInput] = useState('')
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const hasMessages = messages.length > 1
@@ -47,7 +48,6 @@ export default function SafePathAIPage() {
 
     const next: Message[] = [...messages, { role: 'user', content: userText }]
     setMessages(next)
-    setPendingInput('')
     setLoading(true)
 
     try {
@@ -72,11 +72,6 @@ export default function SafePathAIPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  function handleVanishSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    if (pendingInput.trim()) sendMessage(pendingInput)
   }
 
   return (
@@ -122,10 +117,10 @@ export default function SafePathAIPage() {
           </div>
 
           <div className="w-full max-w-2xl">
-            <PlaceholdersAndVanishInput
+            <AIChatInput
               placeholders={FLAMEO_PLACEHOLDERS}
-              onChange={e => setPendingInput(e.target.value)}
-              onSubmit={handleVanishSubmit}
+              onSubmit={sendMessage}
+              disabled={loading}
             />
           </div>
         </div>
@@ -175,11 +170,11 @@ export default function SafePathAIPage() {
             <div ref={bottomRef} />
           </div>
 
-          <div className="shrink-0 px-4 sm:px-6 pb-6 pt-2 border-t border-gray-100 bg-white">
-            <PlaceholdersAndVanishInput
+          <div className="shrink-0 px-4 sm:px-6 pb-6 pt-3 border-t border-gray-100 bg-white">
+            <AIChatInput
               placeholders={FLAMEO_PLACEHOLDERS}
-              onChange={e => setPendingInput(e.target.value)}
-              onSubmit={handleVanishSubmit}
+              onSubmit={sendMessage}
+              disabled={loading}
             />
             <p className="mt-2 text-center text-gray-400 text-xs">
               Flameo supplements — does not replace — official emergency directives. Call 911 in emergencies.
