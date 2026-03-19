@@ -206,7 +206,7 @@ export default function FlameoChat() {
       {/* Chat panel */}
       {open && (
         <div
-          className="fixed z-50 flex flex-col bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden"
+          className="fixed z-[9999] flex flex-col bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden"
           style={{ width: 360, maxHeight: '72vh', ...popupStyle }}
         >
           {/* Header */}
@@ -316,7 +316,7 @@ export default function FlameoChat() {
       )}
 
       {/* Floating button */}
-      <div className="fixed z-50 w-16 h-16" style={fabStyle}>
+      <div className="fixed z-[9999] w-16 h-16" style={fabStyle}>
         {!open && <FabSmoke active={fabHovered} />}
         <LiquidMetalFab
           onClick={handleOpen}
@@ -333,7 +333,7 @@ export default function FlameoChat() {
 
       {/* Meet Flameo intro popup */}
       {showIntro && !open && (
-        <div className="fixed z-50 animate-fade-up" style={popupStyle}>
+        <div className="fixed z-[9999] animate-fade-up" style={popupStyle}>
           <div className="bg-white border border-gray-200 rounded-2xl shadow-xl p-4 w-56 relative">
             <button onClick={dismissIntro} className="absolute top-2 right-2 text-gray-300 hover:text-gray-600 transition-colors">
               <X className="w-3.5 h-3.5" />
