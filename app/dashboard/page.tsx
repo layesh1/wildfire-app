@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
-import RolePicker from '@/components/RolePicker'
+
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient()
@@ -26,6 +26,12 @@ export default async function DashboardPage() {
     )
   }
 
-  // Always show the role picker — it lets users switch roles and request new ones
-  return <RolePicker roles={allRoles} activeRole={activeRole} name={profile?.full_name} />
+  // Redirect directly to the user's active role dashboard
+  const ROLE_ROUTES: Record<string, string> = {
+    emergency_responder: '/dashboard/responder',
+    data_analyst: '/dashboard/analyst',
+    caregiver: '/dashboard/caregiver',
+    evacuee: '/dashboard/caregiver',
+  }
+  redirect(ROLE_ROUTES[activeRole] ?? '/dashboard/caregiver')
 }

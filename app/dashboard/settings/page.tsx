@@ -12,20 +12,16 @@ import { useLanguage } from '@/components/LanguageProvider'
 import { LANGUAGES } from '@/lib/languages'
 
 // ── Types ──────────────────────────────────────────────────────────────────
-interface Dependent { name: string; relationship: string; mobility_needs: string; medications: string; other_needs: string }
-interface Pet { name: string; type: string; notes: string }
 interface ProfileData {
   full_name: string; phone: string; address: string
   notification_email: string; notification_phone: string; notify_browser: boolean
-  dependents: Dependent[]; pets: Pet[]; special_notes: string
+  special_notes: string
   emergency_contact_name: string; emergency_contact_phone: string
   language_preference: string; communication_needs: string[]; household_languages: string
 }
-const EMPTY_DEP: Dependent = { name: '', relationship: '', mobility_needs: '', medications: '', other_needs: '' }
-const EMPTY_PET: Pet = { name: '', type: '', notes: '' }
 const DEFAULT: ProfileData = {
   full_name: '', phone: '', address: '', notification_email: '', notification_phone: '',
-  notify_browser: false, dependents: [], pets: [], special_notes: '',
+  notify_browser: false, special_notes: '',
   emergency_contact_name: '', emergency_contact_phone: '',
   language_preference: 'en', communication_needs: [], household_languages: '',
 }
@@ -87,6 +83,7 @@ function SettingsInner() {
 
   const [tab, setTab] = useState<Tab>('profile')
   const [profile, setProfile] = useState<ProfileData>(DEFAULT)
+  const [monitoredPersons, setMonitoredPersons] = useState<{ id: string; name: string; relationship: string; mobility: string; notes: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -127,6 +124,10 @@ function SettingsInner() {
     if (typeof window !== 'undefined') {
       setThemeState((localStorage.getItem('wfa_theme') as Theme) || 'dark')
       if ('Notification' in window) setNotifPermission(Notification.permission)
+      try {
+        const raw = localStorage.getItem('monitored_persons_v2')
+        if (raw) setMonitoredPersons(JSON.parse(raw))
+      } catch {}
       // Load analyst prefs
       try {
         const ap = JSON.parse(localStorage.getItem('wfa_analyst_prefs') || '{}')
@@ -146,7 +147,7 @@ function SettingsInner() {
         setProfile({
           full_name: p.full_name || '', phone: p.phone || '', address: p.address || '',
           notification_email: p.notification_email || '', notification_phone: p.notification_phone || '',
-          notify_browser: p.notify_browser || false, dependents: p.dependents || [], pets: p.pets || [],
+          notify_browser: p.notify_browser || false,
           special_notes: p.special_notes || '', emergency_contact_name: p.emergency_contact_name || '',
           emergency_contact_phone: p.emergency_contact_phone || '',
           language_preference: p.language_preference || 'en',
@@ -172,12 +173,6 @@ function SettingsInner() {
 
   function update<K extends keyof ProfileData>(key: K, value: ProfileData[K]) {
     setProfile(p => ({ ...p, [key]: value })); setSaved(false)
-  }
-  function updateDep(i: number, key: keyof Dependent, val: string) {
-    setProfile(p => { const d = [...p.dependents]; d[i] = { ...d[i], [key]: val }; return { ...p, dependents: d } }); setSaved(false)
-  }
-  function updatePet(i: number, key: keyof Pet, val: string) {
-    setProfile(p => { const pets = [...p.pets]; pets[i] = { ...pets[i], [key]: val }; return { ...p, pets } }); setSaved(false)
   }
   function toggleNeed(need: string) {
     setProfile(p => ({
@@ -535,65 +530,40 @@ function SettingsInner() {
           </Section>
 
           <Section icon={Heart} title="People in Your Care">
-            <div className="mb-4 p-3 rounded-lg bg-signal-safe/10 border border-signal-safe/30 flex items-start gap-3">
-              <span className="text-signal-safe mt-0.5">✓</span>
-              <div>
-                <p className="text-sm font-medium">Real-time tracking available</p>
-                <p className="text-xs text-ash-400 mt-0.5">
-                  During an active emergency, use{' '}
-                  <a href="/dashboard/caregiver/persons" className="text-ember-400 hover:underline">My Persons</a>
-                  {' '}to ping your dependents and confirm they're safe in real time.
-                </p>
-              </div>
-            </div>
-            <p className="text-ash-500 text-xs mb-4">Helps emergency responders prioritize and provide appropriate support.</p>
-            <div className="space-y-3">
-              {profile.dependents.map((dep, i) => (
-                <div key={i} className="bg-ash-800/60 rounded-xl p-4 border border-ash-700">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-ash-300 text-xs font-medium">Person {i + 1}</span>
-                    <button onClick={() => setProfile(p => ({ ...p, dependents: p.dependents.filter((_, idx) => idx !== i) }))} className="text-ash-600 hover:text-signal-danger transition-colors">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    <Field label="Name"><FInput value={dep.name} onChange={v => updateDep(i, 'name', v)} placeholder="Name" /></Field>
-                    <Field label="Relationship"><FInput value={dep.relationship} onChange={v => updateDep(i, 'relationship', v)} placeholder="e.g. Mother, Child" /></Field>
-                    <Field label="Mobility / accessibility needs"><FInput value={dep.mobility_needs} onChange={v => updateDep(i, 'mobility_needs', v)} placeholder="e.g. wheelchair, oxygen" /></Field>
-                    <Field label="Medications"><FInput value={dep.medications} onChange={v => updateDep(i, 'medications', v)} placeholder="e.g. insulin (refrigerated)" /></Field>
-                    <Field label="Other needs"><FTextarea value={dep.other_needs} onChange={v => updateDep(i, 'other_needs', v)} placeholder="e.g. non-verbal, hearing impaired" /></Field>
-                  </div>
+            <p className="text-ash-500 text-xs mb-4">Managed in My Persons — add evacuation addresses, check-in pings, and emergency details there.</p>
+            <div className="space-y-2 mb-4">
+              {monitoredPersons.length === 0 ? (
+                <div className="text-ash-600 text-sm text-center py-4 border border-dashed border-ash-700 rounded-xl">
+                  No persons added yet
                 </div>
-              ))}
-              <button onClick={() => setProfile(p => ({ ...p, dependents: [...p.dependents, { ...EMPTY_DEP }] }))}
-                className="flex items-center gap-2 text-sm text-ash-400 hover:text-white border border-dashed border-ash-700 hover:border-ash-500 rounded-xl px-4 py-3 w-full justify-center transition-colors">
-                <Plus className="w-4 h-4" /> Add person in your care
-              </button>
+              ) : (
+                monitoredPersons.map(p => (
+                  <div key={p.id} className="bg-ash-800/60 rounded-xl px-4 py-3 border border-ash-700 flex items-center gap-3">
+                    <User className="w-4 h-4 text-ash-500 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-white text-sm font-medium truncate">{p.name}</div>
+                      <div className="text-ash-500 text-xs">{p.relationship}{p.mobility && p.mobility !== 'Mobile Adult' ? ` · ${p.mobility}` : ''}</div>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
+            <a
+              href="/dashboard/caregiver/persons"
+              className="flex items-center gap-2 text-sm text-ash-400 hover:text-white border border-dashed border-ash-700 hover:border-ash-500 rounded-xl px-4 py-3 w-full justify-center transition-colors"
+            >
+              <Plus className="w-4 h-4" /> Add or update in My Persons
+            </a>
           </Section>
 
           <Section icon={PawPrint} title="Pets">
-            <div className="space-y-3">
-              {profile.pets.map((pet, i) => (
-                <div key={i} className="bg-ash-800/60 rounded-xl p-4 border border-ash-700">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-ash-300 text-xs font-medium">Pet {i + 1}</span>
-                    <button onClick={() => setProfile(p => ({ ...p, pets: p.pets.filter((_, idx) => idx !== i) }))} className="text-ash-600 hover:text-signal-danger transition-colors">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <div className="grid sm:grid-cols-3 gap-3">
-                    <Field label="Name"><FInput value={pet.name} onChange={v => updatePet(i, 'name', v)} placeholder="Buddy" /></Field>
-                    <Field label="Type"><FInput value={pet.type} onChange={v => updatePet(i, 'type', v)} placeholder="Dog, Cat…" /></Field>
-                    <Field label="Notes"><FInput value={pet.notes} onChange={v => updatePet(i, 'notes', v)} placeholder="e.g. needs carrier" /></Field>
-                  </div>
-                </div>
-              ))}
-              <button onClick={() => setProfile(p => ({ ...p, pets: [...p.pets, { ...EMPTY_PET }] }))}
-                className="flex items-center gap-2 text-sm text-ash-400 hover:text-white border border-dashed border-ash-700 hover:border-ash-500 rounded-xl px-4 py-3 w-full justify-center transition-colors">
-                <Plus className="w-4 h-4" /> Add a pet
-              </button>
-            </div>
+            <p className="text-ash-500 text-xs mb-4">Add pet info in each person&apos;s notes in My Persons — shelters use this to direct you to pet-friendly locations.</p>
+            <a
+              href="/dashboard/caregiver/persons"
+              className="flex items-center gap-2 text-sm text-ash-400 hover:text-white border border-dashed border-ash-700 hover:border-ash-500 rounded-xl px-4 py-3 w-full justify-center transition-colors"
+            >
+              <Plus className="w-4 h-4" /> Manage pets in My Persons
+            </a>
           </Section>
 
           <Section icon={ShieldAlert} title="For Emergency Responders">
