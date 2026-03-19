@@ -90,10 +90,10 @@ function FabSmoke({ active }: { active: boolean }) {
   )
 }
 
-function FlameoIcon({ size = 32 }: { size?: number }) {
+function FlameoIcon({ size = 32, src = '/flameo1.png' }: { size?: number; src?: string }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src="/flameo1.png" alt="Flameo" width={size} height={size} style={{ objectFit: 'contain' }} />
+    <img src={src} alt="Flameo" width={size} height={size} style={{ objectFit: 'contain' }} />
   )
 }
 
@@ -110,6 +110,8 @@ const INTRO: Message = {
 export default function FlameoChat() {
   const pathname = usePathname()
   const isCaregiverHub = pathname === '/dashboard/caregiver'
+  const isDispatcher = pathname?.startsWith('/dashboard/responder') ?? false
+  const flameoSrc = isDispatcher ? '/Image (8).png' : '/flameo1.png'
   const fabStyle = { bottom: 16, right: 16, left: 'auto' } as React.CSSProperties
   const popupStyle = { bottom: 96, right: 16, left: 'auto' } as React.CSSProperties
 
@@ -320,7 +322,7 @@ export default function FlameoChat() {
           aria-label="Open Flameo chat"
           style={{ position: 'absolute', inset: 0, zIndex: 2 }}
         >
-          <span className={`transition-all duration-200 ${open ? 'scale-75 opacity-0 absolute' : 'scale-100 opacity-100'}`}><FlameoIcon size={46} /></span>
+          <span className={`transition-all duration-200 ${open ? 'scale-75 opacity-0 absolute' : 'scale-100 opacity-100'}`}><FlameoIcon size={46} src={flameoSrc} /></span>
           <X className={`w-6 h-6 text-white absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
         </LiquidMetalFab>
       </div>
@@ -334,7 +336,8 @@ export default function FlameoChat() {
             </button>
             <div className="flex items-center gap-2.5 mb-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/flameo1.png" alt="Flameo" width={32} height={32} style={{ objectFit: 'contain' }} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={flameoSrc} alt="Flameo" width={32} height={32} style={{ objectFit: 'contain' }} />
               <div className="font-semibold text-gray-900 text-sm">Meet Flameo!</div>
             </div>
             <p className="text-gray-500 text-xs leading-relaxed mb-3">

@@ -3,12 +3,12 @@ import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import {
   Flame, MapPin, Phone, AlertTriangle, CheckCircle,
-  Clock, Shield, ChevronRight, Package, User, Users, Bell
+  Shield, ChevronRight, Package, User, Users, Bell
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import type { NifcFire } from './map/LeafletMap'
-import JarDemo from '@/components/JarDemo'
+import AlertJar from '@/components/AlertJar'
 
 const LeafletMap = dynamic(() => import('./map/LeafletMap'), { ssr: false })
 
@@ -478,18 +478,12 @@ export default function CaregiverDashboard() {
                 className="rounded-3xl p-8 flex flex-col items-center"
                 style={{ background: 'var(--wfa-empty-bg)' }}
               >
-                {/* Header */}
-                <div
-                  className="w-20 h-20 rounded-full flex items-center justify-center mb-4"
-                  style={{ background: 'rgba(124,179,66,0.2)', border: '3px solid rgba(124,179,66,0.4)' }}
-                >
-                  <CheckCircle className="w-9 h-9 text-[#7cb342]" />
-                </div>
-                <h2 className="font-display text-xl font-bold text-white">No Active Alerts</h2>
+                <AlertJar level="safe" size={160} />
+                <h2 className="font-display text-xl font-bold text-white mt-16">No Active Alerts</h2>
                 <p className="text-white/45 text-sm mt-2 mb-6">Your area is currently clear. Stay prepared.</p>
 
                 {/* Alert level key */}
-                <div className="w-full grid grid-cols-4 gap-3 mb-6">
+                <div className="w-full grid grid-cols-4 gap-3">
                   {[
                     { dot: '#7cb342', label: 'Safe',    sub: 'All clear'   },
                     { dot: '#d4a574', label: 'Caution', sub: 'Stay alert'  },
@@ -504,11 +498,6 @@ export default function CaregiverDashboard() {
                       <div className="text-[10px] text-white/40">{sub}</div>
                     </div>
                   ))}
-                </div>
-
-                {/* Jar demo */}
-                <div className="w-full rounded-2xl overflow-hidden">
-                  <JarDemo />
                 </div>
               </div>
             )}
