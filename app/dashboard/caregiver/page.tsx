@@ -484,11 +484,11 @@ export default function CaregiverDashboard() {
               </div>
             ) : (
               <div
-                className="wfa-dark-panel rounded-3xl p-8 flex flex-col items-center"
+                className="wfa-dark-panel rounded-3xl pt-12 px-8 pb-8 flex flex-col items-center"
                 style={{ background: 'var(--wfa-empty-bg)' }}
               >
                 <AlertJar level="safe" size={160} />
-                <h2 className="font-display text-xl font-bold text-white mt-20">No Active Alerts</h2>
+                <h2 className="font-display text-xl font-bold text-white mt-16">No Active Alerts</h2>
                 <p className="text-white/45 text-sm mt-2 mb-6">Your area is currently clear. Stay prepared.</p>
 
                 {/* Alert level key */}
@@ -608,28 +608,30 @@ export default function CaregiverDashboard() {
             </div>
           </div>
 
-          {/* First Person card — full width, location on hover */}
+          {/* First Person card — square, location on hover */}
           <div className="px-4 pb-4">
             <div
-              className="rounded-2xl p-4 text-white group relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.02] cursor-default"
-              style={{ background: 'linear-gradient(135deg, #4a6621, #7cb342)' }}
+              className="rounded-2xl text-white group relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.02] cursor-default"
+              style={{ background: 'linear-gradient(135deg, #4a6621, #7cb342)', aspectRatio: '1 / 1' }}
             >
-              <div className="flex items-start gap-3">
-                <div
-                  className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: 'rgba(255,255,255,0.2)' }}
-                >
-                  <User className="w-4 h-4 text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-white/60 text-[10px] uppercase tracking-widest mb-0.5">First Person</div>
-                  <div className="text-sm font-semibold text-white truncate">
+              <div className="absolute inset-0 p-5 flex flex-col justify-between">
+                <div>
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
+                    style={{ background: 'rgba(255,255,255,0.2)' }}
+                  >
+                    <User className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="text-white/60 text-[10px] uppercase tracking-widest mb-1">First Person</div>
+                  <div className="text-base font-semibold text-white truncate">
                     {firstPerson?.name || 'No contact'}
                   </div>
+                </div>
+                <div>
                   {firstPerson?.phone && (
                     <a
                       href={`tel:${firstPerson.phone}`}
-                      className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-white text-xs font-semibold transition-all hover:bg-white/30"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-semibold transition-all hover:bg-white/30"
                       style={{ background: 'rgba(255,255,255,0.22)' }}
                     >
                       <Phone className="w-3 h-3" />
@@ -639,7 +641,7 @@ export default function CaregiverDashboard() {
                   {!firstPerson && (
                     <Link
                       href="/dashboard/caregiver/persons"
-                      className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-white text-xs font-semibold transition-all hover:bg-white/30"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-semibold transition-all hover:bg-white/30"
                       style={{ background: 'rgba(255,255,255,0.22)' }}
                     >
                       Set up
@@ -649,7 +651,7 @@ export default function CaregiverDashboard() {
               </div>
 
               {/* Location overlay on hover */}
-              <div className="absolute inset-0 rounded-2xl flex flex-col justify-end p-4 opacity-0 group-hover:opacity-100 transition-all duration-200" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}>
+              <div className="absolute inset-0 rounded-2xl flex flex-col justify-end p-5 opacity-0 group-hover:opacity-100 transition-all duration-200" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}>
                 <div className="flex items-center gap-1.5 mb-1">
                   <MapPin className="w-3 h-3 text-white/70 shrink-0" />
                   <div className="text-white/50 text-[10px] uppercase tracking-widest">Location</div>
