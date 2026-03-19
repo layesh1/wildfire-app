@@ -182,10 +182,19 @@ export default function CaregiverDashboard() {
   const [userProfile, setUserProfile] = useState<{ full_name?: string; email?: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [bagChecked, setBagChecked] = useState<Set<string>>(new Set())
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
 
   const supabase = createClient()
 
   useEffect(() => {
+    // Request geolocation
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => setUserLocation([pos.coords.latitude, pos.coords.longitude]),
+        () => {} // silently ignore denial
+      )
+    }
+
     // Load localStorage data
     try {
       const saved = JSON.parse(localStorage.getItem('monitored_persons_v2') || '[]')
@@ -479,7 +488,7 @@ export default function CaregiverDashboard() {
                 style={{ background: 'var(--wfa-empty-bg)' }}
               >
                 <AlertJar level="safe" size={160} />
-                <h2 className="font-display text-xl font-bold text-white mt-16">No Active Alerts</h2>
+                <h2 className="font-display text-xl font-bold text-white mt-20">No Active Alerts</h2>
                 <p className="text-white/45 text-sm mt-2 mb-6">Your area is currently clear. Stay prepared.</p>
 
                 {/* Alert level key */}
@@ -580,8 +589,8 @@ export default function CaregiverDashboard() {
           <div className="flex-1 relative overflow-hidden m-4 rounded-2xl" style={{ minHeight: 200 }}>
             <LeafletMap
               nifc={nifc}
-              userLocation={null}
-              center={[37.5, -119.5]}
+              userLocation={userLocation}
+              center={userLocation ?? [37.5, -119.5]}
               shelters={[]}
               showShelters={false}
               watchedLocations={[]}
@@ -599,84 +608,57 @@ export default function CaregiverDashboard() {
             </div>
           </div>
 
-          {/* Bottom 2 info cards */}
-          <div className="px-4 pb-4 grid grid-cols-2 gap-3">
-            {/* Emergency contact card */}
+          {/* First Person card — full width, location on hover */}
+          <div className="px-4 pb-4">
             <div
               className="rounded-2xl p-4 text-white group relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.02] cursor-default"
               style={{ background: 'linear-gradient(135deg, #4a6621, #7cb342)' }}
             >
-              <div
-                className="w-8 h-8 rounded-xl flex items-center justify-center mb-3"
-                style={{ background: 'rgba(255,255,255,0.2)' }}
-              >
-                <User className="w-4 h-4 text-white" />
-              </div>
-              <div className="text-white/60 text-[10px] uppercase tracking-widest mb-0.5">First Person</div>
-              <div className="text-sm font-semibold text-white truncate">
-                {firstPerson?.name || 'No contact'}
-              </div>
-              {firstPerson?.phone ? (
-                <a
-                  href={`tel:${firstPerson.phone}`}
-                  className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-xs font-semibold transition-all hover:bg-white/30"
-                  style={{ background: 'rgba(255,255,255,0.22)' }}
+              <div className="flex items-start gap-3">
+                <div
+                  className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: 'rgba(255,255,255,0.2)' }}
                 >
-                  <Phone className="w-3 h-3" />
-                  Call
-                </a>
-              ) : (
-                <Link
-                  href="/dashboard/caregiver/persons"
-                  className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-xs font-semibold transition-all hover:bg-white/30"
-                  style={{ background: 'rgba(255,255,255,0.22)' }}
-                >
-                  Set up
-                </Link>
-              )}
-              {/* Hover detail strip */}
-              {firstPerson && (
-                <div className="absolute inset-x-0 bottom-0 px-3 py-2 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0" style={{ background: 'rgba(0,0,0,0.22)' }}>
-                  <div className="text-white/80 text-[10px] truncate">
-                    {firstPerson.relationship}
-                    {firstPerson.mobility && firstPerson.mobility !== 'Mobile Adult' ? ` · ${firstPerson.mobility}` : ''}
-                  </div>
+                  <User className="w-4 h-4 text-white" />
                 </div>
-              )}
-            </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-white/60 text-[10px] uppercase tracking-widest mb-0.5">First Person</div>
+                  <div className="text-sm font-semibold text-white truncate">
+                    {firstPerson?.name || 'No contact'}
+                  </div>
+                  {firstPerson?.phone && (
+                    <a
+                      href={`tel:${firstPerson.phone}`}
+                      className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-white text-xs font-semibold transition-all hover:bg-white/30"
+                      style={{ background: 'rgba(255,255,255,0.22)' }}
+                    >
+                      <Phone className="w-3 h-3" />
+                      Call
+                    </a>
+                  )}
+                  {!firstPerson && (
+                    <Link
+                      href="/dashboard/caregiver/persons"
+                      className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-white text-xs font-semibold transition-all hover:bg-white/30"
+                      style={{ background: 'rgba(255,255,255,0.22)' }}
+                    >
+                      Set up
+                    </Link>
+                  )}
+                </div>
+              </div>
 
-            {/* Location card */}
-            <div
-              className="rounded-2xl p-4 group relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.02]"
-              style={{ background: 'var(--wfa-loc-card)' }}
-            >
-              <div
-                className="w-8 h-8 rounded-xl flex items-center justify-center mb-3"
-                style={{ background: 'rgba(255,255,255,0.1)' }}
-              >
-                <MapPin className="w-4 h-4" style={{ color: 'var(--wfa-accent-lite)' }} />
+              {/* Location overlay on hover */}
+              <div className="absolute inset-0 rounded-2xl flex flex-col justify-end p-4 opacity-0 group-hover:opacity-100 transition-all duration-200" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <MapPin className="w-3 h-3 text-white/70 shrink-0" />
+                  <div className="text-white/50 text-[10px] uppercase tracking-widest">Location</div>
+                </div>
+                <div className="text-sm font-semibold text-white leading-snug mb-1">
+                  {firstPerson?.address || 'No address on file'}
+                </div>
+                <div className="text-white/40 text-[10px]">Last Update: —</div>
               </div>
-              <div className="text-white/50 text-[10px] uppercase tracking-widest mb-0.5">Location</div>
-              <div className="text-sm font-semibold text-white/90 leading-snug line-clamp-2">
-                {firstPerson?.address || 'Not set'}
-              </div>
-              <div className="text-white/25 text-[10px] uppercase tracking-widest mt-3 group-hover:opacity-0 transition-opacity">Last Update: Now</div>
-              {/* Hover overlay — View on map */}
-              <Link
-                href="/dashboard/caregiver/map"
-                className="absolute inset-x-0 bottom-0 flex items-center justify-center pb-3 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0"
-              >
-                <span
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
-                  style={{
-                    color: 'var(--wfa-accent-lite)',
-                    background: 'var(--wfa-accent-lite-bg)',
-                    border: '1px solid var(--wfa-accent-lite-bdr)',
-                  }}
-                >
-                  <MapPin className="w-3 h-3" /> View on map
-                </span>
-              </Link>
             </div>
           </div>
         </div>
