@@ -56,14 +56,14 @@ export default function SignalGapsPage() {
           { value: '1.1h', label: 'Median signal lead time when orders ARE issued (n=653)', color: 'text-signal-warn' },
           { value: '9×', label: 'Worst vs best state order-rate disparity', color: 'text-ember-400' },
         ].map(s => (
-          <div key={s.label} className="card p-5">
+          <div key={s.label} className="card-dark p-5">
             <div className={`font-display text-3xl font-bold ${s.color}`}>{s.value}</div>
             <div className="text-ash-400 text-sm mt-1">{s.label}</div>
           </div>
         ))}
       </div>
 
-      <div className="card overflow-hidden">
+      <div className="card-dark overflow-hidden">
         <div className="px-6 py-4 border-b border-ash-800 flex items-center gap-2">
           <MapPin className="w-4 h-4 text-ash-400" />
           <h2 className="text-white font-semibold text-sm">Signal Gap by State</h2>
