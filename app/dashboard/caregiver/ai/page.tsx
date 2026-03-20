@@ -160,6 +160,8 @@ export default function SafePathAIPage() {
             rows={1}
             className="flex-1 bg-transparent text-white placeholder-ash-600 text-sm resize-none focus:outline-none"
             style={{ minHeight: 24, maxHeight: 120, overflowY: 'auto' }}
+            translate="no"
+            autoComplete="off"
           />
           <button
             onClick={() => sendMessage()}

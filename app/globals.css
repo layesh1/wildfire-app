@@ -41,6 +41,10 @@ body { top: 0 !important; }
     @apply bg-white border border-gray-200 rounded-xl shadow-sm;
   }
 
+  .card-dark {
+    @apply bg-ash-900 border border-ash-800 rounded-xl;
+  }
+
   .card-glow {
     @apply card;
     box-shadow: var(--forest-glow);

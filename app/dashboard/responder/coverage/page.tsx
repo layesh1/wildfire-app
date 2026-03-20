@@ -93,15 +93,15 @@ export default function AgencyCoveragePage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        <div className="card p-5"><div className="font-display text-3xl font-bold text-signal-danger">{gaps}</div><div className="text-ash-400 text-sm mt-1">Critical gaps</div></div>
-        <div className="card p-5"><div className="font-display text-3xl font-bold text-signal-warn">{partial}</div><div className="text-ash-400 text-sm mt-1">Partial coverage</div></div>
-        <div className="card p-5"><div className="font-display text-3xl font-bold text-ember-400">{maxTime} min</div><div className="text-ash-400 text-sm mt-1">Max response time</div></div>
-        <div className="card p-5">
+        <div className="card-dark p-5"><div className="font-display text-3xl font-bold text-signal-danger">{gaps}</div><div className="text-ash-400 text-sm mt-1">Critical gaps</div></div>
+        <div className="card-dark p-5"><div className="font-display text-3xl font-bold text-signal-warn">{partial}</div><div className="text-ash-400 text-sm mt-1">Partial coverage</div></div>
+        <div className="card-dark p-5"><div className="font-display text-3xl font-bold text-ember-400">{maxTime} min</div><div className="text-ash-400 text-sm mt-1">Max response time</div></div>
+        <div className="card-dark p-5">
           <div className="font-display text-3xl font-bold text-signal-warn">52.5%</div>
           <div className="text-ash-400 text-sm mt-1">Max no-internet county</div>
           <div className="text-ash-600 text-xs mt-0.5">Apache Co, AZ</div>
         </div>
-        <div className={`card p-5 ${pending > 0 ? 'border-signal-danger/30 bg-signal-danger/5' : ''}`}>
+        <div className={`card-dark p-5 ${pending > 0 ? 'border-signal-danger/30 bg-signal-danger/5' : ''}`}>
           <div className={`font-display text-3xl font-bold ${pending > 0 ? 'text-signal-danger' : 'text-signal-safe'}`}>{pending}</div>
           <div className="text-ash-400 text-sm mt-1">Assist requests pending</div>
         </div>
@@ -139,7 +139,7 @@ export default function AgencyCoveragePage() {
               </button>
             ))}
           </div>
-          <div className="card overflow-hidden">
+          <div className="card-dark overflow-hidden">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-ash-800 text-left">
@@ -197,13 +197,13 @@ export default function AgencyCoveragePage() {
       {tab === 'requests' && (
         <div className="space-y-3">
           {requests.length === 0 ? (
-            <div className="card p-12 text-center">
+            <div className="card-dark p-12 text-center">
               <Heart className="w-10 h-10 text-ash-700 mx-auto mb-3" />
               <div className="text-white font-semibold mb-1">No assist requests yet</div>
               <div className="text-ash-500 text-sm max-w-sm mx-auto">When caregivers or evacuees submit help requests from their dashboard, they appear here for dispatch.</div>
             </div>
           ) : requests.map(req => (
-            <div key={req.id} className={`card p-4 border-l-4 ${req.urgency === 'high' ? 'border-l-signal-danger' : req.urgency === 'medium' ? 'border-l-signal-warn' : 'border-l-signal-safe'}`}>
+            <div key={req.id} className={`card-dark p-4 border-l-4 ${req.urgency === 'high' ? 'border-l-signal-danger' : req.urgency === 'medium' ? 'border-l-signal-warn' : 'border-l-signal-safe'}`}>
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
@@ -246,7 +246,7 @@ export default function AgencyCoveragePage() {
       {tab === 'access_gaps' && (
         <div className="space-y-6">
           {/* Language barriers */}
-          <div className="card p-5">
+          <div className="card-dark p-5">
             <div className="flex items-center gap-2 mb-3">
               <Globe className="w-4 h-4 text-signal-warn" />
               <h3 className="text-white font-semibold text-sm">Language Barrier Counties</h3>
@@ -304,7 +304,7 @@ export default function AgencyCoveragePage() {
           </div>
 
           {/* No-internet gaps */}
-          <div className="card p-5">
+          <div className="card-dark p-5">
             <div className="flex items-center gap-2 mb-3">
               <WifiOff className="w-4 h-4 text-signal-danger" />
               <h3 className="text-white font-semibold text-sm">No-Internet Coverage Gaps</h3>
