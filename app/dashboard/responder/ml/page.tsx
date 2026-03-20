@@ -2,8 +2,39 @@
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Activity, Wind, Thermometer, Droplets, TrendingUp, AlertTriangle, MapPin, Loader2 } from 'lucide-react'
+import type { EvacueeOverlayPin } from '@/components/FireSpreadMap'
 
 const FireSpreadMap = dynamic(() => import('@/components/FireSpreadMap'), { ssr: false })
+
+// Generate demo evacuee pins scattered around a fire origin point
+function buildDemoEvacuees(lat: number, lon: number): EvacueeOverlayPin[] {
+  const offsets: [number, number, EvacueeOverlayPin['status'], string, string?, string?][] = [
+    [ 0.018,  0.022, 'unknown',   'Linda Reyes',    '248 Oak Ridge Rd',         'Wheelchair user — needs transport'],
+    [-0.012,  0.031, 'evacuated', 'James Park',     '1104 Pine Valley Dr',       undefined],
+    [ 0.029, -0.015, 'unknown',   'Carol Simmons',  '3312 Ridgeline Blvd',      'Oxygen-dependent'],
+    [-0.022, -0.028, 'evacuated', 'Priya Nair',     '550 Willow Creek Ln',       undefined],
+    [ 0.041,  0.005, 'sheltering','George Bell',    '777 Summit Ave',            'Hearing impaired'],
+    [-0.033,  0.019, 'evacuated', 'Maria Santos',   '2201 Hillcrest Rd',         undefined],
+    [ 0.014, -0.039, 'unknown',   'Earl Thompson',  '99 Lakeview Cir',           'Bedridden — EMS required'],
+    [ 0.052,  0.028, 'evacuated', 'Fatima Hassan',  '4418 Forest Glen Dr',       undefined],
+    [-0.008,  0.047, 'returning', 'Helen Murphy',   '1823 Valley View Rd',       undefined],
+    [ 0.035, -0.042, 'unknown',   'Robert Singh',   '631 Cedar Falls Way',       'Insulin-dependent'],
+    [-0.046, -0.011, 'evacuated', 'Ana Gutierrez',  '3070 Sunrise Blvd',         undefined],
+    [ 0.021,  0.055, 'sheltering','Walter Grant',   '5541 Meadow Brook Ct',      undefined],
+    [-0.019,  0.062, 'evacuated', 'Darius Freeman', '820 Maple Ridge Rd',        undefined],
+    [ 0.058, -0.021, 'unknown',   'Nkechi Obi',     '112 Creekside Dr',          'Non-English speaking'],
+    [-0.038,  0.044, 'evacuated', 'David Chen',     '2987 Rolling Hills Pkwy',   undefined],
+  ]
+  return offsets.map(([dlat, dlon, status, name, address, special_needs], i) => ({
+    id: `demo-evac-${i}`,
+    name,
+    address: address || 'Unknown address',
+    lat: lat + dlat,
+    lon: lon + dlon,
+    status,
+    special_needs,
+  }))
+}
 
 const COUNTY_SVI: Record<string, number> = {
   'trinity': 0.72, 'mohave': 0.85, 'la paz': 0.92, 'humboldt': 0.83,
@@ -48,7 +79,7 @@ function FireShapeViz({ spread, windSpeed }: { spread: number; windSpeed: number
   const scale = maxA > 0 ? maxPx / maxA : 1
 
   return (
-    <div className="card p-4">
+    <div className="card-dark p-4">
       <div className="text-white text-sm font-semibold mb-1 flex items-center gap-2">
         <span className="text-ember-400">◎</span> Fire Growth Shape — Technical View
       </div>
@@ -122,6 +153,7 @@ export default function MLPredictorPage() {
   const [censusLoading, setCensusLoading] = useState(false)
   const [medianHomeValue, setMedianHomeValue] = useState<number | null>(null)
   const [censusCounty, setCensusCounty] = useState('')
+  const [demoEvacuees, setDemoEvacuees] = useState<EvacueeOverlayPin[]>([])
 
   async function fetchLocation() {
     if (!location.trim()) return
@@ -205,6 +237,10 @@ export default function MLPredictorPage() {
       spread_acres_24h,
       evac_probability: Math.min(risk * 1.3, 0.99),
     })
+    // Generate demo evacuees around the fire origin when lat/lon are known
+    if (lat != null && lon != null) {
+      setDemoEvacuees(buildDemoEvacuees(lat, lon))
+    }
     setRunning(false)
   }
 
@@ -223,7 +259,7 @@ export default function MLPredictorPage() {
       </div>
 
       {/* Location auto-fill */}
-      <div className="card p-4 mb-6">
+      <div className="card-dark p-4 mb-6">
         <div className="flex items-center gap-2 mb-2">
           <MapPin className="w-4 h-4 text-signal-info" />
           <span className="text-white text-sm font-medium">Auto-fill from location</span>
@@ -252,7 +288,7 @@ export default function MLPredictorPage() {
         )}
       </div>
 
-      <div className="card p-4 mb-6">
+      <div className="card-dark p-4 mb-6">
         <div className="text-white text-sm font-medium mb-3">Fire Mode</div>
         <div className="grid grid-cols-2 gap-2">
           {(['scenario', 'active'] as const).map(mode => (
@@ -299,7 +335,7 @@ export default function MLPredictorPage() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
-        <div className="card p-6 space-y-6">
+        <div className="card-dark p-6 space-y-6">
           <h2 className="text-white font-semibold">Conditions Input</h2>
           {[
             { label: 'Wind Speed', icon: Wind, value: windSpeed, set: setWindSpeed, min: 0, max: 80, unit: 'mph' },
@@ -332,7 +368,7 @@ export default function MLPredictorPage() {
         <div className="space-y-4">
           {result && riskLevel !== null ? (
             <>
-              <div className={`card p-6 border ${RISK_LEVELS[riskLevel].bg}`}>
+              <div className={`card-dark p-6 border ${RISK_LEVELS[riskLevel].bg}`}>
                 <div className="text-ash-400 text-xs font-medium uppercase tracking-wider mb-2">Risk Assessment</div>
                 <div className={`font-display text-5xl font-bold ${RISK_LEVELS[riskLevel].color}`}>
                   {RISK_LEVELS[riskLevel].label}
@@ -344,12 +380,12 @@ export default function MLPredictorPage() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="card p-5">
+                <div className="card-dark p-5">
                   <div className="text-ash-400 text-xs mb-1">{fireMode === 'active' ? 'Projected additional spread' : 'Projected spread (24h)'}</div>
                   <div className="font-display text-2xl font-bold text-signal-warn">{result.spread_acres_24h.toLocaleString()}</div>
                   <div className="text-ash-500 text-xs">acres</div>
                 </div>
-                <div className="card p-5">
+                <div className="card-dark p-5">
                   <div className="text-ash-400 text-xs mb-1">Evacuation probability</div>
                   <div className={`font-display text-2xl font-bold ${result.evac_probability > 0.7 ? 'text-signal-danger' : result.evac_probability > 0.4 ? 'text-signal-warn' : 'text-signal-safe'}`}>
                     {(result.evac_probability * 100).toFixed(0)}%
@@ -358,7 +394,7 @@ export default function MLPredictorPage() {
                 </div>
               </div>
               {riskLevel >= 2 && (
-                <div className="card p-4 border border-signal-danger/30 bg-signal-danger/5">
+                <div className="card-dark p-4 border border-signal-danger/30 bg-signal-danger/5">
                   <div className="flex items-start gap-2">
                     <AlertTriangle className="w-4 h-4 text-signal-danger shrink-0 mt-0.5" />
                     <div>
@@ -372,7 +408,7 @@ export default function MLPredictorPage() {
               )}
             </>
           ) : (
-            <div className="card p-8 flex flex-col items-center justify-center text-center min-h-[300px]">
+            <div className="card-dark p-8 flex flex-col items-center justify-center text-center min-h-[300px]">
               <Activity className="w-10 h-10 text-ash-700 mb-3" />
               <div className="text-ash-500 text-sm">Set conditions and run the prediction model</div>
             </div>
@@ -385,7 +421,7 @@ export default function MLPredictorPage() {
         <>
           <div className="mt-6 grid md:grid-cols-2 gap-4">
             <FireShapeViz spread={result.spread_acres_24h} windSpeed={windSpeed} />
-            <div className="card p-4">
+            <div className="card-dark p-4">
               <div className="text-white text-sm font-semibold mb-3">How to Read the Shape</div>
               <div className="space-y-2 text-ash-400 text-xs">
                 <p>The fire ellipse elongates in the downwind direction. Higher wind speed = more elongated shape (higher L/W ratio).</p>
@@ -401,7 +437,7 @@ export default function MLPredictorPage() {
           </div>
 
           {lat != null && lon != null && (
-            <div className="mt-4 card p-4">
+            <div className="mt-4 card-dark p-4">
               <div className="text-white text-sm font-semibold mb-1 flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-ember-400" /> Projected Fire Growth on Map
               </div>
@@ -415,11 +451,22 @@ export default function MLPredictorPage() {
                 windSpeedMph={windSpeed}
                 windDirDeg={windDirDeg}
                 currentAcres={fireMode === 'active' ? currentAcres : undefined}
+                evacuees={demoEvacuees}
               />
+              {demoEvacuees.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-3 text-xs">
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-signal-safe inline-block" />Evacuated ({demoEvacuees.filter(e => e.status === 'evacuated').length})</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-red-500 inline-block" />Not evacuated ({demoEvacuees.filter(e => e.status === 'unknown').length})</span>
+                  <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-amber-400 inline-block" />Sheltering ({demoEvacuees.filter(e => e.status === 'sheltering').length})</span>
+                  <span className="text-signal-danger font-semibold ml-auto">
+                    {demoEvacuees.filter(e => e.status === 'unknown' && e.special_needs).length} priority households in fire path
+                  </span>
+                </div>
+              )}
               <p className="text-ash-600 text-xs mt-2">
                 {fireMode === 'active'
-                  ? 'Dashed orange = current burn perimeter · Yellow→Red = projected additional growth at 1h/3h/6h/12h/24h'
-                  : 'Yellow = 1h · Orange = 3h/6h · Red = 12h/24h perimeter · Click ellipses for time horizon'}
+                  ? 'Dashed orange = current burn perimeter · Yellow→Red = projected growth · Dots = registered resident evacuation status'
+                  : 'Yellow→Red = projected perimeter at 1h/3h/6h/12h/24h · Colored dots = resident evacuation status · Click any dot for details'}
               </p>
             </div>
           )}
@@ -427,7 +474,7 @@ export default function MLPredictorPage() {
       )}
 
       {result && (
-        <div className={`mt-4 card p-4 border-l-4 ${svi >= 0.75 ? 'border-signal-danger' : svi >= 0.5 ? 'border-signal-warn' : 'border-signal-safe'}`}>
+        <div className={`mt-4 card-dark p-4 border-l-4 ${svi >= 0.75 ? 'border-signal-danger' : svi >= 0.5 ? 'border-signal-warn' : 'border-signal-safe'}`}>
           <p className="text-ash-400 text-xs">
             <span className={`font-semibold ${svi >= 0.75 ? 'text-signal-danger' : svi >= 0.5 ? 'text-signal-warn' : 'text-signal-safe'}`}>
               County SVI = {svi.toFixed(2)} ({svi >= 0.75 ? 'High' : svi >= 0.5 ? 'Moderate' : 'Low'} vulnerability)
@@ -439,7 +486,7 @@ export default function MLPredictorPage() {
       )}
 
       {/* Property Value at Risk — Census ACS (free) */}
-      <div className="card p-5 mt-6">
+      <div className="card-dark p-5 mt-6">
         <div className="flex items-center gap-2 mb-3">
           <TrendingUp className="w-4 h-4 text-signal-info" />
           <h2 className="text-white font-semibold text-sm">Economic Impact Estimate</h2>
