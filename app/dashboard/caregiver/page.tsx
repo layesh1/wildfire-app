@@ -1,524 +1,676 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Bell, MapPin, Users, AlertTriangle, CheckCircle, Phone, ChevronRight, Eye, EyeOff, Clock, Shield, Flame, Package, Radio } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import {
+  Flame, MapPin, Phone, AlertTriangle, CheckCircle,
+  Shield, ChevronRight, Package, User, Users, Bell
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
-import LanguageSwitcher from '@/components/LanguageSwitcher'
+import type { NifcFire } from './map/LeafletMap'
+import AlertJar from '@/components/AlertJar'
+import { useRoleContext } from '@/components/RoleContext'
 
-const QUICK_ACTIONS = [
-  { label: 'View Evacuation Map', href: '/dashboard/caregiver/map', icon: MapPin, color: 'text-forest-600' },
-  { label: 'Check In Safe', href: '/dashboard/caregiver/checkin', icon: CheckCircle, color: 'text-signal-safe' },
-  { label: 'Find Shelter', href: '/dashboard/caregiver/map?filter=shelter', icon: Users, color: 'text-signal-info' },
-  { label: 'Ask SAFE-PATH AI', href: '/dashboard/caregiver/ai', icon: Phone, color: 'text-amber-500' },
-]
+const LeafletMap = dynamic(() => import('./map/LeafletMap'), { ssr: false })
 
-// WiDS-derived signal gap by state (median hours from detection to order)
-const STATE_DELAYS: Record<string, number> = {
-  NM: 38.7, AZ: 31.2, TX: 27.4, AK: 24.6, OK: 22.1, MT: 19.8, ID: 16.3,
-  KS: 14.8, WA: 13.9, HI: 12.8, LA: 11.8, OR: 11.2, MS: 10.4, CA: 9.8,
-  AL: 9.8, FL: 9.2, NV: 8.4, CO: 5.2, UT: 4.8, ND: 2.9,
-}
-
+// ── Constants ─────────────────────────────────────────────────────────────────
 const GO_BAG_ITEMS = [
-  { id: 'water', label: 'Water (1 gal/person/day × 3 days)', critical: true },
-  { id: 'docs', label: 'ID, insurance, and vital documents (waterproof bag)', critical: true },
-  { id: 'meds', label: 'Medications (7-day supply + list)', critical: true },
-  { id: 'phone', label: 'Phone charger & battery pack', critical: true },
-  { id: 'cash', label: 'Cash ($100+ small bills)', critical: false },
-  { id: 'clothes', label: 'Clothing change + sturdy shoes', critical: false },
-  { id: 'food', label: 'Non-perishable food (3-day supply)', critical: false },
-  { id: 'first_aid', label: 'First-aid kit', critical: false },
-  { id: 'flashlight', label: 'Flashlight + extra batteries', critical: false },
-  { id: 'pet', label: 'Pet supplies (carrier, food, records)', critical: false },
-  { id: 'radio', label: 'Battery/crank weather radio', critical: false },
-  { id: 'map', label: 'Paper map of your area (offline backup)', critical: false },
+  { id: 'water',     label: 'Water (1 gal/person/day × 3 days)',          critical: true  },
+  { id: 'docs',      label: 'ID, insurance & vital documents',             critical: true  },
+  { id: 'meds',      label: 'Medications (7-day supply + list)',           critical: true  },
+  { id: 'phone',     label: 'Phone charger & battery pack',                critical: true  },
+  { id: 'cash',      label: 'Cash ($100+ small bills)',                    critical: false },
+  { id: 'clothes',   label: 'Clothing change + sturdy shoes',              critical: false },
+  { id: 'food',      label: 'Non-perishable food (3-day supply)',          critical: false },
+  { id: 'first_aid', label: 'First-aid kit',                               critical: false },
+  { id: 'flashlight',label: 'Flashlight + extra batteries',               critical: false },
+  { id: 'pet',       label: 'Pet supplies (carrier, food, records)',       critical: false },
+  { id: 'radio',     label: 'Battery/crank weather radio',                 critical: false },
+  { id: 'map',       label: 'Paper map of your area',                      critical: false },
 ]
 
-function getPeakRisk(): { hour: boolean; month: boolean; peakHour: string; peakMonth: string } {
-  const now = new Date()
-  const hour = now.getHours()
-  const month = now.getMonth() + 1 // 1-indexed
-  return {
-    hour: hour >= 20 || hour <= 23, // peak: 21:00 (9PM)
-    month: month >= 6 && month <= 9, // peak: June-Sept (July peak)
-    peakHour: '9 PM',
-    peakMonth: 'July',
-  }
+// ── Types ─────────────────────────────────────────────────────────────────────
+type MonitoredPerson = {
+  id: string
+  name: string
+  relationship: string
+  familyRelation?: string
+  mobility: string
+  mobilityOther?: string
+  address?: string
+  phone?: string
+  email?: string
+  notes?: string
 }
 
-export default function CaregiverDashboard() {
-  const [fires, setFires] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+type FireEvent = {
+  id: string
+  incident_name: string
+  county: string
+  state: string
+  acres_burned: number | null
+  containment_pct: number | null
+  started_at: string
+  signal_gap_hours: number | null
+  has_evacuation_order: boolean | null
+}
 
-  const [showHelpForm, setShowHelpForm] = useState(false)
-  const [helpSubmitted, setHelpSubmitted] = useState(false)
-  const [helpForm, setHelpForm] = useState({ name: '', address: '', people: 1, needs: '', urgency: 'high' as 'high' | 'medium' | 'low' })
+// ── Helpers ───────────────────────────────────────────────────────────────────
+type EvacStage = 'Order issued' | 'Warning issued' | 'Advisory issued' | 'Watch (now)'
 
-  // Go-bag checklist (localStorage)
-  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set())
-  const [showBag, setShowBag] = useState(false)
-  const [bagLoaded, setBagLoaded] = useState(false)
+function evacuationStage(fire: FireEvent): EvacStage {
+  if (fire.has_evacuation_order) return 'Order issued'
+  const pct = fire.containment_pct
+  if (pct == null || pct < 25) return 'Warning issued'
+  if (pct < 50) return 'Advisory issued'
+  return 'Watch (now)'
+}
 
-  // User's county/state from settings
-  const [userState, setUserState] = useState<string | null>(null)
+const STAGE_META: Record<EvacStage, { bg: string; text: string; action: string }> = {
+  'Order issued':    { bg: '#c86432', text: 'white',    action: 'Mandatory evacuation — go immediately. Shelter info on map.' },
+  'Warning issued':  { bg: '#d97706', text: 'white',    action: 'Leave NOW — do not wait for Order. In high-SVI counties, a formal order may never be issued.' },
+  'Advisory issued': { bg: '#d4a574', text: '#3e2723',  action: 'Load car, move valuables, prepare to leave immediately.' },
+  'Watch (now)':     { bg: '#7cb342', text: 'white',    action: 'Pack go-bag, fill gas, locate pets, know your route.' },
+}
 
-  const peak = getPeakRisk()
+function mobilityStatus(m: string): 'safe' | 'caution' | 'danger' {
+  const l = (m || '').toLowerCase()
+  if (l.includes('oxygen') || l.includes('bedridden') || l.includes('medical')) return 'danger'
+  if (l.includes('wheelchair') || l.includes('limited') || l.includes('walker')) return 'caution'
+  return 'safe'
+}
 
-  useEffect(() => {
-    // Load go-bag state from localStorage
-    try {
-      const saved = JSON.parse(localStorage.getItem('wfa_gobag') || '[]')
-      setCheckedItems(new Set(saved))
-    } catch {}
-    setBagLoaded(true)
+const STATUS_COLORS = {
+  safe:    '#7cb342',
+  caution: '#d4a574',
+  danger:  '#c86432',
+}
 
-    // Try to get state from profile address
-    try {
-      const addr = localStorage.getItem('wfa_profile_address') || ''
-      const stateMatch = addr.match(/\b([A-Z]{2})\b/)
-      if (stateMatch) setUserState(stateMatch[1])
-    } catch {}
-  }, [])
-
-  function toggleBagItem(id: string) {
-    setCheckedItems(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      localStorage.setItem('wfa_gobag', JSON.stringify([...next]))
-      return next
-    })
-  }
-
-  function submitHelpRequest() {
-    const req = { id: Date.now().toString(), ...helpForm, submitted_at: new Date().toISOString(), status: 'pending' as const }
-    const existing = JSON.parse(localStorage.getItem('wfa_evac_requests') || '[]')
-    localStorage.setItem('wfa_evac_requests', JSON.stringify([req, ...existing]))
-    setHelpSubmitted(true)
-  }
-
-  useEffect(() => {
-    async function load() {
-      const { data } = await supabase
-        .from('fire_events')
-        .select('id, incident_name, county, state, acres_burned, containment_pct, started_at, has_evacuation_order, signal_gap_hours')
-        .eq('has_evacuation_order', true)
-        .order('started_at', { ascending: false })
-        .limit(5)
-      if (data) setFires(data)
-      setLoading(false)
-    }
-    load()
-  }, [])
-
-  const criticalItems = GO_BAG_ITEMS.filter(i => i.critical)
-  const criticalChecked = criticalItems.filter(i => checkedItems.has(i.id)).length
-  const totalChecked = GO_BAG_ITEMS.filter(i => checkedItems.has(i.id)).length
-  const readyPct = Math.round((totalChecked / GO_BAG_ITEMS.length) * 100)
-
-  const stateDelay = userState ? STATE_DELAYS[userState] : null
+// ── Person tracking card ──────────────────────────────────────────────────────
+function PersonCard({ person, index }: { person: MonitoredPerson; index: number }) {
+  const status  = mobilityStatus(person.mobility)
+  const color   = STATUS_COLORS[status]
+  const isPrimary = index === 0
 
   return (
-    <>
-    <LanguageSwitcher />
-    <div className="p-8 max-w-5xl mx-auto">
-
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-2 text-forest-600 text-sm font-medium mb-3">
-          <Bell className="w-4 h-4" />
-          CAREGIVER DASHBOARD · SAFE-PATH
-        </div>
-        <h1 className="font-display text-4xl font-bold text-gray-900 mb-3">
-          Your Evacuation Hub
-        </h1>
-        <p className="text-gray-500">
-          Personalized alerts, check-in tools, and accessible evacuation guidance.
-        </p>
-      </div>
-
-      {/* Alert status */}
-      <div className="bg-signal-safe/10 border border-signal-safe/30 rounded-xl p-5 flex items-center gap-4 mb-6">
-        <div className="w-10 h-10 rounded-full bg-signal-safe/20 flex items-center justify-center">
-          <CheckCircle className="w-5 h-5 text-signal-safe" />
-        </div>
-        <div>
-          <div className="text-gray-900 font-semibold">No active evacuation orders in your area</div>
-          <div className="text-gray-500 text-sm">Last checked: just now · Alerts update automatically</div>
-        </div>
-      </div>
-
-      {/* Peak time warning (data-driven) */}
-      {(peak.hour || peak.month) && (
-        <div className="bg-signal-warn/10 border border-signal-warn/30 rounded-xl p-4 flex items-start gap-3 mb-6">
-          <Flame className="w-4 h-4 text-signal-warn mt-0.5 shrink-0" />
-          <div>
-            <p className="text-signal-warn text-sm font-semibold mb-0.5">
-              {peak.hour ? 'Peak Fire Hour Active' : 'Peak Fire Season'}
-            </p>
-            <p className="text-gray-500 text-xs leading-relaxed">
-              {peak.hour
-                ? `WiDS data shows wildfires peak around ${peak.peakHour}. Stay alert — keep your phone charged and unlocked.`
-                : `${peak.peakMonth} through August is when wildfire incidents peak nationally. Check this app daily.`
-              }
-            </p>
+    <div
+      className="rounded-2xl p-4 transition-shadow hover:shadow-md"
+      style={{
+        background: isPrimary
+          ? 'linear-gradient(135deg, #c86432 0%, #8b3a1a 100%)'
+          : 'var(--wfa-panel-solid)',
+        border: isPrimary ? 'none' : `1.5px solid ${color}40`,
+      }}
+    >
+      {/* Name + badge */}
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex-1 min-w-0 pr-2">
+          <div
+            className={`font-semibold text-sm truncate ${isPrimary ? 'text-white' : ''}`}
+            style={isPrimary ? undefined : { color: 'var(--wfa-text)' }}
+          >
+            {person.name}
           </div>
+          <div
+            className={`text-xs mt-0.5 ${isPrimary ? 'text-white/60' : ''}`}
+            style={isPrimary ? undefined : { color: 'var(--wfa-text-50)' }}
+          >
+            {person.familyRelation || person.relationship}
+          </div>
+        </div>
+        <span
+          className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide shrink-0"
+          style={{
+            background: isPrimary ? 'rgba(255,255,255,0.2)' : color + '20',
+            color: isPrimary ? 'white' : color,
+            border: `1px solid ${isPrimary ? 'rgba(255,255,255,0.3)' : color + '50'}`,
+          }}
+        >
+          {status}
+        </span>
+      </div>
+
+      {/* Mobility pill */}
+      {person.mobility && (
+        <div
+          className="inline-block text-[11px] px-2.5 py-1 rounded-xl mb-3"
+          style={{
+            background: isPrimary ? 'rgba(255,255,255,0.15)' : 'var(--wfa-tag-bg)',
+            color: isPrimary ? 'rgba(255,255,255,0.8)' : 'var(--wfa-text)',
+          }}
+        >
+          {person.mobilityOther || person.mobility}
         </div>
       )}
 
-      {/* Silent fire awareness */}
-      <div className="card p-5 mb-6 border-l-4 border-signal-warn">
-        <div className="flex items-start gap-3">
-          <EyeOff className="w-5 h-5 text-signal-warn mt-0.5 shrink-0" />
-          <div className="flex-1">
-            <div className="text-gray-900 font-semibold text-sm mb-1">
-              67.2% of true wildfires start with NO push alert
+      {/* Timeline dots */}
+      <div className="space-y-1.5">
+        {person.address && (
+          <div className={`flex items-center gap-2 text-xs ${isPrimary ? 'text-white/55' : 'text-gray-400'}`}>
+            <div className="w-2 h-2 rounded-full shrink-0"
+              style={{ background: color }} />
+            <span className="truncate">{person.address}</span>
+          </div>
+        )}
+        {person.phone && (
+          <div className={`flex items-center gap-2 text-xs ${isPrimary ? 'text-white/55' : 'text-gray-400'}`}>
+            <div className="w-2 h-2 rounded-full shrink-0 bg-gray-300" />
+            <span>{person.phone}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Quick call on featured card */}
+      {isPrimary && person.phone && (
+        <a
+          href={`tel:${person.phone}`}
+          className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-colors hover:bg-white/90"
+          style={{ background: 'var(--wfa-call-btn-bg)', color: 'var(--wfa-accent)' }}
+        >
+          <Phone className="w-3 h-3" />
+          Call {person.name.split(' ')[0]}
+        </a>
+      )}
+    </div>
+  )
+}
+
+// ── Main dashboard ────────────────────────────────────────────────────────────
+export default function CaregiverDashboard() {
+  const [fires, setFires]     = useState<FireEvent[]>([])
+  const [nifc, setNifc]       = useState<NifcFire[]>([])
+  const [persons, setPersons] = useState<MonitoredPerson[]>([])
+  const [userProfile, setUserProfile] = useState<{ full_name?: string; email?: string } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [bagChecked, setBagChecked] = useState<Set<string>>(new Set())
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
+  const { mode, activePerson } = useRoleContext()
+  const isCaregiverMode = mode === 'caregiver' && activePerson !== null
+
+  const supabase = createClient()
+
+  useEffect(() => {
+    // Request geolocation
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => setUserLocation([pos.coords.latitude, pos.coords.longitude]),
+        () => {} // silently ignore denial
+      )
+    }
+
+    // Load localStorage data
+    try {
+      const saved = JSON.parse(localStorage.getItem('monitored_persons_v2') || '[]')
+      setPersons(saved)
+    } catch {}
+
+    try {
+      const saved = JSON.parse(localStorage.getItem('wfa_gobag') || '[]')
+      setBagChecked(new Set(saved))
+    } catch {}
+
+    // Supabase data + NIFC live fires
+    async function load() {
+      const [{ data: firesData }, { data: { user } }, nifcRes] = await Promise.all([
+        supabase
+          .from('fire_events')
+          .select('id, incident_name, county, state, acres_burned, containment_pct, started_at, signal_gap_hours, has_evacuation_order')
+          .order('started_at', { ascending: false })
+          .limit(6),
+        supabase.auth.getUser(),
+        fetch('/api/fires/nifc').catch(() => null),
+      ])
+      if (nifcRes?.ok) {
+        const json = await nifcRes.json().catch(() => ({}))
+        if (json?.data) setNifc(json.data)
+      }
+      if (firesData) setFires(firesData)
+      if (user) {
+        // Try localStorage emergency card first for full_name
+        try {
+          const card = JSON.parse(localStorage.getItem('wfa_emergency_card') || '{}')
+          if (card.full_name) {
+            setUserProfile({ full_name: card.full_name, email: user.email })
+            setLoading(false)
+            return
+          }
+        } catch {}
+        const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
+        setUserProfile({ full_name: prof?.full_name, email: user.email })
+      }
+      setLoading(false)
+    }
+    load()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const topFire    = fires[0] ?? null
+  const otherFires = fires.slice(1)
+  const readyPct   = Math.round((bagChecked.size / GO_BAG_ITEMS.length) * 100)
+  const stage      = topFire ? evacuationStage(topFire) : null
+  const stageMeta  = stage ? STAGE_META[stage] : null
+
+  const initials = userProfile?.full_name
+    ? userProfile.full_name.trim().split(/\s+/).map(n => n[0]).join('').slice(0, 2).toUpperCase()
+    : 'ME'
+
+  const firstPerson = persons[0] ?? null
+
+  return (
+    <>
+      {/* Root: full height 3-column layout */}
+      <div
+        className="flex h-screen overflow-hidden"
+        style={{ background: 'var(--wfa-page-bg)', fontFamily: 'var(--font-body)' }}
+      >
+
+        {/* ══ LEFT COLUMN — tracking cards (340px) ══════════════════════════ */}
+        <div
+          className="flex flex-col shrink-0 border-r"
+          style={{ width: 340, borderColor: 'var(--wfa-border)', background: 'var(--wfa-panel-l)' }}
+        >
+          {/* Header */}
+          <div className="px-5 pt-6 pb-4 border-b" style={{ borderColor: 'var(--wfa-border-lite)' }}>
+            <div
+              className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest mb-1"
+              style={{ color: 'var(--wfa-accent)' }}
+            >
+              <Users className="w-3.5 h-3.5" />
+              My Persons
             </div>
-            <p className="text-gray-500 text-xs leading-relaxed">
-              Analysis of 50,664 true wildfire incidents (2021–2025) shows most fires are &quot;silent&quot; — no push notification reaches nearby residents. (17.7% of records are prescribed burns and excluded.)
-              {stateDelay != null ? (
-                <span className="text-signal-warn font-medium"> In {userState}, the median time between fire detection and an evacuation order is <strong>{stateDelay}h</strong>.</span>
-              ) : (
-                <span> Even when signals exist, 99.3% of true wildfires result in no formal evacuation order.</span>
-              )}
-              {' '}Don&apos;t wait for an alert — check this app during fire weather.
-            </p>
-            <Link href="/dashboard/caregiver/alert" className="mt-2 inline-flex items-center gap-1 text-signal-info text-xs hover:underline">
-              <Eye className="w-3 h-3" /> Check fire proximity for my address →
+            <div className="font-display font-bold text-xl" style={{ color: 'var(--wfa-text)' }}>Tracking</div>
+            <div className="text-xs mt-0.5" style={{ color: 'var(--wfa-text-40)' }}>
+              {persons.length} {persons.length === 1 ? 'person' : 'people'} monitored
+            </div>
+          </div>
+
+          {/* Scrollable cards */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {persons.length === 0 ? (
+              <div className="flex flex-col items-center py-10 text-center">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3"
+                  style={{ background: 'var(--wfa-tag-bg)' }}>
+                  <User className="w-6 h-6" style={{ color: 'var(--wfa-accent-lite)' }} />
+                </div>
+                <p className="text-sm mb-3" style={{ color: 'var(--wfa-text-50)' }}>No people added yet</p>
+                <Link
+                  href="/dashboard/caregiver/persons"
+                  className="text-xs font-semibold hover:underline flex items-center gap-1"
+                  style={{ color: 'var(--wfa-accent)' }}
+                >
+                  Add someone to monitor <ChevronRight className="w-3 h-3" />
+                </Link>
+              </div>
+            ) : (
+              persons.map((p, i) => <PersonCard key={p.id} person={p} index={i} />)
+            )}
+
+            {/* Go-bag widget */}
+            <div className="rounded-2xl p-4 bg-white border" style={{ borderColor: 'var(--wfa-border)' }}>
+              <div className="flex items-center justify-between mb-2.5">
+                <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--wfa-text)' }}>
+                  <Package className="w-4 h-4" style={{ color: 'var(--wfa-accent)' }} />
+                  Go-Bag Ready
+                </div>
+                <span
+                  className="text-xs font-bold"
+                  style={{ color: readyPct >= 80 ? '#7cb342' : readyPct >= 50 ? '#d4a574' : '#c86432' }}
+                >
+                  {readyPct}%
+                </span>
+              </div>
+              <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--wfa-progress-bg)' }}>
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${readyPct}%`,
+                    background: readyPct >= 80 ? '#7cb342' : readyPct >= 50 ? '#d4a574' : '#c86432',
+                  }}
+                />
+              </div>
+              <div className="text-[11px] mt-1.5" style={{ color: 'var(--wfa-text-40)' }}>
+                {bagChecked.size} / {GO_BAG_ITEMS.length} items packed
+              </div>
+            </div>
+
+            {/* Add person CTA */}
+            <Link
+              href="/dashboard/caregiver/persons"
+              className="group flex flex-col items-center justify-center gap-0.5 py-3 rounded-2xl text-sm font-medium transition-all border border-dashed hover:shadow-sm"
+              style={{ borderColor: 'var(--wfa-border)', color: 'var(--wfa-accent)' }}
+            >
+              <span className="flex items-center gap-1.5">+ Add person</span>
+              <span
+                className="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity max-h-0 group-hover:max-h-4 overflow-hidden leading-none"
+                style={{ color: 'var(--wfa-accent)' }}
+              >
+                Track location &amp; check‑in status
+              </span>
             </Link>
           </div>
         </div>
-      </div>
 
-      {/* Digital gap warning */}
-      <div className="card p-5 mb-6 border-l-4 border-signal-danger">
-        <div className="flex items-start gap-3">
-          <Radio className="w-5 h-5 text-signal-danger mt-0.5 shrink-0" />
-          <div className="flex-1">
-            <div className="text-gray-900 font-semibold text-sm mb-1">
-              Digital gap puts you at higher risk
-            </div>
-            <div className="grid grid-cols-2 gap-3 mt-2 mb-2">
-              <div className="bg-signal-danger/10 border border-signal-danger/20 rounded-lg p-2.5 text-center">
-                <div className="text-signal-danger font-bold text-lg font-mono">93.2%</div>
-                <div className="text-gray-500 text-xs">signal gap in counties<br/>with low internet access</div>
+        {/* ══ CENTER COLUMN — fire alert + stats ════════════════════════════ */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+
+          {/* Top bar */}
+          <div className="shrink-0 px-8 pt-6 pb-4 flex items-center justify-between">
+            <div>
+              <div
+                className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest mb-0.5"
+                style={{ color: 'var(--wfa-accent)' }}
+              >
+                <Bell className="w-3.5 h-3.5" />
+                {isCaregiverMode ? `Caring for ${activePerson!.name}` : 'My Safety'}
               </div>
-              <div className="bg-signal-safe/10 border border-signal-safe/20 rounded-lg p-2.5 text-center">
-                <div className="text-signal-safe font-bold text-lg font-mono">49.1%</div>
-                <div className="text-gray-500 text-xs">signal gap in counties<br/>with high internet access</div>
+              <h1 className="font-display font-bold text-2xl" style={{ color: 'var(--wfa-text)' }}>My Hub</h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="group relative">
+                <Link
+                  href="/dashboard/caregiver/map"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 hover:scale-[1.03]"
+                  style={{ background: 'var(--wfa-btn-dark)' }}
+                >
+                  <MapPin className="w-3.5 h-3.5" />
+                  Evac Map
+                </Link>
+                <div
+                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2.5 py-1.5 rounded-lg text-[11px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 z-10 shadow-lg"
+                  style={{ background: 'var(--wfa-tooltip-bg)' }}
+                >
+                  Live fire map &amp; evacuation routes
+                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45" style={{ background: 'var(--wfa-tooltip-bg)' }} />
+                </div>
+              </div>
+              <div className="group relative">
+                <Link
+                  href="/dashboard/caregiver/checkin"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:scale-[1.03] hover:shadow-sm"
+                  style={{ background: 'var(--wfa-checkin-bg)', color: 'var(--wfa-text)', border: '1px solid var(--wfa-border)' }}
+                >
+                  <CheckCircle className="w-3.5 h-3.5" style={{ color: '#7cb342' }} />
+                  {isCaregiverMode ? `Ping ${activePerson!.name.split(' ')[0]}` : 'Check In Safe'}
+                </Link>
+                <div
+                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2.5 py-1.5 rounded-lg text-[11px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 z-10 shadow-lg"
+                  style={{ background: 'var(--wfa-tooltip-bg)' }}
+                >
+                  {isCaregiverMode ? `Send ${activePerson!.name.split(' ')[0]} a safety check-in` : 'Mark yourself safe & notify your network'}
+                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45" style={{ background: 'var(--wfa-tooltip-bg)' }} />
+                </div>
               </div>
             </div>
-            <p className="text-gray-500 text-xs leading-relaxed">
-              If you or someone you care for has limited internet or relies on a single channel (99.7% of fires have only one signal source),
-              evacuate early — don&apos;t wait for an official order. Sign up for your county&apos;s emergency text alerts as a backup channel.
-            </p>
           </div>
-        </div>
-      </div>
 
-      {/* Quick actions */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        {QUICK_ACTIONS.map(({ label, href, icon: Icon, color }) => (
-          <Link
-            key={href}
-            href={href}
-            className="card p-5 hover:bg-gray-50 transition-all duration-200 hover:scale-[1.02] group"
-          >
-            <Icon className={`w-6 h-6 ${color} mb-3`} />
-            <div className="text-gray-900 text-sm font-medium">{label}</div>
-            <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 mt-2 transition-colors" />
-          </Link>
-        ))}
-      </div>
+          {/* Scrollable main area */}
+          <div className="flex-1 overflow-y-auto px-8 pb-8 space-y-5">
 
-      {/* Go-Bag Readiness Checklist */}
-      <div className={`rounded-xl border mb-8 overflow-hidden ${readyPct >= 80 ? 'border-signal-safe/30' : readyPct >= 50 ? 'border-signal-warn/30' : 'border-signal-danger/30'}`}>
-        <button
-          onClick={() => setShowBag(v => !v)}
-          className="w-full flex items-center gap-3 px-5 py-4 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
-        >
-          <Package className={`w-4 h-4 shrink-0 ${readyPct >= 80 ? 'text-signal-safe' : readyPct >= 50 ? 'text-signal-warn' : 'text-signal-danger'}`} />
-          <div className="flex-1">
-            <div className="text-gray-900 font-semibold text-sm">Go-Bag Readiness</div>
-            <div className="text-gray-500 text-xs mt-0.5">
-              {bagLoaded
-                ? `${totalChecked}/${GO_BAG_ITEMS.length} items packed · ${criticalChecked}/${criticalItems.length} critical`
-                : 'Loading…'
-              }
-            </div>
-          </div>
-          {/* Progress bar */}
-          <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden mx-2">
-            <div
-              className={`h-full rounded-full transition-all ${readyPct >= 80 ? 'bg-signal-safe' : readyPct >= 50 ? 'bg-signal-warn' : 'bg-signal-danger'}`}
-              style={{ width: `${readyPct}%` }}
-            />
-          </div>
-          <span className={`text-xs font-mono font-bold w-10 text-right shrink-0 ${readyPct >= 80 ? 'text-signal-safe' : readyPct >= 50 ? 'text-signal-warn' : 'text-signal-danger'}`}>
-            {readyPct}%
-          </span>
-          <ChevronRight className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${showBag ? 'rotate-90' : ''}`} />
-        </button>
+            {/* Big fire alert card */}
+            {loading ? (
+              <div className="h-72 rounded-3xl animate-pulse" style={{ background: 'var(--wfa-accent-lite)' }} />
+            ) : topFire ? (
+              <div
+                className="wfa-dark-panel rounded-3xl p-8 relative overflow-hidden"
+                style={{
+                  background: 'var(--wfa-hero-bg)',
+                  minHeight: 280,
+                }}
+              >
+                {/* Decorative fire glow */}
+                <div
+                  className="absolute top-6 right-8 w-40 h-40 rounded-full pointer-events-none"
+                  style={{ background: 'radial-gradient(circle, rgba(200,100,50,0.35) 0%, transparent 70%)' }}
+                />
 
-        {showBag && (
-          <div className="border-t border-gray-200 p-5 bg-white">
-            <p className="text-gray-500 text-xs mb-4">
-              Check off items you have packed and ready. <span className="text-signal-danger">Red items are critical</span> — prioritize these first.
-            </p>
-            <div className="space-y-2">
-              {GO_BAG_ITEMS.map(item => (
-                <label key={item.id} className="flex items-center gap-3 cursor-pointer group p-2 rounded-lg hover:bg-gray-50 transition-colors">
-                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
-                    checkedItems.has(item.id)
-                      ? 'bg-signal-safe border-signal-safe'
-                      : item.critical
-                        ? 'border-signal-danger/60 group-hover:border-signal-danger'
-                        : 'border-gray-300 group-hover:border-gray-400'
-                  }`}>
-                    {checkedItems.has(item.id) && <CheckCircle className="w-3 h-3 text-white" />}
+                {/* Flame icon circle */}
+                <div className="flex flex-col items-center mb-7">
+                  <div
+                    className="w-20 h-20 rounded-full flex items-center justify-center mb-1"
+                    style={{
+                      background: 'rgba(200,100,50,0.2)',
+                      border: '3px solid rgba(200,100,50,0.45)',
+                      boxShadow: '0 0 40px rgba(200,100,50,0.3)',
+                    }}
+                  >
+                    <div
+                      className="w-13 h-13 w-14 h-14 rounded-full flex items-center justify-center"
+                      style={{ background: 'rgba(200,100,50,0.35)', border: '2px solid rgba(200,100,50,0.6)' }}
+                    >
+                      <Flame className="w-7 h-7 text-orange-300" />
+                    </div>
                   </div>
-                  <input type="checkbox" checked={checkedItems.has(item.id)} onChange={() => toggleBagItem(item.id)} className="sr-only" />
-                  <span className={`text-sm transition-colors ${
-                    checkedItems.has(item.id) ? 'text-gray-400 line-through' : item.critical ? 'text-gray-900' : 'text-gray-600'
-                  }`}>
-                    {item.label}
-                    {item.critical && !checkedItems.has(item.id) && (
-                      <span className="ml-2 text-xs text-signal-danger font-medium">CRITICAL</span>
+                  <h2 className="font-display font-bold text-2xl text-white text-center mt-4">
+                    {topFire.incident_name || 'Active Fire Alert'}
+                  </h2>
+                  <div className="flex items-center gap-3 mt-2">
+                    <span className="text-white/55 text-sm">
+                      {[topFire.county, topFire.state].filter(Boolean).join(', ')}
+                    </span>
+                    {stageMeta && (
+                      <span
+                        className="text-[11px] font-bold px-3 py-1 rounded-full tracking-wide"
+                        style={{ background: stageMeta.bg, color: stageMeta.text }}
+                      >
+                        {stage}
+                      </span>
                     )}
-                  </span>
-                </label>
-              ))}
-            </div>
-            {readyPct < 60 && (
-              <div className="mt-4 p-3 rounded-lg bg-signal-danger/10 border border-signal-danger/20">
-                <p className="text-signal-danger text-xs font-medium">
-                  Your bag is not ready for evacuation. In {userState && STATE_DELAYS[userState] ? `${userState}, you may have as little as ${STATE_DELAYS[userState]}h` : 'some areas, you may have under 10h'} between a fire starting and an evacuation order. Pack now.
-                </p>
+                  </div>
+                  {/* Stage action line */}
+                  {stageMeta && (
+                    <p className="text-white/45 text-xs mt-3 max-w-md text-center leading-relaxed">
+                      {stageMeta.action}
+                    </p>
+                  )}
+                </div>
+
+                {/* 4 quick-action cards */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  {[
+                    { label: 'Evacuation Map', href: '/dashboard/caregiver/map',               icon: MapPin,        desc: 'View fires & shelters' },
+                    { label: isCaregiverMode ? `Ping ${activePerson!.name.split(' ')[0]}` : 'Check In Safe', href: '/dashboard/caregiver/checkin', icon: CheckCircle, desc: isCaregiverMode ? `Send ${activePerson!.name.split(' ')[0]} a check-in` : 'Mark yourself safe' },
+                    { label: 'Find Shelter',   href: '/dashboard/caregiver/map?filter=shelter', icon: Shield,        desc: 'Nearby evac shelters'  },
+                    { label: 'Fire Alert',     href: '/dashboard/caregiver/alert',              icon: AlertTriangle, desc: 'Report or view alerts' },
+                  ].map(action => (
+                    <Link
+                      key={action.label}
+                      href={action.href}
+                      className="rounded-2xl p-4 flex flex-col items-center text-center transition-all hover:scale-[1.03] hover:bg-white/15 group"
+                      style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)' }}
+                    >
+                      <action.icon className="w-5 h-5 text-orange-300 mb-2 group-hover:text-white transition-colors" />
+                      <div className="text-white font-semibold text-sm leading-tight">{action.label}</div>
+                      <div className="text-white/40 text-[11px] mt-1 leading-snug">{action.desc}</div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div
+                className="wfa-dark-panel rounded-3xl pt-12 px-8 pb-8 flex flex-col items-center"
+                style={{ background: 'var(--wfa-empty-bg)' }}
+              >
+                <AlertJar level="safe" size={160} />
+                <h2 className="font-display text-xl font-bold text-white mt-16">No Active Alerts</h2>
+                <p className="text-white/45 text-sm mt-2 mb-6">Your area is currently clear. Stay prepared.</p>
+
+                {/* Alert level key */}
+                <div className="w-full grid grid-cols-4 gap-3">
+                  {[
+                    { dot: '#7cb342', label: 'Safe',    sub: 'All clear'   },
+                    { dot: '#d4a574', label: 'Caution', sub: 'Stay alert'  },
+                    { dot: '#c86432', label: 'Warning', sub: 'Prepare now' },
+                    { dot: '#d32f2f', label: 'Act Now', sub: 'Evacuate!'   },
+                  ].map(({ dot, label, sub }) => (
+                    <div key={label} className="flex flex-col items-center text-center gap-1.5 p-3 rounded-2xl" style={{ background: 'rgba(255,255,255,0.07)' }}>
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: dot + '22', border: `2px solid ${dot}` }}>
+                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: dot }} />
+                      </div>
+                      <div className="text-xs font-semibold text-white">{label}</div>
+                      <div className="text-[10px] text-white/40">{sub}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Other fires */}
+            {otherFires.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 font-semibold text-sm mb-3" style={{ color: 'var(--wfa-text)' }}>
+                  <AlertTriangle className="w-4 h-4" style={{ color: 'var(--wfa-accent)' }} />
+                  Other Recent Fires
+                </div>
+                <div className="space-y-2">
+                  {otherFires.map(fire => (
+                    <div
+                      key={fire.id}
+                      className="rounded-2xl p-4 bg-white flex items-center gap-4 shadow-sm"
+                      style={{ border: '1px solid var(--wfa-fire-border)' }}
+                    >
+                      <div className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse"
+                        style={{ background: fire.containment_pct != null && fire.containment_pct >= 75 ? '#7cb342' : '#c86432' }} />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm truncate" style={{ color: 'var(--wfa-text)' }}>
+                          {fire.incident_name || 'Unnamed Fire'}
+                        </div>
+                        <div className="text-xs" style={{ color: 'var(--wfa-text-40)' }}>
+                          {[fire.county, fire.state].filter(Boolean).join(', ')}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div
+                          className="text-sm font-semibold"
+                          style={{ color: fire.containment_pct != null && fire.containment_pct >= 50 ? '#7cb342' : '#c86432' }}
+                        >
+                          {fire.containment_pct != null ? `${fire.containment_pct}% contained` : 'Uncontained'}
+                        </div>
+                        {fire.acres_burned != null && (
+                          <div className="text-xs" style={{ color: 'var(--wfa-text-40)' }}>{fire.acres_burned.toLocaleString()} ac</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* Know Your Risk */}
-      <div className="card p-5 mb-8">
-        <div className="flex items-center gap-2 mb-4">
-          <Shield className="w-4 h-4 text-gray-400" />
-          <h2 className="text-gray-900 font-semibold text-sm">Know Your Risk</h2>
-          <span className="ml-auto text-gray-400 text-xs">WiDS 2021–2025 · 50,664 true wildfires</span>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {[
-            {
-              label: 'Silent fire rate',
-              value: '67.2%',
-              sub: 'of true wildfires start with no push alert',
-              color: 'text-signal-danger',
-            },
-            {
-              label: stateDelay != null ? `${userState} median alert delay` : 'National median delay',
-              value: stateDelay != null ? `${stateDelay}h` : '1.1h',
-              sub: stateDelay != null ? 'detection to order (your state)' : 'median hours to order (when issued, n=653)',
-              color: stateDelay != null && stateDelay > 20 ? 'text-signal-danger' : 'text-signal-warn',
-            },
-            {
-              label: 'Peak fire hour',
-              value: '9 PM',
-              sub: 'when fires are most likely to start',
-              color: 'text-amber-500',
-            },
-            {
-              label: 'Peak fire month',
-              value: 'July',
-              sub: '13,650 fires recorded in July alone',
-              color: 'text-amber-500',
-            },
-            {
-              label: 'Fires w/ extreme spread',
-              value: '256',
-              sub: '66.0% received zero evacuation action',
-              color: 'text-signal-danger',
-            },
-            {
-              label: 'Early signal, no action',
-              value: '99.3%',
-              sub: 'of true wildfires with signals got no order',
-              color: 'text-signal-warn',
-            },
-          ].map(stat => (
-            <div key={stat.label} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-              <div className={`font-display text-xl font-bold ${stat.color} mb-0.5`}>{stat.value}</div>
-              <div className="text-gray-900 text-xs font-medium">{stat.label}</div>
-              <div className="text-gray-500 text-xs mt-0.5 leading-tight">{stat.sub}</div>
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Link href="/dashboard/caregiver/alert" className="flex items-center gap-1.5 text-xs text-signal-info hover:underline">
-            <MapPin className="w-3 h-3" /> Check my address risk →
-          </Link>
-          <Link href="/dashboard/caregiver/emergency-card" className="flex items-center gap-1.5 text-xs text-amber-500 hover:underline">
-            <Package className="w-3 h-3" /> Get my emergency card →
-          </Link>
-          <Link href="/dashboard/caregiver/persons" className="flex items-center gap-1.5 text-xs text-signal-safe hover:underline">
-            <Users className="w-3 h-3" /> Track my household →
-          </Link>
-        </div>
-      </div>
-
-      {/* Evacuation timing guide */}
-      <div className="card p-5 mb-8">
-        <div className="flex items-center gap-2 mb-4">
-          <Clock className="w-4 h-4 text-gray-400" />
-          <h2 className="text-gray-900 font-semibold text-sm">When to Leave — Don&apos;t Wait for an Order</h2>
-        </div>
-        <div className="space-y-2">
-          {[
-            { stage: 'Watch (now)', action: 'Pack go-bag, fill gas, locate pets, know your route', color: 'text-signal-safe', border: 'border-signal-safe/30', bg: 'bg-signal-safe/5' },
-            { stage: 'Advisory issued', action: 'Load car, move valuables, prepare to leave immediately', color: 'text-signal-warn', border: 'border-signal-warn/30', bg: 'bg-signal-warn/5' },
-            { stage: 'Warning issued', action: 'Leave NOW — do not wait for Order. In high-SVI counties, a formal order may never be issued.', color: 'text-amber-500', border: 'border-amber-400/30', bg: 'bg-amber-400/5' },
-            { stage: 'Order issued', action: 'Mandatory evacuation — go immediately. Shelter info on map.', color: 'text-signal-danger', border: 'border-signal-danger/30', bg: 'bg-signal-danger/5' },
-          ].map(row => (
-            <div key={row.stage} className={`flex items-start gap-3 px-3 py-2.5 rounded-lg border ${row.border} ${row.bg}`}>
-              <span className={`text-xs font-bold w-28 shrink-0 mt-0.5 ${row.color}`}>{row.stage}</span>
-              <span className="text-gray-600 text-xs leading-relaxed">{row.action}</span>
-            </div>
-          ))}
-        </div>
-        <p className="text-gray-400 text-xs mt-3">
-          Source: WiDS 2021–2025 dataset · High-SVI communities are significantly less likely to receive a formal evacuation order at all
-        </p>
-      </div>
-
-      {/* Evacuation Assist Request */}
-      <div className={`rounded-xl border p-5 mb-8 ${showHelpForm ? 'border-signal-danger/40 bg-signal-danger/5' : 'border-gray-200 bg-gray-50'}`}>
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-signal-danger" />
-            <span className="text-gray-900 font-semibold text-sm">Need evacuation assistance?</span>
-          </div>
-          <button onClick={() => setShowHelpForm(v => !v)}
-            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${showHelpForm ? 'bg-gray-100 text-gray-500 border border-gray-200' : 'bg-signal-danger/20 border border-signal-danger/40 text-signal-danger hover:bg-signal-danger/30'}`}>
-            {showHelpForm ? 'Cancel' : 'Request Help'}
-          </button>
-        </div>
-        <p className="text-gray-500 text-xs mb-3">Can&apos;t self-evacuate? Submit a request — emergency responders will be notified to assist.</p>
-        {showHelpForm && (helpSubmitted ? (
-          <div className="flex items-center gap-3 p-3 bg-signal-safe/10 border border-signal-safe/30 rounded-xl">
-            <CheckCircle className="w-5 h-5 text-signal-safe shrink-0" />
-            <div>
-              <div className="text-signal-safe font-semibold text-sm">Request submitted</div>
-              <div className="text-gray-500 text-xs mt-0.5">Responders have been notified. Stay at your location if it is safe to do so.</div>
+        {/* ══ RIGHT COLUMN — profile + map + info cards (380px) ════════════ */}
+        <div
+          className="flex flex-col shrink-0 border-l"
+          style={{ width: 380, borderColor: 'var(--wfa-border)', background: 'var(--wfa-panel-r)' }}
+        >
+          {/* Profile badge */}
+          <div className="p-5 border-b" style={{ borderColor: 'var(--wfa-border-lite)' }}>
+            <div className="flex items-center gap-3">
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center font-display font-bold text-lg text-white shrink-0"
+                style={{ background: 'var(--wfa-profile-grad)' }}
+              >
+                {initials}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-semibold text-sm truncate" style={{ color: 'var(--wfa-text)' }}>
+                  {userProfile?.full_name || 'My Profile'}
+                </div>
+                {userProfile?.email && (
+                  <div className="text-xs truncate" style={{ color: 'var(--wfa-text-40)' }}>{userProfile.email}</div>
+                )}
+              </div>
+              <Link
+                href="/dashboard/settings"
+                className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-gray-100 transition-colors shrink-0"
+              >
+                <ChevronRight className="w-4 h-4" style={{ color: 'var(--wfa-text-40)' }} />
+              </Link>
             </div>
           </div>
-        ) : (
-          <div className="space-y-3">
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-gray-500 text-xs mb-1">Your name</label>
-                <input type="text" value={helpForm.name} onChange={e => setHelpForm(f => ({...f, name: e.target.value}))}
-                  placeholder="Full name"
-                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-sm focus:outline-none focus:border-signal-danger/60 placeholder:text-gray-400" />
-              </div>
-              <div>
-                <label className="block text-gray-500 text-xs mb-1">Number of people</label>
-                <input type="number" min="1" max="20" value={helpForm.people} onChange={e => setHelpForm(f => ({...f, people: parseInt(e.target.value) || 1}))}
-                  className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-sm focus:outline-none focus:border-signal-danger/60" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-gray-500 text-xs mb-1">Your address</label>
-              <input type="text" value={helpForm.address} onChange={e => setHelpForm(f => ({...f, address: e.target.value}))}
-                placeholder="123 Main St, City, State"
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-sm focus:outline-none focus:border-signal-danger/60 placeholder:text-gray-400" />
-            </div>
-            <div>
-              <label className="block text-gray-500 text-xs mb-1">Special needs or notes</label>
-              <input type="text" value={helpForm.needs} onChange={e => setHelpForm(f => ({...f, needs: e.target.value}))}
-                placeholder="e.g. wheelchair, oxygen tank, 2 dogs, no vehicle"
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-900 text-sm focus:outline-none focus:border-signal-danger/60 placeholder:text-gray-400" />
-            </div>
-            <div>
-              <label className="block text-gray-500 text-xs mb-2">Urgency</label>
-              <div className="flex gap-2">
-                {(['high', 'medium', 'low'] as const).map(u => (
-                  <button key={u} onClick={() => setHelpForm(f => ({...f, urgency: u}))}
-                    className={`flex-1 py-2 rounded-lg text-xs font-medium border capitalize transition-all ${helpForm.urgency === u
-                      ? u === 'high' ? 'bg-signal-danger/20 border-signal-danger/50 text-signal-danger'
-                        : u === 'medium' ? 'bg-signal-warn/20 border-signal-warn/50 text-signal-warn'
-                        : 'bg-signal-safe/20 border-signal-safe/50 text-signal-safe'
-                      : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}>
-                    {u}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <button onClick={submitHelpRequest} disabled={!helpForm.name || !helpForm.address}
-              className="w-full py-2.5 rounded-xl text-sm font-semibold bg-signal-danger text-white hover:bg-red-600 transition-colors disabled:opacity-40">
-              Submit Evacuation Request
-            </button>
-          </div>
-        ))}
-      </div>
 
-      {/* Recent active fires */}
-      <div>
-        <h2 className="section-title mb-6">Recent Active Fires</h2>
-        {loading ? (
-          <div className="space-y-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="card p-5 animate-pulse">
-                <div className="h-4 bg-gray-100 rounded w-1/3 mb-2" />
-                <div className="h-3 bg-gray-100 rounded w-1/2" />
-              </div>
-            ))}
+          {/* Map preview — same LeafletMap as the Evacuation Map tab */}
+          <div className="flex-1 relative overflow-hidden m-4 rounded-2xl" style={{ minHeight: 200 }}>
+            <LeafletMap
+              nifc={nifc}
+              userLocation={userLocation}
+              center={userLocation ?? [37.5, -119.5]}
+              shelters={[]}
+              showShelters={false}
+              watchedLocations={[]}
+            />
+            {/* "View Full Map" overlay button at bottom */}
+            <div className="absolute inset-x-0 bottom-0 p-3 pointer-events-none">
+              <Link
+                href="/dashboard/caregiver/map"
+                className="pointer-events-auto w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                style={{ background: 'var(--wfa-tooltip-bg)', backdropFilter: 'blur(8px)' }}
+              >
+                <MapPin className="w-3.5 h-3.5" />
+                View Full Evacuation Map
+              </Link>
+            </div>
           </div>
-        ) : fires.length === 0 ? (
-          <div className="card p-8 text-center text-gray-400">No active evacuation orders found.</div>
-        ) : (
-          <div className="space-y-3">
-            {fires.map(fire => (
-              <div key={fire.id} className="card p-5 flex items-center gap-4">
-                <div className="w-2 h-2 rounded-full bg-signal-danger animate-pulse-slow shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-gray-900 font-medium truncate">
-                    {fire.incident_name || 'Unnamed Incident'}
+
+          {/* First Person card — square, location on hover */}
+          <div className="px-4 pb-4">
+            <div className="w-1/2">
+            <div
+              className="rounded-2xl text-white group relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.02] cursor-default"
+              style={{ background: 'linear-gradient(135deg, #4a6621, #7cb342)', aspectRatio: '1 / 1' }}
+            >
+              <div className="absolute inset-0 p-5 flex flex-col justify-between">
+                <div>
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
+                    style={{ background: 'rgba(255,255,255,0.2)' }}
+                  >
+                    <User className="w-5 h-5 text-white" />
                   </div>
-                  <div className="text-gray-400 text-sm">
-                    {fire.county && `${fire.county}, `}{fire.state} ·{' '}
-                    {fire.acres_burned ? `${fire.acres_burned.toLocaleString()} acres` : 'Size unknown'}
+                  <div className="text-white/60 text-[10px] uppercase tracking-widest mb-1">First Person</div>
+                  <div className="text-base font-semibold text-white truncate">
+                    {firstPerson?.name || 'No contact'}
                   </div>
                 </div>
-                <div className="text-right shrink-0">
-                  {fire.containment_pct != null ? (
-                    <div className="text-signal-safe text-sm font-medium">{fire.containment_pct}% contained</div>
-                  ) : (
-                    <div className="badge-danger">Uncontained</div>
+                <div>
+                  {firstPerson?.phone && (
+                    <a
+                      href={`tel:${firstPerson.phone}`}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-semibold transition-all hover:bg-white/30"
+                      style={{ background: 'rgba(255,255,255,0.22)' }}
+                    >
+                      <Phone className="w-3 h-3" />
+                      Call
+                    </a>
                   )}
-                  {fire.signal_gap_hours != null && (
-                    <div className="text-gray-400 text-xs mt-1">{fire.signal_gap_hours.toFixed(1)}h alert delay</div>
+                  {!firstPerson && (
+                    <Link
+                      href="/dashboard/caregiver/persons"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-semibold transition-all hover:bg-white/30"
+                      style={{ background: 'rgba(255,255,255,0.22)' }}
+                    >
+                      Set up
+                    </Link>
                   )}
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
 
-      {/* Research context */}
-      <div className="card p-6 mt-8 border-l-4 border-amber-400">
-        <div className="flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-          <div>
-            <div className="text-gray-900 font-semibold mb-1">Why delays matter for caregivers</div>
-            <p className="text-gray-500 text-sm leading-relaxed">
-              Our research found that high-vulnerability counties are significantly less likely to receive a formal evacuation order at all — not just slower to receive one. Caregivers in these areas cannot rely on official orders arriving. SAFE-PATH monitors all signal channels (social media, news, smoke reports) so you don&apos;t have to wait for an order that may never come.
-            </p>
+              {/* Location overlay on hover */}
+              <div className="absolute inset-0 rounded-2xl flex flex-col justify-end p-5 opacity-0 group-hover:opacity-100 transition-all duration-200" style={{ background: 'rgba(62,39,35,0.92)', backdropFilter: 'blur(2px)' }}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <MapPin className="w-3 h-3 text-white/70 shrink-0" />
+                  <div className="text-white/50 text-[10px] uppercase tracking-widest">Location</div>
+                </div>
+                <div className="text-sm font-semibold text-white leading-snug mb-1">
+                  {firstPerson?.address || 'No address on file'}
+                </div>
+                <div className="text-white/40 text-[10px]">Last Update: —</div>
+              </div>
+            </div>
+            </div>
           </div>
         </div>
+
       </div>
-    </div>
     </>
   )
 }

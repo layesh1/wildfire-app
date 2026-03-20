@@ -1,47 +1,79 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Share2, Download, Phone, AlertTriangle, Heart, Shield, Plus, X, Droplets, PawPrint } from 'lucide-react'
+import { FileText, Share2, Download, Phone, AlertTriangle, Heart, Shield, Plus, X, Droplets, PawPrint, User, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+import { LANGUAGES } from '@/lib/languages'
 
 const MOBILITY_OPTIONS = ['Mobile Adult', 'Elderly', 'Elderly (needs driver)', 'Disabled', 'Wheelchair', 'No Vehicle', 'Medical Equipment', 'Other']
 
+type CardProfile = {
+  name: string
+  address: string
+  phone: string
+  bloodType: string
+  allergies: string
+  emergencyContacts: { name: string; phone: string; relationship: string }[]
+  mobility: string
+  mobilityOther: string
+  medications: string
+  medicalEquipment: string
+  pets: string
+  languages: string
+  evacuationRoute: string
+  destinationAddress: string
+}
+
+type CardOwner = { key: string; label: string }
+
+function emptyProfile(): CardProfile {
+  return {
+    name: '', address: '', phone: '', bloodType: '', allergies: '',
+    emergencyContacts: [{ name: '', phone: '', relationship: '' }],
+    mobility: 'Mobile Adult', mobilityOther: '', medications: '',
+    medicalEquipment: '', pets: '', languages: '', evacuationRoute: '', destinationAddress: '',
+  }
+}
+
+function storageKey(key: string) {
+  return key === 'self' ? 'wfa_emergency_card' : `wfa_emergency_card_${key}`
+}
+
+function loadCard(key: string): CardProfile | null {
+  try {
+    const raw = localStorage.getItem(storageKey(key))
+    if (raw) return JSON.parse(raw)
+  } catch {}
+  return null
+}
+
+function persistCard(key: string, profile: CardProfile) {
+  try { localStorage.setItem(storageKey(key), JSON.stringify(profile)) } catch {}
+}
+
 export default function EmergencyCardPage() {
   const cardRef = useRef<HTMLDivElement>(null)
-  const [saved, setSaved] = useState(false)
   const supabase = createClient()
 
-  const [profile, setProfile] = useState({
-    name: '',
-    address: '',
-    phone: '',
-    bloodType: '',
-    allergies: '',
-    emergencyContacts: [{ name: '', phone: '', relationship: '' }] as { name: string; phone: string; relationship: string }[],
-    mobility: 'Mobile Adult',
-    mobilityOther: '',
-    medications: '',
-    medicalEquipment: '',
-    pets: '',
-    languages: '',
-    evacuationRoute: '',
-    destinationAddress: '',
-  })
+  const [activeKey, setActiveKey] = useState('self')
+  const [cardOwners, setCardOwners] = useState<CardOwner[]>([])
+  const [addingPerson, setAddingPerson] = useState(false)
+  const [newPersonName, setNewPersonName] = useState('')
+  const [saved, setSaved] = useState(false)
+  const [profile, setProfile] = useState<CardProfile>(emptyProfile())
 
+  // Load card owners list and initial profile
   useEffect(() => {
-    async function load() {
-      // Priority 1: previously saved emergency card data
-      try {
-        const raw = localStorage.getItem('wfa_emergency_card')
-        if (raw) {
-          const p = JSON.parse(raw)
-          if (p.name || p.phone || p.address) {
-            setProfile(prev => ({ ...prev, ...p }))
-            return
-          }
-        }
-      } catch {}
+    try {
+      const raw = localStorage.getItem('wfa_emergency_card_owners')
+      if (raw) setCardOwners(JSON.parse(raw))
+    } catch {}
 
-      // Priority 2: Supabase profile
+    async function loadSelf() {
+      const saved = loadCard('self')
+      if (saved && (saved.name || saved.phone || saved.address)) {
+        setProfile(prev => ({ ...prev, ...saved }))
+        return
+      }
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
@@ -61,22 +93,48 @@ export default function EmergencyCardPage() {
         }
       } catch {}
     }
-    load()
+    loadSelf()
   }, [])
 
-  function update<K extends keyof typeof profile>(key: K, value: typeof profile[K]) {
-    setProfile(p => {
-      const next = { ...p, [key]: value }
-      try { localStorage.setItem('wfa_emergency_card', JSON.stringify(next)) } catch {}
-      return next
-    })
+  function switchTo(key: string) {
+    persistCard(activeKey, profile)
+    const loaded = loadCard(key)
+    setProfile(loaded ? { ...emptyProfile(), ...loaded } : emptyProfile())
+    setActiveKey(key)
     setSaved(false)
   }
 
-  function saveNow() {
-    try { localStorage.setItem('wfa_emergency_card', JSON.stringify(profile)) } catch {}
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+  function createPersonCard() {
+    const label = newPersonName.trim()
+    if (!label) return
+    const key = Date.now().toString()
+    const newOwners = [...cardOwners, { key, label }]
+    setCardOwners(newOwners)
+    try { localStorage.setItem('wfa_emergency_card_owners', JSON.stringify(newOwners)) } catch {}
+    setNewPersonName('')
+    setAddingPerson(false)
+    persistCard(activeKey, profile)
+    setProfile(emptyProfile())
+    setActiveKey(key)
+    setSaved(false)
+  }
+
+  function deletePersonCard(key: string) {
+    if (!confirm('Delete this card?')) return
+    try { localStorage.removeItem(storageKey(key)) } catch {}
+    const newOwners = cardOwners.filter(o => o.key !== key)
+    setCardOwners(newOwners)
+    try { localStorage.setItem('wfa_emergency_card_owners', JSON.stringify(newOwners)) } catch {}
+    if (activeKey === key) switchTo('self')
+  }
+
+  function update<K extends keyof CardProfile>(k: K, value: CardProfile[K]) {
+    setProfile(p => {
+      const next = { ...p, [k]: value }
+      persistCard(activeKey, next)
+      return next
+    })
+    setSaved(false)
   }
 
   function addContact() {
@@ -92,24 +150,43 @@ export default function EmergencyCardPage() {
     update('emergencyContacts', next)
   }
 
-  function shareCard() {
-    const text = buildShareText()
-    if (navigator.share) {
-      navigator.share({ title: 'My Wildfire Emergency Card', text }).catch(() => {})
-    } else {
-      navigator.clipboard?.writeText(text).then(() => alert('Card copied to clipboard. Paste it in any app or message to share.'))
-    }
+  function savePdf() {
+    const card = cardRef.current
+    if (!card) return
+    const win = window.open('', '_blank', 'width=820,height=1000')
+    if (!win) return
+    win.document.write(`<!DOCTYPE html>
+<html><head>
+  <meta charset="utf-8">
+  <title>Wildfire Emergency Card</title>
+  <script src="https://cdn.tailwindcss.com"><\/script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+    body { font-family: 'DM Sans', system-ui, sans-serif; padding: 2rem; background: white; }
+    @media print { body { padding: 0.5rem; } }
+    .signal-danger { color: #dc2626; }
+    .bg-signal-danger\\/10 { background-color: rgba(220,38,38,0.1); }
+    .border-signal-danger\\/40 { border-color: rgba(220,38,38,0.4); }
+    .text-signal-warn { color: #d97706; }
+    .bg-signal-warn\\/10 { background-color: rgba(217,119,6,0.1); }
+    .border-signal-warn\\/40 { border-color: rgba(217,119,6,0.4); }
+  </style>
+</head><body>
+  ${card.outerHTML}
+  <script>window.onload = () => { window.print(); }<\/script>
+</body></html>`)
+    win.document.close()
   }
 
-  function buildShareText() {
+  function shareCard() {
     const mobilityLabel = profile.mobility === 'Other' && profile.mobilityOther ? profile.mobilityOther : profile.mobility
     const lines = [
-      '🔥 WILDFIRE EMERGENCY CARD — Minutes Matter',
+      'WILDFIRE EMERGENCY CARD — Minutes Matter',
       `Name: ${profile.name || 'Unknown'}`,
       `Phone: ${profile.phone || 'Unknown'}`,
       `Address: ${profile.address || 'Unknown'}`,
       profile.bloodType ? `Blood Type: ${profile.bloodType}` : '',
-      profile.allergies ? `⚠ Allergies: ${profile.allergies}` : '',
+      profile.allergies ? `Allergies: ${profile.allergies}` : '',
       '',
       '— Emergency Contacts —',
       ...profile.emergencyContacts.filter(c => c.name).map(c => `${c.name}${c.relationship ? ` (${c.relationship})` : ''}: ${c.phone}`),
@@ -127,12 +204,18 @@ export default function EmergencyCardPage() {
       '911 · FEMA: 1-800-621-3362 · Red Cross: 1-800-733-2767',
       '',
       'Generated by minutesmatter.app',
-    ].filter(l => l !== null && l !== undefined)
-    return lines.filter(l => l !== '').join('\n')
+    ]
+    const text = lines.filter(Boolean).join('\n')
+    if (navigator.share) {
+      navigator.share({ title: 'Wildfire Emergency Card', text }).catch(() => {})
+    } else {
+      navigator.clipboard?.writeText(text).then(() => alert('Card copied to clipboard.'))
+    }
   }
 
   const mobilityLabel = profile.mobility === 'Other' && profile.mobilityOther ? profile.mobilityOther : profile.mobility
   const hasCriticalNeeds = profile.medications || profile.medicalEquipment || (profile.mobility !== 'Mobile Adult')
+  const activeLabel = activeKey === 'self' ? 'My Card' : (cardOwners.find(o => o.key === activeKey)?.label ?? 'Card')
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
@@ -142,23 +225,93 @@ export default function EmergencyCardPage() {
           <FileText className="w-4 h-4" />
           CAREGIVER · EMERGENCY CARD
         </div>
-        <h1 className="font-display text-3xl font-bold text-gray-900 mb-1">My Emergency Card</h1>
+        <h1 className="font-display text-3xl font-bold text-gray-900 mb-1">Emergency Cards</h1>
         <p className="text-gray-500 text-sm mb-4">
-          Your personal card for first responders and shelter staff. Fills in what 911 can&apos;t know — your meds, your pets, your route.
+          Cards for first responders and shelter staff — your meds, pets, and route. Create one for yourself and anyone you care for.
           <strong className="text-gray-700"> Auto-saved to your device.</strong>
         </p>
+
+        {/* Person switcher */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          {/* Self tab */}
+          <button
+            onClick={() => switchTo('self')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${
+              activeKey === 'self'
+                ? 'bg-forest-50 border-forest-300 text-forest-700'
+                : 'bg-white border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+            }`}
+          >
+            <User className="w-3.5 h-3.5" />
+            My Card
+          </button>
+
+          {/* Other people */}
+          {cardOwners.map(o => (
+            <div key={o.key} className="relative group">
+              <button
+                onClick={() => switchTo(o.key)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border pr-7 ${
+                  activeKey === o.key
+                    ? 'bg-forest-50 border-forest-300 text-forest-700'
+                    : 'bg-white border-gray-200 text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                }`}
+              >
+                <User className="w-3.5 h-3.5" />
+                {o.label}
+              </button>
+              <button
+                onClick={() => deletePersonCard(o.key)}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Delete card"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+
+          {/* Add person */}
+          {addingPerson ? (
+            <div className="flex items-center gap-1.5">
+              <input
+                autoFocus
+                type="text"
+                value={newPersonName}
+                onChange={e => setNewPersonName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') createPersonCard(); if (e.key === 'Escape') { setAddingPerson(false); setNewPersonName('') } }}
+                placeholder="Their name..."
+                className="input py-1.5 text-sm w-36"
+              />
+              <button onClick={createPersonCard} className="text-xs text-forest-600 font-medium hover:text-forest-700 px-2 py-1.5 rounded-lg border border-forest-200 bg-forest-50">
+                Add
+              </button>
+              <button onClick={() => { setAddingPerson(false); setNewPersonName('') }} className="text-gray-400 hover:text-gray-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setAddingPerson(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:text-forest-600 border border-dashed border-gray-200 hover:border-forest-300 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add person
+            </button>
+          )}
+        </div>
+
         <div className="flex gap-3 flex-wrap">
           <button onClick={shareCard}
             className="flex items-center gap-2 px-5 py-2.5 bg-forest-600 hover:bg-forest-700 rounded-xl text-white font-semibold transition-colors">
             <Share2 className="w-4 h-4" />
             Share / AirDrop
           </button>
-          <button onClick={() => window.print()}
+          <button onClick={savePdf}
             className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 rounded-xl text-gray-700 font-semibold transition-colors">
             <Download className="w-4 h-4" />
             Save as PDF
           </button>
-          {saved && <span className="text-signal-safe text-sm font-medium self-center">✓ Saved</span>}
+          {saved && <span className="text-signal-safe text-sm font-medium self-center">Saved</span>}
         </div>
         <p className="text-gray-400 text-xs mt-3">
           On iPhone: tap <strong>Share / AirDrop</strong> → &quot;AirDrop&quot; to send to another device, or &quot;Add to Notes&quot; to save offline.
@@ -196,9 +349,31 @@ export default function EmergencyCardPage() {
               </select>
             </div>
             <div>
-              <label className="text-gray-500 text-xs block mb-1">Languages (non-English)</label>
-              <input type="text" value={profile.languages} onChange={e => update('languages', e.target.value)}
-                placeholder="e.g. Spanish, Cantonese" className="input" />
+              <label className="text-gray-500 text-xs block mb-1">Languages spoken <span className="text-gray-400">(select all that apply)</span></label>
+              <div className="border border-gray-200 rounded-lg p-2 max-h-36 overflow-y-auto grid grid-cols-2 gap-1">
+                {LANGUAGES.map(l => {
+                  const selected = profile.languages.split(', ').filter(Boolean).includes(l.native)
+                  return (
+                    <button
+                      key={l.code}
+                      type="button"
+                      onClick={() => {
+                        const current = profile.languages.split(', ').filter(Boolean)
+                        const next = selected ? current.filter(n => n !== l.native) : [...current, l.native]
+                        update('languages', next.join(', '))
+                      }}
+                      className={`text-xs px-2 py-1.5 rounded-lg text-left flex items-center gap-1.5 transition-colors ${
+                        selected
+                          ? 'bg-forest-50 border border-forest-300 text-forest-700'
+                          : 'border border-transparent hover:bg-gray-50 text-gray-600'
+                      }`}
+                    >
+                      <span className="text-sm leading-none">{l.flag}</span>
+                      <span className="truncate">{l.native}</span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
             <div className="sm:col-span-2">
               <label className="text-gray-500 text-xs block mb-1">Allergies / reactions <span className="text-gray-400">(critical for shelters)</span></label>
@@ -226,11 +401,11 @@ export default function EmergencyCardPage() {
               </select>
               {profile.mobility === 'Other' && (
                 <input type="text" value={profile.mobilityOther} onChange={e => update('mobilityOther', e.target.value)}
-                  placeholder="Describe your situation…" className="input mt-2" autoFocus />
+                  placeholder="Describe their situation…" className="input mt-2" autoFocus />
               )}
             </div>
             <div>
-              <label className="text-gray-500 text-xs block mb-1">Medications <span className="text-gray-400">— responders need this to help you at a shelter</span></label>
+              <label className="text-gray-500 text-xs block mb-1">Medications <span className="text-gray-400">— responders need this to help at a shelter</span></label>
               <textarea value={profile.medications} onChange={e => update('medications', e.target.value)}
                 placeholder="e.g. Metformin 500mg twice daily, Lisinopril 10mg, insulin (refrigerated), blood thinners"
                 rows={2} className="input resize-none" />
@@ -281,7 +456,7 @@ export default function EmergencyCardPage() {
           </h2>
           <div className="space-y-3">
             <div>
-              <label className="text-gray-500 text-xs block mb-1">Pets <span className="text-gray-400">(shelters need this to direct you to pet-friendly locations)</span></label>
+              <label className="text-gray-500 text-xs block mb-1">Pets <span className="text-gray-400">(shelters need this to direct to pet-friendly locations)</span></label>
               <input type="text" value={profile.pets} onChange={e => update('pets', e.target.value)}
                 placeholder="e.g. Bella (lab), 2 cats, fish tank (can't take)" className="input" />
             </div>
@@ -352,7 +527,7 @@ export default function EmergencyCardPage() {
                 )}
                 {profile.allergies && (
                   <span className="bg-signal-warn/10 border border-signal-warn/40 text-signal-warn text-xs font-bold px-2 py-1 rounded-lg">
-                    ⚠ ALLERGY: {profile.allergies}
+                    ALLERGY: {profile.allergies}
                   </span>
                 )}
               </div>
@@ -443,14 +618,6 @@ export default function EmergencyCardPage() {
           </div>
         </div>
       </div>
-
-      <style jsx global>{`
-        @media print {
-          .no-print { display: none !important; }
-          body { background: white !important; }
-          .print-card { border-color: #999 !important; }
-        }
-      `}</style>
     </div>
   )
 }

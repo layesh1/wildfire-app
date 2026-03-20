@@ -4,6 +4,8 @@ import Sidebar from '@/components/Sidebar'
 import FlameoChat from '@/components/FlameoChat'
 import LanguageProvider from '@/components/LanguageProvider'
 import ThemeWrapper from '@/components/ThemeWrapper'
+import UserSessionGuard from '@/components/UserSessionGuard'
+import MainWrapper from '@/components/MainWrapper'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerSupabaseClient()
@@ -20,10 +22,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <LanguageProvider initialLang={profile?.language_preference ?? null}>
       <ThemeWrapper>
+        <UserSessionGuard />
         <Sidebar user={user} profile={profile} />
-        <main className="flex-1 overflow-auto">
+        <MainWrapper>
           {children}
-        </main>
+        </MainWrapper>
         <FlameoChat />
         {/* Honeypot: invisible to users, visible to crawlers/scanners */}
         <a href="/api/honeypot" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} />
