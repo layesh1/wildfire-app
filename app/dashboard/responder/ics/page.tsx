@@ -502,7 +502,7 @@ export default function ICSBoardPage() {
       </div>
 
       {/* Incident Name input */}
-      <div className="card p-4">
+      <div className="card-dark p-4">
         <label className="text-ash-500 text-xs uppercase tracking-wider block mb-2">Active Incident</label>
         <div className="flex gap-2">
           <input
@@ -594,7 +594,7 @@ export default function ICSBoardPage() {
           </button>
         </div>
 
-        <div className="card overflow-hidden">
+        <div className="card-dark overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
@@ -705,7 +705,7 @@ export default function ICSBoardPage() {
           }
         </div>
 
-        <div className="card overflow-hidden">
+        <div className="card-dark overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
@@ -802,7 +802,7 @@ export default function ICSBoardPage() {
           </button>
         </div>
 
-        <div className="card overflow-hidden">
+        <div className="card-dark overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
@@ -887,7 +887,7 @@ export default function ICSBoardPage() {
         </div>
 
         {/* Request form */}
-        <div className="card p-5 mb-4">
+        <div className="card-dark p-5 mb-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
             <div>
               <label className="text-ash-500 text-xs block mb-1">Resource Type</label>
@@ -961,7 +961,7 @@ export default function ICSBoardPage() {
         {board.resourceRequests.length === 0 ? (
           <div className="text-center py-8 text-ash-600 text-xs card">No resource requests logged yet.</div>
         ) : (
-          <div className="card divide-y divide-ash-800">
+          <div className="card-dark divide-y divide-ash-800">
             {board.resourceRequests.map(r => (
               <div key={r.id} className={`flex items-start gap-4 px-5 py-3.5 ${r.fulfilled ? 'opacity-50' : ''}`}>
                 <div className="flex-1 min-w-0">
@@ -1001,7 +1001,7 @@ export default function ICSBoardPage() {
           <Users className="w-4 h-4 text-signal-warn" />
           <h2 className="text-white font-semibold text-sm uppercase tracking-wider">Bulk Roster Import</h2>
         </div>
-        <div className="card p-5">
+        <div className="card-dark p-5">
           <p className="text-ash-400 text-sm mb-4">Upload a roster file (CSV, Excel, or PDF) to automatically populate personnel. Expected columns: Name, Role, Assignment, Status.</p>
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 px-4 py-2.5 bg-ash-800 border border-ash-700 rounded-lg hover:bg-ash-700 transition-colors cursor-pointer text-ash-300 text-sm font-medium">
@@ -1060,7 +1060,7 @@ export default function ICSBoardPage() {
             </div>
           )}
         </div>
-        <div className="card p-1">
+        <div className="card-dark p-1">
           <textarea
             ref={notesRef}
             defaultValue={board.notes}
