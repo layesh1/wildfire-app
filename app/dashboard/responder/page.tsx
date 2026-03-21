@@ -1,9 +1,10 @@
 'use client'
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Shield, AlertTriangle, Users, CheckCircle, Clock, MapPin, Phone, RefreshCw } from 'lucide-react'
+import { Shield, AlertTriangle, Users, CheckCircle, Clock, MapPin, Phone, RefreshCw, Factory } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import type { EvacueePin } from '@/components/EvacueeStatusMap'
+import { HAZARD_FACILITIES } from '@/lib/hazard-facilities'
 
 const EvacueeStatusMap = dynamic(() => import('@/components/EvacueeStatusMap'), { ssr: false })
 
@@ -39,6 +40,7 @@ export default function ResponderHubPage() {
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [redFlagCount, setRedFlagCount] = useState<number | null>(null)
+  const [showFacilities, setShowFacilities] = useState(false)
   const supabase = createClient()
 
   async function loadData() {
@@ -117,6 +119,18 @@ export default function ResponderHubPage() {
           </div>
         </div>
 
+        <button
+          onClick={() => setShowFacilities(v => !v)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+            showFacilities
+              ? 'bg-amber-500/20 border-amber-500/40 text-amber-400'
+              : 'border-ash-700 text-ash-400 hover:text-white hover:border-ash-600'
+          }`}
+        >
+          <Factory className="w-3 h-3" />
+          {showFacilities ? 'Hazard Sites: ON' : 'Hazard Sites'}
+        </button>
+
         <div className="ml-auto flex items-center gap-3">
           {redFlagCount !== null && redFlagCount > 0 && (
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-signal-danger/10 border border-signal-danger/30">
@@ -148,7 +162,13 @@ export default function ResponderHubPage() {
               </div>
             </div>
           ) : (
-            <EvacueeStatusMap pins={pins} center={[35.4250, -80.5900]} zoom={12} />
+            <EvacueeStatusMap
+              pins={pins}
+              center={[35.4250, -80.5900]}
+              zoom={12}
+              facilities={HAZARD_FACILITIES}
+              showFacilities={showFacilities}
+            />
           )}
         </div>
 

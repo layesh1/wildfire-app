@@ -1,7 +1,9 @@
 'use client'
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, CircleMarker, Marker, Popup, useMap } from 'react-leaflet'
+import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useEffect } from 'react'
+import type { HazardFacility, FacilityType } from '@/lib/hazard-facilities'
 
 export interface EvacueePin {
   id: string
@@ -28,6 +30,32 @@ const STATUS_LABEL: Record<EvacueePin['status'], string> = {
   unknown: 'Not Evacuated / Needs Help',
 }
 
+function hazardIcon(type: FacilityType) {
+  const configs: Record<FacilityType, { bg: string; border: string; emoji: string }> = {
+    nuclear:    { bg: '#fef3c7', border: '#f59e0b', emoji: '☢' },
+    chemical:   { bg: '#fee2e2', border: '#ef4444', emoji: '⚗' },
+    lng_energy: { bg: '#dbeafe', border: '#3b82f6', emoji: '⚡' },
+  }
+  const { bg, border, emoji } = configs[type]
+  const svg = encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" width="30" height="30">
+    <circle cx="15" cy="15" r="14" fill="${bg}" stroke="${border}" stroke-width="2"/>
+    <text x="15" y="20" text-anchor="middle" font-size="14">${emoji}</text>
+  </svg>`)
+  return L.divIcon({
+    html: `<img src="data:image/svg+xml,${svg}" width="30" height="30" style="display:block" />`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+    popupAnchor: [0, -15],
+    className: '',
+  })
+}
+
+const FACILITY_LABELS: Record<FacilityType, string> = {
+  nuclear: 'Nuclear Facility',
+  chemical: 'Chemical / Petrochemical',
+  lng_energy: 'LNG / Energy',
+}
+
 function FitBounds({ pins }: { pins: EvacueePin[] }) {
   const map = useMap()
   useEffect(() => {
@@ -47,9 +75,11 @@ interface Props {
   pins: EvacueePin[]
   center?: [number, number]
   zoom?: number
+  facilities?: HazardFacility[]
+  showFacilities?: boolean
 }
 
-export default function EvacueeStatusMap({ pins, center = [35.4088, -80.5795], zoom = 12 }: Props) {
+export default function EvacueeStatusMap({ pins, center = [35.4088, -80.5795], zoom = 12, facilities = [], showFacilities = false }: Props) {
   const notEvacuated = pins.filter(p => p.status === 'unknown').length
   const evacuated = pins.filter(p => p.status === 'evacuated').length
 
@@ -102,6 +132,23 @@ export default function EvacueeStatusMap({ pins, center = [35.4088, -80.5795], z
               </div>
             </Popup>
           </CircleMarker>
+        ))}
+
+        {/* Hazardous facilities */}
+        {showFacilities && facilities.map(f => (
+          <Marker
+            key={`hazard-${f.id}`}
+            position={[f.lat, f.lng]}
+            icon={hazardIcon(f.type)}
+          >
+            <Popup>
+              <div style={{ fontFamily: 'sans-serif', fontSize: 13, lineHeight: 1.7, maxWidth: 240 }}>
+                <strong>{f.name}</strong><br />
+                <span style={{ fontSize: 11, color: '#6b7280' }}>{FACILITY_LABELS[f.type]} · {f.county}, {f.state}</span><br />
+                <span style={{ fontSize: 12, color: '#374151' }}>{f.riskNote}</span>
+              </div>
+            </Popup>
+          </Marker>
         ))}
 
         {/* Legend overlay */}
