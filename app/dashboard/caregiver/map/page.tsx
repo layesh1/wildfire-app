@@ -2,8 +2,9 @@
 import { useEffect, useState, Suspense, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
-import { MapPin, AlertTriangle, CheckCircle, Navigation, ExternalLink, ChevronRight, Flame, RefreshCw, Heart, User, Search, X } from 'lucide-react'
-import type { NifcFire, EvacShelter, WatchedLocation } from './LeafletMap'
+import { MapPin, AlertTriangle, CheckCircle, Navigation, ExternalLink, ChevronRight, Flame, RefreshCw, Heart, User, Search, X, Factory } from 'lucide-react'
+import type { NifcFire, EvacShelter, WatchedLocation, WindData } from './LeafletMap'
+import { HAZARD_FACILITIES } from '@/lib/hazard-facilities'
 
 const EVAC_SHELTERS: EvacShelter[] = [
   // California
@@ -214,6 +215,8 @@ function EvacuationMapContent() {
   const [locationError, setLocationError] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [showShelters, setShowShelters] = useState(false)
+  const [showFacilities, setShowFacilities] = useState(false)
+  const [windData, setWindData] = useState<WindData | null>(null)
   const searchParams = useSearchParams()
 
   // Person / address monitoring
@@ -323,6 +326,28 @@ function EvacuationMapContent() {
     )
   }
 
+  // Fetch wind data when user location is known
+  useEffect(() => {
+    if (!userLocation) return
+    const [lat, lng] = userLocation
+    fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=mph&timezone=auto`
+    )
+      .then(r => r.json())
+      .then(data => {
+        const speed = data?.current?.wind_speed_10m
+        const dir = data?.current?.wind_direction_10m
+        if (speed != null && dir != null) {
+          setWindData({
+            speedMph: speed,
+            directionDeg: dir,
+            spreadDeg: (dir + 180) % 360,
+          })
+        }
+      })
+      .catch(() => {})
+  }, [userLocation])
+
   // Sort fires: lowest containment first (most dangerous), then by acres desc
   const sortedFires = useMemo(() => {
     return [...nifc].sort((a, b) => {
@@ -392,6 +417,17 @@ function EvacuationMapContent() {
             >
               <Heart className="w-3.5 h-3.5" />
               {showShelters ? 'Shelters: ON' : 'Show Shelters'}
+            </button>
+            <button
+              onClick={() => setShowFacilities(v => !v)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                showFacilities
+                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-400'
+                  : 'bg-ash-800 border-ash-700 text-ash-400 hover:text-white'
+              }`}
+            >
+              <Factory className="w-3.5 h-3.5" />
+              {showFacilities ? 'Hazard Sites: ON' : 'Hazard Sites'}
             </button>
             {locationError && (
               <span className="text-ash-500 text-xs">Location unavailable — enable browser location access.</span>
@@ -474,7 +510,17 @@ function EvacuationMapContent() {
                 <span className="text-ash-500 text-sm">Loading active fires…</span>
               </div>
             ) : (
-              <LeafletMap nifc={sortedFires} userLocation={userLocation} center={center} shelters={EVAC_SHELTERS} showShelters={showShelters} watchedLocations={watchedLocations} />
+              <LeafletMap
+                nifc={sortedFires}
+                userLocation={userLocation}
+                center={center}
+                shelters={EVAC_SHELTERS}
+                showShelters={showShelters}
+                watchedLocations={watchedLocations}
+                facilities={HAZARD_FACILITIES}
+                showFacilities={showFacilities}
+                windData={windData}
+              />
             )}
           </div>
 
@@ -487,6 +533,12 @@ function EvacuationMapContent() {
             <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-blue-500" /> Your location</div>
             {watchedLocations.length > 0 && <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-violet-500" /> Pinned location</div>}
             {showShelters && <div className="flex items-center gap-1.5"><Heart className="w-3 h-3 text-signal-safe" /> Evacuation shelters</div>}
+            {showFacilities && <>
+              <div className="flex items-center gap-1.5"><span>☢</span> Nuclear facility</div>
+              <div className="flex items-center gap-1.5"><span>⚗</span> Chemical plant</div>
+              <div className="flex items-center gap-1.5"><span>⚡</span> LNG / Energy</div>
+            </>}
+            {windData && <div className="flex items-center gap-1.5"><span style={{ color: '#f97316' }}>▲</span> Fire spread direction ({Math.round(windData.speedMph)} mph wind)</div>}
           </div>
 
           {/* Shelter panel */}
