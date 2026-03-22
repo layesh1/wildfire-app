@@ -1,48 +1,66 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { RoleProvider } from '@/components/RoleContext'
+
+function resolveTheme(saved: string | null): boolean {
+  if (saved === 'dark') return true
+  if (saved === 'light') return false
+  // system: follow OS preference
+  if (saved === 'system' && typeof window !== 'undefined') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+  }
+  return false
+}
 
 export default function ThemeWrapper({ children }: { children: React.ReactNode }) {
   const [isDark, setIsDark] = useState(false)
 
-  function applyDark(dark: boolean) {
+  useEffect(() => {
+    const saved = localStorage.getItem('wfa_theme') || 'light'
+    const dark = resolveTheme(saved)
     setIsDark(dark)
     if (dark) {
       document.documentElement.classList.add('dark')
     } else {
       document.documentElement.classList.remove('dark')
     }
-  }
 
-  useEffect(() => {
-    function applyStored() {
-      const t = localStorage.getItem('wfa_theme') || 'light'
-      if (t === 'dark') {
-        applyDark(true)
-      } else if (t === 'system') {
-        applyDark(window.matchMedia('(prefers-color-scheme: dark)').matches)
+    function handleThemeChange(e: Event) {
+      const theme = (e as CustomEvent<string>).detail
+      const nextDark = resolveTheme(theme)
+      setIsDark(nextDark)
+      if (nextDark) {
+        document.documentElement.classList.add('dark')
       } else {
-        applyDark(false)
+        document.documentElement.classList.remove('dark')
       }
     }
 
-    applyStored()
-    window.addEventListener('wfa-theme-change', applyStored)
-
-    const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    const mqHandler = () => {
-      if (localStorage.getItem('wfa_theme') === 'system') applyStored()
+    // Also listen for system preference changes when theme is 'system'
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    function handleSystemChange() {
+      const current = localStorage.getItem('wfa_theme') || 'light'
+      if (current === 'system') {
+        const nextDark = mediaQuery.matches
+        setIsDark(nextDark)
+        if (nextDark) document.documentElement.classList.add('dark')
+        else document.documentElement.classList.remove('dark')
+      }
     }
-    mq.addEventListener('change', mqHandler)
 
+    window.addEventListener('wfa-theme-change', handleThemeChange)
+    mediaQuery.addEventListener('change', handleSystemChange)
     return () => {
-      window.removeEventListener('wfa-theme-change', applyStored)
-      mq.removeEventListener('change', mqHandler)
+      window.removeEventListener('wfa-theme-change', handleThemeChange)
+      mediaQuery.removeEventListener('change', handleSystemChange)
     }
   }, [])
 
   return (
-    <div className={`min-h-screen flex ${isDark ? 'bg-gray-950' : 'bg-gray-50 light-theme'}`}>
-      {children}
-    </div>
+    <RoleProvider>
+      <div className={`min-h-screen flex ${isDark ? '' : 'light-theme'}`}>
+        {children}
+      </div>
+    </RoleProvider>
   )
 }

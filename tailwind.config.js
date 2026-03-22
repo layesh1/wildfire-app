@@ -56,6 +56,7 @@ module.exports = {
         display: ['var(--font-display)', 'serif'],
         body:    ['var(--font-body)', 'sans-serif'],
         mono:    ['var(--font-mono)', 'monospace'],
+        poppins: ['var(--font-poppins)', 'sans-serif'],
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',

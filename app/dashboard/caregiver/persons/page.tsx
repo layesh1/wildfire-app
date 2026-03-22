@@ -13,6 +13,7 @@ import {
   Copy,
   AlertTriangle,
   Settings,
+  Pencil,
 } from 'lucide-react'
 
 // ── Address autocomplete (Nominatim/OpenStreetMap, no API key) ─────────────────
@@ -95,8 +96,8 @@ function AddressInput({
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Relationship = 'Parent' | 'Client' | 'Neighbor' | 'Self' | 'Other'
-type Mobility = 'Mobile Adult' | 'Elderly' | 'Disabled' | 'No Vehicle' | 'Medical Equipment'
+type Relationship = 'Family Member' | 'Client' | 'Neighbor' | 'Self' | 'Other'
+type Mobility = 'Mobile Adult' | 'Elderly' | 'Disabled' | 'No Vehicle' | 'Medical Equipment' | 'Other'
 type CheckinStatus = 'confirmed_safe' | 'waiting' | 'needs_help' | 'unknown'
 
 interface Person {
@@ -117,8 +118,9 @@ interface Person {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const RELATIONSHIPS: Relationship[] = ['Parent', 'Client', 'Neighbor', 'Self', 'Other']
-const MOBILITIES: Mobility[] = ['Mobile Adult', 'Elderly', 'Disabled', 'No Vehicle', 'Medical Equipment']
+const RELATIONSHIPS: Relationship[] = ['Family Member', 'Client', 'Neighbor', 'Self', 'Other']
+const FAMILY_RELATIONS = ['Parent', 'Child', 'Sibling', 'Spouse / Partner', 'Grandparent', 'Grandchild', 'Aunt / Uncle', 'Cousin', 'Other']
+const MOBILITIES: Mobility[] = ['Mobile Adult', 'Elderly', 'Disabled', 'No Vehicle', 'Medical Equipment', 'Other']
 const PERSON_LANGUAGES = [
   { code: 'en', label: 'English', flag: '🇺🇸' },
   { code: 'es', label: 'Spanish', flag: '🇲🇽' },
@@ -241,8 +243,10 @@ function emptyForm() {
   return {
     name: '',
     address: '',
-    relationship: 'Parent' as Relationship,
+    relationship: 'Family Member' as Relationship,
+    familyRelation: '',
     mobility: 'Mobile Adult' as Mobility,
+    mobilityOther: '',
     phone: '',
     languages: [] as string[],
     notes: '',
@@ -342,6 +346,7 @@ function PingPopover({
 export default function PersonsPage() {
   const [persons, setPersons] = useState<Person[]>([])
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm())
   const [formError, setFormError] = useState<string | null>(null)
   const [openPingId, setOpenPingId] = useState<string | null>(null)
@@ -442,32 +447,69 @@ export default function PersonsPage() {
     return () => clearInterval(interval)
   }, [])
 
-  // ── Add person ───────────────────────────────────────────────────────────
+  // ── Add / Edit person ─────────────────────────────────────────────────────
 
-  function addPerson() {
+  function startEdit(person: Person) {
+    setEditingId(person.id)
+    setForm({
+      name: person.name,
+      address: person.address,
+      relationship: RELATIONSHIPS.includes(person.relationship as Relationship)
+        ? person.relationship as Relationship
+        : 'Other',
+      familyRelation: '',
+      mobility: MOBILITIES.includes(person.mobility as Mobility)
+        ? person.mobility as Mobility
+        : 'Other',
+      mobilityOther: MOBILITIES.includes(person.mobility as Mobility) ? '' : person.mobility,
+      phone: person.phone,
+      languages: person.languages,
+      notes: person.notes,
+    })
+    setShowForm(true)
+    setFormError(null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function savePerson() {
     if (!form.name.trim()) { setFormError('Name is required'); return }
     if (!form.address.trim()) { setFormError('Address is required'); return }
     setFormError(null)
 
-    const newPerson: Person = {
-      id: Date.now().toString(),
-      name: form.name.trim(),
-      address: form.address.trim(),
-      relationship: form.relationship,
-      mobility: form.mobility,
-      phone: form.phone.trim(),
-      languages: form.languages,
-      notes: form.notes.trim(),
-      status: 'unknown',
-      last_confirmed: null,
-      checkin_token: null,
-      ping_sent_at: null,
-      justConfirmed: false,
+    const resolvedRelationship = form.relationship === 'Family Member' && form.familyRelation
+      ? form.familyRelation as Relationship
+      : form.relationship
+    const resolvedMobility = form.mobility === 'Other' && form.mobilityOther.trim()
+      ? form.mobilityOther.trim() as Mobility
+      : form.mobility
+
+    if (editingId) {
+      persist(persons.map(p =>
+        p.id === editingId
+          ? { ...p, name: form.name.trim(), address: form.address.trim(), relationship: resolvedRelationship, mobility: resolvedMobility, phone: form.phone.trim(), languages: form.languages, notes: form.notes.trim() }
+          : p
+      ))
+    } else {
+      persist([{
+        id: Date.now().toString(),
+        name: form.name.trim(),
+        address: form.address.trim(),
+        relationship: resolvedRelationship,
+        mobility: resolvedMobility,
+        phone: form.phone.trim(),
+        languages: form.languages,
+        notes: form.notes.trim(),
+        status: 'unknown',
+        last_confirmed: null,
+        checkin_token: null,
+        ping_sent_at: null,
+        justConfirmed: false,
+      }, ...persons])
     }
 
-    persist([newPerson, ...persons])
     setForm(emptyForm())
     setShowForm(false)
+    setEditingId(null)
   }
 
   // ── Remove person ────────────────────────────────────────────────────────
@@ -609,7 +651,7 @@ export default function PersonsPage() {
 
       {/* Add person button */}
       <button
-        onClick={() => { setShowForm(v => !v); setFormError(null) }}
+        onClick={() => { setShowForm(v => !v); setEditingId(null); setForm(emptyForm()); setFormError(null) }}
         className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium border transition-all mb-5 ${
           showForm
             ? 'border-ash-700 text-ash-400 bg-ash-800/50 hover:bg-ash-800'
@@ -623,11 +665,11 @@ export default function PersonsPage() {
         )}
       </button>
 
-      {/* Add person form */}
+      {/* Add / Edit person form */}
       {showForm && (
         <div className="card p-5 mb-6 space-y-4 border-ember-500/20">
           <h2 className="text-white font-semibold text-sm flex items-center gap-2">
-            <Plus className="w-4 h-4 text-ember-400" /> New Person
+            <Plus className="w-4 h-4 text-ember-400" /> {editingId ? 'Edit Person' : 'New Person'}
           </h2>
 
           <div className="grid sm:grid-cols-2 gap-4">
@@ -648,13 +690,25 @@ export default function PersonsPage() {
               <label className="label">Relationship *</label>
               <select
                 value={form.relationship}
-                onChange={e => setForm(f => ({ ...f, relationship: e.target.value as Relationship }))}
+                onChange={e => setForm(f => ({ ...f, relationship: e.target.value as Relationship, familyRelation: '' }))}
                 className="input appearance-none cursor-pointer"
               >
                 {RELATIONSHIPS.map(r => (
                   <option key={r} value={r}>{r}</option>
                 ))}
               </select>
+              {form.relationship === 'Family Member' && (
+                <select
+                  value={form.familyRelation}
+                  onChange={e => setForm(f => ({ ...f, familyRelation: e.target.value }))}
+                  className="input appearance-none cursor-pointer mt-2"
+                >
+                  <option value="">Select relation type...</option>
+                  {FAMILY_RELATIONS.map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* Address */}
@@ -676,13 +730,22 @@ export default function PersonsPage() {
               <label className="label">Mobility level</label>
               <select
                 value={form.mobility}
-                onChange={e => setForm(f => ({ ...f, mobility: e.target.value as Mobility }))}
+                onChange={e => setForm(f => ({ ...f, mobility: e.target.value as Mobility, mobilityOther: '' }))}
                 className="input appearance-none cursor-pointer"
               >
                 {MOBILITIES.map(m => (
                   <option key={m} value={m}>{m}</option>
                 ))}
               </select>
+              {form.mobility === 'Other' && (
+                <input
+                  type="text"
+                  value={form.mobilityOther}
+                  onChange={e => setForm(f => ({ ...f, mobilityOther: e.target.value }))}
+                  placeholder="Describe mobility needs..."
+                  className="input mt-2"
+                />
+              )}
             </div>
 
             {/* Phone */}
@@ -751,11 +814,11 @@ export default function PersonsPage() {
           )}
 
           <button
-            onClick={addPerson}
+            onClick={savePerson}
             className="btn-primary w-full flex items-center justify-center gap-2"
           >
             <Plus className="w-4 h-4" />
-            Add Person
+            {editingId ? 'Save Changes' : 'Add Person'}
           </button>
         </div>
       )}
@@ -830,14 +893,23 @@ export default function PersonsPage() {
                   </div>
                 </div>
 
-                {/* Remove button */}
-                <button
-                  onClick={() => removePerson(person.id)}
-                  className="p-1.5 rounded-lg text-ash-600 hover:text-signal-danger hover:bg-signal-danger/10 transition-colors shrink-0"
-                  aria-label={`Remove ${person.name}`}
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                {/* Edit + Remove buttons */}
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => startEdit(person)}
+                    className="p-1.5 rounded-lg text-ash-600 hover:text-ember-400 hover:bg-ember-500/10 transition-colors"
+                    aria-label={`Edit ${person.name}`}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => removePerson(person.id)}
+                    className="p-1.5 rounded-lg text-ash-600 hover:text-signal-danger hover:bg-signal-danger/10 transition-colors"
+                    aria-label={`Remove ${person.name}`}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
               {/* Status badge */}

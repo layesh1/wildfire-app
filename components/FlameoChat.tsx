@@ -1,11 +1,100 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import { X, Send } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { usePathname } from 'next/navigation'
+import { X, CornerRightUp, Trash2 } from 'lucide-react'
+import { useAutoResizeTextarea } from '@/components/hooks/use-auto-resize-textarea'
+import { LiquidMetalFab } from '@/components/ui/liquid-metal-button'
+import { ResponseStream } from '@/components/ui/response-stream'
 
-function FlameoIcon({ size = 32 }: { size?: number }) {
+// ── Smoke particle ────────────────────────────────────────────────────────────
+const FIRE_COLORS = [
+  [180, 180, 180], // grey smoke
+  [180, 180, 180], // grey smoke
+  [180, 180, 180], // grey smoke
+  [180, 180, 180], // grey smoke (4:1 grey to fire)
+  [255, 100,  15], // bright ember orange
+]
+
+class SmokeParticle {
+  x: number; y: number; size: number; speedX: number; speedY: number
+  life: number; initialSize: number; color: number[]
+  constructor(x: number, y: number) {
+    this.x = x; this.y = y
+    this.size = Math.random() * 5 + 2
+    this.speedX = Math.random() * 2 - 1
+    this.speedY = -Math.random() * 2.5 - 0.8
+    this.life = 100; this.initialSize = this.size
+    this.color = FIRE_COLORS[Math.floor(Math.random() * FIRE_COLORS.length)]
+  }
+  update() {
+    this.x += this.speedX; this.y += this.speedY
+    this.life -= 1.0
+    this.size = Math.max(0, this.initialSize * (this.life / 100))
+  }
+}
+
+function FabSmoke({ active }: { active: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const particlesRef = useRef<SmokeParticle[]>([])
+  const rafRef = useRef<number>(0)
+  const activeRef = useRef(active)
+  const frameRef = useRef(0)
+  useEffect(() => { activeRef.current = active }, [active])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')!
+    canvas.width = 160; canvas.height = 400
+    const cx = 80, cy = 395 // canvas bottom = icon centre, cy near canvas bottom
+
+    const loop = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      frameRef.current++
+      if (activeRef.current && frameRef.current % 3 === 0) {
+        particlesRef.current.push(new SmokeParticle(
+          cx + (Math.random() * 20 - 10),
+          cy + (Math.random() * 10 - 5)
+        ))
+      }
+      particlesRef.current = particlesRef.current.filter(p => p.life > 0 && p.size > 0)
+      for (const p of particlesRef.current) {
+        p.update()
+        if (p.size > 0) {
+          const [r, g, b] = p.color
+          ctx.fillStyle = `rgba(${r},${g},${b},${(p.life / 100) * 0.85})`
+          ctx.beginPath()
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
+          ctx.fill()
+        }
+      }
+      rafRef.current = requestAnimationFrame(loop)
+    }
+    loop()
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [])
+
+  // 160x400 canvas — bottom aligned with FAB bottom, smoke rises freely upward
+  return (
+    <canvas
+      ref={canvasRef}
+      className="pointer-events-none"
+      style={{
+        position: 'absolute',
+        width: 160, height: 400,
+        bottom: 32, left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 1,
+      }}
+    />
+  )
+}
+
+function FlameoIcon({ size = 32, src = '/flameo1.png' }: { size?: number; src?: string }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src="/flameo1.png" alt="Flameo" width={size} height={size} style={{ objectFit: 'contain' }} />
+    <img src={src} alt="Flameo" width={size} height={size} style={{ objectFit: 'contain' }} />
   )
 }
 
@@ -20,21 +109,45 @@ const INTRO: Message = {
 }
 
 export default function FlameoChat() {
+  const pathname = usePathname()
+  const isCaregiverHub = pathname === '/dashboard/caregiver'
+  const isDispatcher = pathname?.startsWith('/dashboard/responder') ?? false
+  const flameoSrc = isDispatcher ? '/Image (8).png' : '/flameo1.png'
+  const fabStyle = { bottom: 16, right: 16, left: 'auto' } as React.CSSProperties
+  const popupStyle = { bottom: 96, right: 16, left: 'auto' } as React.CSSProperties
+
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([INTRO])
+  const [historyLoaded, setHistoryLoaded] = useState(false)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [hasOpened, setHasOpened] = useState(false)
+  const [latestAssistantIdx, setLatestAssistantIdx] = useState<number | null>(null)
   const [showIntro, setShowIntro] = useState(false)
+  const [fabHovered, setFabHovered] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const { textareaRef, adjustHeight } = useAutoResizeTextarea({ minHeight: 40, maxHeight: 120 })
+
+  // Load chat history from localStorage on mount (client-only, avoids SSR hydration mismatch)
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('wfa_flameo_history') || 'null')
+      if (Array.isArray(saved) && saved.length > 0) setMessages(saved)
+    } catch {}
+    setHistoryLoaded(true)
+  }, [])
+
+  // Persist chat history on every change (only after initial load to avoid overwriting with INTRO)
+  useEffect(() => {
+    if (!historyLoaded) return
+    try { localStorage.setItem('wfa_flameo_history', JSON.stringify(messages)) } catch {}
+  }, [messages, historyLoaded])
 
   useEffect(() => {
     if (open) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-      setTimeout(() => inputRef.current?.focus(), 100)
+      setTimeout(() => textareaRef.current?.focus(), 100)
     }
-  }, [messages, open])
+  }, [messages, open, textareaRef])
 
   useEffect(() => {
     const seen = typeof window !== 'undefined' && localStorage.getItem('wfa_flameo_intro')
@@ -44,6 +157,12 @@ export default function FlameoChat() {
     }
   }, [])
 
+  function clearHistory() {
+    setMessages([INTRO])
+    setLatestAssistantIdx(null)
+    try { localStorage.removeItem('wfa_flameo_history') } catch {}
+  }
+
   function dismissIntro() {
     setShowIntro(false)
     if (typeof window !== 'undefined') localStorage.setItem('wfa_flameo_intro', '1')
@@ -51,7 +170,6 @@ export default function FlameoChat() {
 
   function handleOpen() {
     setOpen(v => !v)
-    setHasOpened(true)
     dismissIntro()
   }
 
@@ -60,38 +178,56 @@ export default function FlameoChat() {
     const userMsg: Message = { role: 'user', content: input.trim() }
     setMessages(m => [...m, userMsg])
     setInput('')
+    adjustHeight(true)
     setLoading(true)
     try {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [...messages, userMsg], persona: 'SAFE-PATH' }),
+        body: JSON.stringify({ messages: [...messages, userMsg], persona: 'FLAMEO' }),
       })
       const { content } = await res.json()
-      setMessages(m => [...m, { role: 'assistant', content: content || 'Sorry, something went wrong.' }])
+      setMessages(m => {
+        const next = [...m, { role: 'assistant' as const, content: content || 'Sorry, something went wrong.' }]
+        setLatestAssistantIdx(next.length - 1)
+        return next
+      })
     } catch {
-      setMessages(m => [...m, { role: 'assistant', content: "I couldn't reach the server. Please try again in a moment." }])
+      setMessages(m => {
+        const next = [...m, { role: 'assistant' as const, content: "I couldn't reach the server. Please try again in a moment." }]
+        setLatestAssistantIdx(next.length - 1)
+        return next
+      })
     }
     setLoading(false)
   }
 
-  return (
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
     <>
       {/* Chat panel */}
       {open && (
         <div
-          className="fixed bottom-20 right-4 z-50 flex flex-col bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden"
-          style={{ width: 360, maxHeight: '72vh' }}
+          className="fixed z-[9999] flex flex-col bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden"
+          style={{ width: 360, maxHeight: '72vh', ...popupStyle }}
         >
           {/* Header */}
-          <div className="flex items-center gap-3 p-4 border-b border-gray-100 shrink-0" style={{ background: 'linear-gradient(135deg, #f0fdf4, #ecfdf5)' }}>
-            <div className="w-9 h-9 rounded-xl bg-white border border-forest-200 flex items-center justify-center select-none shadow-sm">
+          <div className="flex items-center gap-3 p-4 border-b border-forest-100 shrink-0 bg-white">
+            <div className="w-9 h-9 rounded-xl bg-white border border-orange-200 flex items-center justify-center select-none shadow-sm">
               <FlameoIcon size={28} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-gray-900 font-semibold text-sm">Flameo</div>
               <div className="text-gray-500 text-xs">Wildfire safety assistant · always here</div>
             </div>
+            <button
+              onClick={clearHistory}
+              title="Clear chat history"
+              className="text-gray-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
             <button
               onClick={() => setOpen(false)}
               className="text-gray-400 hover:text-gray-700 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
@@ -117,7 +253,16 @@ export default function FlameoChat() {
                   }`}
                   style={msg.role === 'user' ? { background: 'linear-gradient(135deg, #16a34a, #15803d)' } : undefined}
                 >
-                  {msg.content}
+                  {msg.role === 'assistant' && i === latestAssistantIdx ? (
+                    <ResponseStream
+                      textStream={msg.content}
+                      mode="typewriter"
+                      speed={75}
+                      as="span"
+                    />
+                  ) : (
+                    msg.content
+                  )}
                 </div>
               </div>
             ))}
@@ -145,21 +290,28 @@ export default function FlameoChat() {
 
           {/* Input */}
           <div className="p-3 border-t border-gray-100 shrink-0 bg-white">
-            <div className="flex gap-2">
-              <input
-                ref={inputRef}
+            <div className="relative flex items-end gap-2">
+              <textarea
+                ref={textareaRef}
                 value={input}
-                onChange={e => setInput(e.target.value)}
+                onChange={e => { setInput(e.target.value); adjustHeight() }}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
                 placeholder="Ask Flameo anything…"
-                className="flex-1 bg-white text-gray-900 text-sm rounded-xl px-3 py-2 border border-gray-200 focus:outline-none focus:border-forest-400 placeholder:text-gray-500"
+                disabled={loading}
+                rows={1}
+                className="flex-1 bg-white text-gray-900 text-sm rounded-xl px-3 py-2 border border-gray-200 focus:outline-none focus:border-forest-400 placeholder:text-gray-500 resize-none overflow-hidden leading-relaxed"
+                style={{ minHeight: 40, maxHeight: 120 }}
               />
               <button
                 onClick={send}
                 disabled={!input.trim() || loading}
-                className="p-2 bg-forest-600 hover:bg-forest-700 border border-forest-600 rounded-xl text-white transition-colors disabled:opacity-40 shrink-0"
+                className="p-2 bg-forest-600 hover:bg-forest-700 border border-forest-600 rounded-xl text-white transition-colors disabled:opacity-40 shrink-0 mb-0.5"
               >
-                <Send className="w-4 h-4" />
+                {loading ? (
+                  <div className="w-4 h-4 bg-white rounded-sm animate-spin" style={{ animationDuration: '3s' }} />
+                ) : (
+                  <CornerRightUp className="w-4 h-4" />
+                )}
               </button>
             </div>
           </div>
@@ -167,47 +319,50 @@ export default function FlameoChat() {
       )}
 
       {/* Floating button */}
-      <button
-        onClick={handleOpen}
-        className="fixed bottom-4 right-4 z-50 w-16 h-16 rounded-2xl bg-forest-600 hover:bg-forest-700 shadow-xl shadow-forest-600/30 flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 select-none"
-        title="Chat with Flameo"
-        aria-label="Open Flameo chat"
-      >
-        <span className={`transition-all duration-200 ${open ? 'scale-75 opacity-0 absolute' : 'scale-100 opacity-100'}`}><FlameoIcon size={40} /></span>
-        <X className={`w-6 h-6 text-white absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
-      </button>
+      <div className="fixed z-[9999] w-16 h-16" style={fabStyle}>
+        {!open && <FabSmoke active={fabHovered} />}
+        <LiquidMetalFab
+          onClick={handleOpen}
+          onMouseEnter={() => setFabHovered(true)}
+          onMouseLeave={() => setFabHovered(false)}
+          title="Chat with Flameo"
+          aria-label="Open Flameo chat"
+          style={{ position: 'absolute', inset: 0, zIndex: 2 }}
+        >
+          <span className={`transition-all duration-200 ${open ? 'scale-75 opacity-0 absolute' : 'scale-100 opacity-100'}`}><FlameoIcon size={46} src={flameoSrc} /></span>
+          <X className={`w-6 h-6 text-white absolute transition-all duration-200 ${open ? 'scale-100 opacity-100' : 'scale-75 opacity-0'}`} />
+        </LiquidMetalFab>
+      </div>
 
       {/* Meet Flameo intro popup */}
       {showIntro && !open && (
-        <div className="fixed bottom-20 right-4 z-50 animate-fade-up">
+        <div className="fixed z-[9999] animate-fade-up" style={popupStyle}>
           <div className="bg-white border border-gray-200 rounded-2xl shadow-xl p-4 w-56 relative">
             <button onClick={dismissIntro} className="absolute top-2 right-2 text-gray-300 hover:text-gray-600 transition-colors">
               <X className="w-3.5 h-3.5" />
             </button>
             <div className="flex items-center gap-2.5 mb-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/flameo1.png" alt="Flameo" width={32} height={32} style={{ objectFit: 'contain' }} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={flameoSrc} alt="Flameo" width={32} height={32} style={{ objectFit: 'contain' }} />
               <div className="font-semibold text-gray-900 text-sm">Meet Flameo!</div>
             </div>
             <p className="text-gray-500 text-xs leading-relaxed mb-3">
               Your personal wildfire safety assistant. Ask about evacuation routes, go-bags, and alerts.
             </p>
             <button
-              onClick={() => { setOpen(true); setHasOpened(true); dismissIntro() }}
+              onClick={() => { setOpen(true); dismissIntro() }}
               className="w-full bg-forest-600 hover:bg-forest-700 text-white text-xs font-semibold py-2 rounded-xl transition-colors"
             >
               Chat with Flameo
             </button>
             {/* Arrow pointing down to FAB */}
-            <div className="absolute -bottom-2 right-6 w-4 h-4 bg-white border-r border-b border-gray-200 rotate-45" />
+            <div className={`absolute -bottom-2 w-4 h-4 bg-white border-r border-b border-gray-200 rotate-45 ${isCaregiverHub ? 'left-6' : 'right-6'}`} />
           </div>
         </div>
       )}
 
-      {/* Notification dot on first load */}
-      {!hasOpened && (
-        <div className="fixed bottom-[68px] right-3 z-50 w-4 h-4 rounded-full bg-red-500 border-2 border-white animate-pulse pointer-events-none" />
-      )}
-    </>
+    </>,
+    document.body
   )
 }
