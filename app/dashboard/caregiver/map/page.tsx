@@ -1,9 +1,10 @@
 'use client'
-import { useEffect, useState, Suspense, useMemo } from 'react'
+import { useEffect, useState, Suspense, useMemo, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
-import { MapPin, AlertTriangle, CheckCircle, Navigation, ExternalLink, ChevronRight, Flame, RefreshCw, Heart } from 'lucide-react'
+import { MapPin, AlertTriangle, CheckCircle, Navigation, ExternalLink, ChevronRight, Flame, RefreshCw, Heart, Maximize2, Minimize2, LayoutTemplate } from 'lucide-react'
 import type { NifcFire, EvacShelter, HazardSite } from './LeafletMap'
+import { Panel, PanelGroup, PanelResizeHandle, type ImperativePanelHandle } from 'react-resizable-panels'
 
 const EVAC_SHELTERS: EvacShelter[] = [
   // California
@@ -290,7 +291,17 @@ function EvacuationMapContent() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [showShelters, setShowShelters] = useState(false)
   const [showHazards, setShowHazards] = useState(false)
+  const [mapSize, setMapSize] = useState<'compact' | 'default' | 'full'>('default')
+  const mapPanelRef = useRef<ImperativePanelHandle>(null)
+  const listPanelRef = useRef<ImperativePanelHandle>(null)
   const searchParams = useSearchParams()
+
+  function applyPreset(size: 'compact' | 'default' | 'full') {
+    setMapSize(size)
+    if (size === 'compact') { mapPanelRef.current?.resize(50); listPanelRef.current?.resize(50) }
+    if (size === 'default') { mapPanelRef.current?.resize(65); listPanelRef.current?.resize(35) }
+    if (size === 'full')    { mapPanelRef.current?.resize(82); listPanelRef.current?.resize(18) }
+  }
 
   async function loadNifc() {
     setLoading(true)
@@ -403,50 +414,52 @@ function EvacuationMapContent() {
       {/* Status banner */}
       {!loading && <StatusBanner fires={nifc} locating={locating} />}
 
-      {/* Map + fire list */}
-      <div className="grid md:grid-cols-3 gap-5">
-        {/* Map */}
-        <div className="md:col-span-2 flex flex-col gap-3">
-          {/* Controls */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <button
-              onClick={locateMe}
-              disabled={locating}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600/20 border border-blue-500/40 text-blue-300 hover:bg-blue-600/30 transition-colors disabled:opacity-50"
-            >
-              <Navigation className="w-3.5 h-3.5" />
-              {locating ? 'Locating…' : userLocation ? 'Update my location' : 'Show fires & shelters near me'}
-            </button>
-            <button
-              onClick={() => setShowShelters(v => !v)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                showShelters
-                  ? 'bg-signal-safe/20 border-signal-safe/40 text-signal-safe'
-                  : 'bg-ash-800 border-ash-700 text-ash-400 hover:text-white'
-              }`}
-            >
-              <Heart className="w-3.5 h-3.5" />
-              {showShelters ? 'Shelters: ON' : 'Show Shelters'}
-            </button>
-            <button
-              onClick={() => setShowHazards(v => !v)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                showHazards
-                  ? 'bg-purple-500/20 border-purple-500/40 text-purple-300'
-                  : 'bg-ash-800 border-ash-700 text-ash-400 hover:text-white'
-              }`}
-            >
-              ☢ {showHazards ? 'Hazards: ON' : 'Hazard Sites'}
-            </button>
-            {locationError && (
-              <span className="text-ash-500 text-xs">Location unavailable — enable browser location access.</span>
-            )}
-            {userLocation && !locationError && (
-              <span className="text-blue-400 text-xs">● Showing distances from your location</span>
-            )}
-          </div>
+      {/* Size presets + controls bar */}
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        {/* Size presets */}
+        <div className="flex items-center gap-1 bg-ash-900 border border-ash-700 rounded-lg p-0.5">
+          <button onClick={() => applyPreset('compact')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${mapSize === 'compact' ? 'bg-ash-700 text-white' : 'text-ash-400 hover:text-white'}`}
+            title="Equal split">
+            <LayoutTemplate className="w-3 h-3" /> Split
+          </button>
+          <button onClick={() => applyPreset('default')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${mapSize === 'default' ? 'bg-ash-700 text-white' : 'text-ash-400 hover:text-white'}`}
+            title="Default layout">
+            <Maximize2 className="w-3 h-3" /> Default
+          </button>
+          <button onClick={() => applyPreset('full')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${mapSize === 'full' ? 'bg-ash-700 text-white' : 'text-ash-400 hover:text-white'}`}
+            title="Focus on map">
+            <Minimize2 className="w-3 h-3" /> Map Focus
+          </button>
+        </div>
+        <div className="w-px h-5 bg-ash-700" />
+        {/* Layer controls */}
+        <button onClick={locateMe} disabled={locating}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-600/20 border border-blue-500/40 text-blue-300 hover:bg-blue-600/30 transition-colors disabled:opacity-50">
+          <Navigation className="w-3.5 h-3.5" />
+          {locating ? 'Locating…' : userLocation ? 'Update location' : 'Locate me'}
+        </button>
+        <button onClick={() => setShowShelters(v => !v)}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${showShelters ? 'bg-signal-safe/20 border-signal-safe/40 text-signal-safe' : 'bg-ash-800 border-ash-700 text-ash-400 hover:text-white'}`}>
+          <Heart className="w-3.5 h-3.5" />
+          {showShelters ? 'Shelters: ON' : 'Shelters'}
+        </button>
+        <button onClick={() => setShowHazards(v => !v)}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${showHazards ? 'bg-purple-500/20 border-purple-500/40 text-purple-300' : 'bg-ash-800 border-ash-700 text-ash-400 hover:text-white'}`}>
+          ☢ {showHazards ? 'Hazards: ON' : 'Hazards'}
+        </button>
+        {locationError && <span className="text-ash-500 text-xs">Location unavailable — enable browser location.</span>}
+        {userLocation && !locationError && <span className="text-blue-400 text-xs">● Distances from your location</span>}
+      </div>
 
-          <div className="card overflow-hidden" style={{ height: 'calc(100vh - 260px)', minHeight: 520 }}>
+      {/* Map + fire list — resizable panels */}
+      <div style={{ height: 'calc(100vh - 235px)', minHeight: 520 }}>
+        <PanelGroup direction="horizontal" className="h-full">
+          {/* Map panel */}
+          <Panel ref={mapPanelRef} defaultSize={65} minSize={35} className="flex flex-col gap-3">
+            <div className="h-full card overflow-hidden">
             {loading ? (
               <div className="h-full flex flex-col items-center justify-center gap-3">
                 <div className="w-8 h-8 border-2 border-ember-500/30 border-t-ember-500 rounded-full animate-spin" />
@@ -463,7 +476,7 @@ function EvacuationMapContent() {
                 showHazards={showHazards}
               />
             )}
-          </div>
+            </div>
 
 
           {/* Shelter panel */}
@@ -524,10 +537,16 @@ function EvacuationMapContent() {
               </div>
             )
           })()}
-        </div>
+          </Panel>
 
-        {/* Fire cards */}
-        <div className="flex flex-col gap-3 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 260px)' }}>
+          {/* Drag handle */}
+          <PanelResizeHandle className="w-2 mx-1 flex items-center justify-center group cursor-col-resize">
+            <div className="w-0.5 h-12 bg-ash-700 group-hover:bg-ember-500 rounded-full transition-colors" />
+          </PanelResizeHandle>
+
+          {/* Fire cards panel */}
+          <Panel ref={listPanelRef} defaultSize={35} minSize={15} maxSize={55}>
+        <div className="flex flex-col gap-3 overflow-y-auto h-full pr-1">
           <h3 className="text-white font-semibold text-sm shrink-0">
             Active Fires
             <span className="ml-2 text-ash-500 font-normal">{nifc.length}</span>
@@ -607,13 +626,15 @@ function EvacuationMapContent() {
               href="https://www.ready.gov/wildfires"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-between p-3 rounded-xl border border-ash-700 hover:border-ash-500 text-ash-400 hover:text-white transition-colors text-xs"
+              className="flex items-center justify-between p-3 rounded-xl border border-ash-700 hover:border-ash-500 text-ash-400 hover:text-white transition-colors text-xs shrink-0"
             >
               <span>Official evacuation guidance · Ready.gov</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </a>
           )}
         </div>
+          </Panel>
+        </PanelGroup>
       </div>
     </div>
   )
