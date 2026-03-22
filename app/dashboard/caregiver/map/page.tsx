@@ -2,8 +2,9 @@
 import { useEffect, useState, Suspense, useMemo, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
-import { MapPin, AlertTriangle, CheckCircle, Navigation, ExternalLink, ChevronRight, Flame, RefreshCw, Heart, Maximize2, Minimize2, LayoutTemplate } from 'lucide-react'
-import type { NifcFire, EvacShelter, HazardSite } from './LeafletMap'
+import { MapPin, AlertTriangle, CheckCircle, Navigation, ExternalLink, ChevronRight, Flame, RefreshCw, Heart, Maximize2, Minimize2, LayoutTemplate, User, Search, X, Factory } from 'lucide-react'
+import type { NifcFire, EvacShelter, WatchedLocation, WindData } from './LeafletMap'
+import { HAZARD_FACILITIES } from '@/lib/hazard-facilities'
 
 const EVAC_SHELTERS: EvacShelter[] = [
   // California
@@ -103,82 +104,6 @@ const EVAC_SHELTERS: EvacShelter[] = [
   { id: 83, name: 'Washington Humane Society', lat: 38.9072, lng: -77.0369, type: 'animal', county: 'DC', capacity: 150 },
 ]
 
-// US Nuclear power plants + major Superfund sites (nationwide)
-const HAZARD_SITES: HazardSite[] = [
-  // Nuclear plants — operating, by state
-  { id: 1,  name: 'Palo Verde Nuclear (AZ)',        lat: 33.3881, lng: -112.8623, type: 'nuclear', state: 'AZ' },
-  { id: 2,  name: 'San Onofre (CA) — decommissioned', lat: 33.3680, lng: -117.5584, type: 'nuclear', state: 'CA' },
-  { id: 3,  name: 'Diablo Canyon Nuclear (CA)',     lat: 35.2107, lng: -120.8562, type: 'nuclear', state: 'CA' },
-  { id: 4,  name: 'Comanche Peak Nuclear (TX)',     lat: 32.2994, lng: -97.7851,  type: 'nuclear', state: 'TX' },
-  { id: 5,  name: 'South Texas Project (TX)',       lat: 28.7957, lng: -96.0494,  type: 'nuclear', state: 'TX' },
-  { id: 6,  name: 'Callaway Nuclear (MO)',          lat: 38.7669, lng: -91.7831,  type: 'nuclear', state: 'MO' },
-  { id: 7,  name: 'Wolf Creek Nuclear (KS)',        lat: 38.2369, lng: -95.6894,  type: 'nuclear', state: 'KS' },
-  { id: 8,  name: 'Prairie Island Nuclear (MN)',    lat: 44.6157, lng: -92.6344,  type: 'nuclear', state: 'MN' },
-  { id: 9,  name: 'Monticello Nuclear (MN)',        lat: 45.3294, lng: -93.8478,  type: 'nuclear', state: 'MN' },
-  { id: 10, name: 'Quad Cities Nuclear (IL)',       lat: 41.7028, lng: -90.3322,  type: 'nuclear', state: 'IL' },
-  { id: 11, name: 'Byron Nuclear (IL)',             lat: 42.0761, lng: -89.2789,  type: 'nuclear', state: 'IL' },
-  { id: 12, name: 'Braidwood Nuclear (IL)',         lat: 41.2378, lng: -88.2306,  type: 'nuclear', state: 'IL' },
-  { id: 13, name: 'Clinton Nuclear (IL)',           lat: 40.1589, lng: -88.8403,  type: 'nuclear', state: 'IL' },
-  { id: 14, name: 'Dresden Nuclear (IL)',           lat: 41.3906, lng: -88.2592,  type: 'nuclear', state: 'IL' },
-  { id: 15, name: 'Davis-Besse Nuclear (OH)',       lat: 41.5969, lng: -83.0858,  type: 'nuclear', state: 'OH' },
-  { id: 16, name: 'Perry Nuclear (OH)',             lat: 41.8022, lng: -81.1436,  type: 'nuclear', state: 'OH' },
-  { id: 17, name: 'Beaver Valley Nuclear (PA)',     lat: 40.6228, lng: -80.4322,  type: 'nuclear', state: 'PA' },
-  { id: 18, name: 'Three Mile Island (PA)',         lat: 40.1533, lng: -76.7256,  type: 'nuclear', state: 'PA' },
-  { id: 19, name: 'Limerick Nuclear (PA)',          lat: 40.2233, lng: -75.5892,  type: 'nuclear', state: 'PA' },
-  { id: 20, name: 'Peach Bottom Nuclear (PA)',      lat: 39.7594, lng: -76.2689,  type: 'nuclear', state: 'PA' },
-  { id: 21, name: 'Susquehanna Nuclear (PA)',       lat: 41.0944, lng: -76.1528,  type: 'nuclear', state: 'PA' },
-  { id: 22, name: 'Hope Creek Nuclear (NJ)',        lat: 39.4614, lng: -75.5353,  type: 'nuclear', state: 'NJ' },
-  { id: 23, name: 'Oyster Creek Nuclear (NJ)',      lat: 39.8219, lng: -74.2011,  type: 'nuclear', state: 'NJ' },
-  { id: 24, name: 'Indian Point Nuclear (NY)',      lat: 41.2697, lng: -73.9522,  type: 'nuclear', state: 'NY' },
-  { id: 25, name: 'FitzPatrick Nuclear (NY)',       lat: 43.5178, lng: -76.3922,  type: 'nuclear', state: 'NY' },
-  { id: 26, name: 'Nine Mile Point Nuclear (NY)',   lat: 43.5222, lng: -76.4100,  type: 'nuclear', state: 'NY' },
-  { id: 27, name: 'Ginna Nuclear (NY)',             lat: 43.2867, lng: -77.3083,  type: 'nuclear', state: 'NY' },
-  { id: 28, name: 'Millstone Nuclear (CT)',         lat: 41.3094, lng: -72.1692,  type: 'nuclear', state: 'CT' },
-  { id: 29, name: 'Seabrook Nuclear (NH)',          lat: 42.8983, lng: -70.8497,  type: 'nuclear', state: 'NH' },
-  { id: 30, name: 'Pilgrim Nuclear (MA)',           lat: 41.9444, lng: -70.5789,  type: 'nuclear', state: 'MA' },
-  { id: 31, name: 'Vermont Yankee (VT)',            lat: 42.7806, lng: -72.5183,  type: 'nuclear', state: 'VT' },
-  { id: 32, name: 'Calvert Cliffs Nuclear (MD)',    lat: 38.4356, lng: -76.4431,  type: 'nuclear', state: 'MD' },
-  { id: 33, name: 'North Anna Nuclear (VA)',        lat: 37.9539, lng: -77.7914,  type: 'nuclear', state: 'VA' },
-  { id: 34, name: 'Surry Nuclear (VA)',             lat: 37.1650, lng: -76.6981,  type: 'nuclear', state: 'VA' },
-  { id: 35, name: 'Brunswick Nuclear (NC)',         lat: 33.9572, lng: -78.0258,  type: 'nuclear', state: 'NC' },
-  { id: 36, name: 'McGuire Nuclear (NC)',           lat: 35.4322, lng: -80.9436,  type: 'nuclear', state: 'NC' },
-  { id: 37, name: 'Catawba Nuclear (SC)',           lat: 35.0478, lng: -81.0694,  type: 'nuclear', state: 'SC' },
-  { id: 38, name: 'VC Summer Nuclear (SC)',         lat: 34.1858, lng: -81.3278,  type: 'nuclear', state: 'SC' },
-  { id: 39, name: 'Vogtle Nuclear (GA)',            lat: 33.1428, lng: -81.7628,  type: 'nuclear', state: 'GA' },
-  { id: 40, name: 'Edwin Hatch Nuclear (GA)',       lat: 31.9317, lng: -82.3469,  type: 'nuclear', state: 'GA' },
-  { id: 41, name: 'Farley Nuclear (AL)',            lat: 31.2228, lng: -85.1117,  type: 'nuclear', state: 'AL' },
-  { id: 42, name: 'Browns Ferry Nuclear (AL)',      lat: 34.7044, lng: -87.1197,  type: 'nuclear', state: 'AL' },
-  { id: 43, name: 'Sequoyah Nuclear (TN)',          lat: 35.2272, lng: -85.0886,  type: 'nuclear', state: 'TN' },
-  { id: 44, name: 'Watts Bar Nuclear (TN)',         lat: 35.6028, lng: -84.7867,  type: 'nuclear', state: 'TN' },
-  { id: 45, name: 'Turkey Point Nuclear (FL)',      lat: 25.4347, lng: -80.3319,  type: 'nuclear', state: 'FL' },
-  { id: 46, name: 'Crystal River Nuclear (FL)',     lat: 28.9558, lng: -82.6980,  type: 'nuclear', state: 'FL' },
-  { id: 47, name: 'Columbia Nuclear (WA)',          lat: 46.4703, lng: -119.3200, type: 'nuclear', state: 'WA' },
-  { id: 48, name: 'Cook Nuclear (MI)',              lat: 41.9758, lng: -86.5625,  type: 'nuclear', state: 'MI' },
-  { id: 49, name: 'Fermi Nuclear (MI)',             lat: 41.9603, lng: -83.2553,  type: 'nuclear', state: 'MI' },
-  { id: 50, name: 'Kewaunee Nuclear (WI)',          lat: 44.3478, lng: -87.5394,  type: 'nuclear', state: 'WI' },
-  { id: 51, name: 'Point Beach Nuclear (WI)',       lat: 44.2817, lng: -87.5361,  type: 'nuclear', state: 'WI' },
-  { id: 52, name: 'Duane Arnold Nuclear (IA)',      lat: 42.1006, lng: -91.7775,  type: 'nuclear', state: 'IA' },
-  { id: 53, name: 'Cooper Nuclear (NE)',            lat: 40.3611, lng: -95.6417,  type: 'nuclear', state: 'NE' },
-  { id: 54, name: 'Fort Calhoun Nuclear (NE)',      lat: 41.5217, lng: -96.0794,  type: 'nuclear', state: 'NE' },
-  { id: 55, name: 'Waterford Nuclear (LA)',         lat: 29.9947, lng: -90.4706,  type: 'nuclear', state: 'LA' },
-  { id: 56, name: 'Arkansas Nuclear One (AR)',      lat: 35.2308, lng: -93.2303,  type: 'nuclear', state: 'AR' },
-  // Major Superfund / CERCLA sites near wildfire-prone areas
-  { id: 101, name: 'Stringfellow Acid Pits (CA)',   lat: 33.9811, lng: -117.5439, type: 'superfund', state: 'CA' },
-  { id: 102, name: 'Casmalia Resources (CA)',        lat: 34.8411, lng: -120.5453, type: 'superfund', state: 'CA' },
-  { id: 103, name: 'Iron Mountain Mine (CA)',        lat: 40.6850, lng: -122.5000, type: 'superfund', state: 'CA' },
-  { id: 104, name: 'Montrose Chemical (CA)',         lat: 33.8897, lng: -118.2906, type: 'superfund', state: 'CA' },
-  { id: 105, name: 'Copper Basin (TN)',              lat: 35.0378, lng: -84.3689,  type: 'superfund', state: 'TN' },
-  { id: 106, name: 'Milltown Reservoir (MT)',        lat: 46.8694, lng: -113.9317, type: 'superfund', state: 'MT' },
-  { id: 107, name: 'Anaconda Smelter (MT)',          lat: 46.1292, lng: -112.9436, type: 'superfund', state: 'MT' },
-  { id: 108, name: 'Bunker Hill Mining (ID)',        lat: 47.5469, lng: -116.1736, type: 'superfund', state: 'ID' },
-  { id: 109, name: 'Hanford Nuclear Site (WA)',      lat: 46.5500, lng: -119.4833, type: 'superfund', state: 'WA' },
-  { id: 110, name: 'Rocky Mountain Arsenal (CO)',    lat: 39.8442, lng: -104.8489, type: 'superfund', state: 'CO' },
-  { id: 111, name: 'California Gulch (CO)',          lat: 39.2411, lng: -106.3469, type: 'superfund', state: 'CO' },
-  { id: 112, name: 'Holbrook Industrial Park (AZ)', lat: 34.9028, lng: -110.1536, type: 'superfund', state: 'AZ' },
-  { id: 113, name: 'Odessa Chromium (TX)',           lat: 31.8457, lng: -102.3676, type: 'superfund', state: 'TX' },
-  { id: 114, name: 'Purity Well (NM)',               lat: 35.0814, lng: -106.6631, type: 'superfund', state: 'NM' },
-  { id: 115, name: 'McCormick & Baxter (OR)',        lat: 45.5425, lng: -122.6583, type: 'superfund', state: 'OR' },
-]
 
 const LeafletMap = dynamic(() => import('./LeafletMap'), { ssr: false })
 
@@ -281,6 +206,8 @@ function StatusBanner({ fires, locating }: { fires: NifcFire[], locating: boolea
   )
 }
 
+interface SavedPerson { id: string; name: string; address: string }
+
 function EvacuationMapContent() {
   const [nifc, setNifc] = useState<NifcFire[]>([])
   const [loading, setLoading] = useState(true)
@@ -289,12 +216,27 @@ function EvacuationMapContent() {
   const [locationError, setLocationError] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [showShelters, setShowShelters] = useState(false)
-  const [showHazards, setShowHazards] = useState(false)
+  const [showFacilities, setShowFacilities] = useState(false)
+  const [windData, setWindData] = useState<WindData | null>(null)
   const [mapSize, setMapSize] = useState<'compact' | 'default' | 'full'>('default')
   const [mapWidthPct, setMapWidthPct] = useState(65)
   const [isDragging, setIsDragging] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const searchParams = useSearchParams()
+
+  // Person / address monitoring
+  const [savedPersons, setSavedPersons] = useState<SavedPerson[]>([])
+  const [watchedLocations, setWatchedLocations] = useState<WatchedLocation[]>([])
+  const [addressInput, setAddressInput] = useState('')
+  const [geocoding, setGeocoding] = useState(false)
+  const [geocodeError, setGeocodeError] = useState('')
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('monitored_persons_v2')
+      if (raw) setSavedPersons(JSON.parse(raw))
+    } catch {}
+  }, [])
 
   useEffect(() => {
     if (!isDragging) return
@@ -319,6 +261,33 @@ function EvacuationMapContent() {
     if (size === 'compact') setMapWidthPct(50)
     if (size === 'default') setMapWidthPct(65)
     if (size === 'full')    setMapWidthPct(82)
+  }
+
+  async function geocodeAddress(address: string, label: string) {
+    if (!address.trim()) return
+    setGeocoding(true)
+    setGeocodeError('')
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`
+      const res = await fetch(url, { headers: { 'Accept-Language': 'en' } })
+      const data = await res.json()
+      if (data?.[0]) {
+        const loc: WatchedLocation = { label, lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
+        setWatchedLocations(prev => {
+          const filtered = prev.filter(w => w.label !== label)
+          return [...filtered, loc]
+        })
+      } else {
+        setGeocodeError('Address not found — try a more specific address.')
+      }
+    } catch {
+      setGeocodeError('Could not reach geocoding service.')
+    }
+    setGeocoding(false)
+  }
+
+  function removeWatched(label: string) {
+    setWatchedLocations(prev => prev.filter(w => w.label !== label))
   }
 
   async function loadNifc() {
@@ -386,6 +355,28 @@ function EvacuationMapContent() {
       { timeout: 8000 }
     )
   }
+
+  // Fetch wind data when user location is known
+  useEffect(() => {
+    if (!userLocation) return
+    const [lat, lng] = userLocation
+    fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=mph&timezone=auto`
+    )
+      .then(r => r.json())
+      .then(data => {
+        const speed = data?.current?.wind_speed_10m
+        const dir = data?.current?.wind_direction_10m
+        if (speed != null && dir != null) {
+          setWindData({
+            speedMph: speed,
+            directionDeg: dir,
+            spreadDeg: (dir + 180) % 360,
+          })
+        }
+      })
+      .catch(() => {})
+  }, [userLocation])
 
   // Sort fires: lowest containment first (most dangerous), then by acres desc
   const sortedFires = useMemo(() => {
@@ -464,16 +455,83 @@ function EvacuationMapContent() {
           <Heart className="w-3.5 h-3.5" />
           {showShelters ? 'Shelters: ON' : 'Shelters'}
         </button>
-        <button onClick={() => setShowHazards(v => !v)}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${showHazards ? 'bg-purple-500/20 border-purple-500/40 text-purple-300' : 'bg-ash-800 border-ash-700 text-ash-400 hover:text-white'}`}>
-          ☢ {showHazards ? 'Hazards: ON' : 'Hazards'}
+        <button onClick={() => setShowFacilities(v => !v)}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${showFacilities ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-ash-800 border-ash-700 text-ash-400 hover:text-white'}`}>
+          <Factory className="w-3.5 h-3.5" />
+          {showFacilities ? 'Hazard Sites: ON' : 'Hazard Sites'}
         </button>
         {locationError && <span className="text-ash-500 text-xs">Location unavailable — enable browser location.</span>}
         {userLocation && !locationError && <span className="text-blue-400 text-xs">● Distances from your location</span>}
       </div>
 
+      {/* Person / address monitor */}
+      <div className="bg-ash-800/60 border border-ash-700 rounded-xl p-3 flex flex-col gap-2 mb-3">
+        <div className="text-ash-400 text-xs font-medium flex items-center gap-1.5">
+          <User className="w-3.5 h-3.5" />
+          Pin a location on the map
+        </div>
+
+        {/* Saved persons */}
+        {savedPersons.filter(p => p.address).length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {savedPersons.filter(p => p.address).map(p => {
+              const isWatched = watchedLocations.some(w => w.label === p.name)
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => isWatched ? removeWatched(p.name) : geocodeAddress(p.address, p.name)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                    isWatched
+                      ? 'bg-violet-600/20 border-violet-500/50 text-violet-300'
+                      : 'bg-ash-700 border-ash-600 text-ash-300 hover:text-white hover:border-ash-500'
+                  }`}
+                >
+                  <User className="w-3 h-3" />
+                  {p.name}
+                  {isWatched && <X className="w-3 h-3" />}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Manual address input */}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={addressInput}
+            onChange={e => setAddressInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && geocodeAddress(addressInput, addressInput.split(',')[0]?.trim() || 'Location')}
+            placeholder="Or type any address…"
+            className="flex-1 bg-ash-900 border border-ash-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-ash-600 focus:outline-none focus:border-violet-500"
+          />
+          <button
+            onClick={() => geocodeAddress(addressInput, addressInput.split(',')[0]?.trim() || 'Location')}
+            disabled={geocoding || !addressInput.trim()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-violet-600/20 border border-violet-500/50 text-violet-300 hover:bg-violet-600/30 transition-colors disabled:opacity-40"
+          >
+            <Search className="w-3.5 h-3.5" />
+            {geocoding ? 'Finding…' : 'Pin'}
+          </button>
+        </div>
+        {geocodeError && <p className="text-red-400 text-xs">{geocodeError}</p>}
+
+        {/* Active watched pins */}
+        {watchedLocations.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-1 border-t border-ash-700">
+            {watchedLocations.map(w => (
+              <div key={w.label} className="flex items-center gap-1 bg-violet-600/10 border border-violet-500/30 text-violet-300 text-xs px-2 py-0.5 rounded-full">
+                <div className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                {w.label}
+                <button onClick={() => removeWatched(w.label)} className="ml-0.5 hover:text-white"><X className="w-2.5 h-2.5" /></button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Map + fire list — resizable panels */}
-      <div ref={containerRef} style={{ height: 'calc(100vh - 235px)', minHeight: 520, display: 'flex', userSelect: isDragging ? 'none' : undefined }}>
+      <div ref={containerRef} style={{ height: 'calc(100vh - 310px)', minHeight: 520, display: 'flex', userSelect: isDragging ? 'none' : undefined }}>
           {/* Map panel */}
           <div style={{ width: `${mapWidthPct}%`, minWidth: '30%', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="h-full card overflow-hidden">
@@ -489,12 +547,30 @@ function EvacuationMapContent() {
                 center={center}
                 shelters={EVAC_SHELTERS}
                 showShelters={showShelters}
-                hazards={HAZARD_SITES}
-                showHazards={showHazards}
+                watchedLocations={watchedLocations}
+                facilities={HAZARD_FACILITIES}
+                showFacilities={showFacilities}
+                windData={windData}
               />
             )}
             </div>
 
+          {/* Map legend */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-ash-500 px-1 mt-2">
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-signal-danger" /> Active threat (&lt;25% contained)</div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-orange-500" /> Still spreading (25–50%)</div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-amber-400" /> Being controlled (50–75%)</div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-signal-safe" /> Mostly contained (75%+)</div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-blue-500" /> Your location</div>
+            {watchedLocations.length > 0 && <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-violet-500" /> Pinned location</div>}
+            {showShelters && <div className="flex items-center gap-1.5"><Heart className="w-3 h-3 text-signal-safe" /> Evacuation shelters</div>}
+            {showFacilities && <>
+              <div className="flex items-center gap-1.5"><span>☢</span> Nuclear facility</div>
+              <div className="flex items-center gap-1.5"><span>⚗</span> Chemical plant</div>
+              <div className="flex items-center gap-1.5"><span>⚡</span> LNG / Energy</div>
+            </>}
+            {windData && <div className="flex items-center gap-1.5"><span style={{ color: '#f97316' }}>▲</span> Fire spread direction ({Math.round(windData.speedMph)} mph wind)</div>}
+          </div>
 
           {/* Shelter panel */}
           {showShelters && (() => {

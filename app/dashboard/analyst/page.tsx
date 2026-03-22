@@ -82,39 +82,39 @@ export default function AnalystDashboard() {
   return (
     <div className="p-8 max-w-6xl mx-auto">
       <div className="mb-10">
-        <div className="flex items-center gap-2 text-blue-400 text-sm font-medium mb-3">
+        <div className="flex items-center gap-2 text-forest-600 text-sm font-medium mb-3">
           <BarChart3 className="w-4 h-4" />
           DATA ANALYST DASHBOARD
         </div>
-        <h1 className="font-display text-4xl font-bold text-white mb-3">
+        <h1 className="font-display text-4xl font-bold text-gray-900 mb-3">
           Research Overview
         </h1>
-        <p className="text-ash-400 text-lg">
-          WiDS Datathon 2025 · WatchDuty Dataset · 62,696 records · 50,664 true wildfires
+        <p className="text-gray-500 text-lg">
+          WiDS Datathon 2026 · WatchDuty Dataset · 60,000+ Wildfire Incidents
         </p>
       </div>
 
       {/* Core stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
         <div className="card p-5">
-          <div className="stat-value text-white">50,664</div>
+          <div className="stat-value">50,664</div>
           <div className="stat-label">True wildfire incidents</div>
-          <div className="text-ash-600 text-xs mt-0.5">62,696 total; 11,115 prescribed burns excluded</div>
+          <div className="text-gray-400 text-xs mt-0.5">62,696 total; 11,115 prescribed burns excluded</div>
         </div>
         <div className="card p-5">
-          <div className="stat-value text-ember-400">33,423</div>
+          <div className="stat-value text-forest-600">33,423</div>
           <div className="stat-label">Fires with signals</div>
-          <div className="text-ash-600 text-xs mt-0.5">External detection</div>
+          <div className="text-gray-400 text-xs mt-0.5">External detection</div>
         </div>
         <div className="card p-5">
           <div className="stat-value text-signal-danger">653</div>
           <div className="stat-label">With formal orders</div>
-          <div className="text-ash-600 text-xs mt-0.5">Of 33,423 signaled (99.3% gap)</div>
+          <div className="text-gray-400 text-xs mt-0.5">Of 33,423 signaled (99.3% gap)</div>
         </div>
         <div className="card p-5">
           <div className="stat-value text-signal-warn">4.1h</div>
           <div className="stat-label">Signal lead time</div>
-          <div className="text-ash-600 text-xs mt-0.5">Median: signal → order (n=242)</div>
+          <div className="text-gray-400 text-xs mt-0.5">Median: signal → order (n=242)</div>
         </div>
       </div>
 
@@ -124,15 +124,15 @@ export default function AnalystDashboard() {
           <Link
             key={href}
             href={href}
-            className="card p-6 hover:bg-ash-800 transition-all duration-200 hover:scale-[1.01] group"
+            className="card p-6 hover:bg-gray-50 transition-all duration-200 hover:scale-[1.01] group"
           >
             <div className="flex items-start justify-between mb-4">
               <Icon className={`w-6 h-6 ${color}`} />
-              <span className="text-ash-500 text-xs font-mono">{stat}</span>
+              <span className="text-gray-400 text-xs font-mono">{stat}</span>
             </div>
-            <h3 className="font-display text-xl font-bold text-white mb-2">{title}</h3>
-            <p className="text-ash-400 text-sm mb-4 leading-relaxed">{desc}</p>
-            <div className="flex items-center gap-2 text-ash-500 group-hover:text-white transition-colors text-sm">
+            <h3 className="font-display text-xl font-bold text-gray-900 mb-2">{title}</h3>
+            <p className="text-gray-500 text-sm mb-4 leading-relaxed">{desc}</p>
+            <div className="flex items-center gap-2 text-gray-400 group-hover:text-forest-600 transition-colors text-sm">
               Open analysis <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </div>
           </Link>
@@ -140,9 +140,9 @@ export default function AnalystDashboard() {
       </div>
 
       {/* Data note */}
-      <div className="mt-8 p-4 bg-ash-900/50 border border-ash-800 rounded-lg">
-        <p className="text-ash-500 text-xs">
-          <span className="text-ash-400 font-medium">Note:</span> The fire_events table contains a known duplicate upload issue (124,696 rows → deduplicated to 62,696 unique incidents). Of those, 11,115 are prescribed burns (17.7%) and 917 are location records — true wildfire count is 50,664. All analyses filter to <code className="text-ash-400">is_true_wildfire=1</code>.
+      <div className="mt-8 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+        <p className="text-gray-500 text-xs">
+          <span className="text-gray-600 font-medium">Note:</span> The fire_events table contains a known duplicate upload issue (124,696 rows → deduplicated to 62,696 unique incidents). Of those, 11,115 are prescribed burns (17.7%) and 917 are location records — true wildfire count is 50,664. All analyses filter to <code className="text-gray-600">is_true_wildfire=1</code>.
         </p>
       </div>
     </div>

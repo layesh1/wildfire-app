@@ -153,6 +153,8 @@ export default function CommandIntelPage() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), send())}
+            translate="no"
+            autoComplete="off"
           />
           <button onClick={() => send()} disabled={!input.trim() || loading}
             className="w-11 h-11 flex items-center justify-center rounded-xl bg-signal-info/20 border border-signal-info/40 text-signal-info hover:bg-signal-info/30 transition-colors disabled:opacity-40">

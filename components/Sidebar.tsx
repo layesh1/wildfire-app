@@ -3,13 +3,21 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   Flame, Shield, Heart, BarChart3, Map, AlertTriangle,
-  Users, Brain, LogOut, ChevronLeft, ChevronRight, ChevronDown,
+  Users, Brain, LogOut, ChevronDown, ChevronRight,
   Activity, TrendingUp, Bell, Settings, BarChart2, Globe,
-  ClipboardList, Thermometer, FileText, Database, Menu, X as XIcon
+  ClipboardList, Thermometer, FileText, Database, Menu, X, User
 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/components/LanguageProvider'
 import { LANGUAGES } from '@/lib/languages'
+import { cn } from '@/lib/utils'
+import {
+  Sidebar as SidebarRoot,
+  SidebarBody,
+  useSidebar,
+} from '@/components/ui/sidebar'
+import { useRoleContext } from '@/components/RoleContext'
 
 interface Props {
   user: any
@@ -18,28 +26,27 @@ interface Props {
 
 const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> = {
   emergency_responder: [
-    { label: 'Live Map', href: '/dashboard/responder', icon: Map },
-    { label: 'ICS Incident Board', href: '/dashboard/responder/ics', icon: ClipboardList },
-    { label: 'Coverage Gaps', href: '/dashboard/responder/coverage', icon: Shield },
+    { label: 'Evacuation Status Map', href: '/dashboard/responder', icon: Map },
+    { label: 'Assist Requests', href: '/dashboard/responder/coverage', icon: Shield },
     { label: 'Signal Gaps', href: '/dashboard/responder/signals', icon: AlertTriangle },
     { label: 'ML Predictor', href: '/dashboard/responder/ml', icon: Brain },
     { label: 'COMMAND-INTEL', href: '/dashboard/responder/ai', icon: Activity },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
   caregiver: [
-    { label: 'My Alerts', href: '/dashboard/caregiver', icon: Bell },
-    { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: Map },
-    { label: 'Check-In', href: '/dashboard/caregiver/checkin', icon: Users },
-    { label: 'Early Fire Alert', href: '/dashboard/caregiver/alert', icon: AlertTriangle },
+    { label: 'My Hub', href: '/dashboard/caregiver', icon: Bell },
+    { label: 'Ask FlameoAI', href: '/dashboard/caregiver/ai', icon: Activity },
     { label: 'My Persons', href: '/dashboard/caregiver/persons', icon: Users },
+    { label: 'Early Fire Alert', href: '/dashboard/caregiver/alert', icon: AlertTriangle },
+    { label: 'Check-In', href: '/dashboard/caregiver/checkin', icon: Users },
+    { label: 'Emergency Card', href: '/dashboard/caregiver/emergency-card', icon: FileText },
+    { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: Map },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
   evacuee: [
-    { label: 'My Alerts', href: '/dashboard/caregiver', icon: Bell },
+    { label: 'My Hub', href: '/dashboard/caregiver', icon: Bell },
+    { label: 'Ask FlameoAI', href: '/dashboard/caregiver/ai', icon: Activity },
     { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: Map },
-    { label: 'Check-In', href: '/dashboard/caregiver/checkin', icon: Users },
-    { label: 'Early Fire Alert', href: '/dashboard/caregiver/alert', icon: AlertTriangle },
-    { label: 'My Persons', href: '/dashboard/caregiver/persons', icon: Users },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
   data_analyst: [
@@ -67,26 +74,34 @@ const ROLE_ICONS: Record<string, any> = {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  emergency_responder: 'text-red-600 bg-red-50 border-red-200',
-  caregiver: 'text-forest-700 bg-forest-50 border-forest-200',
-  evacuee: 'text-forest-700 bg-forest-50 border-forest-200',
-  data_analyst: 'text-blue-600 bg-blue-50 border-blue-200',
+  emergency_responder: 'text-white/80 border-white/20',
+  caregiver: 'text-white/80 border-white/20',
+  evacuee: 'text-white/80 border-white/20',
+  data_analyst: 'text-white/80 border-white/20',
 }
 
-export default function Sidebar({ user, profile }: Props) {
-  const [collapsed, setCollapsed] = useState(false)
+function SidebarInner({ user, profile }: Props) {
+  const { open } = useSidebar()
   const [langOpen, setLangOpen] = useState(false)
-  const [caregiverOpen, setCaregiverOpen] = useState(true)
-  const [evacueeOpen, setEvacueeOpen] = useState(true)
+  const [personPickerOpen, setPersonPickerOpen] = useState(false)
   const langRef = useRef<HTMLDivElement>(null)
+  const personPickerRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
   const { lang, setLanguage } = useLanguage()
+  const { mode, activePerson, persons, setMode, setActivePerson } = useRoleContext()
 
-  const [claimedRoles, setClaimedRoles] = useState<string[]>([])
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (personPickerRef.current && !personPickerRef.current.contains(e.target as Node)) {
+        setPersonPickerOpen(false)
+      }
+    }
+    if (personPickerOpen) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [personPickerOpen])
 
-  // Close language dropdown on click-outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (langRef.current && !langRef.current.contains(e.target as Node)) {
@@ -97,10 +112,7 @@ export default function Sidebar({ user, profile }: Props) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [langOpen])
 
-  // Infer role from URL path; caregiver is ambiguous (it's the default) so
-  // only override localStorage for the two non-default roles.
   const storedRole = typeof window !== 'undefined' ? localStorage.getItem('wfa_active_role') : null
-
   const urlRole = pathname.startsWith('/dashboard/responder') ? 'emergency_responder'
     : pathname.startsWith('/dashboard/analyst') ? 'data_analyst'
     : pathname.startsWith('/dashboard/caregiver') ? 'caregiver'
@@ -109,301 +121,290 @@ export default function Sidebar({ user, profile }: Props) {
     localStorage.setItem('wfa_active_role', urlRole)
   }
 
-  // Priority: explicit non-caregiver URL > localStorage (persisted claimed role) > DB role > default
   const role = urlRole || storedRole || profile?.role || 'caregiver'
   const nav = NAV_BY_ROLE[role] || NAV_BY_ROLE.caregiver
   const RoleIcon = ROLE_ICONS[role] || Heart
-
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('wfa_roles')
-      const localRoles: string[] = stored ? JSON.parse(stored) : []
-      const serverRoles: string[] = Array.isArray(profile?.roles) && profile.roles.length > 0
-        ? profile.roles
-        : profile?.role ? [profile.role] : []
-      const merged = [...new Set([...serverRoles, ...localRoles])].filter(r =>
-        ['emergency_responder', 'caregiver', 'evacuee', 'data_analyst'].includes(r)
-      )
-      setClaimedRoles(merged.length > 0 ? merged : [role])
-    } catch {
-      setClaimedRoles([role])
-    }
-  }, []) // eslint-disable-line
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     router.push('/')
   }
 
+  const collapsed = !open
+
   return (
-    <aside className={`
-      relative flex flex-col bg-white border-r border-gray-200
-      transition-all duration-300 shrink-0 h-screen sticky top-0 overflow-y-auto
-      ${collapsed ? 'w-16' : 'w-60'}
-    `}>
-      {/* Logo + Toggle in same row */}
-      <div className={`flex items-center border-b border-gray-100 ${collapsed ? 'justify-center p-3' : 'p-4 gap-3'}`}>
-        {!collapsed && (
-          <>
-            <div className="w-8 h-8 rounded-lg bg-forest-50 border border-forest-200 flex items-center justify-center shrink-0">
-              <Flame className="w-4 h-4 text-forest-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-display font-bold text-gray-900 text-sm leading-none">Minutes Matter</div>
-              <div className="text-gray-400 text-xs">v2.0</div>
-            </div>
-            <button
-              onClick={() => setCollapsed(true)}
-              className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors shrink-0"
-              title="Collapse sidebar"
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Logo */}
+      <div className={cn('flex items-center pb-4 border-b border-white/10', collapsed ? 'justify-center' : '')}>
+        <AnimatePresence>
+          {open ? (
+            <motion.div
+              key="expanded"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="overflow-hidden"
             >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-          </>
-        )}
-        {collapsed && (
-          <button
-            onClick={() => setCollapsed(false)}
-            className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
-            title="Expand sidebar"
+              <div className="font-display font-bold text-white text-xl leading-none whitespace-nowrap">Minutes Matter</div>
+              <div className="text-white/40 text-xs mt-0.5">v2.0</div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="collapsed"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)' }}
+            >
+              <Flame className="w-4 h-4" style={{ color: '#d4a574' }} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Role mode toggle — caregiver pages only */}
+      <AnimatePresence>
+        {open && role === 'caregiver' && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.15 }}
+            className="py-3 border-b border-white/10 overflow-hidden"
           >
-            <Menu className="w-4 h-4" />
-          </button>
+            {/* Pill toggle */}
+            <div className="flex rounded-lg overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}>
+              <button
+                onClick={() => { setMode('self'); setPersonPickerOpen(false) }}
+                className={cn('flex-1 text-[11px] font-semibold py-1.5 transition-all', mode === 'self' ? 'text-white' : 'text-white/40 hover:text-white/70')}
+                style={mode === 'self' ? { background: 'rgba(124,179,66,0.35)' } : {}}
+              >
+                My Safety
+              </button>
+              <button
+                onClick={() => {
+                  if (persons.length === 0) { setMode('caregiver'); return }
+                  setPersonPickerOpen(v => !v)
+                }}
+                className={cn('flex-1 text-[11px] font-semibold py-1.5 transition-all flex items-center justify-center gap-1', mode === 'caregiver' ? 'text-white' : 'text-white/40 hover:text-white/70')}
+                style={mode === 'caregiver' ? { background: 'rgba(200,100,50,0.35)' } : {}}
+              >
+                <span className="truncate">{mode === 'caregiver' && activePerson ? activePerson.name.split(' ')[0] : 'Caring For'}</span>
+                <ChevronDown className="w-3 h-3 shrink-0" />
+              </button>
+            </div>
+
+            {/* Person picker dropdown */}
+            {personPickerOpen && (
+              <div ref={personPickerRef} className="mt-2 rounded-xl overflow-hidden shadow-lg" style={{ background: '#2a1810', border: '1px solid rgba(255,255,255,0.12)' }}>
+                {persons.length === 0 ? (
+                  <button
+                    onClick={() => { router.push('/dashboard/caregiver/persons'); setPersonPickerOpen(false) }}
+                    className="w-full text-left px-3 py-2.5 text-xs text-white/50 hover:text-white hover:bg-white/5 transition-colors"
+                  >
+                    + Add someone to care for
+                  </button>
+                ) : (
+                  persons.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => { setActivePerson(p); setPersonPickerOpen(false) }}
+                      className={cn('w-full text-left px-3 py-2.5 text-xs transition-colors flex items-center gap-2', activePerson?.id === p.id ? 'text-white bg-white/10' : 'text-white/60 hover:text-white hover:bg-white/5')}
+                    >
+                      <User className="w-3 h-3 shrink-0 text-white/40" />
+                      <span className="truncate">{p.name}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Active person label */}
+            {mode === 'caregiver' && activePerson && !personPickerOpen && (
+              <div className="mt-2 px-2.5 py-1.5 rounded-lg text-[11px] text-white/60 flex items-center gap-1.5" style={{ background: 'rgba(200,100,50,0.12)' }}>
+                <User className="w-3 h-3 text-white/40 shrink-0" />
+                <span className="truncate">For: {activePerson.name}</span>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Role badge */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.15 }}
+            className="py-3 border-b border-white/10 overflow-hidden"
+          >
+            <div className={cn('flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border', ROLE_COLORS[role])} style={{ background: 'rgba(255,255,255,0.08)' }}>
+              <RoleIcon className="w-3.5 h-3.5" />
+              <span className="font-medium capitalize whitespace-nowrap">{role.replace('_', ' ')}</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Nav */}
+      <nav className="flex-1 py-3 space-y-0.5 overflow-y-auto overflow-x-hidden">
+        {nav.map(({ label, href, icon: Icon }) => {
+          const active = pathname === href || (href !== '/dashboard/caregiver' && pathname.startsWith(href + '/'))
+          const dest = href === '/dashboard/settings' ? `/dashboard/settings?role=${role}` : href
+          return (
+            <button
+              key={href}
+              onClick={() => router.push(dest)}
+              title={collapsed ? label : undefined}
+              className={cn(
+                'w-full flex items-center gap-3 px-2 py-2.5 rounded-lg transition-all duration-150 text-left',
+                active
+                  ? 'border-l-2 border-[#c86432] font-medium'
+                  : 'hover:bg-white/10',
+                collapsed ? 'justify-center' : ''
+              )}
+              style={{ color: active ? '#d4a574' : 'rgba(255,255,255,0.55)' }}
+            >
+              <Icon className="w-4 h-4 shrink-0" />
+              <AnimatePresence>
+                {open && (
+                  <motion.span
+                    initial={{ opacity: 0, width: 0 }}
+                    animate={{ opacity: 1, width: 'auto' }}
+                    exit={{ opacity: 0, width: 0 }}
+                    transition={{ duration: 0.12 }}
+                    className="text-sm whitespace-nowrap overflow-hidden"
+                  >
+                    {label}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </button>
+          )
+        })}
+      </nav>
+
+      {/* Language switcher */}
+      <div ref={langRef} className="relative border-t border-white/10 pt-1 pb-1">
+        <button
+          onClick={() => setLangOpen(v => !v)}
+          title={collapsed ? `Language: ${lang.name}` : undefined}
+          className={cn(
+            'flex items-center gap-2 transition-colors px-2 py-2 rounded-lg hover:bg-white/10 w-full',
+            collapsed ? 'justify-center' : ''
+          )}
+          style={{ color: 'rgba(255,255,255,0.5)' }}
+        >
+          <Globe className="w-4 h-4 shrink-0" />
+          <AnimatePresence>
+            {open && (
+              <motion.span
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.12 }}
+                className="text-sm flex-1 text-left overflow-hidden whitespace-nowrap"
+              >
+                {lang.flag} <span className="uppercase text-xs font-medium">{lang.code.split('-')[0]}</span>
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </button>
+
+        {langOpen && (
+          <div
+            className={cn(
+              'absolute rounded-xl shadow-xl overflow-hidden z-50',
+              'bottom-full mb-1 left-0',
+            )}
+            style={{ width: open ? undefined : '240px', right: open ? 0 : undefined, background: '#2a1810', border: '1px solid rgba(255,255,255,0.12)' }}
+          >
+            <div className="px-3 py-2 border-b border-white/10">
+              <p className="text-white/40 text-xs font-medium uppercase tracking-wide">Language</p>
+            </div>
+            <div className="overflow-y-auto p-2" style={{ maxHeight: '240px' }}>
+              <div className="grid grid-cols-2 gap-1">
+                {LANGUAGES.map(l => (
+                  <button
+                    key={l.code}
+                    onClick={() => { setLanguage(l.code); setLangOpen(false) }}
+                    className={cn(
+                      'text-xs px-2 py-1.5 rounded-lg text-left flex items-center gap-1.5 transition-colors',
+                      l.code === lang.code
+                        ? 'border border-[#c86432]/50 text-[#d4a574]'
+                        : 'border border-transparent text-white/50 hover:text-white hover:bg-white/10'
+                    )}
+                    style={l.code === lang.code ? { background: 'rgba(200,100,50,0.2)' } : undefined}
+                  >
+                    <span className="text-sm leading-none">{l.flag}</span>
+                    <span className="truncate">{l.native}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Role badge */}
-      {!collapsed && (
-        <div className="px-4 py-3 border-b border-gray-100">
-          <div className={`flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border ${ROLE_COLORS[role]}`}>
-            <RoleIcon className="w-3.5 h-3.5" />
-            <span className="font-medium capitalize">{role.replace('_', ' ')}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Dashboard switcher — always visible */}
-      {!collapsed && (
-        <div className="px-3 py-2 border-b border-gray-100">
-          <p className="text-gray-400 text-xs uppercase tracking-wider mb-1.5">My Dashboards</p>
-          {[
-            { r: 'caregiver', label: 'Caregiver', dest: '/dashboard/caregiver', Icon: Heart },
-            { r: 'emergency_responder', label: 'Responder', dest: '/dashboard/responder', Icon: Shield },
-            { r: 'data_analyst', label: 'Data Analyst', dest: '/dashboard/analyst', Icon: BarChart3 },
-          ].map(({ r, label, dest, Icon }) => {
-            const isActive = r === role
-            const isClaimed = claimedRoles.includes(r)
-            return (
-              <button
-                key={r}
-                onClick={() => {
-                  if (isClaimed) {
-                    if (r === 'caregiver' || r === 'emergency_responder') {
-                      if (typeof navigator !== 'undefined' && navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition(() => {}, () => {})
-                      }
-                    }
-                    router.push(dest)
-                  } else {
-                    router.push(`/auth/add-role?role=${r}`)
-                  }
-                }}
-                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors mb-0.5 ${
-                  isActive
-                    ? 'bg-forest-50 text-forest-700 border border-forest-200'
-                    : isClaimed
-                      ? 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-                }`}
-                title={!isClaimed ? `Add ${label} access` : undefined}
-              >
-                <Icon className="w-3.5 h-3.5 shrink-0" />
-                <span className="flex-1 text-left">{label}</span>
-                {isActive && <span className="w-1.5 h-1.5 rounded-full bg-forest-600" />}
-                {!isClaimed && <span className="text-gray-400 text-xs">+</span>}
-              </button>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Nav */}
-      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {(role === 'caregiver' || role === 'evacuee') ? (
-          <>
-            {/* Caregiver section */}
-            <button
-              onClick={() => !collapsed && setCaregiverOpen(v => !v)}
-              className={`w-full flex items-center gap-1 px-2 py-1.5 text-left group ${collapsed ? 'justify-center' : ''}`}
-              title={collapsed ? 'Caregiver' : undefined}
-            >
-              {!collapsed && (
-                <>
-                  <Heart className="w-3 h-3 text-gray-400 shrink-0" />
-                  <span className="text-gray-400 text-xs font-semibold uppercase tracking-wider flex-1">Caregiver</span>
-                  {caregiverOpen ? <ChevronDown className="w-3 h-3 text-gray-400" /> : <ChevronRight className="w-3 h-3 text-gray-400" />}
-                </>
-              )}
-              {collapsed && <Heart className="w-3 h-3 text-gray-400" />}
-            </button>
-            {(caregiverOpen || collapsed) && [
-              { label: 'My Persons', href: '/dashboard/caregiver/persons', icon: Users },
-              { label: 'Early Fire Alert', href: '/dashboard/caregiver/alert', icon: AlertTriangle },
-              { label: 'Check-In', href: '/dashboard/caregiver/checkin', icon: Users },
-              { label: 'Emergency Card', href: '/dashboard/caregiver/emergency-card', icon: FileText },
-            ].map(({ label, href, icon: Icon }) => {
-              const active = pathname === href || pathname.startsWith(href + '/')
-              return (
-                <button key={href} onClick={() => router.push(href)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left ${active ? 'bg-forest-50 text-forest-700 border-l-2 border-forest-500 font-medium' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'} ${collapsed ? 'justify-center' : ''}`}
-                  title={collapsed ? label : undefined}
-                >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  {!collapsed && <span className="text-sm">{label}</span>}
-                </button>
-              )
-            })}
-
-            <div className="my-2 border-t border-gray-100" />
-
-            {/* Evacuee section */}
-            <button
-              onClick={() => !collapsed && setEvacueeOpen(v => !v)}
-              className={`w-full flex items-center gap-1 px-2 py-1.5 text-left group ${collapsed ? 'justify-center' : ''}`}
-              title={collapsed ? 'Evacuee' : undefined}
-            >
-              {!collapsed && (
-                <>
-                  <Shield className="w-3 h-3 text-gray-400 shrink-0" />
-                  <span className="text-gray-400 text-xs font-semibold uppercase tracking-wider flex-1">Evacuee</span>
-                  {evacueeOpen ? <ChevronDown className="w-3 h-3 text-gray-400" /> : <ChevronRight className="w-3 h-3 text-gray-400" />}
-                </>
-              )}
-              {collapsed && <Shield className="w-3 h-3 text-gray-400" />}
-            </button>
-            {(evacueeOpen || collapsed) && [
-              { label: 'My Alerts', href: '/dashboard/caregiver', icon: Bell },
-              { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: Map },
-              { label: 'Ask SAFE-PATH AI', href: '/dashboard/caregiver/ai', icon: Activity },
-            ].map(({ label, href, icon: Icon }) => {
-              const active = pathname === href
-              return (
-                <button key={href} onClick={() => router.push(href)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left ${active ? 'bg-forest-50 text-forest-700 border-l-2 border-forest-500 font-medium' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'} ${collapsed ? 'justify-center' : ''}`}
-                  title={collapsed ? label : undefined}
-                >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  {!collapsed && <span className="text-sm">{label}</span>}
-                </button>
-              )
-            })}
-
-            <div className="my-2 border-t border-gray-100" />
-            {/* Settings */}
-            {[{ label: 'Settings', href: '/dashboard/settings', icon: Settings }].map(({ label, href, icon: Icon }) => {
-              const active = pathname === href || pathname.startsWith(href + '/')
-              return (
-                <button key={href} onClick={() => router.push(`/dashboard/settings?role=${role}`)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left ${active ? 'bg-forest-50 text-forest-700 border-l-2 border-forest-500 font-medium' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'} ${collapsed ? 'justify-center' : ''}`}
-                  title={collapsed ? label : undefined}
-                >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  {!collapsed && <span className="text-sm">{label}</span>}
-                </button>
-              )
-            })}
-          </>
-        ) : (
-          nav.map(({ label, href, icon: Icon }) => {
-            const active = pathname === href || pathname.startsWith(href + '/')
-            return (
-              <button
-                key={href}
-                onClick={() => router.push(href === '/dashboard/settings' ? `/dashboard/settings?role=${role}` : href)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left
-                  ${active
-                    ? 'bg-forest-50 text-forest-700 border-l-2 border-forest-500 font-medium'
-                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-                  }
-                  ${collapsed ? 'justify-center' : ''}
-                `}
-                title={collapsed ? label : undefined}
-              >
-                <Icon className="w-4 h-4 shrink-0" />
-                {!collapsed && <span className="text-sm">{label}</span>}
-              </button>
-            )
-          })
-        )}
-      </nav>
-
       {/* User + signout */}
-      <div className={`p-3 border-t border-gray-100 ${collapsed ? 'flex flex-col items-center gap-1' : ''}`}>
-        {!collapsed && (
-          <div className="px-3 py-2 mb-1">
-            <div className="text-gray-900 text-sm font-medium truncate">
-              {profile?.full_name || user?.email?.split('@')[0]}
-            </div>
-            <div className="text-gray-400 text-xs truncate">{user?.email}</div>
-          </div>
-        )}
-
-        {/* Language switcher */}
-        <div ref={langRef} className="relative">
-          <button
-            onClick={() => setLangOpen(v => !v)}
-            className={`flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-colors px-3 py-2 rounded-lg hover:bg-gray-100 w-full
-              ${collapsed ? 'justify-center' : ''}
-            `}
-            title={collapsed ? `Language: ${lang.name}` : undefined}
-          >
-            <Globe className="w-4 h-4 shrink-0" />
-            {!collapsed && (
-              <span className="text-sm flex-1 text-left">
-                {lang.flag} <span className="uppercase text-xs font-medium">{lang.code.split('-')[0]}</span>
-              </span>
-            )}
-          </button>
-
-          {langOpen && (
-            <div className={`absolute ${collapsed ? 'left-full ml-2 bottom-0' : 'bottom-full mb-1 left-0 right-0'} bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden z-50`}
-              style={{ width: collapsed ? '240px' : undefined }}>
-              <div className="px-3 py-2 border-b border-gray-100">
-                <p className="text-gray-400 text-xs font-medium uppercase tracking-wide">Language</p>
+      <div className={cn('pb-3 border-t border-white/10', collapsed ? 'flex flex-col items-center gap-1' : '')}>
+        <AnimatePresence>
+          {open && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.12 }}
+              className="px-2 py-2 mb-1 overflow-hidden"
+            >
+              <div className="text-white text-sm font-medium truncate">
+                {profile?.full_name || user?.email?.split('@')[0]}
               </div>
-              <div className="overflow-y-auto p-2" style={{ maxHeight: '240px' }}>
-                <div className="grid grid-cols-2 gap-1">
-                  {LANGUAGES.map(l => (
-                    <button
-                      key={l.code}
-                      onClick={() => { setLanguage(l.code); setLangOpen(false) }}
-                      className={`text-xs px-2 py-1.5 rounded-lg text-left flex items-center gap-1.5 transition-colors
-                        ${l.code === lang.code
-                          ? 'border border-forest-300 bg-forest-50 text-forest-700'
-                          : 'border border-transparent hover:bg-gray-50 text-gray-600 hover:text-gray-900'
-                        }`}
-                    >
-                      <span className="text-sm leading-none">{l.flag}</span>
-                      <span className="truncate">{l.native}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+              <div className="text-white/40 text-xs truncate">{user?.email}</div>
+            </motion.div>
           )}
-        </div>
+        </AnimatePresence>
 
         <button
           onClick={handleSignOut}
-          className={`flex items-center gap-2 text-gray-400 hover:text-red-500 transition-colors px-3 py-2 rounded-lg hover:bg-red-50 w-full
-            ${collapsed ? 'justify-center' : ''}
-          `}
           title={collapsed ? 'Sign out' : undefined}
+          className={cn(
+            'flex items-center gap-2 transition-colors px-2 py-2 rounded-lg hover:bg-white/10 w-full',
+            collapsed ? 'justify-center' : ''
+          )}
+          style={{ color: 'rgba(255,255,255,0.4)' }}
         >
           <LogOut className="w-4 h-4 shrink-0" />
-          {!collapsed && <span className="text-sm">Sign out</span>}
+          <AnimatePresence>
+            {open && (
+              <motion.span
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ duration: 0.12 }}
+                className="text-sm overflow-hidden whitespace-nowrap"
+              >
+                Sign out
+              </motion.span>
+            )}
+          </AnimatePresence>
         </button>
       </div>
-    </aside>
+    </div>
+  )
+}
+
+export default function Sidebar({ user, profile }: Props) {
+  return (
+    <SidebarRoot animate>
+      <SidebarBody className="h-screen sticky top-0 justify-between gap-0 py-4 px-3">
+        <SidebarInner user={user} profile={profile} />
+      </SidebarBody>
+    </SidebarRoot>
   )
 }

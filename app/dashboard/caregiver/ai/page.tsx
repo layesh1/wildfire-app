@@ -1,6 +1,8 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import { Brain, Send, AlertTriangle, User, Loader } from 'lucide-react'
+import { User, Loader, Sparkles } from 'lucide-react'
+import { AIChatInput } from '@/components/ui/ai-chat-input'
+import { motion } from 'framer-motion'
 
 function renderMarkdown(text: string) {
   const lines = text.split('\n')
@@ -9,9 +11,9 @@ function renderMarkdown(text: string) {
   while (i < lines.length) {
     const line = lines[i]
     if (line.startsWith('### ')) {
-      elements.push(<p key={i} className="font-semibold text-white mt-2 mb-1">{inlineMarkdown(line.slice(4))}</p>)
+      elements.push(<p key={i} className="font-semibold text-gray-800 mt-2 mb-1">{inlineMarkdown(line.slice(4))}</p>)
     } else if (line.startsWith('## ')) {
-      elements.push(<p key={i} className="font-bold text-white mt-2 mb-1">{inlineMarkdown(line.slice(3))}</p>)
+      elements.push(<p key={i} className="font-bold text-gray-800 mt-2 mb-1">{inlineMarkdown(line.slice(3))}</p>)
     } else if (line.match(/^[-*] /)) {
       const items: string[] = []
       while (i < lines.length && lines[i].match(/^[-*] /)) {
@@ -20,7 +22,7 @@ function renderMarkdown(text: string) {
       }
       elements.push(
         <ul key={`ul-${i}`} className="list-disc list-inside space-y-0.5 my-1 pl-1">
-          {items.map((item, j) => <li key={j} className="text-ash-200">{inlineMarkdown(item)}</li>)}
+          {items.map((item, j) => <li key={j} className="text-gray-600">{inlineMarkdown(item)}</li>)}
         </ul>
       )
       continue
@@ -37,7 +39,7 @@ function renderMarkdown(text: string) {
 function inlineMarkdown(text: string): React.ReactNode {
   const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g)
   return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) return <strong key={i} className="font-semibold text-white">{part.slice(2, -2)}</strong>
+    if (part.startsWith('**') && part.endsWith('**')) return <strong key={i} className="font-semibold text-gray-800">{part.slice(2, -2)}</strong>
     if (part.startsWith('*') && part.endsWith('*')) return <em key={i}>{part.slice(1, -1)}</em>
     return part
   })
@@ -47,6 +49,17 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
 }
+
+// First placeholder = Flameo greeting; rest cycle through helpful prompts
+const FLAMEO_PLACEHOLDERS = [
+  "Hi, I'm Flameo! Ask me anything about wildfire safety...",
+  'What should I pack in my go-bag?',
+  'How early should I evacuate before an order?',
+  'What signals should I watch for before an alert?',
+  'Where can I find accessible evacuation shelters?',
+  'How do I create an emergency plan for my family?',
+  'What do I do if I have mobility needs during evacuation?',
+]
 
 const STARTER_PROMPTS = [
   'What should I do if I need to evacuate with mobility needs?',
@@ -59,25 +72,23 @@ export default function SafePathAIPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content:
-        "Hello, I'm SAFE-PATH — your evacuation guide. I'm here to help you prepare, evacuate safely, and find resources. Ask me anything about wildfire safety, evacuation steps, or finding shelter.\n\nStay safe. What can I help you with?",
+      content: "Hello, I'm Flameo — your wildfire evacuation guide. I monitor all signal channels so you don't have to wait for an official order that may never come.\n\nAsk me anything about wildfire safety, evacuation steps, go-bag packing, or finding shelter.",
     },
   ])
-  const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const hasMessages = messages.length > 1
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  async function sendMessage(text?: string) {
-    const userText = (text ?? input).trim()
+  async function sendMessage(text: string) {
+    const userText = text.trim()
     if (!userText || loading) return
 
     const next: Message[] = [...messages, { role: 'user', content: userText }]
     setMessages(next)
-    setInput('')
     setLoading(true)
 
     try {
@@ -85,133 +96,133 @@ export default function SafePathAIPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          persona: 'SAFE-PATH',
+          persona: 'FLAMEO',
           messages: next.map(m => ({ role: m.role, content: m.content })),
         }),
       })
       const data = await res.json()
-      const reply: Message = {
+      setMessages(prev => [...prev, {
         role: 'assistant',
         content: data.content || 'Sorry, I encountered an error. Please try again.',
-      }
-      setMessages(prev => [...prev, reply])
+      }])
     } catch {
-      setMessages(prev => [
-        ...prev,
-        { role: 'assistant', content: 'Connection error. Please check your connection and try again.' },
-      ])
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Connection error. Please check your connection and try again.',
+      }])
     } finally {
       setLoading(false)
     }
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
-    }
-  }
-
   return (
-    <div className="flex flex-col h-screen p-6 max-w-4xl mx-auto">
+    <div className="flex flex-col h-screen">
       {/* Header */}
-      <div className="mb-5 shrink-0">
-        <div className="flex items-center gap-2 text-amber-400 text-sm font-medium mb-3">
-          <Brain className="w-4 h-4" />
-          CAREGIVER · SAFE-PATH AI
+      <div className="shrink-0 px-6 sm:px-8 pt-8 pb-5 border-b border-gray-200 bg-white">
+        <div className="flex items-center gap-2 text-forest-600 text-sm font-medium mb-3">
+          <img src="/flameo1.png" alt="Flameo" className="w-4 h-4 object-contain" />
+          CAREGIVER · FLAMEO AI
         </div>
-        <h1 className="font-display text-3xl font-bold text-white mb-2">SAFE-PATH</h1>
-        <p className="text-ash-400 text-sm">
-          AI-powered evacuation guidance for caregivers, evacuees, and people with access and functional needs.
+        <h1 className="font-display text-3xl font-bold text-gray-900 mb-1">Ask FlameoAI</h1>
+        <p className="text-gray-500 text-sm">
+          AI-powered evacuation guidance. Monitors all signal channels — not just official orders.
         </p>
       </div>
 
-      {/* Research banner */}
-      <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 mb-5 shrink-0">
-        <div className="flex items-start gap-3">
-          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-          <p className="text-ash-400 text-xs leading-relaxed">
-            SAFE-PATH is trained on WiDS wildfire research: 99.3% of true wildfires with signals received no formal order.
-            High-SVI communities are less likely to receive any order at all. It advises on all signal types — not only official orders.
-          </p>
-        </div>
-      </div>
+      {/* Empty state */}
+      {!hasMessages && (
+        <div className="flex flex-col items-center justify-center flex-1 px-6 pb-8 text-center">
+          <div className="relative mb-6">
+            <div className="w-20 h-20 rounded-full bg-forest-50 border-2 border-forest-200 flex items-center justify-center shadow-lg overflow-hidden">
+              <img src="/flameo1.png" alt="Flameo" className="w-14 h-14 object-contain" />
+            </div>
+            <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-amber-400 border-2 border-white flex items-center justify-center">
+              <Sparkles className="w-3 h-3 text-white" />
+            </div>
+          </div>
 
-      {/* Starter prompts */}
-      {messages.length === 1 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5 shrink-0">
-          {STARTER_PROMPTS.map(prompt => (
-            <button
-              key={prompt}
-              onClick={() => sendMessage(prompt)}
-              className="text-left text-xs p-3 rounded-lg bg-ash-900 border border-ash-800 text-ash-400 hover:text-white hover:border-ash-600 transition-all"
-            >
-              {prompt}
-            </button>
-          ))}
+          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-4 py-1.5 mb-8">
+            Supplements — does not replace — official emergency directives. Always follow local authorities.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-xl mb-10">
+            {STARTER_PROMPTS.map(prompt => (
+              <button
+                key={prompt}
+                onClick={() => sendMessage(prompt)}
+                className="text-left text-xs p-3.5 rounded-xl bg-gray-50 border border-gray-200 text-gray-600 hover:border-forest-300 hover:bg-forest-50 hover:text-forest-700 transition-all"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+
+          <div className="w-full max-w-2xl">
+            <AIChatInput
+              placeholders={FLAMEO_PLACEHOLDERS}
+              onSubmit={sendMessage}
+              disabled={loading}
+            />
+          </div>
         </div>
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-4 mb-4 min-h-0">
-        {messages.map((msg, i) => (
-          <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            {msg.role === 'assistant' && (
-              <div className="w-7 h-7 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0 mt-0.5">
-                <Brain className="w-3.5 h-3.5 text-amber-400" />
+      {hasMessages && (
+        <>
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4 min-h-0">
+            {messages.map((msg, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+                className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                {msg.role === 'assistant' && (
+                  <div className="w-7 h-7 rounded-full bg-forest-50 border border-forest-200 flex items-center justify-center shrink-0 mt-0.5 overflow-hidden">
+                    <img src="/flameo1.png" alt="Flameo" className="w-5 h-5 object-contain" />
+                  </div>
+                )}
+                <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                  msg.role === 'user'
+                    ? 'bg-forest-600 text-white rounded-tr-none'
+                    : 'bg-white border border-gray-200 text-gray-700 rounded-tl-none shadow-sm'
+                }`}>
+                  {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
+                </div>
+                {msg.role === 'user' && (
+                  <div className="w-7 h-7 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0 mt-0.5">
+                    <User className="w-3.5 h-3.5 text-gray-500" />
+                  </div>
+                )}
+              </motion.div>
+            ))}
+            {loading && (
+              <div className="flex gap-3 justify-start">
+                <div className="w-7 h-7 rounded-full bg-forest-50 border border-forest-200 flex items-center justify-center shrink-0 overflow-hidden">
+                  <img src="/flameo1.png" alt="Flameo" className="w-5 h-5 object-contain" />
+                </div>
+                <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">
+                  <Loader className="w-4 h-4 text-gray-400 animate-spin" />
+                </div>
               </div>
             )}
-            <div
-              className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-                msg.role === 'user'
-                  ? 'bg-ash-800 text-white rounded-tr-none'
-                  : 'bg-ash-900 border border-ash-800 text-ash-200 rounded-tl-none'
-              }`}
-            >
-              {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
-            </div>
-            {msg.role === 'user' && (
-              <div className="w-7 h-7 rounded-full bg-ash-800 border border-ash-700 flex items-center justify-center shrink-0 mt-0.5">
-                <User className="w-3.5 h-3.5 text-ash-400" />
-              </div>
-            )}
+            <div ref={bottomRef} />
           </div>
-        ))}
-        {loading && (
-          <div className="flex gap-3 justify-start">
-            <div className="w-7 h-7 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center shrink-0">
-              <Brain className="w-3.5 h-3.5 text-amber-400" />
-            </div>
-            <div className="bg-ash-900 border border-ash-800 rounded-2xl rounded-tl-none px-4 py-3">
-              <Loader className="w-4 h-4 text-ash-500 animate-spin" />
-            </div>
-          </div>
-        )}
-        <div ref={bottomRef} />
-      </div>
 
-      {/* Input */}
-      <div className="shrink-0">
-        <div className="flex gap-3 items-end bg-ash-900 border border-ash-700 rounded-2xl p-3 focus-within:border-ash-500 transition-colors">
-          <textarea
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask SAFE-PATH a question…"
-            rows={1}
-            className="flex-1 bg-transparent text-white placeholder-ash-600 text-sm resize-none focus:outline-none"
-            style={{ minHeight: 24, maxHeight: 120, overflowY: 'auto' }}
-          />
-          <button
-            onClick={() => sendMessage()}
-            disabled={!input.trim() || loading}
-            className="w-8 h-8 rounded-xl bg-ember-500 hover:bg-ember-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all shrink-0"
-          >
-            <Send className="w-4 h-4 text-white" />
-          </button>
-        </div>
-        <p className="mt-2 text-center text-ash-600 text-xs">Enter to send · Shift+Enter for new line</p>
-      </div>
+          <div className="shrink-0 px-4 sm:px-6 pb-6 pt-3 border-t border-gray-100 bg-white">
+            <AIChatInput
+              placeholders={FLAMEO_PLACEHOLDERS}
+              onSubmit={sendMessage}
+              disabled={loading}
+            />
+            <p className="mt-2 text-center text-gray-400 text-xs">
+              Flameo supplements — does not replace — official emergency directives. Call 911 in emergencies.
+            </p>
+          </div>
+        </>
+      )}
     </div>
   )
 }
