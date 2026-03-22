@@ -3,7 +3,7 @@ import { useEffect, useState, Suspense, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
 import { MapPin, AlertTriangle, CheckCircle, Navigation, ExternalLink, ChevronRight, Flame, RefreshCw, Heart } from 'lucide-react'
-import type { NifcFire, EvacShelter } from './LeafletMap'
+import type { NifcFire, EvacShelter, HazardSite } from './LeafletMap'
 
 const EVAC_SHELTERS: EvacShelter[] = [
   // California
@@ -101,6 +101,83 @@ const EVAC_SHELTERS: EvacShelter[] = [
   { id: 81, name: 'Houston SPCA', lat: 29.7365, lng: -95.4246, type: 'animal', county: 'Harris, TX', capacity: 250 },
   { id: 82, name: 'Denver Dumb Friends League', lat: 39.6914, lng: -104.9903, type: 'animal', county: 'Denver, CO', capacity: 180 },
   { id: 83, name: 'Washington Humane Society', lat: 38.9072, lng: -77.0369, type: 'animal', county: 'DC', capacity: 150 },
+]
+
+// US Nuclear power plants + major Superfund sites (nationwide)
+const HAZARD_SITES: HazardSite[] = [
+  // Nuclear plants — operating, by state
+  { id: 1,  name: 'Palo Verde Nuclear (AZ)',        lat: 33.3881, lng: -112.8623, type: 'nuclear', state: 'AZ' },
+  { id: 2,  name: 'San Onofre (CA) — decommissioned', lat: 33.3680, lng: -117.5584, type: 'nuclear', state: 'CA' },
+  { id: 3,  name: 'Diablo Canyon Nuclear (CA)',     lat: 35.2107, lng: -120.8562, type: 'nuclear', state: 'CA' },
+  { id: 4,  name: 'Comanche Peak Nuclear (TX)',     lat: 32.2994, lng: -97.7851,  type: 'nuclear', state: 'TX' },
+  { id: 5,  name: 'South Texas Project (TX)',       lat: 28.7957, lng: -96.0494,  type: 'nuclear', state: 'TX' },
+  { id: 6,  name: 'Callaway Nuclear (MO)',          lat: 38.7669, lng: -91.7831,  type: 'nuclear', state: 'MO' },
+  { id: 7,  name: 'Wolf Creek Nuclear (KS)',        lat: 38.2369, lng: -95.6894,  type: 'nuclear', state: 'KS' },
+  { id: 8,  name: 'Prairie Island Nuclear (MN)',    lat: 44.6157, lng: -92.6344,  type: 'nuclear', state: 'MN' },
+  { id: 9,  name: 'Monticello Nuclear (MN)',        lat: 45.3294, lng: -93.8478,  type: 'nuclear', state: 'MN' },
+  { id: 10, name: 'Quad Cities Nuclear (IL)',       lat: 41.7028, lng: -90.3322,  type: 'nuclear', state: 'IL' },
+  { id: 11, name: 'Byron Nuclear (IL)',             lat: 42.0761, lng: -89.2789,  type: 'nuclear', state: 'IL' },
+  { id: 12, name: 'Braidwood Nuclear (IL)',         lat: 41.2378, lng: -88.2306,  type: 'nuclear', state: 'IL' },
+  { id: 13, name: 'Clinton Nuclear (IL)',           lat: 40.1589, lng: -88.8403,  type: 'nuclear', state: 'IL' },
+  { id: 14, name: 'Dresden Nuclear (IL)',           lat: 41.3906, lng: -88.2592,  type: 'nuclear', state: 'IL' },
+  { id: 15, name: 'Davis-Besse Nuclear (OH)',       lat: 41.5969, lng: -83.0858,  type: 'nuclear', state: 'OH' },
+  { id: 16, name: 'Perry Nuclear (OH)',             lat: 41.8022, lng: -81.1436,  type: 'nuclear', state: 'OH' },
+  { id: 17, name: 'Beaver Valley Nuclear (PA)',     lat: 40.6228, lng: -80.4322,  type: 'nuclear', state: 'PA' },
+  { id: 18, name: 'Three Mile Island (PA)',         lat: 40.1533, lng: -76.7256,  type: 'nuclear', state: 'PA' },
+  { id: 19, name: 'Limerick Nuclear (PA)',          lat: 40.2233, lng: -75.5892,  type: 'nuclear', state: 'PA' },
+  { id: 20, name: 'Peach Bottom Nuclear (PA)',      lat: 39.7594, lng: -76.2689,  type: 'nuclear', state: 'PA' },
+  { id: 21, name: 'Susquehanna Nuclear (PA)',       lat: 41.0944, lng: -76.1528,  type: 'nuclear', state: 'PA' },
+  { id: 22, name: 'Hope Creek Nuclear (NJ)',        lat: 39.4614, lng: -75.5353,  type: 'nuclear', state: 'NJ' },
+  { id: 23, name: 'Oyster Creek Nuclear (NJ)',      lat: 39.8219, lng: -74.2011,  type: 'nuclear', state: 'NJ' },
+  { id: 24, name: 'Indian Point Nuclear (NY)',      lat: 41.2697, lng: -73.9522,  type: 'nuclear', state: 'NY' },
+  { id: 25, name: 'FitzPatrick Nuclear (NY)',       lat: 43.5178, lng: -76.3922,  type: 'nuclear', state: 'NY' },
+  { id: 26, name: 'Nine Mile Point Nuclear (NY)',   lat: 43.5222, lng: -76.4100,  type: 'nuclear', state: 'NY' },
+  { id: 27, name: 'Ginna Nuclear (NY)',             lat: 43.2867, lng: -77.3083,  type: 'nuclear', state: 'NY' },
+  { id: 28, name: 'Millstone Nuclear (CT)',         lat: 41.3094, lng: -72.1692,  type: 'nuclear', state: 'CT' },
+  { id: 29, name: 'Seabrook Nuclear (NH)',          lat: 42.8983, lng: -70.8497,  type: 'nuclear', state: 'NH' },
+  { id: 30, name: 'Pilgrim Nuclear (MA)',           lat: 41.9444, lng: -70.5789,  type: 'nuclear', state: 'MA' },
+  { id: 31, name: 'Vermont Yankee (VT)',            lat: 42.7806, lng: -72.5183,  type: 'nuclear', state: 'VT' },
+  { id: 32, name: 'Calvert Cliffs Nuclear (MD)',    lat: 38.4356, lng: -76.4431,  type: 'nuclear', state: 'MD' },
+  { id: 33, name: 'North Anna Nuclear (VA)',        lat: 37.9539, lng: -77.7914,  type: 'nuclear', state: 'VA' },
+  { id: 34, name: 'Surry Nuclear (VA)',             lat: 37.1650, lng: -76.6981,  type: 'nuclear', state: 'VA' },
+  { id: 35, name: 'Brunswick Nuclear (NC)',         lat: 33.9572, lng: -78.0258,  type: 'nuclear', state: 'NC' },
+  { id: 36, name: 'McGuire Nuclear (NC)',           lat: 35.4322, lng: -80.9436,  type: 'nuclear', state: 'NC' },
+  { id: 37, name: 'Catawba Nuclear (SC)',           lat: 35.0478, lng: -81.0694,  type: 'nuclear', state: 'SC' },
+  { id: 38, name: 'VC Summer Nuclear (SC)',         lat: 34.1858, lng: -81.3278,  type: 'nuclear', state: 'SC' },
+  { id: 39, name: 'Vogtle Nuclear (GA)',            lat: 33.1428, lng: -81.7628,  type: 'nuclear', state: 'GA' },
+  { id: 40, name: 'Edwin Hatch Nuclear (GA)',       lat: 31.9317, lng: -82.3469,  type: 'nuclear', state: 'GA' },
+  { id: 41, name: 'Farley Nuclear (AL)',            lat: 31.2228, lng: -85.1117,  type: 'nuclear', state: 'AL' },
+  { id: 42, name: 'Browns Ferry Nuclear (AL)',      lat: 34.7044, lng: -87.1197,  type: 'nuclear', state: 'AL' },
+  { id: 43, name: 'Sequoyah Nuclear (TN)',          lat: 35.2272, lng: -85.0886,  type: 'nuclear', state: 'TN' },
+  { id: 44, name: 'Watts Bar Nuclear (TN)',         lat: 35.6028, lng: -84.7867,  type: 'nuclear', state: 'TN' },
+  { id: 45, name: 'Turkey Point Nuclear (FL)',      lat: 25.4347, lng: -80.3319,  type: 'nuclear', state: 'FL' },
+  { id: 46, name: 'Crystal River Nuclear (FL)',     lat: 28.9558, lng: -82.6980,  type: 'nuclear', state: 'FL' },
+  { id: 47, name: 'Columbia Nuclear (WA)',          lat: 46.4703, lng: -119.3200, type: 'nuclear', state: 'WA' },
+  { id: 48, name: 'Cook Nuclear (MI)',              lat: 41.9758, lng: -86.5625,  type: 'nuclear', state: 'MI' },
+  { id: 49, name: 'Fermi Nuclear (MI)',             lat: 41.9603, lng: -83.2553,  type: 'nuclear', state: 'MI' },
+  { id: 50, name: 'Kewaunee Nuclear (WI)',          lat: 44.3478, lng: -87.5394,  type: 'nuclear', state: 'WI' },
+  { id: 51, name: 'Point Beach Nuclear (WI)',       lat: 44.2817, lng: -87.5361,  type: 'nuclear', state: 'WI' },
+  { id: 52, name: 'Duane Arnold Nuclear (IA)',      lat: 42.1006, lng: -91.7775,  type: 'nuclear', state: 'IA' },
+  { id: 53, name: 'Cooper Nuclear (NE)',            lat: 40.3611, lng: -95.6417,  type: 'nuclear', state: 'NE' },
+  { id: 54, name: 'Fort Calhoun Nuclear (NE)',      lat: 41.5217, lng: -96.0794,  type: 'nuclear', state: 'NE' },
+  { id: 55, name: 'Waterford Nuclear (LA)',         lat: 29.9947, lng: -90.4706,  type: 'nuclear', state: 'LA' },
+  { id: 56, name: 'Arkansas Nuclear One (AR)',      lat: 35.2308, lng: -93.2303,  type: 'nuclear', state: 'AR' },
+  // Major Superfund / CERCLA sites near wildfire-prone areas
+  { id: 101, name: 'Stringfellow Acid Pits (CA)',   lat: 33.9811, lng: -117.5439, type: 'superfund', state: 'CA' },
+  { id: 102, name: 'Casmalia Resources (CA)',        lat: 34.8411, lng: -120.5453, type: 'superfund', state: 'CA' },
+  { id: 103, name: 'Iron Mountain Mine (CA)',        lat: 40.6850, lng: -122.5000, type: 'superfund', state: 'CA' },
+  { id: 104, name: 'Montrose Chemical (CA)',         lat: 33.8897, lng: -118.2906, type: 'superfund', state: 'CA' },
+  { id: 105, name: 'Copper Basin (TN)',              lat: 35.0378, lng: -84.3689,  type: 'superfund', state: 'TN' },
+  { id: 106, name: 'Milltown Reservoir (MT)',        lat: 46.8694, lng: -113.9317, type: 'superfund', state: 'MT' },
+  { id: 107, name: 'Anaconda Smelter (MT)',          lat: 46.1292, lng: -112.9436, type: 'superfund', state: 'MT' },
+  { id: 108, name: 'Bunker Hill Mining (ID)',        lat: 47.5469, lng: -116.1736, type: 'superfund', state: 'ID' },
+  { id: 109, name: 'Hanford Nuclear Site (WA)',      lat: 46.5500, lng: -119.4833, type: 'superfund', state: 'WA' },
+  { id: 110, name: 'Rocky Mountain Arsenal (CO)',    lat: 39.8442, lng: -104.8489, type: 'superfund', state: 'CO' },
+  { id: 111, name: 'California Gulch (CO)',          lat: 39.2411, lng: -106.3469, type: 'superfund', state: 'CO' },
+  { id: 112, name: 'Holbrook Industrial Park (AZ)', lat: 34.9028, lng: -110.1536, type: 'superfund', state: 'AZ' },
+  { id: 113, name: 'Odessa Chromium (TX)',           lat: 31.8457, lng: -102.3676, type: 'superfund', state: 'TX' },
+  { id: 114, name: 'Purity Well (NM)',               lat: 35.0814, lng: -106.6631, type: 'superfund', state: 'NM' },
+  { id: 115, name: 'McCormick & Baxter (OR)',        lat: 45.5425, lng: -122.6583, type: 'superfund', state: 'OR' },
 ]
 
 const LeafletMap = dynamic(() => import('./LeafletMap'), { ssr: false })
@@ -212,6 +289,7 @@ function EvacuationMapContent() {
   const [locationError, setLocationError] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [showShelters, setShowShelters] = useState(false)
+  const [showHazards, setShowHazards] = useState(false)
   const searchParams = useSearchParams()
 
   async function loadNifc() {
@@ -350,6 +428,16 @@ function EvacuationMapContent() {
               <Heart className="w-3.5 h-3.5" />
               {showShelters ? 'Shelters: ON' : 'Show Shelters'}
             </button>
+            <button
+              onClick={() => setShowHazards(v => !v)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                showHazards
+                  ? 'bg-purple-500/20 border-purple-500/40 text-purple-300'
+                  : 'bg-ash-800 border-ash-700 text-ash-400 hover:text-white'
+              }`}
+            >
+              ☢ {showHazards ? 'Hazards: ON' : 'Hazard Sites'}
+            </button>
             {locationError && (
               <span className="text-ash-500 text-xs">Location unavailable — enable browser location access.</span>
             )}
@@ -358,26 +446,25 @@ function EvacuationMapContent() {
             )}
           </div>
 
-          <div className="card overflow-hidden" style={{ height: 480 }}>
+          <div className="card overflow-hidden" style={{ height: 'calc(100vh - 260px)', minHeight: 520 }}>
             {loading ? (
               <div className="h-full flex flex-col items-center justify-center gap-3">
                 <div className="w-8 h-8 border-2 border-ember-500/30 border-t-ember-500 rounded-full animate-spin" />
                 <span className="text-ash-500 text-sm">Loading active fires…</span>
               </div>
             ) : (
-              <LeafletMap nifc={sortedFires} userLocation={userLocation} center={center} shelters={EVAC_SHELTERS} showShelters={showShelters} />
+              <LeafletMap
+                nifc={sortedFires}
+                userLocation={userLocation}
+                center={center}
+                shelters={EVAC_SHELTERS}
+                showShelters={showShelters}
+                hazards={HAZARD_SITES}
+                showHazards={showHazards}
+              />
             )}
           </div>
 
-          {/* Map legend */}
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-ash-500 px-1">
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-signal-danger" /> Active threat (&lt;25% contained)</div>
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-orange-500" /> Still spreading (25–50%)</div>
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-amber-400" /> Being controlled (50–75%)</div>
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-signal-safe" /> Mostly contained (75%+)</div>
-            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-blue-500" /> Your location</div>
-            {showShelters && <div className="flex items-center gap-1.5"><Heart className="w-3 h-3 text-signal-safe" /> Evacuation shelters</div>}
-          </div>
 
           {/* Shelter panel */}
           {showShelters && (() => {
@@ -440,7 +527,7 @@ function EvacuationMapContent() {
         </div>
 
         {/* Fire cards */}
-        <div className="flex flex-col gap-3 overflow-y-auto" style={{ maxHeight: 560 }}>
+        <div className="flex flex-col gap-3 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 260px)' }}>
           <h3 className="text-white font-semibold text-sm shrink-0">
             Active Fires
             <span className="ml-2 text-ash-500 font-normal">{nifc.length}</span>

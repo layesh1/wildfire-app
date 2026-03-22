@@ -1,5 +1,5 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, CircleMarker, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -12,6 +12,45 @@ export interface NifcFire {
   acres: number | null
   containment: number | null
   source: 'nifc_perimeter' | 'nifc_incident'
+}
+
+export interface EvacShelter {
+  id: number
+  name: string
+  lat: number
+  lng: number
+  type: 'evacuation' | 'animal'
+  county: string
+  capacity: number
+}
+
+export interface HazardSite {
+  id: number
+  name: string
+  lat: number
+  lng: number
+  type: 'nuclear' | 'superfund' | 'chemical'
+  state: string
+}
+
+export type TileLayerType = 'street' | 'satellite' | 'topo'
+
+const TILE_LAYERS: Record<TileLayerType, { url: string; attribution: string; label: string }> = {
+  street: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    label: 'Street',
+  },
+  satellite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; <a href="https://www.esri.com">Esri</a> &mdash; Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP',
+    label: 'Satellite',
+  },
+  topo: {
+    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
+    label: 'Topo',
+  },
 }
 
 function containmentColor(pct: number | null) {
@@ -41,6 +80,18 @@ function shelterIcon(type: 'evacuation' | 'animal') {
   })
 }
 
+function hazardIcon(type: HazardSite['type']) {
+  const color = type === 'nuclear' ? '#a855f7' : type === 'chemical' ? '#f59e0b' : '#6366f1'
+  const emoji = type === 'nuclear' ? '☢' : type === 'chemical' ? '⚗' : '⚠'
+  return L.divIcon({
+    html: `<div style="width:24px;height:24px;background:${color}22;border:2px solid ${color};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1">${emoji}</div>`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -12],
+    className: '',
+  })
+}
+
 function FlyToUser({ coords }: { coords: [number, number] | null }) {
   const map = useMap()
   useEffect(() => {
@@ -49,35 +100,116 @@ function FlyToUser({ coords }: { coords: [number, number] | null }) {
   return null
 }
 
-export interface EvacShelter {
-  id: number
-  name: string
-  lat: number
-  lng: number
-  type: 'evacuation' | 'animal'
-  county: string
-  capacity: number
+function TileLayerSwitcher({ active, onChange }: { active: TileLayerType; onChange: (t: TileLayerType) => void }) {
+  return (
+    <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 1000, display: 'flex', gap: 4 }}>
+      {(Object.keys(TILE_LAYERS) as TileLayerType[]).map(t => (
+        <button
+          key={t}
+          onClick={() => onChange(t)}
+          style={{
+            padding: '4px 10px',
+            borderRadius: 6,
+            fontSize: 11,
+            fontWeight: 600,
+            border: '1px solid',
+            cursor: 'pointer',
+            background: active === t ? '#1e293b' : 'rgba(255,255,255,0.92)',
+            color: active === t ? '#fff' : '#334155',
+            borderColor: active === t ? '#475569' : '#cbd5e1',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+          }}
+        >
+          {TILE_LAYERS[t].label}
+        </button>
+      ))}
+    </div>
+  )
 }
 
-interface Props {
+function MapLegend({ showShelters, showHazards }: { showShelters: boolean; showHazards: boolean }) {
+  return (
+    <div style={{
+      position: 'absolute', bottom: 24, left: 10, zIndex: 1000,
+      background: 'rgba(15,23,42,0.88)', backdropFilter: 'blur(4px)',
+      border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10,
+      padding: '8px 12px', color: '#cbd5e1', fontSize: 11, lineHeight: '1.8',
+      maxWidth: 220,
+    }}>
+      <div style={{ fontWeight: 700, color: '#f1f5f9', marginBottom: 4, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Legend</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+        Active threat (&lt;25% contained)
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#f97316', flexShrink: 0 }} />
+        Still spreading (25–50%)
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#eab308', flexShrink: 0 }} />
+        Being controlled (50–75%)
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+        Mostly contained (75%+)
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#3b82f6', flexShrink: 0 }} />
+        Your location
+      </div>
+      {showShelters && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#22c55e44', border: '2px solid #22c55e', flexShrink: 0 }} />
+            Evacuation shelter
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#3b82f644', border: '2px solid #3b82f6', flexShrink: 0 }} />
+            Animal shelter
+          </div>
+        </>
+      )}
+      {showHazards && (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#a855f744', border: '2px solid #a855f7', flexShrink: 0, fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>☢</div>
+            Nuclear plant
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#f59e0b44', border: '2px solid #f59e0b', flexShrink: 0, fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>⚠</div>
+            Superfund/Hazmat site
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// Inner map component that has access to useMap
+function MapInner({
+  nifc, userLocation, shelters, showShelters, hazards, showHazards,
+}: {
   nifc: NifcFire[]
   userLocation: [number, number] | null
-  center: [number, number]
-  shelters?: EvacShelter[]
-  showShelters?: boolean
-}
-
-export default function LeafletMap({ nifc, userLocation, center, shelters = [], showShelters = false }: Props) {
-  // Filter out fully contained fires (100%)
+  shelters: EvacShelter[]
+  showShelters: boolean
+  hazards: HazardSite[]
+  showHazards: boolean
+}) {
+  const [tileLayer, setTileLayer] = useState<TileLayerType>('street')
   const activeFires = nifc.filter(f => f.containment == null || f.containment < 100)
+  const tl = TILE_LAYERS[tileLayer]
 
   return (
-    <MapContainer center={center} zoom={5} style={{ height: '100%', width: '100%' }}>
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+    <>
+      <TileLayer attribution={tl.attribution} url={tl.url} />
       <FlyToUser coords={userLocation} />
+
+      {/* Tile layer switcher overlay */}
+      <TileLayerSwitcher active={tileLayer} onChange={setTileLayer} />
+
+      {/* Legend overlay */}
+      <MapLegend showShelters={showShelters} showHazards={showHazards} />
 
       {/* User location pin */}
       {userLocation && (
@@ -94,13 +226,9 @@ export default function LeafletMap({ nifc, userLocation, center, shelters = [], 
         </CircleMarker>
       )}
 
-      {/* Evacuation shelters — heart icon */}
+      {/* Evacuation shelters */}
       {showShelters && shelters.map(s => (
-        <Marker
-          key={`shelter-${s.id}`}
-          position={[s.lat, s.lng]}
-          icon={shelterIcon(s.type)}
-        >
+        <Marker key={`shelter-${s.id}`} position={[s.lat, s.lng]} icon={shelterIcon(s.type)}>
           <Popup>
             <div style={{ fontFamily: 'sans-serif', fontSize: 13, lineHeight: 1.7 }}>
               <strong>{s.name}</strong><br />
@@ -112,7 +240,20 @@ export default function LeafletMap({ nifc, userLocation, center, shelters = [], 
         </Marker>
       ))}
 
-      {/* NIFC active fires — skip 100% contained */}
+      {/* Hazard/nuclear sites */}
+      {showHazards && hazards.map(h => (
+        <Marker key={`hazard-${h.id}`} position={[h.lat, h.lng]} icon={hazardIcon(h.type)}>
+          <Popup>
+            <div style={{ fontFamily: 'sans-serif', fontSize: 13, lineHeight: 1.7 }}>
+              <strong>{h.name}</strong><br />
+              {h.type === 'nuclear' ? '☢ Nuclear Power Plant' : h.type === 'chemical' ? '⚗ Chemical Facility' : '⚠ Superfund Site'}<br />
+              {h.state}
+            </div>
+          </Popup>
+        </Marker>
+      ))}
+
+      {/* NIFC active fires */}
       {activeFires.map((f) => {
         const color = containmentColor(f.containment)
         const radius = containmentRadius(f.acres)
@@ -145,6 +286,35 @@ export default function LeafletMap({ nifc, userLocation, center, shelters = [], 
           </CircleMarker>
         )
       })}
+    </>
+  )
+}
+
+interface Props {
+  nifc: NifcFire[]
+  userLocation: [number, number] | null
+  center: [number, number]
+  shelters?: EvacShelter[]
+  showShelters?: boolean
+  hazards?: HazardSite[]
+  showHazards?: boolean
+}
+
+export default function LeafletMap({
+  nifc, userLocation, center,
+  shelters = [], showShelters = false,
+  hazards = [], showHazards = false,
+}: Props) {
+  return (
+    <MapContainer center={center} zoom={5} style={{ height: '100%', width: '100%' }}>
+      <MapInner
+        nifc={nifc}
+        userLocation={userLocation}
+        shelters={shelters}
+        showShelters={showShelters}
+        hazards={hazards}
+        showHazards={showHazards}
+      />
     </MapContainer>
   )
 }
