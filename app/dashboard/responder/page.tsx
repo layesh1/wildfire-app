@@ -9,6 +9,7 @@ import type { EvacueePin } from '@/components/EvacueeStatusMap'
 import { HAZARD_FACILITIES } from '@/lib/hazard-facilities'
 
 const PredictionMap = dynamic(() => import('./PredictionMap'), { ssr: false })
+const AnimatedFireSpread = dynamic(() => import('@/components/AnimatedFireSpread'), { ssr: false })
 
 const EvacueeStatusMap = dynamic(() => import('@/components/EvacueeStatusMap'), { ssr: false })
 
@@ -504,6 +505,37 @@ function PredictionMapSection() {
   )
 }
 
+// ─── Sub-component: Fire Behavior Simulator ───────────────────────────────────
+
+const SCENARIOS = [
+  { label: 'Calm',     windMps: 8,  slopeDeg: 0  },
+  { label: 'Moderate', windMps: 14, slopeDeg: 15 },
+  { label: 'Extreme',  windMps: 20, slopeDeg: 30 },
+] as const
+
+function FireBehaviorSection() {
+  const [scenario, setScenario] = useState(1)
+  const s = SCENARIOS[scenario]
+  return (
+    <div className="mb-8">
+      <div className="flex items-center gap-2 mb-4">
+        <Brain className="w-4 h-4 text-ember-400" />
+        <h2 className="text-white font-semibold text-sm">Fire Behavior Simulator</h2>
+        <span className="ml-auto text-ash-600 text-xs">FireBench-calibrated · Google Research physics model</span>
+      </div>
+      <div className="flex gap-2 mb-3">
+        {SCENARIOS.map((sc, i) => (
+          <button key={sc.label} onClick={() => setScenario(i)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${scenario === i ? 'bg-ember-500 text-white' : 'bg-ash-800 text-ash-400 hover:text-white'}`}>
+            {sc.label} ({sc.windMps}m/s / {sc.slopeDeg}°)
+          </button>
+        ))}
+      </div>
+      <AnimatedFireSpread windMps={s.windMps} slopeDeg={s.slopeDeg} currentAcres={500} title="Fire Spread — Tactical Simulation" />
+    </div>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ResponderDashboard() {
@@ -714,6 +746,9 @@ export default function ResponderDashboard() {
 
       {/* Fire Prediction Map */}
       <PredictionMapSection />
+
+      {/* Fire Behavior Simulator */}
+      <FireBehaviorSection />
 
       {/* WiDS Intelligence Panel */}
       <WiDSIntelligencePanel activeFires={activeFires} loading={loading} />

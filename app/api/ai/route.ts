@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { checkRateLimit, getClientIp } from '@/lib/ratelimit'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -51,11 +52,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
     }
 
+    // Require authenticated user — prevents unauthenticated API key abuse
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { messages, persona = 'FLAMEO' } = await request.json()
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'messages array required' }, { status: 400 })
     }
+    // Limit message history to 20 turns to prevent prompt injection via large payloads
+    const safeMessages = messages.slice(-20)
 
     const system = PERSONAS[persona as keyof typeof PERSONAS] || PERSONAS['FLAMEO']
 
@@ -63,14 +73,15 @@ export async function POST(request: NextRequest) {
       model: 'claude-sonnet-4-6',
       max_tokens: 1024,
       system,
-      messages,
+      messages: safeMessages,
     })
 
     return NextResponse.json({
       content: response.content[0].type === 'text' ? response.content[0].text : '',
       persona,
     })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err: unknown) {
+    console.error('[/api/ai]', err)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

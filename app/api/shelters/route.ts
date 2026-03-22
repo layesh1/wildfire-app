@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkRateLimit, getClientIp } from '@/lib/ratelimit'
 
 interface Shelter {
   name: string
@@ -19,6 +20,11 @@ const FEMA_URL =
   '&resultRecordCount=100'
 
 export async function GET(request: NextRequest) {
+  const ip = getClientIp(request)
+  if (!checkRateLimit(ip, 'shelters', 20, 60_000)) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
+
   const { searchParams } = new URL(request.url)
   const stateFilter = searchParams.get('state')?.toUpperCase() || null
 

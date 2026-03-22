@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkRateLimit, getClientIp } from '@/lib/ratelimit'
 
 // This route proxies to your Python ML service (Modal or Render)
 // Falls back to rule-based estimates if ML service unavailable
@@ -34,6 +35,11 @@ function ruleBasedPrediction(features: any) {
 }
 
 export async function POST(request: NextRequest) {
+  const ip = getClientIp(request)
+  if (!checkRateLimit(ip, 'ml', 15, 60_000)) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
+
   try {
     const body = await request.json()
     const { fire_id, features } = body

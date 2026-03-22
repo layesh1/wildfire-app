@@ -40,33 +40,43 @@ function clearGoogCookie() {
 
 
 /** Triggers translation by manipulating the hidden Google Translate select.
- *  Uses MutationObserver so it reacts the instant GT populates its option list,
- *  instead of polling with a fixed timer (which misses fast or very slow loads). */
+ *  Three-layer strategy handles all timing scenarios on Vercel cold starts:
+ *  1. Immediate check (works when GT already loaded on soft nav)
+ *  2. MutationObserver (reacts the instant GT populates its option list)
+ *  3. window.load event (fires after all scripts finish — catches very slow loads)
+ *  4. Interval fallback (30s safety net, fires every 500ms) */
 function triggerGT(code: string) {
-  function applyToSelect(sel: HTMLSelectElement) {
+  let done = false
+
+  function apply(sel: HTMLSelectElement) {
+    if (done) return
+    done = true
     sel.value = code
     sel.dispatchEvent(new Event('change'))
   }
 
-  // Try immediately — works on navigations where GT is already loaded
-  const existing = document.querySelector<HTMLSelectElement>('select.goog-te-combo')
-  if (existing && existing.options.length > 1) {
-    applyToSelect(existing)
-    return
+  function tryNow(): boolean {
+    const sel = document.querySelector<HTMLSelectElement>('select.goog-te-combo')
+    if (sel && sel.options.length > 1) { apply(sel); return true }
+    return false
   }
 
-  // Watch the DOM for GT to add / populate the select element
-  const observer = new MutationObserver(() => {
-    const sel = document.querySelector<HTMLSelectElement>('select.goog-te-combo')
-    if (sel && sel.options.length > 1) {
-      applyToSelect(sel)
-      observer.disconnect()
-    }
-  })
+  // Layer 1: immediate
+  if (tryNow()) return
+
+  // Layer 2: MutationObserver
+  const observer = new MutationObserver(() => { if (tryNow()) observer.disconnect() })
   observer.observe(document.body, { childList: true, subtree: true, attributes: true })
 
-  // Give up after 30 seconds to avoid leaking the observer
-  setTimeout(() => observer.disconnect(), 30000)
+  // Layer 3: window.load — fires after all async scripts finish
+  window.addEventListener('load', () => { if (tryNow()) observer.disconnect() }, { once: true })
+
+  // Layer 4: interval poll — 60 retries × 500ms = 30s safety net
+  let tries = 0
+  const interval = setInterval(() => {
+    if (done || ++tries > 60) { clearInterval(interval); observer.disconnect(); return }
+    tryNow()
+  }, 500)
 }
 
 interface Props {
