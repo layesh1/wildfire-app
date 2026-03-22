@@ -535,18 +535,21 @@ export default function PersonsPage() {
           CAREGIVER &middot; MY PEOPLE
         </div>
         <h1 className="font-display text-3xl font-bold text-white mb-2">My People</h1>
-        <p className="text-ash-400 text-sm">Send a quick check-in to confirm everyone is safe</p>
+        <p className="text-ash-400 text-sm">Track people in your care and confirm they're safe during a wildfire event</p>
       </div>
 
-      {/* Settings banner */}
-      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-ash-800/60 border border-ash-700 mb-5 text-xs text-ash-400">
-        <Settings className="w-3.5 h-3.5 shrink-0 text-ash-500" />
-        <span>
-          People you&rsquo;ve added as dependents in your profile will appear here automatically.{' '}
-          <a href="/dashboard/settings" className="text-ember-400 hover:text-ember-300 underline underline-offset-2">
-            Update in Settings →
-          </a>
-        </span>
+      {/* How it works */}
+      <div className="rounded-xl bg-ash-800/60 border border-ash-700 mb-5 p-4">
+        <div className="text-white text-xs font-semibold mb-2 flex items-center gap-2">
+          <MessageSquare className="w-3.5 h-3.5 text-ember-400" />
+          How My People works
+        </div>
+        <ul className="text-ash-400 text-xs space-y-1.5 list-none">
+          <li>① <strong className="text-ash-300">Add a person</strong> — name, address, and mobility info for each person you care for</li>
+          <li>② <strong className="text-ash-300">Ping them</strong> — tap "Ping" to generate a unique check-in link, then send it via text, WhatsApp, or email</li>
+          <li>③ <strong className="text-ash-300">They tap the link</strong> — they confirm safe, need help, or are evacuating. You see their status update here instantly</li>
+          <li>④ <strong className="text-ash-300">Mark Safe manually</strong> — if you've spoken to them directly, you can mark them safe yourself</li>
+        </ul>
       </div>
 
       {/* Fire proximity warning */}

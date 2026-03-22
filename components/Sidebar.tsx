@@ -5,7 +5,7 @@ import {
   Flame, Shield, Heart, BarChart3, Map, AlertTriangle,
   Users, Brain, LogOut, ChevronLeft, ChevronRight, ChevronDown,
   Activity, TrendingUp, Bell, Settings, BarChart2, Globe,
-  ClipboardList, Thermometer, FileText, Database
+  ClipboardList, Thermometer, FileText, Database, Menu, X as XIcon
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/components/LanguageProvider'
@@ -141,24 +141,34 @@ export default function Sidebar({ user, profile }: Props) {
       transition-all duration-300 shrink-0 h-screen sticky top-0 overflow-y-auto
       ${collapsed ? 'w-16' : 'w-60'}
     `}>
-      {/* Toggle */}
-      <button
-        onClick={() => setCollapsed(v => !v)}
-        className="absolute -right-3 top-20 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 transition-colors z-10 shadow-sm"
-      >
-        {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
-      </button>
-
-      {/* Logo */}
-      <div className={`flex items-center gap-3 p-4 border-b border-gray-100 ${collapsed ? 'justify-center' : ''}`}>
-        <div className="w-8 h-8 rounded-lg bg-forest-50 border border-forest-200 flex items-center justify-center shrink-0">
-          <Flame className="w-4 h-4 text-forest-600" />
-        </div>
+      {/* Logo + Toggle in same row */}
+      <div className={`flex items-center border-b border-gray-100 ${collapsed ? 'justify-center p-3' : 'p-4 gap-3'}`}>
         {!collapsed && (
-          <div>
-            <div className="font-display font-bold text-gray-900 text-sm leading-none">Minutes Matter</div>
-            <div className="text-gray-400 text-xs">v2.0</div>
-          </div>
+          <>
+            <div className="w-8 h-8 rounded-lg bg-forest-50 border border-forest-200 flex items-center justify-center shrink-0">
+              <Flame className="w-4 h-4 text-forest-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-display font-bold text-gray-900 text-sm leading-none">Minutes Matter</div>
+              <div className="text-gray-400 text-xs">v2.0</div>
+            </div>
+            <button
+              onClick={() => setCollapsed(true)}
+              className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors shrink-0"
+              title="Collapse sidebar"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          </>
+        )}
+        {collapsed && (
+          <button
+            onClick={() => setCollapsed(false)}
+            className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+            title="Expand sidebar"
+          >
+            <Menu className="w-4 h-4" />
+          </button>
         )}
       </div>
 
