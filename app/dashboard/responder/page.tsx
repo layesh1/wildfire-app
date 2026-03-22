@@ -262,9 +262,6 @@ function SituationReportHeader() {
 // ─── Sub-component: Red Flag Warnings ────────────────────────────────────────
 
 function RedFlagSection() {
-  const [warnings, setWarnings] = useState<RedFlagWarning[]>([])
-  const [count, setCount] = useState<number | null>(null)
-  const [error, setError] = useState(false)
   const [pins, setPins] = useState<EvacueePin[]>([])
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
@@ -482,7 +479,7 @@ function RedFlagSection() {
             </p>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }
