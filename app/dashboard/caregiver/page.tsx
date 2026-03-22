@@ -1,9 +1,10 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import {
   Flame, MapPin, Phone, AlertTriangle, CheckCircle,
-  Shield, ChevronRight, Package, User, Users, Bell
+  Shield, ChevronRight, Package, User, Users, Bell,
+  Maximize2, Minimize2, LayoutTemplate
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
@@ -176,6 +177,8 @@ function PersonCard({ person, index }: { person: MonitoredPerson; index: number 
 }
 
 // ── Main dashboard ────────────────────────────────────────────────────────────
+function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)) }
+
 export default function CaregiverDashboard() {
   const [fires, setFires]     = useState<FireEvent[]>([])
   const [nifc, setNifc]       = useState<NifcFire[]>([])
@@ -183,6 +186,35 @@ export default function CaregiverDashboard() {
   const [userProfile, setUserProfile] = useState<{ full_name?: string; email?: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [bagChecked, setBagChecked] = useState<Set<string>>(new Set())
+
+  // Resizable 3-column layout
+  const [leftPct, setLeftPct]   = useState(25)
+  const [rightPct, setRightPct] = useState(28)
+  const [dragging, setDragging] = useState<'left' | 'right' | null>(null)
+  const [preset, setPreset]     = useState<'equal' | 'default' | 'map'>('default')
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!dragging) return
+    function onMove(e: MouseEvent) {
+      if (!containerRef.current) return
+      const rect = containerRef.current.getBoundingClientRect()
+      const pct = ((e.clientX - rect.left) / rect.width) * 100
+      if (dragging === 'left') { setLeftPct(clamp(pct, 15, 40)); setPreset('equal') }
+      if (dragging === 'right') { setRightPct(clamp(100 - pct, 20, 50)); setPreset('equal') }
+    }
+    function onUp() { setDragging(null) }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+    return () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp) }
+  }, [dragging])
+
+  function applyPreset(p: 'equal' | 'default' | 'map') {
+    setPreset(p)
+    if (p === 'equal')   { setLeftPct(33); setRightPct(33) }
+    if (p === 'default') { setLeftPct(25); setRightPct(28) }
+    if (p === 'map')     { setLeftPct(15); setRightPct(45) }
+  }
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
   const { mode, activePerson } = useRoleContext()
   const isCaregiverMode = mode === 'caregiver' && activePerson !== null
@@ -257,17 +289,30 @@ export default function CaregiverDashboard() {
   const firstPerson = persons[0] ?? null
 
   return (
-    <>
-      {/* Root: full height 3-column layout */}
+    <div className="flex flex-col h-screen overflow-hidden">
+      {/* Preset buttons */}
+      <div className="flex items-center gap-1 px-4 py-2 border-b shrink-0" style={{ borderColor: 'var(--wfa-border)', background: 'var(--wfa-page-bg)' }}>
+        <span className="text-xs mr-2" style={{ color: 'var(--wfa-muted)' }}>Layout</span>
+        {([['equal', 'Equal', LayoutTemplate], ['default', 'Default', Minimize2], ['map', 'Map Focus', Maximize2]] as const).map(([p, label, Icon]) => (
+          <button key={p} onClick={() => applyPreset(p)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
+            style={{ background: preset === p ? 'var(--wfa-accent)' : 'transparent', color: preset === p ? '#fff' : 'var(--wfa-muted)', border: `1px solid ${preset === p ? 'transparent' : 'var(--wfa-border)'}` }}>
+            <Icon className="w-3 h-3" />{label}
+          </button>
+        ))}
+      </div>
+
+      {/* Root: full height 3-column resizable layout */}
       <div
-        className="flex h-screen overflow-hidden"
-        style={{ background: 'var(--wfa-page-bg)', fontFamily: 'var(--font-body)' }}
+        ref={containerRef}
+        className="flex overflow-hidden"
+        style={{ flex: 1, background: 'var(--wfa-page-bg)', fontFamily: 'var(--font-body)', userSelect: dragging ? 'none' : undefined }}
       >
 
         {/* ══ LEFT COLUMN — tracking cards (340px) ══════════════════════════ */}
         <div
           className="flex flex-col shrink-0 border-r"
-          style={{ width: 340, borderColor: 'var(--wfa-border)', background: 'var(--wfa-panel-l)' }}
+          style={{ width: `${leftPct}%`, minWidth: 180, borderColor: 'var(--wfa-border)', background: 'var(--wfa-panel-l)' }}
         >
           {/* Header */}
           <div className="px-5 pt-6 pb-4 border-b" style={{ borderColor: 'var(--wfa-border-lite)' }}>
@@ -350,8 +395,13 @@ export default function CaregiverDashboard() {
           </div>
         </div>
 
+        {/* ══ DRAG HANDLE — left/center ══════════════════════════════════ */}
+        <div onMouseDown={() => setDragging('left')} style={{ width: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'col-resize', zIndex: 10 }}>
+          <div style={{ width: 2, height: 40, borderRadius: 4, background: dragging === 'left' ? '#f97316' : 'var(--wfa-border)', transition: 'background 0.15s' }} />
+        </div>
+
         {/* ══ CENTER COLUMN — fire alert + stats ════════════════════════════ */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden" style={{ minWidth: 240 }}>
 
           {/* Top bar */}
           <div className="shrink-0 px-8 pt-6 pb-4 flex items-center justify-between">
@@ -558,9 +608,15 @@ export default function CaregiverDashboard() {
         </div>
 
         {/* ══ RIGHT COLUMN — profile + map + info cards (380px) ════════════ */}
+        {/* ══ DRAG HANDLE — center/right ══════════════════════════════════ */}
+        <div onMouseDown={() => setDragging('right')} style={{ width: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'col-resize', zIndex: 10 }}>
+          <div style={{ width: 2, height: 40, borderRadius: 4, background: dragging === 'right' ? '#f97316' : 'var(--wfa-border)', transition: 'background 0.15s' }} />
+        </div>
+
+        {/* ══ RIGHT COLUMN — map + profile + first person ════════════════════ */}
         <div
           className="flex flex-col shrink-0 border-l"
-          style={{ width: 380, borderColor: 'var(--wfa-border)', background: 'var(--wfa-panel-r)' }}
+          style={{ width: `${rightPct}%`, minWidth: 220, borderColor: 'var(--wfa-border)', background: 'var(--wfa-panel-r)' }}
         >
           {/* Profile badge */}
           <div className="p-5 border-b" style={{ borderColor: 'var(--wfa-border-lite)' }}>
@@ -671,6 +727,6 @@ export default function CaregiverDashboard() {
         </div>
 
       </div>
-    </>
+    </div>
   )
 }

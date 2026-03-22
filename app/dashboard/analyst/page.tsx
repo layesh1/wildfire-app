@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { BarChart3, AlertTriangle, Clock, TrendingUp, Database, ArrowRight, Flame, Activity, MapPin, ShieldAlert } from 'lucide-react'
+import { BarChart3, AlertTriangle, Clock, TrendingUp, Database, ArrowRight, Flame, Activity, MapPin, ShieldAlert, FlaskConical } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 
@@ -76,6 +76,14 @@ export default function AnalystDashboard() {
       icon: MapPin,
       color: 'text-signal-info',
       stat: '111 fires/1000sqmi CA',
+    },
+    {
+      title: 'Fire Simulation Studio',
+      desc: 'FireBench-calibrated animated fire spread simulations. Compare calm, moderate, and extreme scenarios from Google Research CFD dataset.',
+      href: '/dashboard/analyst/simulation',
+      icon: FlaskConical,
+      color: 'text-ember-400',
+      stat: 'FireBench · Google Research',
     },
   ]
 
