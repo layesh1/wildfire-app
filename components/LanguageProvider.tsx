@@ -39,18 +39,22 @@ function clearGoogCookie() {
 }
 
 
-/** Triggers translation by manipulating the hidden Google Translate select */
+/** Triggers translation by manipulating the hidden Google Translate select.
+ *  GT creates the <select> element immediately but populates options async —
+ *  so we must check options.length > 1 before accepting it as ready. */
 function triggerGT(code: string) {
   const attempt = (tries: number) => {
     const sel = document.querySelector<HTMLSelectElement>('select.goog-te-combo')
-    if (sel) {
+    // Only proceed once GT has actually loaded the language list
+    if (sel && sel.options.length > 1) {
       sel.value = code
       sel.dispatchEvent(new Event('change'))
     } else if (tries > 0) {
       setTimeout(() => attempt(tries - 1), 500)
     }
   }
-  attempt(30)
+  // 60 retries × 500ms = 30s total — handles slow Vercel cold starts
+  attempt(60)
 }
 
 interface Props {

@@ -1,8 +1,8 @@
 'use client'
-import { useEffect, useState, Suspense, useMemo } from 'react'
+import { useEffect, useState, Suspense, useMemo, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
-import { MapPin, AlertTriangle, CheckCircle, Navigation, ExternalLink, ChevronRight, Flame, RefreshCw, Heart, User, Search, X, Factory } from 'lucide-react'
+import { MapPin, AlertTriangle, CheckCircle, Navigation, ExternalLink, ChevronRight, Flame, RefreshCw, Heart, Maximize2, Minimize2, LayoutTemplate, User, Search, X, Factory } from 'lucide-react'
 import type { NifcFire, EvacShelter, WatchedLocation, WindData } from './LeafletMap'
 import { HAZARD_FACILITIES } from '@/lib/hazard-facilities'
 
@@ -103,6 +103,7 @@ const EVAC_SHELTERS: EvacShelter[] = [
   { id: 82, name: 'Denver Dumb Friends League', lat: 39.6914, lng: -104.9903, type: 'animal', county: 'Denver, CO', capacity: 180 },
   { id: 83, name: 'Washington Humane Society', lat: 38.9072, lng: -77.0369, type: 'animal', county: 'DC', capacity: 150 },
 ]
+
 
 const LeafletMap = dynamic(() => import('./LeafletMap'), { ssr: false })
 
@@ -217,6 +218,10 @@ function EvacuationMapContent() {
   const [showShelters, setShowShelters] = useState(false)
   const [showFacilities, setShowFacilities] = useState(false)
   const [windData, setWindData] = useState<WindData | null>(null)
+  const [mapSize, setMapSize] = useState<'compact' | 'default' | 'full'>('default')
+  const [mapWidthPct, setMapWidthPct] = useState(65)
+  const [isDragging, setIsDragging] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
   const searchParams = useSearchParams()
 
   // Person / address monitoring
@@ -232,6 +237,31 @@ function EvacuationMapContent() {
       if (raw) setSavedPersons(JSON.parse(raw))
     } catch {}
   }, [])
+
+  useEffect(() => {
+    if (!isDragging) return
+    function onMove(e: MouseEvent) {
+      if (!containerRef.current) return
+      const rect = containerRef.current.getBoundingClientRect()
+      const pct = Math.round(((e.clientX - rect.left) / rect.width) * 100)
+      setMapWidthPct(Math.min(85, Math.max(30, pct)))
+      setMapSize('compact') // clear preset highlight while dragging
+    }
+    function onUp() { setIsDragging(false) }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+    return () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+  }, [isDragging])
+
+  function applyPreset(size: 'compact' | 'default' | 'full') {
+    setMapSize(size)
+    if (size === 'compact') setMapWidthPct(50)
+    if (size === 'default') setMapWidthPct(65)
+    if (size === 'full')    setMapWidthPct(82)
+  }
 
   async function geocodeAddress(address: string, label: string) {
     if (!address.trim()) return
@@ -393,117 +423,118 @@ function EvacuationMapContent() {
       {/* Status banner */}
       {!loading && <StatusBanner fires={nifc} locating={locating} />}
 
-      {/* Map + fire list */}
-      <div className="grid md:grid-cols-3 gap-5">
-        {/* Map */}
-        <div className="md:col-span-2 flex flex-col gap-3">
-          {/* Controls */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <button
-              onClick={locateMe}
-              disabled={locating}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600/20 border border-blue-500/40 text-blue-300 hover:bg-blue-600/30 transition-colors disabled:opacity-50"
-            >
-              <Navigation className="w-3.5 h-3.5" />
-              {locating ? 'Locating…' : userLocation ? 'Update my location' : 'Show fires & shelters near me'}
-            </button>
-            <button
-              onClick={() => setShowShelters(v => !v)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                showShelters
-                  ? 'bg-signal-safe/20 border-signal-safe/40 text-signal-safe'
-                  : 'bg-ash-800 border-ash-700 text-ash-400 hover:text-white'
-              }`}
-            >
-              <Heart className="w-3.5 h-3.5" />
-              {showShelters ? 'Shelters: ON' : 'Show Shelters'}
-            </button>
-            <button
-              onClick={() => setShowFacilities(v => !v)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                showFacilities
-                  ? 'bg-amber-500/20 border-amber-500/40 text-amber-400'
-                  : 'bg-ash-800 border-ash-700 text-ash-400 hover:text-white'
-              }`}
-            >
-              <Factory className="w-3.5 h-3.5" />
-              {showFacilities ? 'Hazard Sites: ON' : 'Hazard Sites'}
-            </button>
-            {locationError && (
-              <span className="text-ash-500 text-xs">Location unavailable — enable browser location access.</span>
-            )}
-            {userLocation && !locationError && (
-              <span className="text-blue-400 text-xs">● Showing distances from your location</span>
-            )}
+      {/* Size presets + controls bar */}
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        {/* Size presets */}
+        <div className="flex items-center gap-1 bg-ash-900 border border-ash-700 rounded-lg p-0.5">
+          <button onClick={() => applyPreset('compact')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${mapSize === 'compact' ? 'bg-ash-700 text-white' : 'text-ash-400 hover:text-white'}`}
+            title="Equal split">
+            <LayoutTemplate className="w-3 h-3" /> Split
+          </button>
+          <button onClick={() => applyPreset('default')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${mapSize === 'default' ? 'bg-ash-700 text-white' : 'text-ash-400 hover:text-white'}`}
+            title="Default layout">
+            <Maximize2 className="w-3 h-3" /> Default
+          </button>
+          <button onClick={() => applyPreset('full')}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${mapSize === 'full' ? 'bg-ash-700 text-white' : 'text-ash-400 hover:text-white'}`}
+            title="Focus on map">
+            <Minimize2 className="w-3 h-3" /> Map Focus
+          </button>
+        </div>
+        <div className="w-px h-5 bg-ash-700" />
+        {/* Layer controls */}
+        <button onClick={locateMe} disabled={locating}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-600/20 border border-blue-500/40 text-blue-300 hover:bg-blue-600/30 transition-colors disabled:opacity-50">
+          <Navigation className="w-3.5 h-3.5" />
+          {locating ? 'Locating…' : userLocation ? 'Update location' : 'Locate me'}
+        </button>
+        <button onClick={() => setShowShelters(v => !v)}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${showShelters ? 'bg-signal-safe/20 border-signal-safe/40 text-signal-safe' : 'bg-ash-800 border-ash-700 text-ash-400 hover:text-white'}`}>
+          <Heart className="w-3.5 h-3.5" />
+          {showShelters ? 'Shelters: ON' : 'Shelters'}
+        </button>
+        <button onClick={() => setShowFacilities(v => !v)}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${showFacilities ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-ash-800 border-ash-700 text-ash-400 hover:text-white'}`}>
+          <Factory className="w-3.5 h-3.5" />
+          {showFacilities ? 'Hazard Sites: ON' : 'Hazard Sites'}
+        </button>
+        {locationError && <span className="text-ash-500 text-xs">Location unavailable — enable browser location.</span>}
+        {userLocation && !locationError && <span className="text-blue-400 text-xs">● Distances from your location</span>}
+      </div>
+
+      {/* Person / address monitor */}
+      <div className="bg-ash-800/60 border border-ash-700 rounded-xl p-3 flex flex-col gap-2 mb-3">
+        <div className="text-ash-400 text-xs font-medium flex items-center gap-1.5">
+          <User className="w-3.5 h-3.5" />
+          Pin a location on the map
+        </div>
+
+        {/* Saved persons */}
+        {savedPersons.filter(p => p.address).length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {savedPersons.filter(p => p.address).map(p => {
+              const isWatched = watchedLocations.some(w => w.label === p.name)
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => isWatched ? removeWatched(p.name) : geocodeAddress(p.address, p.name)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                    isWatched
+                      ? 'bg-violet-600/20 border-violet-500/50 text-violet-300'
+                      : 'bg-ash-700 border-ash-600 text-ash-300 hover:text-white hover:border-ash-500'
+                  }`}
+                >
+                  <User className="w-3 h-3" />
+                  {p.name}
+                  {isWatched && <X className="w-3 h-3" />}
+                </button>
+              )
+            })}
           </div>
+        )}
 
-          {/* Person / address monitor */}
-          <div className="bg-ash-800/60 border border-ash-700 rounded-xl p-3 flex flex-col gap-2">
-            <div className="text-ash-400 text-xs font-medium flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5" />
-              Pin a location on the map
-            </div>
+        {/* Manual address input */}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={addressInput}
+            onChange={e => setAddressInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && geocodeAddress(addressInput, addressInput.split(',')[0]?.trim() || 'Location')}
+            placeholder="Or type any address…"
+            className="flex-1 bg-ash-900 border border-ash-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-ash-600 focus:outline-none focus:border-violet-500"
+          />
+          <button
+            onClick={() => geocodeAddress(addressInput, addressInput.split(',')[0]?.trim() || 'Location')}
+            disabled={geocoding || !addressInput.trim()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-violet-600/20 border border-violet-500/50 text-violet-300 hover:bg-violet-600/30 transition-colors disabled:opacity-40"
+          >
+            <Search className="w-3.5 h-3.5" />
+            {geocoding ? 'Finding…' : 'Pin'}
+          </button>
+        </div>
+        {geocodeError && <p className="text-red-400 text-xs">{geocodeError}</p>}
 
-            {/* Saved persons */}
-            {savedPersons.filter(p => p.address).length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {savedPersons.filter(p => p.address).map(p => {
-                  const isWatched = watchedLocations.some(w => w.label === p.name)
-                  return (
-                    <button
-                      key={p.id}
-                      onClick={() => isWatched ? removeWatched(p.name) : geocodeAddress(p.address, p.name)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
-                        isWatched
-                          ? 'bg-violet-600/20 border-violet-500/50 text-violet-300'
-                          : 'bg-ash-700 border-ash-600 text-ash-300 hover:text-white hover:border-ash-500'
-                      }`}
-                    >
-                      <User className="w-3 h-3" />
-                      {p.name}
-                      {isWatched && <X className="w-3 h-3" />}
-                    </button>
-                  )
-                })}
+        {/* Active watched pins */}
+        {watchedLocations.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-1 border-t border-ash-700">
+            {watchedLocations.map(w => (
+              <div key={w.label} className="flex items-center gap-1 bg-violet-600/10 border border-violet-500/30 text-violet-300 text-xs px-2 py-0.5 rounded-full">
+                <div className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                {w.label}
+                <button onClick={() => removeWatched(w.label)} className="ml-0.5 hover:text-white"><X className="w-2.5 h-2.5" /></button>
               </div>
-            )}
-
-            {/* Manual address input */}
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={addressInput}
-                onChange={e => setAddressInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && geocodeAddress(addressInput, addressInput.split(',')[0]?.trim() || 'Location')}
-                placeholder="Or type any address…"
-                className="flex-1 bg-ash-900 border border-ash-700 rounded-lg px-3 py-1.5 text-sm text-white placeholder-ash-600 focus:outline-none focus:border-violet-500"
-              />
-              <button
-                onClick={() => geocodeAddress(addressInput, addressInput.split(',')[0]?.trim() || 'Location')}
-                disabled={geocoding || !addressInput.trim()}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-violet-600/20 border border-violet-500/50 text-violet-300 hover:bg-violet-600/30 transition-colors disabled:opacity-40"
-              >
-                <Search className="w-3.5 h-3.5" />
-                {geocoding ? 'Finding…' : 'Pin'}
-              </button>
-            </div>
-            {geocodeError && <p className="text-red-400 text-xs">{geocodeError}</p>}
-
-            {/* Active watched pins */}
-            {watchedLocations.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-1 border-t border-ash-700">
-                {watchedLocations.map(w => (
-                  <div key={w.label} className="flex items-center gap-1 bg-violet-600/10 border border-violet-500/30 text-violet-300 text-xs px-2 py-0.5 rounded-full">
-                    <div className="w-1.5 h-1.5 rounded-full bg-violet-400" />
-                    {w.label}
-                    <button onClick={() => removeWatched(w.label)} className="ml-0.5 hover:text-white"><X className="w-2.5 h-2.5" /></button>
-                  </div>
-                ))}
-              </div>
-            )}
+            ))}
           </div>
+        )}
+      </div>
 
-          <div className="card overflow-hidden" style={{ height: 480 }}>
+      {/* Map + fire list — resizable panels */}
+      <div ref={containerRef} style={{ height: 'calc(100vh - 310px)', minHeight: 520, display: 'flex', userSelect: isDragging ? 'none' : undefined }}>
+          {/* Map panel */}
+          <div style={{ width: `${mapWidthPct}%`, minWidth: '30%', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="h-full card overflow-hidden">
             {loading ? (
               <div className="h-full flex flex-col items-center justify-center gap-3">
                 <div className="w-8 h-8 border-2 border-ember-500/30 border-t-ember-500 rounded-full animate-spin" />
@@ -522,10 +553,10 @@ function EvacuationMapContent() {
                 windData={windData}
               />
             )}
-          </div>
+            </div>
 
           {/* Map legend */}
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-ash-500 px-1">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-ash-500 px-1 mt-2">
             <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-signal-danger" /> Active threat (&lt;25% contained)</div>
             <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-orange-500" /> Still spreading (25–50%)</div>
             <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-full bg-amber-400" /> Being controlled (50–75%)</div>
@@ -599,10 +630,19 @@ function EvacuationMapContent() {
               </div>
             )
           })()}
-        </div>
+          </div>
 
-        {/* Fire cards */}
-        <div className="flex flex-col gap-3 overflow-y-auto" style={{ maxHeight: 560 }}>
+          {/* Drag handle */}
+          <div
+            onMouseDown={() => setIsDragging(true)}
+            style={{ width: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'col-resize' }}
+          >
+            <div style={{ width: 2, height: 48, borderRadius: 4, background: isDragging ? '#f97316' : '#334155', transition: 'background 0.15s' }} />
+          </div>
+
+          {/* Fire cards panel */}
+          <div style={{ flex: 1, minWidth: '15%', overflow: 'hidden' }}>
+        <div className="flex flex-col gap-3 overflow-y-auto h-full pr-1">
           <h3 className="text-white font-semibold text-sm shrink-0">
             Active Fires
             <span className="ml-2 text-ash-500 font-normal">{nifc.length}</span>
@@ -682,13 +722,14 @@ function EvacuationMapContent() {
               href="https://www.ready.gov/wildfires"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-between p-3 rounded-xl border border-ash-700 hover:border-ash-500 text-ash-400 hover:text-white transition-colors text-xs"
+              className="flex items-center justify-between p-3 rounded-xl border border-ash-700 hover:border-ash-500 text-ash-400 hover:text-white transition-colors text-xs shrink-0"
             >
               <span>Official evacuation guidance · Ready.gov</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </a>
           )}
         </div>
+          </div>
       </div>
     </div>
   )
