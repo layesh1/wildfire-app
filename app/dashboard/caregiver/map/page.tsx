@@ -4,7 +4,6 @@ import dynamic from 'next/dynamic'
 import { useSearchParams } from 'next/navigation'
 import { MapPin, AlertTriangle, CheckCircle, Navigation, ExternalLink, ChevronRight, Flame, RefreshCw, Heart, Maximize2, Minimize2, LayoutTemplate } from 'lucide-react'
 import type { NifcFire, EvacShelter, HazardSite } from './LeafletMap'
-import { Panel, PanelGroup, PanelResizeHandle, type ImperativePanelHandle } from 'react-resizable-panels'
 
 const EVAC_SHELTERS: EvacShelter[] = [
   // California
@@ -292,15 +291,34 @@ function EvacuationMapContent() {
   const [showShelters, setShowShelters] = useState(false)
   const [showHazards, setShowHazards] = useState(false)
   const [mapSize, setMapSize] = useState<'compact' | 'default' | 'full'>('default')
-  const mapPanelRef = useRef<ImperativePanelHandle>(null)
-  const listPanelRef = useRef<ImperativePanelHandle>(null)
+  const [mapWidthPct, setMapWidthPct] = useState(65)
+  const [isDragging, setIsDragging] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
   const searchParams = useSearchParams()
+
+  useEffect(() => {
+    if (!isDragging) return
+    function onMove(e: MouseEvent) {
+      if (!containerRef.current) return
+      const rect = containerRef.current.getBoundingClientRect()
+      const pct = Math.round(((e.clientX - rect.left) / rect.width) * 100)
+      setMapWidthPct(Math.min(85, Math.max(30, pct)))
+      setMapSize('compact') // clear preset highlight while dragging
+    }
+    function onUp() { setIsDragging(false) }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+    return () => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+  }, [isDragging])
 
   function applyPreset(size: 'compact' | 'default' | 'full') {
     setMapSize(size)
-    if (size === 'compact') { mapPanelRef.current?.resize(50); listPanelRef.current?.resize(50) }
-    if (size === 'default') { mapPanelRef.current?.resize(65); listPanelRef.current?.resize(35) }
-    if (size === 'full')    { mapPanelRef.current?.resize(82); listPanelRef.current?.resize(18) }
+    if (size === 'compact') setMapWidthPct(50)
+    if (size === 'default') setMapWidthPct(65)
+    if (size === 'full')    setMapWidthPct(82)
   }
 
   async function loadNifc() {
@@ -455,10 +473,9 @@ function EvacuationMapContent() {
       </div>
 
       {/* Map + fire list — resizable panels */}
-      <div style={{ height: 'calc(100vh - 235px)', minHeight: 520 }}>
-        <PanelGroup direction="horizontal" className="h-full">
+      <div ref={containerRef} style={{ height: 'calc(100vh - 235px)', minHeight: 520, display: 'flex', userSelect: isDragging ? 'none' : undefined }}>
           {/* Map panel */}
-          <Panel ref={mapPanelRef} defaultSize={65} minSize={35} className="flex flex-col gap-3">
+          <div style={{ width: `${mapWidthPct}%`, minWidth: '30%', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="h-full card overflow-hidden">
             {loading ? (
               <div className="h-full flex flex-col items-center justify-center gap-3">
@@ -537,15 +554,18 @@ function EvacuationMapContent() {
               </div>
             )
           })()}
-          </Panel>
+          </div>
 
           {/* Drag handle */}
-          <PanelResizeHandle className="w-2 mx-1 flex items-center justify-center group cursor-col-resize">
-            <div className="w-0.5 h-12 bg-ash-700 group-hover:bg-ember-500 rounded-full transition-colors" />
-          </PanelResizeHandle>
+          <div
+            onMouseDown={() => setIsDragging(true)}
+            style={{ width: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'col-resize' }}
+          >
+            <div style={{ width: 2, height: 48, borderRadius: 4, background: isDragging ? '#f97316' : '#334155', transition: 'background 0.15s' }} />
+          </div>
 
           {/* Fire cards panel */}
-          <Panel ref={listPanelRef} defaultSize={35} minSize={15} maxSize={55}>
+          <div style={{ flex: 1, minWidth: '15%', overflow: 'hidden' }}>
         <div className="flex flex-col gap-3 overflow-y-auto h-full pr-1">
           <h3 className="text-white font-semibold text-sm shrink-0">
             Active Fires
@@ -633,8 +653,7 @@ function EvacuationMapContent() {
             </a>
           )}
         </div>
-          </Panel>
-        </PanelGroup>
+          </div>
       </div>
     </div>
   )
