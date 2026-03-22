@@ -24,7 +24,7 @@ const STATUS_OPTIONS: {
     label: 'Sheltering in place',
     icon: Home,
     activeClass: 'bg-signal-info/10 border-signal-info/40 text-signal-info',
-    desc: 'I am staying where I am and monitoring the situation.',
+    desc: 'Staying inside a sturdy building because leaving right now is more dangerous than staying. Close all windows and doors, turn off HVAC, and monitor official alerts. Only use this if you cannot safely evacuate — evacuating early is always preferred.',
   },
   {
     value: 'returning',

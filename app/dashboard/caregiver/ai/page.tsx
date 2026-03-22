@@ -4,6 +4,47 @@ import { User, Loader, Sparkles } from 'lucide-react'
 import { AIChatInput } from '@/components/ui/ai-chat-input'
 import { motion } from 'framer-motion'
 
+function renderMarkdown(text: string) {
+  const lines = text.split('\n')
+  const elements: React.ReactNode[] = []
+  let i = 0
+  while (i < lines.length) {
+    const line = lines[i]
+    if (line.startsWith('### ')) {
+      elements.push(<p key={i} className="font-semibold text-gray-800 mt-2 mb-1">{inlineMarkdown(line.slice(4))}</p>)
+    } else if (line.startsWith('## ')) {
+      elements.push(<p key={i} className="font-bold text-gray-800 mt-2 mb-1">{inlineMarkdown(line.slice(3))}</p>)
+    } else if (line.match(/^[-*] /)) {
+      const items: string[] = []
+      while (i < lines.length && lines[i].match(/^[-*] /)) {
+        items.push(lines[i].slice(2))
+        i++
+      }
+      elements.push(
+        <ul key={`ul-${i}`} className="list-disc list-inside space-y-0.5 my-1 pl-1">
+          {items.map((item, j) => <li key={j} className="text-gray-600">{inlineMarkdown(item)}</li>)}
+        </ul>
+      )
+      continue
+    } else if (line.trim() === '') {
+      elements.push(<div key={i} className="h-2" />)
+    } else {
+      elements.push(<p key={i} className="leading-relaxed">{inlineMarkdown(line)}</p>)
+    }
+    i++
+  }
+  return <>{elements}</>
+}
+
+function inlineMarkdown(text: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g)
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) return <strong key={i} className="font-semibold text-gray-800">{part.slice(2, -2)}</strong>
+    if (part.startsWith('*') && part.endsWith('*')) return <em key={i}>{part.slice(1, -1)}</em>
+    return part
+  })
+}
+
 interface Message {
   role: 'user' | 'assistant'
   content: string
@@ -143,12 +184,12 @@ export default function SafePathAIPage() {
                     <img src="/flameo1.png" alt="Flameo" className="w-5 h-5 object-contain" />
                   </div>
                 )}
-                <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+                <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                   msg.role === 'user'
                     ? 'bg-forest-600 text-white rounded-tr-none'
                     : 'bg-white border border-gray-200 text-gray-700 rounded-tl-none shadow-sm'
                 }`}>
-                  {msg.content}
+                  {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
                 </div>
                 {msg.role === 'user' && (
                   <div className="w-7 h-7 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center shrink-0 mt-0.5">
