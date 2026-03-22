@@ -40,21 +40,33 @@ function clearGoogCookie() {
 
 
 /** Triggers translation by manipulating the hidden Google Translate select.
- *  GT creates the <select> element immediately but populates options async —
- *  so we must check options.length > 1 before accepting it as ready. */
+ *  Uses MutationObserver so it reacts the instant GT populates its option list,
+ *  instead of polling with a fixed timer (which misses fast or very slow loads). */
 function triggerGT(code: string) {
-  const attempt = (tries: number) => {
-    const sel = document.querySelector<HTMLSelectElement>('select.goog-te-combo')
-    // Only proceed once GT has actually loaded the language list
-    if (sel && sel.options.length > 1) {
-      sel.value = code
-      sel.dispatchEvent(new Event('change'))
-    } else if (tries > 0) {
-      setTimeout(() => attempt(tries - 1), 500)
-    }
+  function applyToSelect(sel: HTMLSelectElement) {
+    sel.value = code
+    sel.dispatchEvent(new Event('change'))
   }
-  // 60 retries × 500ms = 30s total — handles slow Vercel cold starts
-  attempt(60)
+
+  // Try immediately — works on navigations where GT is already loaded
+  const existing = document.querySelector<HTMLSelectElement>('select.goog-te-combo')
+  if (existing && existing.options.length > 1) {
+    applyToSelect(existing)
+    return
+  }
+
+  // Watch the DOM for GT to add / populate the select element
+  const observer = new MutationObserver(() => {
+    const sel = document.querySelector<HTMLSelectElement>('select.goog-te-combo')
+    if (sel && sel.options.length > 1) {
+      applyToSelect(sel)
+      observer.disconnect()
+    }
+  })
+  observer.observe(document.body, { childList: true, subtree: true, attributes: true })
+
+  // Give up after 30 seconds to avoid leaking the observer
+  setTimeout(() => observer.disconnect(), 30000)
 }
 
 interface Props {
@@ -81,7 +93,7 @@ export default function LanguageProvider({ children, initialLang }: Props) {
     const activeLang = ls ?? initialLang ?? 'en'
     if (activeLang !== 'en') {
       setGoogCookie(activeLang)
-      setTimeout(() => triggerGT(activeLang), 2500)
+      triggerGT(activeLang)
     }
   }, [initialLang])
 
