@@ -2,7 +2,11 @@
 import { useEffect, useState } from 'react'
 import { Shield, Flame, AlertTriangle, Activity, TrendingUp, Clock, ChevronRight, Wind, Droplets, Users, Truck, Radio, Map, ChevronDown, ChevronUp, Building2, ExternalLink, ShieldAlert, Brain } from 'lucide-react'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase'
+import type { PredictionFire } from './PredictionMap'
+
+const PredictionMap = dynamic(() => import('./PredictionMap'), { ssr: false })
 
 const QUICK_NAV = [
   { label: 'ML Spread Predictor', href: '/dashboard/responder/ml', icon: Activity, badge: 'AI', badgeColor: 'badge-info' },
@@ -39,6 +43,17 @@ const DEMO_FIRES = [
   { id: 'd6', incident_name: 'Monument Fire', county: 'Trinity', state: 'CA', acres_burned: 223124, containment_pct: null, svi_score: 0.63, signal_gap_hours: null },
   { id: 'd7', incident_name: 'Snake River Complex', county: 'Owyhee', state: 'ID', acres_burned: 481838, containment_pct: null, svi_score: 0.71, signal_gap_hours: null },
   { id: 'd8', incident_name: 'Whitewater-Baldy', county: 'Catron', state: 'NM', acres_burned: 297845, containment_pct: null, svi_score: 0.78, signal_gap_hours: null },
+]
+
+const PREDICTION_FIRES: PredictionFire[] = [
+  { id: 'd1', fire_name: 'Dixie Fire', latitude: 40.0, longitude: -121.1, acres: 963309, containment: null, svi_score: 0.69, signal_gap_hours: 3.5 },
+  { id: 'd2', fire_name: 'Bootleg Fire', latitude: 42.4, longitude: -121.0, acres: 401279, containment: null, svi_score: 0.58, signal_gap_hours: 2.1 },
+  { id: 'd3', fire_name: 'Wallow Fire', latitude: 33.8, longitude: -109.2, acres: 538049, containment: null, svi_score: 0.74, signal_gap_hours: 18.4 },
+  { id: 'd4', fire_name: 'Creek Fire', latitude: 37.2, longitude: -119.3, acres: 379895, containment: null, svi_score: 0.72, signal_gap_hours: 4.2 },
+  { id: 'd5', fire_name: 'Caldor Fire', latitude: 38.6, longitude: -120.1, acres: 221774, containment: null, svi_score: 0.61, signal_gap_hours: 6.8 },
+  { id: 'd6', fire_name: 'Monument Fire', latitude: 40.7, longitude: -123.0, acres: 223124, containment: null, svi_score: 0.63, signal_gap_hours: null },
+  { id: 'd7', fire_name: 'Snake River Complex', latitude: 42.5, longitude: -116.8, acres: 481838, containment: null, svi_score: 0.71, signal_gap_hours: null },
+  { id: 'd8', fire_name: 'Whitewater-Baldy', latitude: 33.4, longitude: -108.3, acres: 297845, containment: null, svi_score: 0.78, signal_gap_hours: null },
 ]
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -713,6 +728,26 @@ function WiDSIntelligencePanel({ activeFires, loading }: { activeFires: any[]; l
   )
 }
 
+// ─── Sub-component: Fire Prediction Map ──────────────────────────────────────
+
+function PredictionMapSection() {
+  return (
+    <div className="mb-8">
+      <div className="flex items-center gap-2 mb-4">
+        <Brain className="w-4 h-4 text-ember-400" />
+        <h2 className="text-white font-semibold text-sm">Fire Prediction Map — ML Risk Zones</h2>
+        <span className="ml-auto text-ash-600 text-xs">WiDS historical incidents · click a fire for details</span>
+      </div>
+      <div className="card overflow-hidden" style={{ height: 500 }}>
+        <PredictionMap fires={PREDICTION_FIRES} center={[38.5, -115]} />
+      </div>
+      <p className="text-ash-600 text-xs mt-2">
+        Risk zones show estimated at-risk housing radius. Popup shows ML-derived evacuation estimates. Dot size = fire acreage. Color = containment level.
+      </p>
+    </div>
+  )
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ResponderDashboard() {
@@ -920,6 +955,9 @@ export default function ResponderDashboard() {
 
       {/* Live NIFC Incidents — added section */}
       <NifcSection />
+
+      {/* Fire Prediction Map */}
+      <PredictionMapSection />
 
       {/* WiDS Intelligence Panel */}
       <WiDSIntelligencePanel activeFires={activeFires} loading={loading} />
