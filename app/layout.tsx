@@ -50,8 +50,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         {/* Google Translate: creates its own div so React never reconciles it */}
         {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-        {/* GT div must have real dimensions — 1px breaks widget init. CSS hides it via visibility:hidden */}
-        <script dangerouslySetInnerHTML={{ __html: `function googleTranslateElementInit(){var d=document.createElement('div');d.id='google_translate_element';d.style.cssText='position:absolute;top:-9999px;left:-9999px;width:220px;height:40px;';document.body.appendChild(d);new google.translate.TranslateElement({pageLanguage:'en',layout:google.translate.TranslateElement.InlineLayout.SIMPLE,autoDisplay:false},'google_translate_element');}` }} />
+        {/* GT init — no InlineLayout.SIMPLE: that renders a div widget with no <select>.
+             Default layout renders select.goog-te-combo which triggerGT() can manipulate. */}
+        <script dangerouslySetInnerHTML={{ __html: `function googleTranslateElementInit(){var d=document.createElement('div');d.id='google_translate_element';d.style.cssText='position:absolute;top:-9999px;left:-9999px;width:220px;height:40px;';document.body.appendChild(d);new google.translate.TranslateElement({pageLanguage:'en',autoDisplay:false},'google_translate_element');}` }} />
         {/* eslint-disable-next-line @next/next/no-sync-scripts */}
         <script async src="https://translate.googleapis.com/translate_a/element.js?cb=googleTranslateElementInit" />
         {/* Apply saved theme before first paint to avoid flash */}

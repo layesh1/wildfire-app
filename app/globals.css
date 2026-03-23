@@ -4,14 +4,23 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Hide Google Translate UI artifacts — use visibility:hidden NOT display:none.
-   display:none removes the element from the render tree entirely, which means
-   Google Translate can never create or populate select.goog-te-combo inside it.
-   visibility:hidden keeps it in the tree (so GT works) but invisible to users. */
-.skiptranslate,
-.goog-te-banner-frame { display: none !important; }
-body { top: 0 !important; }
-.goog-te-gadget { font-size: 0 !important; }
+/* ── Google Translate: hide toolbar UI, keep widget functional ────────────────
+   IMPORTANT: Do NOT use `.skiptranslate { display:none }` — that class is on
+   the .goog-te-gadget container which holds select.goog-te-combo. Hiding it
+   with display:none removes the select from the render tree and triggerGT()
+   can never find it. Target only the visible toolbar elements instead. */
+.goog-te-banner-frame { display: none !important; }  /* top toolbar bar   */
+#goog-gt-tt            { display: none !important; }  /* translation tooltip */
+.goog-te-spinner-pos   { display: none !important; }  /* loading spinner    */
+body { top: 0 !important; }                           /* prevent body shift */
+/* Keep .goog-te-gadget in the render tree (so select.goog-te-combo exists)
+   but make it invisible and zero-height so it doesn't affect layout. */
+.goog-te-gadget {
+  visibility: hidden !important;
+  overflow: hidden !important;
+  height: 0 !important;
+  font-size: 0 !important;
+}
 #google_translate_element {
   visibility: hidden !important;
   pointer-events: none !important;
