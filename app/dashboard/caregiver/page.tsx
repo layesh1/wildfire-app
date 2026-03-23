@@ -286,7 +286,6 @@ export default function CaregiverDashboard() {
     ? userProfile.full_name.trim().split(/\s+/).map(n => n[0]).join('').slice(0, 2).toUpperCase()
     : 'ME'
 
-  const firstPerson = persons[0] ?? null
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
@@ -673,83 +672,25 @@ export default function CaregiverDashboard() {
             </div>
           </div>
 
-          {/* First Person card + Early Fire Alert button */}
-          <div className="px-4 pb-4 flex gap-3">
-            <div className="w-1/2">
-            <div
-              className="rounded-2xl text-white group relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.02] cursor-default"
-              style={{ background: 'linear-gradient(135deg, #4a6621, #7cb342)', aspectRatio: '1 / 1' }}
+          {/* Early Fire Alert button */}
+          <div className="px-4 pb-4">
+            <Link
+              href="/dashboard/caregiver/alert"
+              className="rounded-2xl text-white flex flex-col justify-between p-5 w-full transition-all duration-200 hover:shadow-lg hover:scale-[1.02]"
+              style={{ background: 'linear-gradient(135deg, #7a2e0e, #c86432)', aspectRatio: '1 / 1' }}
             >
-              <div className="absolute inset-0 p-5 flex flex-col justify-between">
-                <div>
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
-                    style={{ background: 'rgba(255,255,255,0.2)' }}
-                  >
-                    <User className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="text-white/60 text-[10px] uppercase tracking-widest mb-1">First Person</div>
-                  <div className="text-base font-semibold text-white truncate">
-                    {firstPerson?.name || 'No contact'}
-                  </div>
-                </div>
-                <div>
-                  {firstPerson?.phone && (
-                    <a
-                      href={`tel:${firstPerson.phone}`}
-                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-semibold transition-all hover:bg-white/30"
-                      style={{ background: 'rgba(255,255,255,0.22)' }}
-                    >
-                      <Phone className="w-3 h-3" />
-                      Call
-                    </a>
-                  )}
-                  {!firstPerson && (
-                    <Link
-                      href="/dashboard/caregiver/persons"
-                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-semibold transition-all hover:bg-white/30"
-                      style={{ background: 'rgba(255,255,255,0.22)' }}
-                    >
-                      Set up
-                    </Link>
-                  )}
-                </div>
-              </div>
-
-              {/* Location overlay on hover */}
-              <div className="absolute inset-0 rounded-2xl flex flex-col justify-end p-5 opacity-0 group-hover:opacity-100 transition-all duration-200" style={{ background: 'rgba(62,39,35,0.92)', backdropFilter: 'blur(2px)' }}>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <MapPin className="w-3 h-3 text-white/70 shrink-0" />
-                  <div className="text-white/50 text-[10px] uppercase tracking-widest">Location</div>
-                </div>
-                <div className="text-sm font-semibold text-white leading-snug mb-1">
-                  {firstPerson?.address || 'No address on file'}
-                </div>
-                <div className="text-white/40 text-[10px]">Last Update: —</div>
-              </div>
-            </div>
-            </div>
-
-            {/* Early Fire Alert button */}
-            <div className="w-1/2">
-              <Link
-                href="/dashboard/caregiver/alert"
-                className="rounded-2xl text-white flex flex-col justify-between p-5 h-full transition-all duration-200 hover:shadow-lg hover:scale-[1.02]"
-                style={{ background: 'linear-gradient(135deg, #7a2e0e, #c86432)', aspectRatio: '1 / 1' }}
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ background: 'rgba(255,255,255,0.2)' }}
               >
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: 'rgba(255,255,255,0.2)' }}
-                >
-                  <AlertTriangle className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <div className="text-white/60 text-[10px] uppercase tracking-widest mb-1">Alerts</div>
-                  <div className="text-base font-semibold text-white leading-tight">Early Fire Alert</div>
-                  <div className="text-white/50 text-[11px] mt-1">Monitor nearby fires</div>
-                </div>
-              </Link>
-            </div>
+                <AlertTriangle className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <div className="text-white/60 text-[10px] uppercase tracking-widest mb-1">Alerts</div>
+                <div className="text-base font-semibold text-white leading-tight">Early Fire Alert</div>
+                <div className="text-white/50 text-[11px] mt-1">Monitor nearby fires</div>
+              </div>
+            </Link>
           </div>
         </div>
 
