@@ -48,15 +48,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${playfair.variable} ${dmSans.variable} ${dmMono.variable} ${poppins.variable}`} suppressHydrationWarning>
       <head>
-        {/* Google Translate: creates its own div so React never reconciles it */}
-        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-        {/* GT init — no InlineLayout.SIMPLE: that renders a div widget with no <select>.
-             Default layout renders select.goog-te-combo which triggerGT() can manipulate. */}
-        <script dangerouslySetInnerHTML={{ __html: `function googleTranslateElementInit(){var d=document.createElement('div');d.id='google_translate_element';d.style.cssText='position:absolute;top:-9999px;left:-9999px;width:220px;height:40px;';document.body.appendChild(d);new google.translate.TranslateElement({pageLanguage:'en',autoDisplay:false},'google_translate_element');}` }} />
-        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-        <script async src="https://translate.googleapis.com/translate_a/element.js?cb=googleTranslateElementInit" />
         {/* Apply saved theme before first paint to avoid flash */}
         <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('wfa_theme')||'light';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');else document.documentElement.classList.remove('dark');}catch(e){}` }} />
+        {/* Google Translate is loaded by LanguageProvider inside useEffect AFTER hydration.
+             Loading it here (before hydration) causes React error #418: GT appends a div to
+             <body> before React reconciles, creating a server/client HTML mismatch that wipes
+             the GT div when React re-renders the root. */}
       </head>
       <body className="bg-gray-50 text-gray-900 font-poppins antialiased" suppressHydrationWarning>
         <ScrollToTop />

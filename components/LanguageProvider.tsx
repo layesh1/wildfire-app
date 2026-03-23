@@ -31,13 +31,51 @@ function clearGoogCookie() {
 }
 
 /**
- * Finds the Google Translate select (rendered by the widget in app/layout.tsx)
- * and triggers a language change. Polls up to 30 s for the widget to load —
- * this handles Vercel cold-start delays where the async GT script takes time.
- *
- * Root cause of past failures: globals.css had `display:none` on
- * #google_translate_element which prevented the browser from rendering the
- * select at all.  Now fixed to `visibility:hidden` so the select exists in DOM.
+ * Loads Google Translate entirely from the client (inside useEffect, post-hydration).
+ * Loading GT in layout.tsx caused React error #418: GT appended a div to <body>
+ * before React hydrated, creating a server/client mismatch that wiped the GT div.
+ * Running inside useEffect avoids that — React has already reconciled the DOM.
+ */
+function loadGoogleTranslate(onReady: () => void) {
+  // Already loaded — call onReady immediately
+  if (document.getElementById('google_translate_element')) {
+    onReady()
+    return
+  }
+
+  // Create the container GT renders into — must have real dimensions so the
+  // browser renders select.goog-te-combo inside it (visibility:hidden in CSS
+  // keeps it invisible while keeping it in the render tree)
+  const div = document.createElement('div')
+  div.id = 'google_translate_element'
+  div.style.cssText = 'position:absolute;top:-9999px;left:-9999px;width:220px;height:40px;'
+  document.body.appendChild(div)
+
+  // Define callback GT calls after its script loads
+  ;(window as any).googleTranslateElementInit = () => {
+    new (window as any).google.translate.TranslateElement(
+      { pageLanguage: 'en', autoDisplay: false },   // no InlineLayout.SIMPLE — that creates
+      'google_translate_element'                     // a div widget, not select.goog-te-combo
+    )
+    onReady()
+  }
+
+  // Inject script — calls googleTranslateElementInit when ready
+  if (!document.getElementById('gt-script')) {
+    const s = document.createElement('script')
+    s.id = 'gt-script'
+    s.src = 'https://translate.googleapis.com/translate_a/element.js?cb=googleTranslateElementInit'
+    s.async = true
+    document.head.appendChild(s)
+  } else {
+    // Script tag already in DOM (e.g. re-mount) — call init manually
+    onReady()
+  }
+}
+
+/**
+ * Finds select.goog-te-combo and triggers translation. Polls for up to 30 s
+ * to handle the async delay while GT fetches its language list from Google.
  */
 function triggerGT(code: string) {
   let done = false
@@ -95,10 +133,9 @@ export default function LanguageProvider({ children, initialLang }: Props) {
     const activeLang = ls ?? initialLang ?? 'en'
 
     if (activeLang !== 'en') {
-      // Ensure cookie is set so navigations within the same session stay translated
       setGoogCookie(activeLang)
-      // Trigger GT widget (already loaded by app/layout.tsx)
-      triggerGT(activeLang)
+      // Load GT post-hydration then trigger — avoids React #418 hydration mismatch
+      loadGoogleTranslate(() => triggerGT(activeLang))
     }
   }, [initialLang])
 
@@ -118,8 +155,8 @@ export default function LanguageProvider({ children, initialLang }: Props) {
       window.location.reload()
     } else {
       setGoogCookie(code)
-      // Trigger in-place — no reload needed; GT translates current DOM
-      triggerGT(code)
+      // Load GT if not yet loaded, then translate in-place
+      loadGoogleTranslate(() => triggerGT(code))
     }
   }, [supabase])
 
