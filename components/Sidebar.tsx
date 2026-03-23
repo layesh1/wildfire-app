@@ -5,7 +5,7 @@ import {
   Flame, Shield, Heart, BarChart3, Map, AlertTriangle,
   Users, Brain, LogOut, ChevronDown, ChevronRight,
   Activity, TrendingUp, Bell, Settings, BarChart2, Globe,
-  ClipboardList, Thermometer, FileText, Database, Menu, X, User
+  ClipboardList, Thermometer, Database, Menu, X, User
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase'
@@ -36,11 +36,10 @@ const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> 
   caregiver: [
     { label: 'My Hub', href: '/dashboard/caregiver', icon: Bell },
     { label: 'Ask FlameoAI', href: '/dashboard/caregiver/ai', icon: Activity },
-    { label: 'My Persons', href: '/dashboard/caregiver/persons', icon: Users },
     { label: 'Early Fire Alert', href: '/dashboard/caregiver/alert', icon: AlertTriangle },
-    { label: 'Check-In', href: '/dashboard/caregiver/checkin', icon: Users },
-    { label: 'Emergency Card', href: '/dashboard/caregiver/emergency-card', icon: FileText },
     { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: Map },
+    { label: 'My Persons', href: '/dashboard/caregiver/persons', icon: Users },
+    { label: 'Check-In', href: '/dashboard/caregiver/checkin', icon: Users },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
   evacuee: [
