@@ -8,26 +8,17 @@ const LS_KEY = 'app_language'
 interface LangCtx {
   lang: Language
   setLanguage: (code: string) => Promise<void>
+  translating: boolean
 }
 
 const Ctx = createContext<LangCtx>({
   lang: LANGUAGES[0],
   setLanguage: async () => {},
+  translating: false,
 })
 
 export function useLanguage() {
   return useContext(Ctx)
-}
-
-function setGoogCookie(code: string) {
-  const exp = 'expires=Fri, 31 Dec 2099 23:59:59 GMT'
-  document.cookie = `googtrans=/en/${code};path=/;${exp}`
-  document.cookie = `googtrans=/en/${code};${exp}`
-}
-
-function clearGoogCookie() {
-  document.cookie = 'googtrans=;path=/;expires=Thu, 01 Jan 1970 00:00:00 GMT'
-  document.cookie = 'googtrans=;expires=Thu, 01 Jan 1970 00:00:00 GMT'
 }
 
 interface Props {
@@ -38,13 +29,12 @@ interface Props {
 export default function LanguageProvider({ children, initialLang }: Props) {
   const supabase = createClient()
   const didInit = useRef(false)
+  const [translating, setTranslating] = useState(false)
 
   /**
-   * CRITICAL: must return getLang(initialLang) on the server (not LANGUAGES[0]).
-   * The dashboard layout passes initialLang from Supabase. If the server returns
-   * LANGUAGES[0] (English) but the client reads 'ko' from localStorage, the Sidebar
-   * renders different lang values → React error #418 hydration mismatch on every load.
-   * Using initialLang for both server and client initial render eliminates the mismatch.
+   * IMPORTANT: use initialLang (from Supabase) for the server render, not LANGUAGES[0].
+   * If the server returns English but the client reads 'ko' from localStorage, the Sidebar
+   * renders different values → React error #418 on every page load.
    */
   const [lang, setLang] = useState<Language>(() => {
     if (typeof window === 'undefined') return getLang(initialLang ?? 'en')
@@ -60,40 +50,21 @@ export default function LanguageProvider({ children, initialLang }: Props) {
     if (!ls) localStorage.setItem(LS_KEY, initialLang ?? 'en')
     const activeLang = ls ?? initialLang ?? 'en'
 
-    if (activeLang !== 'en') {
-      setGoogCookie(activeLang)
-    } else {
-      clearGoogCookie()
-      return
-    }
+    if (activeLang === 'en') return
 
-    /**
-     * Trigger GT translation via the select element.
-     *
-     * globals.css adds `display: block !important` to `.goog-te-gadget` which
-     * overrides GT's own inline `style="display:none"`. That prevents GT from
-     * hiding the gadget before its language list request fires, so options load.
-     *
-     * Once options are present we set the select value and fire `change` — this
-     * is how GT starts the page translation (the same event the user triggers
-     * when they pick from the dropdown manually).
-     *
-     * The googtrans cookie is also set as a belt-and-suspenders: GT reads it on
-     * init via autoDisplay:true and may translate before options even load.
-     */
-    let tries = 0
-    const interval = setInterval(() => {
-      if (++tries > 60) { clearInterval(interval); return }  // give up after 30 s
-
-      const sel = document.querySelector<HTMLSelectElement>('select.goog-te-combo')
-      if (sel && sel.options.length > 1) {
-        sel.value = activeLang
-        sel.dispatchEvent(new Event('change'))
-        clearInterval(interval)
+    // Translate the page after React has settled
+    setTranslating(true)
+    // Small delay lets React finish any remaining renders before we walk the DOM
+    setTimeout(async () => {
+      try {
+        const { translateDocument } = await import('@/lib/dom-translator')
+        await translateDocument(activeLang)
+      } catch (e) {
+        console.error('[i18n] translation error', e)
+      } finally {
+        setTranslating(false)
       }
-    }, 500)
-
-    return () => clearInterval(interval)
+    }, 300)
   }, [initialLang])
 
   const setLanguage = useCallback(async (code: string) => {
@@ -101,21 +72,22 @@ export default function LanguageProvider({ children, initialLang }: Props) {
     setLang(selected)
     localStorage.setItem(LS_KEY, code)
 
+    // Persist to Supabase in background
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) supabase.from('profiles').upsert({ id: user.id, language_preference: code })
     })
 
-    if (code === 'en') {
-      clearGoogCookie()
-    } else {
-      setGoogCookie(code)
-    }
+    // Clear session cache so fresh translations are fetched for the new language
+    try {
+      const { clearTranslationCache } = await import('@/lib/dom-translator')
+      clearTranslationCache()
+    } catch {}
 
     window.location.reload()
   }, [supabase])
 
   return (
-    <Ctx.Provider value={{ lang, setLanguage }}>
+    <Ctx.Provider value={{ lang, setLanguage, translating }}>
       {children}
     </Ctx.Provider>
   )
