@@ -667,8 +667,8 @@ export default function CaregiverDashboard() {
             </div>
           </div>
 
-          {/* First Person card — square, location on hover */}
-          <div className="px-4 pb-4">
+          {/* First Person card + Early Fire Alert button */}
+          <div className="px-4 pb-4 flex gap-3">
             <div className="w-1/2">
             <div
               className="rounded-2xl text-white group relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.02] cursor-default"
@@ -722,6 +722,27 @@ export default function CaregiverDashboard() {
                 <div className="text-white/40 text-[10px]">Last Update: —</div>
               </div>
             </div>
+            </div>
+
+            {/* Early Fire Alert button */}
+            <div className="w-1/2">
+              <Link
+                href="/dashboard/caregiver/alert"
+                className="rounded-2xl text-white flex flex-col justify-between p-5 h-full transition-all duration-200 hover:shadow-lg hover:scale-[1.02]"
+                style={{ background: 'linear-gradient(135deg, #7a2e0e, #c86432)', aspectRatio: '1 / 1' }}
+              >
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{ background: 'rgba(255,255,255,0.2)' }}
+                >
+                  <AlertTriangle className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <div className="text-white/60 text-[10px] uppercase tracking-widest mb-1">Alerts</div>
+                  <div className="text-base font-semibold text-white leading-tight">Early Fire Alert</div>
+                  <div className="text-white/50 text-[11px] mt-1">Monitor nearby fires</div>
+                </div>
+              </Link>
             </div>
           </div>
         </div>
