@@ -51,11 +51,13 @@ function loadGoogleTranslate(onReady: () => void) {
   div.style.cssText = 'position:absolute;top:-9999px;left:-9999px;width:220px;height:40px;'
   document.body.appendChild(div)
 
-  // Define callback GT calls after its script loads
+  // Define callback GT calls after its script loads.
+  // autoDisplay:true is REQUIRED — with false, GT waits for user interaction and
+  // never auto-translates from the googtrans cookie. true = translate on init from cookie.
   ;(window as any).googleTranslateElementInit = () => {
     new (window as any).google.translate.TranslateElement(
-      { pageLanguage: 'en', autoDisplay: false },   // no InlineLayout.SIMPLE — that creates
-      'google_translate_element'                     // a div widget, not select.goog-te-combo
+      { pageLanguage: 'en', autoDisplay: true },
+      'google_translate_element'
     )
     onReady()
   }
@@ -155,8 +157,8 @@ export default function LanguageProvider({ children, initialLang }: Props) {
       window.location.reload()
     } else {
       setGoogCookie(code)
-      // Load GT if not yet loaded, then translate in-place
-      loadGoogleTranslate(() => triggerGT(code))
+      // Reload so GT initialises fresh with the cookie and auto-translates (autoDisplay:true)
+      window.location.reload()
     }
   }, [supabase])
 
