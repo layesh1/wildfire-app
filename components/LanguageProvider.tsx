@@ -50,21 +50,31 @@ export default function LanguageProvider({ children, initialLang }: Props) {
     if (!ls) localStorage.setItem(LS_KEY, initialLang ?? 'en')
     const activeLang = ls ?? initialLang ?? 'en'
 
-    if (activeLang === 'en') return
+    if (activeLang === 'en') {
+      // Make sure body is visible even if no translation needed
+      document.documentElement.classList.remove('wfa-translating')
+      document.documentElement.classList.add('wfa-translating-done')
+      return
+    }
 
     // Translate the page after React has settled
     setTranslating(true)
-    // Small delay lets React finish any remaining renders before we walk the DOM
-    setTimeout(async () => {
+    const revealPage = () => {
+      document.documentElement.classList.remove('wfa-translating')
+      document.documentElement.classList.add('wfa-translating-done')
+    }
+    const run = async () => {
       try {
         const { translateDocument } = await import('@/lib/dom-translator')
         await translateDocument(activeLang)
       } catch (e) {
         console.error('[i18n] translation error', e)
       } finally {
+        revealPage()
         setTranslating(false)
       }
-    }, 300)
+    }
+    run()
   }, [initialLang])
 
   const setLanguage = useCallback(async (code: string) => {

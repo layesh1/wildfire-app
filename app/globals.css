@@ -4,7 +4,14 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Translation loading indicator */
+/* Translation loading — hide body before first paint to prevent flash of English */
+html.wfa-translating body {
+  opacity: 0;
+}
+html.wfa-translating-done body {
+  opacity: 1;
+  transition: opacity 0.15s ease;
+}
 body.wfa-translating {
   cursor: wait;
 }

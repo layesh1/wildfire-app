@@ -50,6 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         {/* Apply saved theme before first paint to avoid flash */}
         <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('wfa_theme')||'light';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');else document.documentElement.classList.remove('dark');}catch(e){}` }} />
+        <script dangerouslySetInnerHTML={{ __html: `try{var l=localStorage.getItem('app_language');if(l&&l!=='en'){document.documentElement.classList.add('wfa-translating');setTimeout(function(){document.documentElement.classList.remove('wfa-translating');},8000);}}catch(e){}` }} />
       </head>
       <body className="bg-gray-50 text-gray-900 font-poppins antialiased" suppressHydrationWarning>
         <ScrollToTop />
