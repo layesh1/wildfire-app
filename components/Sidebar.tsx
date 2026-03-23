@@ -121,7 +121,11 @@ function SidebarInner({ user, profile }: Props) {
   }
 
   const role = urlRole || storedRole || profile?.role || 'caregiver'
-  const nav = NAV_BY_ROLE[role] || NAV_BY_ROLE.caregiver
+  const baseNav = NAV_BY_ROLE[role] || NAV_BY_ROLE.caregiver
+  // Hide "My Persons" when the user is in My Safety mode (acting for themselves)
+  const nav = (mode === 'self' && role === 'caregiver')
+    ? baseNav.filter(item => item.href !== '/dashboard/caregiver/persons')
+    : baseNav
   const RoleIcon = ROLE_ICONS[role] || Heart
 
   const handleSignOut = async () => {

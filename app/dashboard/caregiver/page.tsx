@@ -321,11 +321,15 @@ export default function CaregiverDashboard() {
               style={{ color: 'var(--wfa-accent)' }}
             >
               <Users className="w-3.5 h-3.5" />
-              My Persons
+              {isCaregiverMode ? 'Caring For' : 'My Persons'}
             </div>
-            <div className="font-display font-bold text-xl" style={{ color: 'var(--wfa-text)' }}>Tracking</div>
+            <div className="font-display font-bold text-xl" style={{ color: 'var(--wfa-text)' }}>
+              {isCaregiverMode ? activePerson!.name.split(' ')[0] : 'Tracking'}
+            </div>
             <div className="text-xs mt-0.5" style={{ color: 'var(--wfa-text-40)' }}>
-              {persons.length} {persons.length === 1 ? 'person' : 'people'} monitored
+              {isCaregiverMode
+                ? (activePerson!.relationship || 'Person in care')
+                : `${persons.length} ${persons.length === 1 ? 'person' : 'people'} monitored`}
             </div>
           </div>
 
@@ -413,7 +417,9 @@ export default function CaregiverDashboard() {
                 <Bell className="w-3.5 h-3.5" />
                 {isCaregiverMode ? `Caring for ${activePerson!.name}` : 'My Safety'}
               </div>
-              <h1 className="font-display font-bold text-2xl" style={{ color: 'var(--wfa-text)' }}>My Hub</h1>
+              <h1 className="font-display font-bold text-2xl" style={{ color: 'var(--wfa-text)' }}>
+                {isCaregiverMode ? `${activePerson!.name.split(' ')[0]}'s Hub` : 'My Hub'}
+              </h1>
             </div>
             <div className="flex items-center gap-2">
               <div className="group relative">
