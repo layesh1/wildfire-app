@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { LANGUAGES, getLang, type Language } from '@/lib/languages'
 
@@ -19,15 +19,7 @@ export function useLanguage() {
   return useContext(Ctx)
 }
 
-/** Reads the googtrans cookie value, e.g. "/en/es" → "es" */
-function readGoogCookie(): string | null {
-  if (typeof document === 'undefined') return null
-  const match = document.cookie.match(/googtrans=\/en\/([^;]+)/)
-  return match ? match[1] : null
-}
-
 function setGoogCookie(code: string) {
-  // Set on both root path and current path so iframe picks it up
   const exp = 'expires=Fri, 31 Dec 2099 23:59:59 GMT'
   document.cookie = `googtrans=/en/${code};path=/;${exp}`
   document.cookie = `googtrans=/en/${code};${exp}`
@@ -38,13 +30,15 @@ function clearGoogCookie() {
   document.cookie = 'googtrans=;expires=Thu, 01 Jan 1970 00:00:00 GMT'
 }
 
-
-/** Triggers translation by manipulating the hidden Google Translate select.
- *  Three-layer strategy handles all timing scenarios on Vercel cold starts:
- *  1. Immediate check (works when GT already loaded on soft nav)
- *  2. MutationObserver (reacts the instant GT populates its option list)
- *  3. window.load event (fires after all scripts finish — catches very slow loads)
- *  4. Interval fallback (30s safety net, fires every 500ms) */
+/**
+ * Finds the Google Translate select (rendered by the widget in app/layout.tsx)
+ * and triggers a language change. Polls up to 30 s for the widget to load —
+ * this handles Vercel cold-start delays where the async GT script takes time.
+ *
+ * Root cause of past failures: globals.css had `display:none` on
+ * #google_translate_element which prevented the browser from rendering the
+ * select at all.  Now fixed to `visibility:hidden` so the select exists in DOM.
+ */
 function triggerGT(code: string) {
   let done = false
 
@@ -61,17 +55,14 @@ function triggerGT(code: string) {
     return false
   }
 
-  // Layer 1: immediate
   if (tryNow()) return
 
-  // Layer 2: MutationObserver
+  // Wait for GT to finish loading its option list (async network request)
   const observer = new MutationObserver(() => { if (tryNow()) observer.disconnect() })
   observer.observe(document.body, { childList: true, subtree: true, attributes: true })
 
-  // Layer 3: window.load — fires after all async scripts finish
   window.addEventListener('load', () => { if (tryNow()) observer.disconnect() }, { once: true })
 
-  // Layer 4: interval poll — 60 retries × 500ms = 30s safety net
   let tries = 0
   const interval = setInterval(() => {
     if (done || ++tries > 60) { clearInterval(interval); observer.disconnect(); return }
@@ -81,28 +72,32 @@ function triggerGT(code: string) {
 
 interface Props {
   children: React.ReactNode
-  /** Language code from Supabase profile, null = first login */
   initialLang: string | null
 }
 
 export default function LanguageProvider({ children, initialLang }: Props) {
   const supabase = createClient()
+  const didApply = useRef(false)
 
-  // Determine starting language: localStorage → profile → default 'en'
   const [lang, setLang] = useState<Language>(() => {
     if (typeof window === 'undefined') return LANGUAGES[0]
     const ls = localStorage.getItem(LS_KEY)
     return getLang(ls ?? initialLang ?? 'en')
   })
 
+  // Apply saved language on mount (handles page reloads / first load)
   useEffect(() => {
-    const ls = localStorage.getItem(LS_KEY)
-    // Silently default to English — no popup
-    if (!ls) localStorage.setItem(LS_KEY, initialLang ?? 'en')
+    if (didApply.current) return
+    didApply.current = true
 
+    const ls = localStorage.getItem(LS_KEY)
+    if (!ls) localStorage.setItem(LS_KEY, initialLang ?? 'en')
     const activeLang = ls ?? initialLang ?? 'en'
+
     if (activeLang !== 'en') {
+      // Ensure cookie is set so navigations within the same session stay translated
       setGoogCookie(activeLang)
+      // Trigger GT widget (already loaded by app/layout.tsx)
       triggerGT(activeLang)
     }
   }, [initialLang])
@@ -112,17 +107,19 @@ export default function LanguageProvider({ children, initialLang }: Props) {
     setLang(selected)
     localStorage.setItem(LS_KEY, code)
 
-    // Persist to Supabase in the background — don't block the reload
+    // Persist to Supabase in background
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) supabase.from('profiles').upsert({ id: user.id, language_preference: code })
     })
 
     if (code === 'en') {
       clearGoogCookie()
+      // Restore: reload to let GT remove its translations cleanly
       window.location.reload()
     } else {
       setGoogCookie(code)
-      window.location.reload()
+      // Trigger in-place — no reload needed; GT translates current DOM
+      triggerGT(code)
     }
   }, [supabase])
 
