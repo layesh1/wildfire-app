@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase'
 import { LANGUAGES, getLang, type Language } from '@/lib/languages'
+import TranslationToast from '@/components/TranslationToast'
 
 const LS_KEY = 'app_language'
 
@@ -108,9 +109,23 @@ export default function LanguageProvider({ children, initialLang }: Props) {
     }
   }, [supabase])
 
+  const [toastDismissed, setToastDismissed] = useState(false)
+
+  // Reset dismissed state whenever we start a new translation
+  useEffect(() => {
+    if (translating) setToastDismissed(false)
+  }, [translating])
+
   return (
     <Ctx.Provider value={{ lang, setLanguage, translating }}>
       {children}
+      <TranslationToast
+        langCode={lang.code}
+        langFlag={lang.flag}
+        langNative={lang.native}
+        visible={translating && !toastDismissed}
+        onDismiss={() => setToastDismissed(true)}
+      />
     </Ctx.Provider>
   )
 }
