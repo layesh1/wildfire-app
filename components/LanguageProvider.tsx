@@ -19,11 +19,6 @@ export function useLanguage() {
   return useContext(Ctx)
 }
 
-/**
- * Sets the googtrans cookie that Google Translate reads on init.
- * Format: /en/<target> — tells GT to translate from English to <target>.
- * Must be set on both path=/ and the root domain to ensure GT picks it up.
- */
 function setGoogCookie(code: string) {
   const exp = 'expires=Fri, 31 Dec 2099 23:59:59 GMT'
   document.cookie = `googtrans=/en/${code};path=/;${exp}`
@@ -44,17 +39,19 @@ export default function LanguageProvider({ children, initialLang }: Props) {
   const supabase = createClient()
   const didInit = useRef(false)
 
+  /**
+   * CRITICAL: must return getLang(initialLang) on the server (not LANGUAGES[0]).
+   * The dashboard layout passes initialLang from Supabase. If the server returns
+   * LANGUAGES[0] (English) but the client reads 'ko' from localStorage, the Sidebar
+   * renders different lang values → React error #418 hydration mismatch on every load.
+   * Using initialLang for both server and client initial render eliminates the mismatch.
+   */
   const [lang, setLang] = useState<Language>(() => {
-    if (typeof window === 'undefined') return LANGUAGES[0]
+    if (typeof window === 'undefined') return getLang(initialLang ?? 'en')
     const ls = localStorage.getItem(LS_KEY)
     return getLang(ls ?? initialLang ?? 'en')
   })
 
-  /**
-   * On mount: ensure the googtrans cookie reflects the saved language preference.
-   * The Google Translate widget in layout.tsx loads after hydration (afterInteractive)
-   * and reads this cookie via autoDisplay:true to auto-translate on page load.
-   */
   useEffect(() => {
     if (didInit.current) return
     didInit.current = true
@@ -64,12 +61,39 @@ export default function LanguageProvider({ children, initialLang }: Props) {
     const activeLang = ls ?? initialLang ?? 'en'
 
     if (activeLang !== 'en') {
-      // Ensure cookie is set so GT auto-translates when its script loads
       setGoogCookie(activeLang)
     } else {
-      // Ensure no stale cookie from a previous session
       clearGoogCookie()
+      return
     }
+
+    /**
+     * Trigger GT translation via the select element.
+     *
+     * globals.css adds `display: block !important` to `.goog-te-gadget` which
+     * overrides GT's own inline `style="display:none"`. That prevents GT from
+     * hiding the gadget before its language list request fires, so options load.
+     *
+     * Once options are present we set the select value and fire `change` — this
+     * is how GT starts the page translation (the same event the user triggers
+     * when they pick from the dropdown manually).
+     *
+     * The googtrans cookie is also set as a belt-and-suspenders: GT reads it on
+     * init via autoDisplay:true and may translate before options even load.
+     */
+    let tries = 0
+    const interval = setInterval(() => {
+      if (++tries > 60) { clearInterval(interval); return }  // give up after 30 s
+
+      const sel = document.querySelector<HTMLSelectElement>('select.goog-te-combo')
+      if (sel && sel.options.length > 1) {
+        sel.value = activeLang
+        sel.dispatchEvent(new Event('change'))
+        clearInterval(interval)
+      }
+    }, 500)
+
+    return () => clearInterval(interval)
   }, [initialLang])
 
   const setLanguage = useCallback(async (code: string) => {
@@ -77,7 +101,6 @@ export default function LanguageProvider({ children, initialLang }: Props) {
     setLang(selected)
     localStorage.setItem(LS_KEY, code)
 
-    // Persist to Supabase in background (non-blocking)
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) supabase.from('profiles').upsert({ id: user.id, language_preference: code })
     })
@@ -88,8 +111,6 @@ export default function LanguageProvider({ children, initialLang }: Props) {
       setGoogCookie(code)
     }
 
-    // Reload so the GT widget (loaded via layout.tsx afterInteractive) initialises
-    // fresh with the updated cookie and auto-translates via autoDisplay:true
     window.location.reload()
   }, [supabase])
 
