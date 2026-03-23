@@ -3,20 +3,27 @@
  *
  * After React hydration the DOM is stable. We walk all text nodes,
  * batch-translate them, and replace in place. Results are cached in
- * sessionStorage so repeat navigations within a session are instant.
+ * localStorage so repeat navigations and page reloads are near-instant.
+ *
+ * A WeakMap tracks the original English text of every translated node so
+ * multi-step switching (e.g. en→fr then fr→es) always translates FROM
+ * the original English rather than from a previously-translated value.
  *
  * Tags that must not be translated: SCRIPT, STYLE, CODE, PRE, INPUT, etc.
  * Elements with data-notranslate="true" are also skipped.
  */
 
-const SESSION_KEY = 'wfa_translations'
+const LS_CACHE_KEY = 'wfa_translations'
+
+// Preserve original English text of each Text node across in-session language switches
+const nodeOriginals = new WeakMap<Text, string>()
 
 function getCache(): Record<string, string> {
-  try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || '{}') } catch { return {} }
+  try { return JSON.parse(localStorage.getItem(LS_CACHE_KEY) || '{}') } catch { return {} }
 }
 
 function saveCache(cache: Record<string, string>) {
-  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(cache)) } catch {}
+  try { localStorage.setItem(LS_CACHE_KEY, JSON.stringify(cache)) } catch {}
 }
 
 const SKIP_TAGS = new Set([
@@ -30,16 +37,18 @@ function collectTextNodes(root: Node): Text[] {
 
   const walk = (node: Node) => {
     if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent?.trim() ?? ''
+      const t = node as Text
+      const text = t.textContent?.trim() ?? ''
       // Skip pure numbers, punctuation-only, very short strings
       if (text.length > 1 && !/^[\d\s.,!?%:;()\-–—]+$/.test(text)) {
-        nodes.push(node as Text)
+        // Record original English text on first encounter only
+        if (!nodeOriginals.has(t)) nodeOriginals.set(t, text)
+        nodes.push(t)
       }
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       const el = node as Element
       if (SKIP_TAGS.has(el.tagName.toUpperCase())) return
       if (el.getAttribute('data-notranslate') === 'true') return
-      if (el.id === 'google_translate_element') return
       for (const child of Array.from(node.childNodes)) walk(child)
     }
   }
@@ -76,13 +85,30 @@ async function fetchTranslations(texts: string[], target: string): Promise<Recor
 }
 
 export async function translateDocument(targetLang: string): Promise<void> {
-  if (!targetLang || targetLang === 'en') return
-
   const nodes = collectTextNodes(document.body)
   if (!nodes.length) return
 
+  // Switching back to English: restore original text from WeakMap
+  if (!targetLang || targetLang === 'en') {
+    for (const node of nodes) {
+      const original = nodeOriginals.get(node)
+      if (original) {
+        const current = node.textContent ?? ''
+        const currentTrimmed = current.trim()
+        if (currentTrimmed && currentTrimmed !== original) {
+          node.textContent = current.replace(currentTrimmed, original)
+        }
+      }
+    }
+    return
+  }
+
   const cache = getCache()
-  const allTexts = [...new Set(nodes.map(n => n.textContent?.trim() ?? '').filter(Boolean))]
+
+  // ALWAYS look up by original English text, not the current (possibly-translated) content
+  const allTexts = [...new Set(
+    nodes.map(n => nodeOriginals.get(n) ?? n.textContent?.trim() ?? '').filter(Boolean)
+  )]
   const needFetch = allTexts.filter(t => !(`${targetLang}:${t}` in cache))
 
   if (needFetch.length > 0) {
@@ -93,17 +119,17 @@ export async function translateDocument(targetLang: string): Promise<void> {
     saveCache(cache)
   }
 
-  // Apply
+  // Apply translations
   for (const node of nodes) {
-    const original = node.textContent?.trim() ?? ''
+    const original = nodeOriginals.get(node) ?? node.textContent?.trim() ?? ''
     const translated = cache[`${targetLang}:${original}`]
     if (translated) {
-      // Replace only the trimmed portion, preserving surrounding whitespace
-      node.textContent = node.textContent!.replace(original, translated)
+      const current = node.textContent!
+      node.textContent = current.replace(original, translated)
     }
   }
 }
 
 export function clearTranslationCache() {
-  try { sessionStorage.removeItem(SESSION_KEY) } catch {}
+  try { localStorage.removeItem(LS_CACHE_KEY) } catch {}
 }

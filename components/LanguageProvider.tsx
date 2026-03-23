@@ -87,13 +87,17 @@ export default function LanguageProvider({ children, initialLang }: Props) {
       if (user) supabase.from('profiles').upsert({ id: user.id, language_preference: code })
     })
 
-    // Clear session cache so fresh translations are fetched for the new language
+    // Translate in-place — no page reload needed.
+    // localStorage cache means previously-fetched languages are instant.
+    setTranslating(true)
     try {
-      const { clearTranslationCache } = await import('@/lib/dom-translator')
-      clearTranslationCache()
-    } catch {}
-
-    window.location.reload()
+      const { translateDocument } = await import('@/lib/dom-translator')
+      await translateDocument(code)
+    } catch (e) {
+      console.error('[i18n] setLanguage translation error', e)
+    } finally {
+      setTranslating(false)
+    }
   }, [supabase])
 
   return (
