@@ -20,11 +20,12 @@ body { top: 0 !important; }
 /* Hide tooltip & spinner */
 #goog-gt-tt          { display: none !important; }
 .goog-te-spinner-pos { display: none !important; }
-/* Keep gadget in render tree but invisible */
+/* Keep gadget rendered (display:block overrides GT's own inline display:none — REQUIRED for
+   options to load) but invisible. The container is off-screen so no layout impact. */
 .goog-te-gadget {
+  display: block !important;   /* Must override GT's inline style="display:none" */
   visibility: hidden !important;
   overflow: hidden !important;
-  height: 0 !important;
   font-size: 0 !important;
 }
 /* Keep GT's own container invisible */
