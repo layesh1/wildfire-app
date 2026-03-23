@@ -1,10 +1,73 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Share2, Download, Phone, AlertTriangle, Heart, Shield, Plus, X, Droplets, PawPrint, User, Trash2 } from 'lucide-react'
+import { FileText, Share2, Download, Phone, AlertTriangle, Heart, Shield, Plus, X, Droplets, User } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { LANGUAGES } from '@/lib/languages'
 
 const MOBILITY_OPTIONS = ['Mobile Adult', 'Elderly', 'Elderly (needs driver)', 'Disabled', 'Wheelchair', 'No Vehicle', 'Medical Equipment', 'Other']
+
+// ── Address autocomplete (Nominatim / OpenStreetMap, no API key) ────────────
+interface NominatimResult { place_id: number; display_name: string }
+
+function AddressInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const [suggestions, setSuggestions] = useState<NominatimResult[]>([])
+  const [showDrop, setShowDrop] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setShowDrop(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  function handleChange(v: string) {
+    onChange(v)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (v.length < 4) { setSuggestions([]); setShowDrop(false); return }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(v)}&format=json&addressdetails=0&limit=5&countrycodes=us`,
+          { headers: { 'Accept-Language': 'en' } }
+        )
+        const data: NominatimResult[] = await res.json()
+        setSuggestions(data)
+        setShowDrop(data.length > 0)
+      } catch { setSuggestions([]) }
+    }, 400)
+  }
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <input
+        type="text"
+        value={value}
+        onChange={e => handleChange(e.target.value)}
+        onFocus={() => suggestions.length > 0 && setShowDrop(true)}
+        placeholder={placeholder}
+        className="input"
+      />
+      {showDrop && (
+        <ul className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+          {suggestions.map(s => (
+            <li key={s.place_id}>
+              <button
+                type="button"
+                className="w-full text-left px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors truncate"
+                onMouseDown={() => { onChange(s.display_name); setSuggestions([]); setShowDrop(false) }}
+              >
+                {s.display_name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 type CardProfile = {
   name: string
@@ -17,10 +80,7 @@ type CardProfile = {
   mobilityOther: string
   medications: string
   medicalEquipment: string
-  pets: string
   languages: string
-  evacuationRoute: string
-  destinationAddress: string
 }
 
 type CardOwner = { key: string; label: string }
@@ -30,7 +90,7 @@ function emptyProfile(): CardProfile {
     name: '', address: '', phone: '', bloodType: '', allergies: '',
     emergencyContacts: [{ name: '', phone: '', relationship: '' }],
     mobility: 'Mobile Adult', mobilityOther: '', medications: '',
-    medicalEquipment: '', pets: '', languages: '', evacuationRoute: '', destinationAddress: '',
+    medicalEquipment: '', languages: '',
   }
 }
 
@@ -194,11 +254,7 @@ export default function EmergencyCardPage() {
       profile.mobility !== 'Mobile Adult' ? `Mobility: ${mobilityLabel}` : '',
       profile.medications ? `Medications: ${profile.medications}` : '',
       profile.medicalEquipment ? `Medical Equipment: ${profile.medicalEquipment}` : '',
-      profile.pets ? `Pets: ${profile.pets}` : '',
       profile.languages ? `Languages: ${profile.languages}` : '',
-      '',
-      profile.evacuationRoute ? `Evacuation Route: ${profile.evacuationRoute}` : '',
-      profile.destinationAddress ? `Going to: ${profile.destinationAddress}` : '',
       '',
       '— Emergency Numbers —',
       '911 · FEMA: 1-800-621-3362 · Red Cross: 1-800-733-2767',
@@ -227,7 +283,7 @@ export default function EmergencyCardPage() {
         </div>
         <h1 className="font-display text-3xl font-bold text-gray-900 mb-1">Emergency Cards</h1>
         <p className="text-gray-500 text-sm mb-4">
-          Cards for first responders and shelter staff — your meds, pets, and route. Create one for yourself and anyone you care for.
+          Cards for first responders and shelter staff — your medical needs, contacts, and conditions. Create one for yourself and anyone you care for.
           <strong className="text-gray-700"> Auto-saved to your device.</strong>
         </p>
 
@@ -338,8 +394,7 @@ export default function EmergencyCardPage() {
             </div>
             <div className="sm:col-span-2">
               <label className="text-gray-500 text-xs block mb-1">Home address</label>
-              <input type="text" value={profile.address} onChange={e => update('address', e.target.value)}
-                placeholder="123 Main St, City, CA 95003" className="input" />
+              <AddressInput value={profile.address} onChange={v => update('address', v)} placeholder="123 Main St, City, CA 95003" />
             </div>
             <div>
               <label className="text-gray-500 text-xs block mb-1">Blood type <span className="text-gray-400">(optional)</span></label>
@@ -449,29 +504,6 @@ export default function EmergencyCardPage() {
           </div>
         </div>
 
-        {/* Pets & evacuation */}
-        <div className="card p-5">
-          <h2 className="text-gray-700 font-semibold text-sm mb-3 flex items-center gap-2">
-            <PawPrint className="w-4 h-4 text-amber-500" /> Pets & Evacuation Plan
-          </h2>
-          <div className="space-y-3">
-            <div>
-              <label className="text-gray-500 text-xs block mb-1">Pets <span className="text-gray-400">(shelters need this to direct to pet-friendly locations)</span></label>
-              <input type="text" value={profile.pets} onChange={e => update('pets', e.target.value)}
-                placeholder="e.g. Bella (lab), 2 cats, fish tank (can't take)" className="input" />
-            </div>
-            <div>
-              <label className="text-gray-500 text-xs block mb-1">Primary evacuation route</label>
-              <input type="text" value={profile.evacuationRoute} onChange={e => update('evacuationRoute', e.target.value)}
-                placeholder="e.g. Hwy 1 North → I-5 North" className="input" />
-            </div>
-            <div>
-              <label className="text-gray-500 text-xs block mb-1">Destination / meeting point</label>
-              <input type="text" value={profile.destinationAddress} onChange={e => update('destinationAddress', e.target.value)}
-                placeholder="e.g. Sister's house: 456 Oak Ave, Sacramento" className="input" />
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Printable / shareable card */}
@@ -575,23 +607,6 @@ export default function EmergencyCardPage() {
           </div>
 
           <div className="border-t border-gray-100" />
-
-          {/* Pets / route */}
-          {(profile.pets || profile.evacuationRoute || profile.destinationAddress) && (
-            <div className="grid grid-cols-1 gap-2 text-sm">
-              {profile.pets && (
-                <div><span className="font-semibold text-gray-700">Pets:</span> <span className="text-gray-600">{profile.pets}</span></div>
-              )}
-              {profile.evacuationRoute && (
-                <div><span className="font-semibold text-gray-700">Route:</span> <span className="text-gray-600">{profile.evacuationRoute}</span></div>
-              )}
-              {profile.destinationAddress && (
-                <div><span className="font-semibold text-gray-700">Going to:</span> <span className="text-gray-600">{profile.destinationAddress}</span></div>
-              )}
-            </div>
-          )}
-
-          {(profile.pets || profile.evacuationRoute || profile.destinationAddress) && <div className="border-t border-gray-100" />}
 
           {/* Emergency numbers */}
           <div className="grid grid-cols-2 gap-2 text-xs">
