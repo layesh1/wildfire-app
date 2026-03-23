@@ -116,6 +116,13 @@ interface Shelter {
   pct_full: number | null
 }
 
+const QUICK_NAV = [
+  { label: 'ML Fire Prediction', href: '/dashboard/responder/ml', icon: Brain, badge: 'AI', badgeColor: 'text-xs font-bold text-ember-400' },
+  { label: 'Evacuation Map', href: '/dashboard/responder/map', icon: Map, badge: 'Live', badgeColor: 'text-xs font-bold text-signal-safe' },
+  { label: 'ICS Board', href: '/dashboard/responder/ics', icon: Shield, badge: 'ICS', badgeColor: 'text-xs font-bold text-blue-400' },
+  { label: 'Signal Gap Analysis', href: '/dashboard/responder/signal-gap', icon: Activity, badge: '99%', badgeColor: 'text-xs font-bold text-signal-warn' },
+] as const
+
 // ─── Helper: format ISO date ──────────────────────────────────────────────────
 
 function fmtDate(iso: string): string {
@@ -532,6 +539,154 @@ function FireBehaviorSection() {
         ))}
       </div>
       <AnimatedFireSpread windMps={s.windMps} slopeDeg={s.slopeDeg} currentAcres={500} title="Fire Spread — Tactical Simulation" />
+    </div>
+  )
+}
+
+// ─── Sub-component: NIFC Live Incidents ───────────────────────────────────────
+
+function NifcSection() {
+  const [fires, setFires] = useState<NifcFire[]>([])
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/fires/firms?limit=8')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.fires?.length) setFires(data.fires)
+        setLoaded(true)
+      })
+      .catch(() => setLoaded(true))
+  }, [])
+
+  if (loaded && fires.length === 0) return null
+
+  return (
+    <div className="mb-8">
+      <div className="flex items-center gap-2 mb-4">
+        <MapPin className="w-4 h-4 text-signal-danger" />
+        <h2 className="text-white font-semibold text-sm">Live NIFC Active Incidents</h2>
+        <span className="ml-auto text-ash-600 text-xs">NASA FIRMS · refreshes every 5 min</span>
+      </div>
+      <div className="card overflow-hidden">
+        {!loaded ? (
+          <div className="p-6 text-center text-ash-500 text-sm">Loading live incidents…</div>
+        ) : (
+          <div className="divide-y divide-ash-800">
+            {fires.slice(0, 6).map((f, i) => (
+              <div key={f.id ?? i} className="flex items-center gap-4 px-5 py-3 hover:bg-ash-800/40 transition-colors">
+                <div className="w-2 h-2 rounded-full bg-signal-danger animate-pulse-slow shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-white text-sm font-medium truncate">{f.fire_name || 'Active Fire'}</div>
+                  <div className="text-ash-500 text-xs">{f.source}</div>
+                </div>
+                <div className="text-right shrink-0">
+                  {f.acres != null && <div className="text-ash-300 text-xs font-mono">{f.acres.toLocaleString()} ac</div>}
+                  {f.containment != null && <div className="text-signal-safe text-xs">{f.containment}% contained</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Sub-component: WiDS Intelligence Panel ───────────────────────────────────
+
+function WiDSIntelligencePanel({ activeFires, loading }: { activeFires: any[], loading: boolean }) {
+  const withGap = activeFires.filter(f => f.signal_gap_hours != null)
+  const avgGap = withGap.length > 0
+    ? (withGap.reduce((s, f) => s + f.signal_gap_hours, 0) / withGap.length).toFixed(1)
+    : null
+  const highSvi = activeFires.filter(f => f.svi_score != null && f.svi_score > 0.7).length
+  const longGap = activeFires.filter(f => f.signal_gap_hours != null && f.signal_gap_hours > 12).length
+
+  return (
+    <div className="mb-8">
+      <div className="flex items-center gap-2 mb-4">
+        <ShieldAlert className="w-4 h-4 text-signal-warn" />
+        <h2 className="text-white font-semibold text-sm">WiDS Signal Gap Intelligence</h2>
+        <span className="ml-auto text-ash-600 text-xs">WiDS 2021–2025 dataset · 62,696 incidents</span>
+      </div>
+      <div className="grid grid-cols-3 gap-4 mb-4">
+        {[
+          { label: 'Avg Alert Delay', value: loading ? '…' : avgGap ? `${avgGap}h` : '—', color: 'text-signal-warn', sub: 'hours before formal order' },
+          { label: 'High Vulnerability', value: loading ? '…' : `${highSvi}`, color: 'text-signal-danger', sub: 'fires in SVI > 0.7 zones' },
+          { label: 'Critical Gap (>12h)', value: loading ? '…' : `${longGap}`, color: 'text-signal-danger', sub: 'fires with 12h+ delay' },
+        ].map(s => (
+          <div key={s.label} className="card p-4 text-center">
+            <div className={`font-display text-2xl font-bold ${s.color}`}>{s.value}</div>
+            <div className="text-white text-xs font-medium mt-1">{s.label}</div>
+            <div className="text-ash-500 text-xs mt-0.5">{s.sub}</div>
+          </div>
+        ))}
+      </div>
+      <div className="card p-4 bg-signal-warn/5 border-signal-warn/20">
+        <p className="text-ash-400 text-xs leading-relaxed">
+          <span className="text-signal-warn font-semibold">Research finding: </span>
+          99.74% of wildfire incidents in the WiDS dataset had no formal evacuation order — only an informal signal gap.
+          The median delay between fire detection and formal order is <span className="text-white font-semibold">11.5 hours</span>.
+          Use ML prediction to identify high-risk zones before the gap becomes critical.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ─── Sub-component: Shelter Capacity ──────────────────────────────────────────
+
+function ShelterSection() {
+  const [shelters, setShelters] = useState<Shelter[]>([])
+  const [nearCapacity, setNearCapacity] = useState(0)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/shelters')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.shelters) { setShelters(data.shelters.slice(0, 8)); setNearCapacity(data.near_capacity ?? 0) }
+        setLoaded(true)
+      })
+      .catch(() => setLoaded(true))
+  }, [])
+
+  return (
+    <div className="mt-8">
+      <div className="flex items-center gap-2 mb-4">
+        <Building2 className="w-4 h-4 text-signal-info" />
+        <h2 className="text-white font-semibold text-sm">Shelter Capacity — FEMA Live</h2>
+        {nearCapacity > 0 && (
+          <span className="badge-danger ml-2">{nearCapacity} near capacity</span>
+        )}
+        <span className="ml-auto text-ash-600 text-xs">FEMA NSS · updates every 5 min</span>
+      </div>
+      <div className="card overflow-hidden">
+        {!loaded ? (
+          <div className="p-6 text-center text-ash-500 text-sm">Loading shelter data…</div>
+        ) : shelters.length === 0 ? (
+          <div className="p-6 text-center text-ash-500 text-sm">No active shelters in system</div>
+        ) : (
+          <div className="divide-y divide-ash-800">
+            {shelters.map((s, i) => (
+              <div key={i} className="flex items-center gap-4 px-5 py-3 hover:bg-ash-800/40 transition-colors">
+                <div className={`w-2 h-2 rounded-full shrink-0 ${s.pct_full != null && s.pct_full >= 80 ? 'bg-signal-danger' : s.pct_full != null && s.pct_full >= 50 ? 'bg-signal-warn' : 'bg-signal-safe'}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-white text-sm font-medium truncate">{s.name}</div>
+                  <div className="text-ash-500 text-xs">{s.county}{s.county && s.state ? ', ' : ''}{s.state}</div>
+                </div>
+                <div className="text-right shrink-0">
+                  {s.capacity != null && <div className="text-ash-300 text-xs font-mono">{s.occupancy ?? '?'} / {s.capacity}</div>}
+                  {s.pct_full != null && (
+                    <div className={`text-xs font-bold ${s.pct_full >= 80 ? 'text-signal-danger' : s.pct_full >= 50 ? 'text-signal-warn' : 'text-signal-safe'}`}>{s.pct_full}%</div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
