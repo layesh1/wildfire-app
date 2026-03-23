@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import { Playfair_Display, DM_Sans, DM_Mono, Poppins } from 'next/font/google'
-import Script from 'next/script'
 import './globals.css'
 import ScrollToTop from '@/components/ScrollToTop'
 
@@ -55,40 +54,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-gray-50 text-gray-900 font-poppins antialiased" suppressHydrationWarning>
         <ScrollToTop />
         {children}
-
-        {/*
-          Google Translate integration — three-part setup:
-
-          1. This div is SERVER-RENDERED so it's present in the HTML that React hydrates against.
-             React reconciliation keeps it (no mismatch). GT finds it by ID and renders into it.
-             Positioned off-screen + visibility:hidden in globals.css keeps it invisible.
-
-          2. gt-init script defines googleTranslateElementInit BEFORE the GT library loads,
-             so GT can call it immediately when ready. strategy="afterInteractive" guarantees
-             this runs AFTER React hydration — no React #418 conflict.
-
-          3. gt-script loads the GT library. afterInteractive = after hydration.
-             GT calls googleTranslateElementInit, reads the googtrans cookie,
-             and auto-translates because autoDisplay:true.
-        */}
-        <div
-          id="google_translate_element"
-          style={{ position: 'absolute', top: '-9999px', left: '-9999px', width: '220px', height: '40px' }}
-          suppressHydrationWarning
-        />
-        <Script id="gt-init" strategy="afterInteractive">{`
-          window.googleTranslateElementInit = function() {
-            new google.translate.TranslateElement(
-              { pageLanguage: 'en', autoDisplay: true },
-              'google_translate_element'
-            );
-          };
-        `}</Script>
-        <Script
-          id="gt-script"
-          src="https://translate.googleapis.com/translate_a/element.js?cb=googleTranslateElementInit"
-          strategy="afterInteractive"
-        />
       </body>
     </html>
   )

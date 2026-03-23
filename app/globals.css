@@ -4,34 +4,12 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Google Translate: hide toolbar, keep translation working ─────────────────
-   GT with autoDisplay:true auto-translates from the googtrans cookie on init.
-   We hide the toolbar visually but keep elements in the render tree so GT
-   does not abort translation when it can't find its own UI. */
-
-/* Hide the "Translated from English" notification bar at the top */
-.goog-te-banner-frame {
-  visibility: hidden !important;
-  height: 0 !important;
-  min-height: 0 !important;
+/* Translation loading indicator */
+body.wfa-translating {
+  cursor: wait;
 }
-/* Prevent the body offset GT applies when its toolbar is shown */
-body { top: 0 !important; }
-/* Hide tooltip & spinner */
-#goog-gt-tt          { display: none !important; }
-.goog-te-spinner-pos { display: none !important; }
-/* Keep gadget rendered (display:block overrides GT's own inline display:none — REQUIRED for
-   options to load) but invisible. The container is off-screen so no layout impact. */
-.goog-te-gadget {
-  display: block !important;   /* Must override GT's inline style="display:none" */
-  visibility: hidden !important;
-  overflow: hidden !important;
-  font-size: 0 !important;
-}
-/* Keep GT's own container invisible */
-#google_translate_element {
-  visibility: hidden !important;
-  pointer-events: none !important;
+body.wfa-translating * {
+  pointer-events: none;
 }
 
 @layer base {
