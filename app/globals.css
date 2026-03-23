@@ -4,12 +4,18 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Hide Google Translate UI artifacts */
+/* Hide Google Translate UI artifacts — use visibility:hidden NOT display:none.
+   display:none removes the element from the render tree entirely, which means
+   Google Translate can never create or populate select.goog-te-combo inside it.
+   visibility:hidden keeps it in the tree (so GT works) but invisible to users. */
 .skiptranslate,
 .goog-te-banner-frame { display: none !important; }
 body { top: 0 !important; }
 .goog-te-gadget { font-size: 0 !important; }
-#google_translate_element { display: none !important; }
+#google_translate_element {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
 
 @layer base {
   :root {
