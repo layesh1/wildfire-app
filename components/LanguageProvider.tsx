@@ -50,23 +50,23 @@ export default function LanguageProvider({ children, initialLang }: Props) {
     if (!ls) localStorage.setItem(LS_KEY, initialLang ?? 'en')
     const activeLang = ls ?? initialLang ?? 'en'
 
-    if (activeLang === 'en') {
-      // Make sure body is visible even if no translation needed
-      document.documentElement.classList.remove('wfa-translating')
-      document.documentElement.classList.add('wfa-translating-done')
-      return
-    }
-
-    // Translate the page after React has settled
-    setTranslating(true)
     const revealPage = () => {
       document.documentElement.classList.remove('wfa-translating')
       document.documentElement.classList.add('wfa-translating-done')
     }
+
+    if (activeLang === 'en') {
+      revealPage()
+      return
+    }
+
+    setTranslating(true)
     const run = async () => {
       try {
-        const { translateDocument } = await import('@/lib/dom-translator')
+        const { translateDocument, startTranslationObserver } = await import('@/lib/dom-translator')
         await translateDocument(activeLang)
+        // Start observer AFTER initial translation so dynamic content (Supabase lists) gets translated too
+        startTranslationObserver(activeLang)
       } catch (e) {
         console.error('[i18n] translation error', e)
       } finally {
@@ -75,6 +75,11 @@ export default function LanguageProvider({ children, initialLang }: Props) {
       }
     }
     run()
+
+    // Clean up observer when component unmounts (page navigation)
+    return () => {
+      import('@/lib/dom-translator').then(({ stopTranslationObserver }) => stopTranslationObserver())
+    }
   }, [initialLang])
 
   const setLanguage = useCallback(async (code: string) => {
@@ -87,12 +92,15 @@ export default function LanguageProvider({ children, initialLang }: Props) {
       if (user) supabase.from('profiles').upsert({ id: user.id, language_preference: code })
     })
 
-    // Translate in-place — no page reload needed.
-    // localStorage cache means previously-fetched languages are instant.
     setTranslating(true)
     try {
-      const { translateDocument } = await import('@/lib/dom-translator')
+      const { translateDocument, startTranslationObserver, stopTranslationObserver } =
+        await import('@/lib/dom-translator')
+
+      // Stop old observer, translate in-place, start new observer for new language
+      stopTranslationObserver()
       await translateDocument(code)
+      startTranslationObserver(code)
     } catch (e) {
       console.error('[i18n] setLanguage translation error', e)
     } finally {
