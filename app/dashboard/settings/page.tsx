@@ -5,7 +5,7 @@ import {
   Shield, Heart, BarChart3, Lock, Check, ShieldCheck, Globe,
   Settings, Plus, User, Bell, BellOff, Moon, Sun, Monitor, LogOut,
   Trash2, Key, AlertTriangle, Save, CheckCircle, PawPrint, ShieldAlert,
-  Activity, Radio, FileText, Brain
+  Activity, Radio, FileText, Brain, Flame
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/components/LanguageProvider'
@@ -869,6 +869,28 @@ function SettingsInner() {
                 )}
               </div>
             )}
+          </section>
+
+          <section className="card p-6">
+            <div className="flex items-center gap-2 mb-4"><Flame className="w-4 h-4 text-ember-400" /><h2 className="font-semibold text-white">Help & Onboarding</h2></div>
+            <div className="space-y-3">
+              <p className="text-ash-500 text-xs">Replay the dashboard tour, or re-run the setup wizard to update your address and mobility info.</p>
+              <button
+                onClick={() => {
+                  if (typeof window !== 'undefined') localStorage.removeItem('wfa_tour_done_v1')
+                  router.push('/dashboard/caregiver')
+                }}
+                className="flex items-center gap-2 text-ash-400 hover:text-white transition-colors text-sm py-1"
+              >
+                <Flame className="w-4 h-4 text-ember-400" /> Replay Flameo tour
+              </button>
+              <button
+                onClick={() => router.push('/auth/onboarding?role=caregiver')}
+                className="flex items-center gap-2 text-ash-400 hover:text-white transition-colors text-sm py-1"
+              >
+                <Settings className="w-4 h-4" /> Re-run setup wizard
+              </button>
+            </div>
           </section>
 
           <section className="card p-6 border-signal-danger/20">
