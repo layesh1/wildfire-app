@@ -222,11 +222,33 @@ function EvacuationMapContent() {
   const [addressInput, setAddressInput] = useState('')
   const [geocoding, setGeocoding] = useState(false)
   const [geocodeError, setGeocodeError] = useState('')
+  const [homeCenter, setHomeCenter] = useState<[number, number] | null>(null)
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem('monitored_persons_v2')
       if (raw) setSavedPersons(JSON.parse(raw))
+    } catch {}
+  }, [])
+
+  // Geocode saved home address from emergency card for default map center
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('wfa_emergency_card')
+      if (raw) {
+        const card = JSON.parse(raw)
+        if (card.address) {
+          fetch(
+            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(card.address)}&format=json&limit=1&countrycodes=us`,
+            { headers: { 'Accept-Language': 'en' } }
+          )
+            .then(r => r.json())
+            .then((data: { lat: string; lon: string }[]) => {
+              if (data[0]) setHomeCenter([parseFloat(data[0].lat), parseFloat(data[0].lon)])
+            })
+            .catch(() => {})
+        }
+      }
     } catch {}
   }, [])
 
@@ -333,7 +355,7 @@ function EvacuationMapContent() {
     })
   }, [nifc])
 
-  const center: [number, number] = userLocation ?? [37.5, -119.5]
+  const center: [number, number] = userLocation ?? homeCenter ?? [37.5, -119.5]
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
