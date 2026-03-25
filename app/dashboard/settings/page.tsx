@@ -5,7 +5,7 @@ import {
   Shield, Heart, BarChart3, Lock, Check, ShieldCheck, Globe,
   Settings, Plus, User, Bell, BellOff, Moon, Sun, Monitor, LogOut,
   Trash2, Key, AlertTriangle, Save, CheckCircle, PawPrint, ShieldAlert,
-  Activity, Radio
+  Activity, Radio, FileText, Brain, Flame
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/components/LanguageProvider'
@@ -652,14 +652,53 @@ function SettingsInner() {
             </a>
           </Section>
 
-          <Section icon={PawPrint} title="Pets">
-            <p className="text-ash-500 text-xs mb-4">Add pet info in each person&apos;s notes in My Persons — shelters use this to direct you to pet-friendly locations.</p>
-            <a
-              href="/dashboard/caregiver/persons"
-              className="flex items-center gap-2 text-sm text-ash-400 hover:text-white border border-dashed border-ash-700 hover:border-ash-500 rounded-xl px-4 py-3 w-full justify-center transition-colors"
-            >
-              <Plus className="w-4 h-4" /> Manage pets in My Persons
-            </a>
+          <Section icon={Brain} title="Cognitive & Behavioral Needs">
+            <p className="text-ash-500 text-xs mb-4">Helps caregivers and first responders understand how to communicate and provide support during an evacuation. This information is included in the Emergency Card.</p>
+
+            <div className="mb-5">
+              <label className="block text-ash-300 text-xs font-medium mb-1">Cognitive conditions</label>
+              <p className="text-ash-600 text-xs mb-3">Select all that apply — affects how instructions should be delivered and what challenges may arise.</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  'Dementia (early stage)', 'Dementia (moderate/advanced)', "Alzheimer's disease",
+                  'Mild cognitive impairment', 'Traumatic brain injury (TBI)', 'Intellectual disability',
+                  'Down syndrome', 'Stroke / aphasia', 'Memory impairment',
+                ].map(cond => {
+                  const active = profile.communication_needs.includes(cond)
+                  return (
+                    <button key={cond} type="button" onClick={() => toggleNeed(cond)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${active ? 'bg-ember-500/20 border-ember-500/50 text-ember-300' : 'bg-ash-800 border-ash-700 text-ash-400 hover:border-ash-500 hover:text-ash-200'}`}>
+                      {active ? '✓ ' : ''}{cond}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="mb-5">
+              <label className="block text-ash-300 text-xs font-medium mb-1">Behavioral & mental health considerations</label>
+              <p className="text-ash-600 text-xs mb-3">Conditions that may affect how someone responds to emergency instructions or unfamiliar environments.</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  'Autism spectrum disorder', 'Sensory sensitivities (ASD)', 'PTSD / trauma response',
+                  'Severe anxiety disorder', 'Panic attacks under stress', 'Schizophrenia / psychosis',
+                  'Bipolar disorder', 'ADHD (severe)', 'Non-verbal / limited verbal',
+                  'May resist evacuation', 'May wander / elope',
+                ].map(cond => {
+                  const active = profile.communication_needs.includes(cond)
+                  return (
+                    <button key={cond} type="button" onClick={() => toggleNeed(cond)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${active ? 'bg-ember-500/20 border-ember-500/50 text-ember-300' : 'bg-ash-800 border-ash-700 text-ash-400 hover:border-ash-500 hover:text-ash-200'}`}>
+                      {active ? '✓ ' : ''}{cond}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <Field label="Responder guidance notes" hint="For any conditions selected above, please elaborate here — e.g. how advanced, what triggers distress, what helps, whether a caregiver must be present, or any other detail that could affect how responders should approach this person.">
+              <FTextarea value={profile.special_notes} onChange={v => update('special_notes', v)} placeholder="e.g. 'Dementia is moderate — may not recognize strangers or understand urgency. Responds best to calm, slow speech and familiar faces. May resist being moved. Caregiver must remain present at all times.'" rows={4} />
+            </Field>
           </Section>
 
           <Section icon={ShieldAlert} title="For Emergency Responders">
@@ -667,7 +706,7 @@ function SettingsInner() {
               <label className="block text-ash-300 text-xs font-medium mb-1">Communication needs</label>
               <p className="text-ash-600 text-xs mb-3">Helps responders communicate effectively at your door and at shelters.</p>
               <div className="flex flex-wrap gap-2">
-                {['Non-verbal household member','Deaf / Hard of hearing','Uses sign language (ASL)','Blind / Low vision','Spanish-speaking only','Limited English proficiency','Mixed-language household','Uses AAC device','Cognitive disability','Autism spectrum — sensory sensitivities','Dementia / memory impairment','Prefers written communication'].map(need => {
+                {['Non-verbal household member','Deaf / Hard of hearing','Uses sign language (ASL)','Blind / Low vision','Spanish-speaking only','Limited English proficiency','Mixed-language household','Uses AAC device','Prefers written communication','Needs interpreter on-site'].map(need => {
                   const active = profile.communication_needs.includes(need)
                   return (
                     <button key={need} type="button" onClick={() => toggleNeed(need)}
@@ -679,13 +718,20 @@ function SettingsInner() {
               </div>
             </div>
             <div className="border-t border-ash-800 my-4" />
-            <Field label="Additional notes for first responders" hint="e.g. front door code, oxygen on 2nd floor, dog may be scared">
-              <FTextarea value={profile.special_notes} onChange={v => update('special_notes', v)} placeholder="Any information that could help emergency personnel…" rows={3} />
-            </Field>
-            <div className="grid sm:grid-cols-2 gap-4 mt-4">
+            <div className="grid sm:grid-cols-2 gap-4">
               <Field label="Emergency contact name"><FInput value={profile.emergency_contact_name} onChange={v => update('emergency_contact_name', v)} placeholder="Contact name" /></Field>
               <Field label="Emergency contact phone"><FInput value={profile.emergency_contact_phone} onChange={v => update('emergency_contact_phone', v)} placeholder="+1 (555) 000-0000" type="tel" /></Field>
             </div>
+          </Section>
+
+          <Section icon={FileText} title="Emergency Card">
+            <p className="text-ash-500 text-xs mb-4">Your printable emergency card for first responders and shelter staff — medications, pets, contacts, and evacuation route.</p>
+            <a
+              href="/dashboard/caregiver/emergency-card"
+              className="flex items-center gap-2 text-sm text-ash-400 hover:text-white border border-dashed border-ash-700 hover:border-ash-500 rounded-xl px-4 py-3 w-full justify-center transition-colors"
+            >
+              <FileText className="w-4 h-4" /> Open Emergency Card
+            </a>
           </Section>
 
           <Section icon={Bell} title="Fire Alerts">
@@ -823,6 +869,28 @@ function SettingsInner() {
                 )}
               </div>
             )}
+          </section>
+
+          <section className="card p-6">
+            <div className="flex items-center gap-2 mb-4"><Flame className="w-4 h-4 text-ember-400" /><h2 className="font-semibold text-white">Help & Onboarding</h2></div>
+            <div className="space-y-3">
+              <p className="text-ash-500 text-xs">Replay the dashboard tour, or re-run the setup wizard to update your address and mobility info.</p>
+              <button
+                onClick={() => {
+                  if (typeof window !== 'undefined') localStorage.removeItem('wfa_tour_done_v1')
+                  router.push('/dashboard/caregiver')
+                }}
+                className="flex items-center gap-2 text-ash-400 hover:text-white transition-colors text-sm py-1"
+              >
+                <Flame className="w-4 h-4 text-ember-400" /> Replay Flameo tour
+              </button>
+              <button
+                onClick={() => router.push('/auth/onboarding?role=caregiver')}
+                className="flex items-center gap-2 text-ash-400 hover:text-white transition-colors text-sm py-1"
+              >
+                <Settings className="w-4 h-4" /> Re-run setup wizard
+              </button>
+            </div>
           </section>
 
           <section className="card p-6 border-signal-danger/20">

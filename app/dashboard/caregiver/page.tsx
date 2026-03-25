@@ -1,14 +1,17 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import {
   Flame, MapPin, Phone, AlertTriangle, CheckCircle,
-  Shield, ChevronRight, Package, User, Users, Bell
+  Shield, ChevronRight, Package, User, Users, Bell,
+  Maximize2, Minimize2, LayoutTemplate
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
 import type { NifcFire } from './map/LeafletMap'
 import AlertJar from '@/components/AlertJar'
+import { useRoleContext } from '@/components/RoleContext'
+import DashboardTour from '@/components/DashboardTour'
 
 const LeafletMap = dynamic(() => import('./map/LeafletMap'), { ssr: false })
 
@@ -175,6 +178,8 @@ function PersonCard({ person, index }: { person: MonitoredPerson; index: number 
 }
 
 // ── Main dashboard ────────────────────────────────────────────────────────────
+function clamp(v: number, min: number, max: number) { return Math.max(min, Math.min(max, v)) }
+
 export default function CaregiverDashboard() {
   const [fires, setFires]     = useState<FireEvent[]>([])
   const [nifc, setNifc]       = useState<NifcFire[]>([])
@@ -183,9 +188,65 @@ export default function CaregiverDashboard() {
   const [loading, setLoading] = useState(true)
   const [bagChecked, setBagChecked] = useState<Set<string>>(new Set())
 
+  // Resizable 3-column layout
+  const [leftPct, setLeftPct]   = useState(25)
+  const [rightPct, setRightPct] = useState(28)
+  const [dragging, setDragging] = useState<'left' | 'right' | null>(null)
+  const [preset, setPreset]     = useState<'equal' | 'default' | 'map'>('default')
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!dragging) return
+    function onMove(e: MouseEvent) {
+      if (!containerRef.current) return
+      const rect = containerRef.current.getBoundingClientRect()
+      const pct = ((e.clientX - rect.left) / rect.width) * 100
+      if (dragging === 'left') { setLeftPct(clamp(pct, 15, 40)); setPreset('equal') }
+      if (dragging === 'right') { setRightPct(clamp(100 - pct, 20, 50)); setPreset('equal') }
+    }
+    function onUp() { setDragging(null) }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+    return () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp) }
+  }, [dragging])
+
+  function applyPreset(p: 'equal' | 'default' | 'map') {
+    setPreset(p)
+    if (p === 'equal')   { setLeftPct(33); setRightPct(33) }
+    if (p === 'default') { setLeftPct(25); setRightPct(28) }
+    if (p === 'map')     { setLeftPct(15); setRightPct(45) }
+  }
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
+  const [personLocation, setPersonLocation] = useState<[number, number] | null>(null)
+  const { mode, activePerson } = useRoleContext()
+  const isCaregiverMode = mode === 'caregiver' && activePerson !== null
+
+  // Geocode active person's address whenever they change
+  useEffect(() => {
+    if (!activePerson?.address) { setPersonLocation(null); return }
+    fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(activePerson.address)}&format=json&limit=1&countrycodes=us`,
+      { headers: { 'Accept-Language': 'en' } }
+    )
+      .then(r => r.json())
+      .then((data: { lat: string; lon: string }[]) => {
+        if (data[0]) setPersonLocation([parseFloat(data[0].lat), parseFloat(data[0].lon)])
+        else setPersonLocation(null)
+      })
+      .catch(() => setPersonLocation(null))
+  }, [activePerson?.address])
+
   const supabase = createClient()
 
   useEffect(() => {
+    // Request geolocation
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => setUserLocation([pos.coords.latitude, pos.coords.longitude]),
+        () => {} // silently ignore denial
+      )
+    }
+
     // Load localStorage data
     try {
       const saved = JSON.parse(localStorage.getItem('monitored_persons_v2') || '[]')
@@ -242,20 +303,33 @@ export default function CaregiverDashboard() {
     ? userProfile.full_name.trim().split(/\s+/).map(n => n[0]).join('').slice(0, 2).toUpperCase()
     : 'ME'
 
-  const firstPerson = persons[0] ?? null
 
   return (
-    <>
-      {/* Root: full height 3-column layout */}
+    <div className="flex flex-col h-screen overflow-hidden">
+      <DashboardTour />
+      {/* Preset buttons */}
+      <div className="flex items-center gap-1 px-4 py-2 border-b shrink-0" style={{ borderColor: 'var(--wfa-border)', background: 'var(--wfa-page-bg)' }}>
+        <span className="text-xs mr-2" style={{ color: 'var(--wfa-muted)' }}>Layout</span>
+        {([['equal', 'Equal', LayoutTemplate], ['default', 'Default', Minimize2], ['map', 'Map Focus', Maximize2]] as const).map(([p, label, Icon]) => (
+          <button key={p} onClick={() => applyPreset(p)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
+            style={{ background: preset === p ? 'var(--wfa-accent)' : 'transparent', color: preset === p ? '#fff' : 'var(--wfa-muted)', border: `1px solid ${preset === p ? 'transparent' : 'var(--wfa-border)'}` }}>
+            <Icon className="w-3 h-3" />{label}
+          </button>
+        ))}
+      </div>
+
+      {/* Root: full height 3-column resizable layout */}
       <div
-        className="flex h-screen overflow-hidden"
-        style={{ background: 'var(--wfa-page-bg)', fontFamily: 'var(--font-body)' }}
+        ref={containerRef}
+        className="flex overflow-hidden"
+        style={{ flex: 1, background: 'var(--wfa-page-bg)', fontFamily: 'var(--font-body)', userSelect: dragging ? 'none' : undefined }}
       >
 
         {/* ══ LEFT COLUMN — tracking cards (340px) ══════════════════════════ */}
         <div
           className="flex flex-col shrink-0 border-r"
-          style={{ width: 340, borderColor: 'var(--wfa-border)', background: 'var(--wfa-panel-l)' }}
+          style={{ width: `${leftPct}%`, minWidth: 180, borderColor: 'var(--wfa-border)', background: 'var(--wfa-panel-l)' }}
         >
           {/* Header */}
           <div className="px-5 pt-6 pb-4 border-b" style={{ borderColor: 'var(--wfa-border-lite)' }}>
@@ -264,11 +338,15 @@ export default function CaregiverDashboard() {
               style={{ color: 'var(--wfa-accent)' }}
             >
               <Users className="w-3.5 h-3.5" />
-              My Persons
+              {isCaregiverMode ? 'Caring For' : 'My Persons'}
             </div>
-            <div className="font-display font-bold text-xl" style={{ color: 'var(--wfa-text)' }}>Tracking</div>
+            <div className="font-display font-bold text-xl" style={{ color: 'var(--wfa-text)' }}>
+              {isCaregiverMode ? activePerson!.name.split(' ')[0] : 'Tracking'}
+            </div>
             <div className="text-xs mt-0.5" style={{ color: 'var(--wfa-text-40)' }}>
-              {persons.length} {persons.length === 1 ? 'person' : 'people'} monitored
+              {isCaregiverMode
+                ? (activePerson!.relationship || 'Person in care')
+                : `${persons.length} ${persons.length === 1 ? 'person' : 'people'} monitored`}
             </div>
           </div>
 
@@ -338,8 +416,13 @@ export default function CaregiverDashboard() {
           </div>
         </div>
 
+        {/* ══ DRAG HANDLE — left/center ══════════════════════════════════ */}
+        <div onMouseDown={() => setDragging('left')} style={{ width: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'col-resize', zIndex: 10 }}>
+          <div style={{ width: 2, height: 40, borderRadius: 4, background: dragging === 'left' ? '#f97316' : 'var(--wfa-border)', transition: 'background 0.15s' }} />
+        </div>
+
         {/* ══ CENTER COLUMN — fire alert + stats ════════════════════════════ */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden" style={{ minWidth: 240 }}>
 
           {/* Top bar */}
           <div className="shrink-0 px-8 pt-6 pb-4 flex items-center justify-between">
@@ -349,9 +432,11 @@ export default function CaregiverDashboard() {
                 style={{ color: 'var(--wfa-accent)' }}
               >
                 <Bell className="w-3.5 h-3.5" />
-                Caregiver Hub
+                {isCaregiverMode ? `Caring for ${activePerson!.name}` : 'My Safety'}
               </div>
-              <h1 className="font-display font-bold text-2xl" style={{ color: 'var(--wfa-text)' }}>My Hub</h1>
+              <h1 className="font-display font-bold text-2xl" style={{ color: 'var(--wfa-text)' }}>
+                {isCaregiverMode ? `${activePerson!.name.split(' ')[0]}'s Hub` : 'My Hub'}
+              </h1>
             </div>
             <div className="flex items-center gap-2">
               <div className="group relative">
@@ -378,13 +463,13 @@ export default function CaregiverDashboard() {
                   style={{ background: 'var(--wfa-checkin-bg)', color: 'var(--wfa-text)', border: '1px solid var(--wfa-border)' }}
                 >
                   <CheckCircle className="w-3.5 h-3.5" style={{ color: '#7cb342' }} />
-                  Check In Safe
+                  {isCaregiverMode ? `Ping ${activePerson!.name.split(' ')[0]}` : 'Check In Safe'}
                 </Link>
                 <div
                   className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2.5 py-1.5 rounded-lg text-[11px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 z-10 shadow-lg"
                   style={{ background: 'var(--wfa-tooltip-bg)' }}
                 >
-                  Mark yourself safe &amp; notify your network
+                  {isCaregiverMode ? `Send ${activePerson!.name.split(' ')[0]} a safety check-in` : 'Mark yourself safe & notify your network'}
                   <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45" style={{ background: 'var(--wfa-tooltip-bg)' }} />
                 </div>
               </div>
@@ -399,7 +484,7 @@ export default function CaregiverDashboard() {
               <div className="h-72 rounded-3xl animate-pulse" style={{ background: 'var(--wfa-accent-lite)' }} />
             ) : topFire ? (
               <div
-                className="rounded-3xl p-8 relative overflow-hidden"
+                className="wfa-dark-panel rounded-3xl p-8 relative overflow-hidden"
                 style={{
                   background: 'var(--wfa-hero-bg)',
                   minHeight: 280,
@@ -455,10 +540,10 @@ export default function CaregiverDashboard() {
                 {/* 4 quick-action cards */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   {[
-                    { label: 'Evacuation Map', href: '/dashboard/caregiver/map',              icon: MapPin,       desc: 'View fires & shelters' },
-                    { label: 'Check In Safe',  href: '/dashboard/caregiver/checkin',           icon: CheckCircle,  desc: 'Mark yourself safe'    },
-                    { label: 'Find Shelter',   href: '/dashboard/caregiver/map?filter=shelter',icon: Shield,       desc: 'Nearby evac shelters'  },
-                    { label: 'Fire Alert',     href: '/dashboard/caregiver/alert',             icon: AlertTriangle,desc: 'Report or view alerts' },
+                    { label: 'Evacuation Map', href: '/dashboard/caregiver/map',               icon: MapPin,        desc: 'View fires & shelters' },
+                    { label: isCaregiverMode ? `Ping ${activePerson!.name.split(' ')[0]}` : 'Check In Safe', href: '/dashboard/caregiver/checkin', icon: CheckCircle, desc: isCaregiverMode ? `Send ${activePerson!.name.split(' ')[0]} a check-in` : 'Mark yourself safe' },
+                    { label: 'Find Shelter',   href: '/dashboard/caregiver/map?filter=shelter', icon: Shield,        desc: 'Nearby evac shelters'  },
+                    { label: 'Fire Alert',     href: '/dashboard/caregiver/alert',              icon: AlertTriangle, desc: 'Report or view alerts' },
                   ].map(action => (
                     <Link
                       key={action.label}
@@ -475,7 +560,7 @@ export default function CaregiverDashboard() {
               </div>
             ) : (
               <div
-                className="rounded-3xl p-8 flex flex-col items-center"
+                className="wfa-dark-panel rounded-3xl pt-12 px-8 pb-8 flex flex-col items-center"
                 style={{ background: 'var(--wfa-empty-bg)' }}
               >
                 <AlertJar level="safe" size={160} />
@@ -546,9 +631,15 @@ export default function CaregiverDashboard() {
         </div>
 
         {/* ══ RIGHT COLUMN — profile + map + info cards (380px) ════════════ */}
+        {/* ══ DRAG HANDLE — center/right ══════════════════════════════════ */}
+        <div onMouseDown={() => setDragging('right')} style={{ width: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'col-resize', zIndex: 10 }}>
+          <div style={{ width: 2, height: 40, borderRadius: 4, background: dragging === 'right' ? '#f97316' : 'var(--wfa-border)', transition: 'background 0.15s' }} />
+        </div>
+
+        {/* ══ RIGHT COLUMN — map + profile + first person ════════════════════ */}
         <div
           className="flex flex-col shrink-0 border-l"
-          style={{ width: 380, borderColor: 'var(--wfa-border)', background: 'var(--wfa-panel-r)' }}
+          style={{ width: `${rightPct}%`, minWidth: 220, borderColor: 'var(--wfa-border)', background: 'var(--wfa-panel-r)' }}
         >
           {/* Profile badge */}
           <div className="p-5 border-b" style={{ borderColor: 'var(--wfa-border-lite)' }}>
@@ -580,11 +671,14 @@ export default function CaregiverDashboard() {
           <div className="flex-1 relative overflow-hidden m-4 rounded-2xl" style={{ minHeight: 200 }}>
             <LeafletMap
               nifc={nifc}
-              userLocation={null}
-              center={[37.5, -119.5]}
+              userLocation={userLocation}
+              center={isCaregiverMode && personLocation ? personLocation : (userLocation ?? [37.5, -119.5])}
               shelters={[]}
               showShelters={false}
-              watchedLocations={[]}
+              watchedLocations={isCaregiverMode && personLocation && activePerson
+                ? [{ label: activePerson.name, lat: personLocation[0], lng: personLocation[1] }]
+                : []
+              }
             />
             {/* "View Full Map" overlay button at bottom */}
             <div className="absolute inset-x-0 bottom-0 p-3 pointer-events-none">
@@ -599,89 +693,26 @@ export default function CaregiverDashboard() {
             </div>
           </div>
 
-          {/* Bottom 2 info cards */}
-          <div className="px-4 pb-4 grid grid-cols-2 gap-3">
-            {/* Emergency contact card */}
-            <div
-              className="rounded-2xl p-4 text-white group relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.02] cursor-default"
-              style={{ background: 'linear-gradient(135deg, #4a6621, #7cb342)' }}
+          {/* Early Fire Alert button */}
+          <div className="px-4 pb-4">
+            <Link
+              href="/dashboard/caregiver/alert"
+              className="rounded-xl text-white flex items-center gap-3 px-4 py-3 w-full transition-all duration-200 hover:shadow-lg hover:scale-[1.02]"
+              style={{ background: 'linear-gradient(135deg, #7a2e0e, #c86432)' }}
             >
-              <div
-                className="w-8 h-8 rounded-xl flex items-center justify-center mb-3"
-                style={{ background: 'rgba(255,255,255,0.2)' }}
-              >
-                <User className="w-4 h-4 text-white" />
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.2)' }}>
+                <AlertTriangle className="w-4 h-4 text-white" />
               </div>
-              <div className="text-white/60 text-[10px] uppercase tracking-widest mb-0.5">First Person</div>
-              <div className="text-sm font-semibold text-white truncate">
-                {firstPerson?.name || 'No contact'}
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-white leading-tight">Early Fire Alert</div>
+                <div className="text-white/50 text-[11px]">Monitor nearby fires</div>
               </div>
-              {firstPerson?.phone ? (
-                <a
-                  href={`tel:${firstPerson.phone}`}
-                  className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-xs font-semibold transition-all hover:bg-white/30"
-                  style={{ background: 'rgba(255,255,255,0.22)' }}
-                >
-                  <Phone className="w-3 h-3" />
-                  Call
-                </a>
-              ) : (
-                <Link
-                  href="/dashboard/caregiver/persons"
-                  className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-xs font-semibold transition-all hover:bg-white/30"
-                  style={{ background: 'rgba(255,255,255,0.22)' }}
-                >
-                  Set up
-                </Link>
-              )}
-              {/* Hover detail strip */}
-              {firstPerson && (
-                <div className="absolute inset-x-0 bottom-0 px-3 py-2 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0" style={{ background: 'rgba(0,0,0,0.22)' }}>
-                  <div className="text-white/80 text-[10px] truncate">
-                    {firstPerson.relationship}
-                    {firstPerson.mobility && firstPerson.mobility !== 'Mobile Adult' ? ` · ${firstPerson.mobility}` : ''}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Location card */}
-            <div
-              className="rounded-2xl p-4 group relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.02]"
-              style={{ background: 'var(--wfa-loc-card)' }}
-            >
-              <div
-                className="w-8 h-8 rounded-xl flex items-center justify-center mb-3"
-                style={{ background: 'rgba(255,255,255,0.1)' }}
-              >
-                <MapPin className="w-4 h-4" style={{ color: 'var(--wfa-accent-lite)' }} />
-              </div>
-              <div className="text-white/50 text-[10px] uppercase tracking-widest mb-0.5">Location</div>
-              <div className="text-sm font-semibold text-white/90 leading-snug line-clamp-2">
-                {firstPerson?.address || 'Not set'}
-              </div>
-              <div className="text-white/25 text-[10px] uppercase tracking-widest mt-3 group-hover:opacity-0 transition-opacity">Last Update: Now</div>
-              {/* Hover overlay — View on map */}
-              <Link
-                href="/dashboard/caregiver/map"
-                className="absolute inset-x-0 bottom-0 flex items-center justify-center pb-3 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0"
-              >
-                <span
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
-                  style={{
-                    color: 'var(--wfa-accent-lite)',
-                    background: 'var(--wfa-accent-lite-bg)',
-                    border: '1px solid var(--wfa-accent-lite-bdr)',
-                  }}
-                >
-                  <MapPin className="w-3 h-3" /> View on map
-                </span>
-              </Link>
-            </div>
+              <ChevronRight className="w-4 h-4 text-white/40 shrink-0" />
+            </Link>
           </div>
         </div>
 
       </div>
-    </>
+    </div>
   )
 }

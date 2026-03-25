@@ -1,8 +1,71 @@
 'use client'
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Flame, Heart, Shield, BarChart3, ArrowRight, ArrowLeft, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+
+// ── Address autocomplete (Nominatim / OpenStreetMap, no API key) ────────────
+interface NominatimResult { place_id: number; display_name: string }
+
+function AddressInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  const [suggestions, setSuggestions] = useState<NominatimResult[]>([])
+  const [showDrop, setShowDrop] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setShowDrop(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  function handleChange(v: string) {
+    onChange(v)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (v.length < 4) { setSuggestions([]); setShowDrop(false); return }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(v)}&format=json&addressdetails=0&limit=5&countrycodes=us`,
+          { headers: { 'Accept-Language': 'en' } }
+        )
+        const data: NominatimResult[] = await res.json()
+        setSuggestions(data)
+        setShowDrop(data.length > 0)
+      } catch { setSuggestions([]) }
+    }, 400)
+  }
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <input
+        type="text"
+        value={value}
+        onChange={e => handleChange(e.target.value)}
+        onFocus={() => suggestions.length > 0 && setShowDrop(true)}
+        placeholder={placeholder}
+        className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
+      />
+      {showDrop && (
+        <ul className="absolute z-50 top-full mt-1 left-0 right-0 bg-ash-800 border border-ash-700 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+          {suggestions.map(s => (
+            <li key={s.place_id}>
+              <button
+                type="button"
+                className="w-full text-left px-3 py-2.5 text-sm text-ash-200 hover:bg-ash-700 hover:text-white transition-colors truncate"
+                onMouseDown={() => { onChange(s.display_name); setSuggestions([]); setShowDrop(false) }}
+              >
+                {s.display_name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 const ROLES = [
   {
@@ -298,7 +361,7 @@ function OnboardingInner() {
                   <div><Label>Phone number</Label>{inp(phone, setPhone, '+1 (555) 000-0000', 'tel')}</div>
                   <div>
                     <Label>Home address <span className="text-ash-600 font-normal">(used for nearby fire alerts)</span></Label>
-                    {inp(address, setAddress, '123 Main St, City, CA')}
+                    <AddressInput value={address} onChange={setAddress} placeholder="123 Main St, City, CA" />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>

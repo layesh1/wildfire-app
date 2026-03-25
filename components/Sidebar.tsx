@@ -5,7 +5,7 @@ import {
   Flame, Shield, Heart, BarChart3, Map, AlertTriangle,
   Users, Brain, LogOut, ChevronDown, ChevronRight,
   Activity, TrendingUp, Bell, Settings, BarChart2, Globe,
-  ClipboardList, Thermometer, FileText, Database, Menu, X
+  ClipboardList, Thermometer, Database, Menu, X, User
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase'
@@ -17,6 +17,7 @@ import {
   SidebarBody,
   useSidebar,
 } from '@/components/ui/sidebar'
+import { useRoleContext } from '@/components/RoleContext'
 
 interface Props {
   user: any
@@ -25,9 +26,8 @@ interface Props {
 
 const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> = {
   emergency_responder: [
-    { label: 'Live Map', href: '/dashboard/responder', icon: Map },
-    { label: 'ICS Incident Board', href: '/dashboard/responder/ics', icon: ClipboardList },
-    { label: 'Coverage Gaps', href: '/dashboard/responder/coverage', icon: Shield },
+    { label: 'Evacuation Status Map', href: '/dashboard/responder', icon: Map },
+    { label: 'Assist Requests', href: '/dashboard/responder/coverage', icon: Shield },
     { label: 'Signal Gaps', href: '/dashboard/responder/signals', icon: AlertTriangle },
     { label: 'ML Predictor', href: '/dashboard/responder/ml', icon: Brain },
     { label: 'COMMAND-INTEL', href: '/dashboard/responder/ai', icon: Activity },
@@ -36,12 +36,10 @@ const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> 
   caregiver: [
     { label: 'My Hub', href: '/dashboard/caregiver', icon: Bell },
     { label: 'Ask FlameoAI', href: '/dashboard/caregiver/ai', icon: Activity },
-    { label: 'My Persons', href: '/dashboard/caregiver/persons', icon: Users },
     { label: 'Early Fire Alert', href: '/dashboard/caregiver/alert', icon: AlertTriangle },
-    { label: 'Check-In', href: '/dashboard/caregiver/checkin', icon: Users },
-    { label: 'Emergency Card', href: '/dashboard/caregiver/emergency-card', icon: FileText },
     { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: Map },
-    { label: 'Design Preview', href: '/dashboard/preview', icon: BarChart2 },
+    { label: 'My Persons', href: '/dashboard/caregiver/persons', icon: Users },
+    { label: 'Check-In', href: '/dashboard/caregiver/checkin', icon: Users },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
   evacuee: [
@@ -84,11 +82,24 @@ const ROLE_COLORS: Record<string, string> = {
 function SidebarInner({ user, profile }: Props) {
   const { open } = useSidebar()
   const [langOpen, setLangOpen] = useState(false)
+  const [personPickerOpen, setPersonPickerOpen] = useState(false)
   const langRef = useRef<HTMLDivElement>(null)
+  const personPickerRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
   const { lang, setLanguage } = useLanguage()
+  const { mode, activePerson, persons, setMode, setActivePerson } = useRoleContext()
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (personPickerRef.current && !personPickerRef.current.contains(e.target as Node)) {
+        setPersonPickerOpen(false)
+      }
+    }
+    if (personPickerOpen) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [personPickerOpen])
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -110,7 +121,11 @@ function SidebarInner({ user, profile }: Props) {
   }
 
   const role = urlRole || storedRole || profile?.role || 'caregiver'
-  const nav = NAV_BY_ROLE[role] || NAV_BY_ROLE.caregiver
+  const baseNav = NAV_BY_ROLE[role] || NAV_BY_ROLE.caregiver
+  // Hide "My Persons" when the user is in My Safety mode (acting for themselves)
+  const nav = (mode === 'self' && role === 'caregiver')
+    ? baseNav.filter(item => item.href !== '/dashboard/caregiver/persons')
+    : baseNav
   const RoleIcon = ROLE_ICONS[role] || Heart
 
   const handleSignOut = async () => {
@@ -152,6 +167,74 @@ function SidebarInner({ user, profile }: Props) {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Role mode toggle — caregiver pages only */}
+      <AnimatePresence>
+        {open && role === 'caregiver' && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.15 }}
+            className="py-3 border-b border-white/10 overflow-hidden"
+          >
+            {/* Pill toggle */}
+            <div className="flex rounded-lg overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}>
+              <button
+                onClick={() => { setMode('self'); setPersonPickerOpen(false) }}
+                className={cn('flex-1 text-[11px] font-semibold py-1.5 transition-all', mode === 'self' ? 'text-white' : 'text-white/40 hover:text-white/70')}
+                style={mode === 'self' ? { background: 'rgba(124,179,66,0.35)' } : {}}
+              >
+                My Safety
+              </button>
+              <button
+                onClick={() => {
+                  if (persons.length === 0) { setMode('caregiver'); return }
+                  setPersonPickerOpen(v => !v)
+                }}
+                className={cn('flex-1 text-[11px] font-semibold py-1.5 transition-all flex items-center justify-center gap-1', mode === 'caregiver' ? 'text-white' : 'text-white/40 hover:text-white/70')}
+                style={mode === 'caregiver' ? { background: 'rgba(200,100,50,0.35)' } : {}}
+              >
+                <span className="truncate">{mode === 'caregiver' && activePerson ? activePerson.name.split(' ')[0] : 'Caring For'}</span>
+                <ChevronDown className="w-3 h-3 shrink-0" />
+              </button>
+            </div>
+
+            {/* Person picker dropdown */}
+            {personPickerOpen && (
+              <div ref={personPickerRef} className="mt-2 rounded-xl overflow-hidden shadow-lg" style={{ background: '#2a1810', border: '1px solid rgba(255,255,255,0.12)' }}>
+                {persons.length === 0 ? (
+                  <button
+                    onClick={() => { router.push('/dashboard/caregiver/persons'); setPersonPickerOpen(false) }}
+                    className="w-full text-left px-3 py-2.5 text-xs text-white/50 hover:text-white hover:bg-white/5 transition-colors"
+                  >
+                    + Add someone to care for
+                  </button>
+                ) : (
+                  persons.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => { setActivePerson(p); setPersonPickerOpen(false) }}
+                      className={cn('w-full text-left px-3 py-2.5 text-xs transition-colors flex items-center gap-2', activePerson?.id === p.id ? 'text-white bg-white/10' : 'text-white/60 hover:text-white hover:bg-white/5')}
+                    >
+                      <User className="w-3 h-3 shrink-0 text-white/40" />
+                      <span className="truncate">{p.name}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Active person label */}
+            {mode === 'caregiver' && activePerson && !personPickerOpen && (
+              <div className="mt-2 px-2.5 py-1.5 rounded-lg text-[11px] text-white/60 flex items-center gap-1.5" style={{ background: 'rgba(200,100,50,0.12)' }}>
+                <User className="w-3 h-3 text-white/40 shrink-0" />
+                <span className="truncate">For: {activePerson.name}</span>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Role badge */}
       <AnimatePresence>
