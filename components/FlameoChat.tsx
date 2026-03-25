@@ -150,9 +150,10 @@ export default function FlameoChat() {
   }, [messages, open, textareaRef])
 
   useEffect(() => {
+    if (pathname !== '/dashboard/caregiver') return
     const t = setTimeout(() => setShowIntro(true), 1800)
     return () => clearTimeout(t)
-  }, [])
+  }, [pathname])
 
   function clearHistory() {
     setMessages([INTRO])
