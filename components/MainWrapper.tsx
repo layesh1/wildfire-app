@@ -24,11 +24,9 @@ export default function MainWrapper({ children }: { children: React.ReactNode })
   const showContextBar = pathname?.startsWith('/dashboard/caregiver') || isContentPage
 
   return (
-    <main className={`flex-1 overflow-auto flex flex-col${isContentPage ? ' wfa-content-page' : ''}`}>
+    <main className={`flex-1 min-h-0 overflow-auto flex flex-col${isContentPage ? ' wfa-content-page' : ''}`}>
       {showContextBar && <RoleContextBar />}
-      <div className="flex-1 overflow-auto">
-        {children}
-      </div>
+      {children}
     </main>
   )
 }

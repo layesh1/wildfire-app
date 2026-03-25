@@ -306,7 +306,7 @@ export default function CaregiverDashboard() {
 
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col flex-1 min-h-0">
       <DashboardTour />
 
       {/* ══ MOBILE LAYOUT (< md) ══════════════════════════════════════════════ */}
@@ -333,53 +333,55 @@ export default function CaregiverDashboard() {
           </div>
         </div>
 
-        {/* Fire alert card */}
-        {loading ? (
-          <div className="h-36 rounded-2xl animate-pulse" style={{ background: 'var(--wfa-accent-lite-bg)' }} />
-        ) : topFire ? (
-          <div className="rounded-2xl p-5 relative overflow-hidden" style={{ background: 'var(--wfa-hero-bg)' }}>
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(200,100,50,0.3)', border: '2px solid rgba(200,100,50,0.5)' }}>
-                <Flame className="w-5 h-5 text-orange-300" />
+        {/* Dark section: fire alert + quick actions */}
+        <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--wfa-hero-bg)' }}>
+          {loading ? (
+            <div className="h-36 animate-pulse" style={{ background: 'rgba(255,255,255,0.05)' }} />
+          ) : topFire ? (
+            <div className="p-5">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(200,100,50,0.3)', border: '2px solid rgba(200,100,50,0.5)' }}>
+                  <Flame className="w-5 h-5 text-orange-300" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="font-display font-bold text-white text-lg leading-tight truncate">{topFire.incident_name || 'Active Fire Alert'}</h2>
+                  <div className="text-white/55 text-xs mt-0.5">{[topFire.county, topFire.state].filter(Boolean).join(', ')}</div>
+                  {stageMeta && (
+                    <span className="inline-block mt-2 text-[11px] font-bold px-3 py-1 rounded-full" style={{ background: stageMeta.bg, color: stageMeta.text }}>{stage}</span>
+                  )}
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <h2 className="font-display font-bold text-white text-lg leading-tight truncate">{topFire.incident_name || 'Active Fire Alert'}</h2>
-                <div className="text-white/55 text-xs mt-0.5">{[topFire.county, topFire.state].filter(Boolean).join(', ')}</div>
-                {stageMeta && (
-                  <span className="inline-block mt-2 text-[11px] font-bold px-3 py-1 rounded-full" style={{ background: stageMeta.bg, color: stageMeta.text }}>{stage}</span>
-                )}
+              <div className="flex gap-6 mt-4 pb-2">
+                {topFire.acres_burned != null && <div><div className="text-white text-sm font-bold">{topFire.acres_burned.toLocaleString()}</div><div className="text-white/40 text-[10px]">Acres</div></div>}
+                {topFire.containment_pct != null && <div><div className="text-white text-sm font-bold">{topFire.containment_pct}%</div><div className="text-white/40 text-[10px]">Contained</div></div>}
+                {topFire.signal_gap_hours != null && <div><div className="text-white text-sm font-bold">{topFire.signal_gap_hours.toFixed(1)}h</div><div className="text-white/40 text-[10px]">Signal Gap</div></div>}
               </div>
             </div>
-            <div className="flex gap-4 mt-4">
-              {topFire.acres_burned != null && <div className="text-center"><div className="text-white text-sm font-bold">{topFire.acres_burned.toLocaleString()}</div><div className="text-white/40 text-[10px]">Acres</div></div>}
-              {topFire.containment_pct != null && <div className="text-center"><div className="text-white text-sm font-bold">{topFire.containment_pct}%</div><div className="text-white/40 text-[10px]">Contained</div></div>}
-              {topFire.signal_gap_hours != null && <div className="text-center"><div className="text-white text-sm font-bold">{topFire.signal_gap_hours.toFixed(1)}h</div><div className="text-white/40 text-[10px]">Signal Gap</div></div>}
+          ) : (
+            <div className="p-5 flex flex-col items-center text-center">
+              <AlertJar level="safe" size={64} />
+              <h2 className="font-display text-base font-bold text-white mt-3">No Active Alerts</h2>
+              <p className="text-white/45 text-xs mt-1">Your area is currently clear.</p>
             </div>
-          </div>
-        ) : (
-          <div className="rounded-2xl p-5 flex flex-col items-center text-center" style={{ background: 'var(--wfa-empty-bg)' }}>
-            <AlertJar level="safe" size={80} />
-            <h2 className="font-display text-lg font-bold text-white mt-4">No Active Alerts</h2>
-            <p className="text-white/45 text-sm mt-1">Your area is currently clear.</p>
-          </div>
-        )}
+          )}
 
-        {/* Quick actions 2×2 */}
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: MapPin, desc: 'View fires & shelters' },
-            { label: isCaregiverMode ? `Ping ${activePerson!.name.split(' ')[0]}` : 'Check In Safe', href: '/dashboard/caregiver/checkin', icon: CheckCircle, desc: 'Mark yourself safe' },
-            { label: 'Find Shelter', href: '/dashboard/caregiver/map?filter=shelter', icon: Shield, desc: 'Nearby shelters' },
-            { label: 'Fire Alert', href: '/dashboard/caregiver/alert', icon: AlertTriangle, desc: 'View alerts' },
-          ].map(action => (
-            <Link key={action.label} href={action.href}
-              className="rounded-2xl p-4 flex flex-col items-center text-center transition-all active:scale-95"
-              style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)' }}>
-              <action.icon className="w-5 h-5 text-orange-300 mb-2" />
-              <div className="text-white font-semibold text-sm leading-tight">{action.label}</div>
-              <div className="text-white/40 text-[11px] mt-1">{action.desc}</div>
-            </Link>
-          ))}
+          {/* Quick actions 2×2 — on the dark hero bg so white text is visible */}
+          <div className="grid grid-cols-2 gap-px border-t border-white/10">
+            {[
+              { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: MapPin, desc: 'Fires & shelters' },
+              { label: isCaregiverMode ? `Ping ${activePerson!.name.split(' ')[0]}` : 'Check In Safe', href: '/dashboard/caregiver/checkin', icon: CheckCircle, desc: 'Mark yourself safe' },
+              { label: 'Find Shelter', href: '/dashboard/caregiver/map?filter=shelter', icon: Shield, desc: 'Nearby shelters' },
+              { label: 'Fire Alert', href: '/dashboard/caregiver/alert', icon: AlertTriangle, desc: 'View alerts' },
+            ].map(action => (
+              <Link key={action.label} href={action.href}
+                className="flex flex-col items-center text-center p-4 transition-all active:bg-white/10"
+                style={{ background: 'rgba(0,0,0,0.15)' }}>
+                <action.icon className="w-5 h-5 text-orange-300 mb-1.5" />
+                <div className="text-white font-semibold text-xs leading-tight">{action.label}</div>
+                <div className="text-white/40 text-[10px] mt-0.5">{action.desc}</div>
+              </Link>
+            ))}
+          </div>
         </div>
 
         {/* Map preview */}

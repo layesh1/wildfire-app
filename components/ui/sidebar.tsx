@@ -113,13 +113,14 @@ export const MobileSidebar = ({
     <>
       <div
         className={cn(
-          "h-10 px-4 py-4 flex flex-row md:hidden items-center justify-between wfa-sidebar border-b border-[var(--wfa-sidebar-border)] w-full"
+          "h-14 px-4 flex flex-row md:hidden items-center justify-between wfa-sidebar border-b border-[var(--wfa-sidebar-border)] w-full shrink-0"
         )}
         {...props}
       >
-        <div className="flex justify-end z-20 w-full">
+        <span className="font-display font-bold text-white text-lg tracking-tight">Minutes Matter</span>
+        <div className="flex items-center gap-3 z-20">
           <Menu
-            className="text-gray-600 cursor-pointer"
+            className="text-white/70 cursor-pointer w-5 h-5"
             onClick={() => setOpen(!open)}
           />
         </div>

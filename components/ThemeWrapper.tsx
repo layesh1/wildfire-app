@@ -58,7 +58,7 @@ export default function ThemeWrapper({ children }: { children: React.ReactNode }
 
   return (
     <RoleProvider>
-      <div className={`min-h-screen flex ${isDark ? '' : 'light-theme'}`}>
+      <div className={`min-h-screen flex flex-col md:flex-row ${isDark ? '' : 'light-theme'}`}>
         {children}
       </div>
     </RoleProvider>
