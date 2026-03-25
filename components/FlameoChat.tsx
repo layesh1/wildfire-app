@@ -150,11 +150,8 @@ export default function FlameoChat() {
   }, [messages, open, textareaRef])
 
   useEffect(() => {
-    const seen = typeof window !== 'undefined' && localStorage.getItem('wfa_flameo_intro')
-    if (!seen) {
-      const t = setTimeout(() => setShowIntro(true), 1800)
-      return () => clearTimeout(t)
-    }
+    const t = setTimeout(() => setShowIntro(true), 1800)
+    return () => clearTimeout(t)
   }, [])
 
   function clearHistory() {
@@ -165,7 +162,6 @@ export default function FlameoChat() {
 
   function dismissIntro() {
     setShowIntro(false)
-    if (typeof window !== 'undefined') localStorage.setItem('wfa_flameo_intro', '1')
   }
 
   function handleOpen() {
