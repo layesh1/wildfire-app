@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { checkRateLimit, getClientIp } from '@/lib/ratelimit'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { validateMessages, validateString, ValidationError } from '@/lib/validate'
+import { logger } from '@/lib/logger'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -46,21 +47,21 @@ IMPORTANT - TOPIC BOUNDARIES: You ONLY answer questions related to wildfire inci
 }
 
 export async function POST(request: NextRequest) {
+  const start = Date.now()
   try {
-    // Rate limit per user (preferred) with IP fallback
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
     const rateLimitKey = user?.id ?? getClientIp(request)
 
-    // 10 messages per minute
     if (!checkRateLimit(rateLimitKey, 'ai:min', 10, 60_000)) {
+      logger.warn('rate limit hit (per-minute)', { route: 'ai', userId: user?.id })
       return NextResponse.json(
         { error: 'You\'re sending messages too quickly. Please wait a moment.' },
         { status: 429 }
       )
     }
-    // 30 messages per hour
     if (!checkRateLimit(rateLimitKey, 'ai:hour', 30, 60 * 60_000)) {
+      logger.warn('rate limit hit (per-hour)', { route: 'ai', userId: user?.id })
       return NextResponse.json(
         { error: 'You\'ve reached the hourly message limit. Check back in a bit.' },
         { status: 429 }
@@ -68,29 +69,26 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-
     const messages = validateMessages(body.messages)
     const persona = validateString(body.persona ?? 'FLAMEO', 'persona', {
       allowedValues: Object.keys(PERSONAS),
     })
 
-    const system = PERSONAS[persona as keyof typeof PERSONAS]
-
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 600,
-      system,
+      system: PERSONAS[persona as keyof typeof PERSONAS],
       messages,
     })
 
-    return NextResponse.json({
-      content: response.content[0].type === 'text' ? response.content[0].text : '',
-      persona,
-    })
+    const content = response.content[0].type === 'text' ? response.content[0].text : ''
+    logger.info('ai response', { route: 'ai', persona, durationMs: Date.now() - start, userId: user?.id })
+    return NextResponse.json({ content, persona })
   } catch (err: unknown) {
     if (err instanceof ValidationError) {
       return NextResponse.json({ error: err.message }, { status: 400 })
     }
+    logger.error('ai handler failed', { route: 'ai', durationMs: Date.now() - start, error: err instanceof Error ? err.message : String(err) })
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

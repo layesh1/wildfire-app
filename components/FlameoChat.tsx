@@ -181,15 +181,27 @@ export default function FlameoChat() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: [...messages, userMsg], persona: 'FLAMEO' }),
       })
-      const { content } = await res.json()
+      const data = await res.json()
+      let reply: string
+      if (!res.ok) {
+        if (res.status === 429) {
+          reply = data.error ?? "You've sent a lot of messages recently — please wait a minute and try again."
+        } else if (res.status === 400) {
+          reply = "I couldn't process that message. Please try rephrasing."
+        } else {
+          reply = "I'm having trouble right now. Please try again in a moment."
+        }
+      } else {
+        reply = data.content || "I didn't get a response — please try again."
+      }
       setMessages(m => {
-        const next = [...m, { role: 'assistant' as const, content: content || 'Sorry, something went wrong.' }]
+        const next = [...m, { role: 'assistant' as const, content: reply }]
         setLatestAssistantIdx(next.length - 1)
         return next
       })
     } catch {
       setMessages(m => {
-        const next = [...m, { role: 'assistant' as const, content: "I couldn't reach the server. Please try again in a moment." }]
+        const next = [...m, { role: 'assistant' as const, content: "I couldn't reach the server. Check your connection and try again." }]
         setLatestAssistantIdx(next.length - 1)
         return next
       })

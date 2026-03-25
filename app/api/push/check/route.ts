@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import webpush from 'web-push'
 import { createClient } from '@supabase/supabase-js'
+import { logger } from '@/lib/logger'
 
 // Configure VAPID once
 webpush.setVapidDetails(
@@ -92,7 +93,7 @@ async function sendPush(subscription: object, payload: object) {
   } catch (err: unknown) {
     // 410 Gone = subscription expired/unsubscribed
     if ((err as { statusCode?: number })?.statusCode === 410) return 'gone'
-    console.error('[push] send error', err)
+    logger.error('push send failed', { error: err instanceof Error ? err.message : String(err) })
   }
 }
 
@@ -114,10 +115,16 @@ export async function GET(req: NextRequest) {
     .from('push_subscriptions')
     .select('user_id, endpoint, subscription_json')
 
-  if (!subs || subs.length === 0) return NextResponse.json({ sent: 0 })
+  if (!subs || subs.length === 0) {
+    logger.info('push/check: no subscriptions', { route: 'push/check' })
+    return NextResponse.json({ sent: 0 })
+  }
 
   const firmsPoints = await getFirmsPoints()
-  if (firmsPoints.length === 0) return NextResponse.json({ sent: 0, note: 'No FIRMS data' })
+  if (firmsPoints.length === 0) {
+    logger.warn('push/check: no FIRMS data available', { route: 'push/check' })
+    return NextResponse.json({ sent: 0, note: 'No FIRMS data' })
+  }
 
   // Get user profiles for their home addresses
   const userIds = [...new Set(subs.map(s => s.user_id))]
@@ -170,5 +177,6 @@ export async function GET(req: NextRequest) {
     await supabase.from('push_subscriptions').delete().in('endpoint', expiredEndpoints)
   }
 
+  logger.info('push/check complete', { route: 'push/check', sent, expired: expiredEndpoints.length, subscribers: subs.length })
   return NextResponse.json({ sent, expired: expiredEndpoints.length })
 }
