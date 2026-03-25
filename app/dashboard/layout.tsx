@@ -7,6 +7,7 @@ import ThemeWrapper from '@/components/ThemeWrapper'
 import UserSessionGuard from '@/components/UserSessionGuard'
 import MainWrapper from '@/components/MainWrapper'
 import PushSetup from '@/components/PushSetup'
+import NotificationCenter from '@/components/NotificationCenter'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerSupabaseClient()
@@ -25,6 +26,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <ThemeWrapper>
         <UserSessionGuard />
         <PushSetup />
+        <NotificationCenter />
         <Sidebar user={user} profile={profile} />
         <MainWrapper>
           {children}

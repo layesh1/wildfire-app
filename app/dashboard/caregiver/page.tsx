@@ -485,6 +485,7 @@ export default function CaregiverDashboard() {
               <div className="h-72 rounded-3xl animate-pulse" style={{ background: 'var(--wfa-accent-lite)' }} />
             ) : topFire ? (
               <div
+                data-tour="hub-panel"
                 className="wfa-dark-panel rounded-3xl p-8 relative overflow-hidden"
                 style={{
                   background: 'var(--wfa-hero-bg)',
@@ -539,7 +540,7 @@ export default function CaregiverDashboard() {
                 </div>
 
                 {/* 4 quick-action cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div data-tour="quick-actions" className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                   {[
                     { label: 'Evacuation Map', href: '/dashboard/caregiver/map',               icon: MapPin,        desc: 'View fires & shelters' },
                     { label: isCaregiverMode ? `Ping ${activePerson!.name.split(' ')[0]}` : 'Check In Safe', href: '/dashboard/caregiver/checkin', icon: CheckCircle, desc: isCaregiverMode ? `Send ${activePerson!.name.split(' ')[0]} a check-in` : 'Mark yourself safe' },

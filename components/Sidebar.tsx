@@ -179,7 +179,7 @@ function SidebarInner({ user, profile }: Props) {
             className="py-3 border-b border-white/10 overflow-hidden"
           >
             {/* Pill toggle */}
-            <div className="flex rounded-lg overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}>
+            <div data-tour="role-switcher" className="flex rounded-lg overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}>
               <button
                 onClick={() => { setMode('self'); setPersonPickerOpen(false) }}
                 className={cn('flex-1 text-[11px] font-semibold py-1.5 transition-all', mode === 'self' ? 'text-white' : 'text-white/40 hover:text-white/70')}
@@ -264,6 +264,7 @@ function SidebarInner({ user, profile }: Props) {
               key={href}
               onClick={() => router.push(dest)}
               title={collapsed ? label : undefined}
+              data-tour={label === 'Settings' ? 'nav-settings' : undefined}
               className={cn(
                 'w-full flex items-center gap-3 px-2 py-2.5 rounded-lg transition-all duration-150 text-left',
                 active

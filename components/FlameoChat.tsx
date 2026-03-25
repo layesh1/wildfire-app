@@ -328,7 +328,7 @@ export default function FlameoChat() {
       )}
 
       {/* Floating button */}
-      <div className="fixed z-[9999] w-16 h-16" style={fabStyle}>
+      <div data-tour="flameo-fab" className="fixed z-[9999] w-16 h-16" style={fabStyle}>
         {!open && <FabSmoke active={fabHovered} />}
         <LiquidMetalFab
           onClick={handleOpen}
