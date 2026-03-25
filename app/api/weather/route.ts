@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 async function geocode(location: string): Promise<{ lat: number; lon: number; display: string } | null> {
   try {
@@ -12,10 +12,14 @@ async function geocode(location: string): Promise<{ lat: number; lon: number; di
   } catch { return null }
 }
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const location = searchParams.get('location')
+export async function GET(request: NextRequest) {
+  const location = request.nextUrl.searchParams.get('location')
   if (!location) return NextResponse.json({ error: 'location param required' }, { status: 400 })
+  if (location.length > 200) return NextResponse.json({ error: 'location too long' }, { status: 400 })
+  // Reject clearly invalid input — only printable ASCII + common address chars
+  if (!/^[\w\s,.\-#/()]+$/.test(location)) {
+    return NextResponse.json({ error: 'location contains invalid characters' }, { status: 400 })
+  }
 
   const geo = await geocode(location)
   if (!geo) return NextResponse.json({ error: 'Location not found' }, { status: 404 })

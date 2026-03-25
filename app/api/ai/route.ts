@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { checkRateLimit, getClientIp } from '@/lib/ratelimit'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { validateMessages, validateString, ValidationError } from '@/lib/validate'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -66,13 +67,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { messages, persona = 'FLAMEO' } = await request.json()
+    const body = await request.json()
 
-    if (!messages || !Array.isArray(messages)) {
-      return NextResponse.json({ error: 'messages array required' }, { status: 400 })
-    }
+    const messages = validateMessages(body.messages)
+    const persona = validateString(body.persona ?? 'FLAMEO', 'persona', {
+      allowedValues: Object.keys(PERSONAS),
+    })
 
-    const system = PERSONAS[persona as keyof typeof PERSONAS] || PERSONAS['FLAMEO']
+    const system = PERSONAS[persona as keyof typeof PERSONAS]
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
@@ -85,7 +87,10 @@ export async function POST(request: NextRequest) {
       content: response.content[0].type === 'text' ? response.content[0].text : '',
       persona,
     })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err: unknown) {
+    if (err instanceof ValidationError) {
+      return NextResponse.json({ error: err.message }, { status: 400 })
+    }
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

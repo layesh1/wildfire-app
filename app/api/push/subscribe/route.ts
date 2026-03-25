@@ -1,25 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { validatePushSubscription, validateString, ValidationError } from '@/lib/validate'
 
 export async function POST(req: NextRequest) {
   try {
-    const subscription = await req.json()
-    if (!subscription?.endpoint) {
-      return NextResponse.json({ error: 'Invalid subscription' }, { status: 400 })
-    }
+    const body = await req.json()
+    const { endpoint, keys } = validatePushSubscription(body)
 
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    // Upsert subscription keyed by endpoint (one row per browser/device)
     const { error } = await supabase
       .from('push_subscriptions')
       .upsert(
         {
           user_id: user.id,
-          endpoint: subscription.endpoint,
-          subscription_json: JSON.stringify(subscription),
+          endpoint,
+          subscription_json: JSON.stringify({ endpoint, keys, ...body }),
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'endpoint' }
@@ -28,6 +26,9 @@ export async function POST(req: NextRequest) {
     if (error) throw error
     return NextResponse.json({ ok: true })
   } catch (err) {
+    if (err instanceof ValidationError) {
+      return NextResponse.json({ error: err.message }, { status: 400 })
+    }
     console.error('[push/subscribe]', err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
@@ -35,13 +36,28 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const { endpoint } = await req.json()
-    if (!endpoint) return NextResponse.json({ error: 'Missing endpoint' }, { status: 400 })
+    const body = await req.json()
+    const endpoint = validateString(body.endpoint, 'endpoint', {
+      maxLength: 500,
+      pattern: /^https:\/\//,
+    })
 
     const supabase = await createServerSupabaseClient()
-    await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    // Scope delete to the authenticated user — prevents deleting another user's subscription
+    await supabase
+      .from('push_subscriptions')
+      .delete()
+      .eq('endpoint', endpoint)
+      .eq('user_id', user.id)
+
     return NextResponse.json({ ok: true })
-  } catch {
+  } catch (err) {
+    if (err instanceof ValidationError) {
+      return NextResponse.json({ error: err.message }, { status: 400 })
+    }
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }
