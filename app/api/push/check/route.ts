@@ -3,13 +3,6 @@ import webpush from 'web-push'
 import { createClient } from '@supabase/supabase-js'
 import { logger } from '@/lib/logger'
 
-// Configure VAPID once
-webpush.setVapidDetails(
-  process.env.VAPID_EMAIL!,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-)
-
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://wildfire-app-three.vercel.app'
 
 // Haversine distance in km
@@ -99,6 +92,11 @@ async function sendPush(subscription: object, payload: object) {
 
 // Vercel cron calls this every 15 minutes
 export async function GET(req: NextRequest) {
+  webpush.setVapidDetails(
+    process.env.VAPID_EMAIL || 'mailto:admin@example.com',
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '',
+    process.env.VAPID_PRIVATE_KEY || ''
+  )
   // Basic auth: only Vercel cron or admin secret
   const secret = req.headers.get('x-cron-secret')
   if (secret !== process.env.CRON_SECRET && process.env.NODE_ENV === 'production') {
