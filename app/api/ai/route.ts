@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { checkRateLimit, getClientIp } from '@/lib/ratelimit'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -45,10 +46,24 @@ IMPORTANT - TOPIC BOUNDARIES: You ONLY answer questions related to wildfire inci
 
 export async function POST(request: NextRequest) {
   try {
-    // Rate limit: 20 requests per minute per IP
-    const ip = getClientIp(request)
-    if (!checkRateLimit(ip, 'ai', 20, 60_000)) {
-      return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
+    // Rate limit per user (preferred) with IP fallback
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    const rateLimitKey = user?.id ?? getClientIp(request)
+
+    // 10 messages per minute
+    if (!checkRateLimit(rateLimitKey, 'ai:min', 10, 60_000)) {
+      return NextResponse.json(
+        { error: 'You\'re sending messages too quickly. Please wait a moment.' },
+        { status: 429 }
+      )
+    }
+    // 30 messages per hour
+    if (!checkRateLimit(rateLimitKey, 'ai:hour', 30, 60 * 60_000)) {
+      return NextResponse.json(
+        { error: 'You\'ve reached the hourly message limit. Check back in a bit.' },
+        { status: 429 }
+      )
     }
 
     const { messages, persona = 'FLAMEO' } = await request.json()
@@ -61,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
+      max_tokens: 600,
       system,
       messages,
     })
