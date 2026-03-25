@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 function adminClient() {
   return createClient(
@@ -10,11 +11,16 @@ function adminClient() {
 
 /** Called after a user successfully signs up — increments uses count */
 export async function POST(req: NextRequest) {
-  const { code_id } = await req.json()
-  if (!code_id) return NextResponse.json({ ok: true }) // silent no-op
+  // Require authenticated user — prevents unauthenticated abuse of invite codes
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const supabase = adminClient()
-  await supabase.rpc('increment_invite_uses', { code_id })
+  const { code_id } = await req.json()
+  if (!code_id) return NextResponse.json({ ok: true }) // no code to consume
+
+  const admin = adminClient()
+  await admin.rpc('increment_invite_uses', { code_id })
 
   return NextResponse.json({ ok: true })
 }

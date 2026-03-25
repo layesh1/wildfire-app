@@ -255,6 +255,16 @@ function Skeleton() {
 export default function EarlyAlertPage() {
   const [address, setAddress] = useState('')
   const [monitoredAddress, setMonitoredAddress] = useState('')
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('wfa_emergency_card')
+      if (raw) {
+        const card = JSON.parse(raw)
+        if (card.address) setAddress(card.address)
+      }
+    } catch {}
+  }, [])
   const [mobility, setMobility] = useState<MobilityKey>('mobile')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

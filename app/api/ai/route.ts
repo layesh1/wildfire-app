@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { checkRateLimit, getClientIp } from '@/lib/ratelimit'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { validateMessages, validateString, ValidationError } from '@/lib/validate'
+import { logger } from '@/lib/logger'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -45,43 +47,48 @@ IMPORTANT - TOPIC BOUNDARIES: You ONLY answer questions related to wildfire inci
 }
 
 export async function POST(request: NextRequest) {
+  const start = Date.now()
   try {
-    // Rate limit: 20 requests per minute per IP
-    const ip = getClientIp(request)
-    if (!checkRateLimit(ip, 'ai', 20, 60_000)) {
-      return NextResponse.json({ error: 'Too many requests. Please wait a moment.' }, { status: 429 })
-    }
-
-    // Require authenticated user — prevents unauthenticated API key abuse
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const rateLimitKey = user?.id ?? getClientIp(request)
+
+    if (!checkRateLimit(rateLimitKey, 'ai:min', 10, 60_000)) {
+      logger.warn('rate limit hit (per-minute)', { route: 'ai', userId: user?.id })
+      return NextResponse.json(
+        { error: 'You\'re sending messages too quickly. Please wait a moment.' },
+        { status: 429 }
+      )
+    }
+    if (!checkRateLimit(rateLimitKey, 'ai:hour', 30, 60 * 60_000)) {
+      logger.warn('rate limit hit (per-hour)', { route: 'ai', userId: user?.id })
+      return NextResponse.json(
+        { error: 'You\'ve reached the hourly message limit. Check back in a bit.' },
+        { status: 429 }
+      )
     }
 
-    const { messages, persona = 'FLAMEO' } = await request.json()
-
-    if (!messages || !Array.isArray(messages)) {
-      return NextResponse.json({ error: 'messages array required' }, { status: 400 })
-    }
-    // Limit message history to 20 turns to prevent prompt injection via large payloads
-    const safeMessages = messages.slice(-20)
-
-    const system = PERSONAS[persona as keyof typeof PERSONAS] || PERSONAS['FLAMEO']
+    const body = await request.json()
+    const messages = validateMessages(body.messages)
+    const persona = validateString(body.persona ?? 'FLAMEO', 'persona', {
+      allowedValues: Object.keys(PERSONAS),
+    })
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 1024,
-      system,
-      messages: safeMessages,
+      max_tokens: 600,
+      system: PERSONAS[persona as keyof typeof PERSONAS],
+      messages,
     })
 
-    return NextResponse.json({
-      content: response.content[0].type === 'text' ? response.content[0].text : '',
-      persona,
-    })
+    const content = response.content[0].type === 'text' ? response.content[0].text : ''
+    logger.info('ai response', { route: 'ai', persona, durationMs: Date.now() - start, userId: user?.id })
+    return NextResponse.json({ content, persona })
   } catch (err: unknown) {
-    console.error('[/api/ai]', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    if (err instanceof ValidationError) {
+      return NextResponse.json({ error: err.message }, { status: 400 })
+    }
+    logger.error('ai handler failed', { route: 'ai', durationMs: Date.now() - start, error: err instanceof Error ? err.message : String(err) })
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

@@ -1,16 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit, getClientIp } from '@/lib/ratelimit'
+import { ValidationError } from '@/lib/validate'
 
-// This route proxies to your Python ML service (Modal or Render)
-// Falls back to rule-based estimates if ML service unavailable
+const ML_SERVICE_URL = process.env.ML_SERVICE_URL
 
-const ML_SERVICE_URL = process.env.ML_SERVICE_URL // e.g. https://your-app.modal.run
+const FEATURE_BOUNDS: Record<string, [number, number]> = {
+  wind_speed: [0, 200],
+  humidity: [0, 100],
+  temperature: [-60, 150],
+  slope: [0, 90],
+  vegetation_density: [0, 1],
+}
 
-function ruleBasedPrediction(features: any) {
+function validateFeatures(raw: unknown): Record<string, number> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    throw new ValidationError('features must be an object')
+  }
+  const f = raw as Record<string, unknown>
+  const out: Record<string, number> = {}
+  for (const [key, [min, max]] of Object.entries(FEATURE_BOUNDS)) {
+    if (key in f) {
+      const v = Number(f[key])
+      if (!isFinite(v)) throw new ValidationError(`features.${key} must be a number`)
+      if (v < min || v > max) throw new ValidationError(`features.${key} must be between ${min} and ${max}`)
+      out[key] = v
+    }
+  }
+  return out
+}
+
+function ruleBasedPrediction(features: Record<string, number>) {
   const { wind_speed = 10, humidity = 30, temperature = 85, slope = 5, vegetation_density = 0.5 } = features
-  
-  // Simple heuristic score
-  const riskScore = 
+
+  const riskScore =
     (wind_speed / 60) * 0.35 +
     ((100 - humidity) / 100) * 0.30 +
     (temperature / 120) * 0.20 +
@@ -30,7 +52,7 @@ function ruleBasedPrediction(features: any) {
     predicted_acres_24h: Math.round(predicted_acres_24h),
     confidence: 0.62,
     model: 'rule_based_fallback',
-    features_used: ['wind_speed', 'humidity', 'temperature', 'slope', 'vegetation_density'],
+    features_used: Object.keys(FEATURE_BOUNDS),
   }
 }
 
@@ -42,13 +64,17 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { fire_id, features } = body
 
-    if (!features) {
-      return NextResponse.json({ error: 'features object required' }, { status: 400 })
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Request body must be a JSON object' }, { status: 400 })
     }
 
-    // Try ML service first
+    const features = validateFeatures(body.features)
+    // fire_id is optional metadata — validate if present
+    const fire_id = typeof body.fire_id === 'string'
+      ? body.fire_id.slice(0, 100)
+      : undefined
+
     if (ML_SERVICE_URL) {
       try {
         const res = await fetch(`${ML_SERVICE_URL}/predict`, {
@@ -57,20 +83,17 @@ export async function POST(request: NextRequest) {
           body: JSON.stringify({ fire_id, features }),
           signal: AbortSignal.timeout(8000),
         })
-        if (res.ok) {
-          const data = await res.json()
-          return NextResponse.json(data)
-        }
+        if (res.ok) return NextResponse.json(await res.json())
       } catch {
         // Fall through to rule-based
       }
     }
 
-    // Fallback
-    const prediction = ruleBasedPrediction(features)
-    return NextResponse.json({ fire_id, ...prediction })
-
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    return NextResponse.json({ fire_id, ...ruleBasedPrediction(features) })
+  } catch (err) {
+    if (err instanceof ValidationError) {
+      return NextResponse.json({ error: err.message }, { status: 400 })
+    }
+    return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }

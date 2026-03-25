@@ -217,8 +217,25 @@ export default function CaregiverDashboard() {
     if (p === 'map')     { setLeftPct(15); setRightPct(45) }
   }
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null)
+  const [personLocation, setPersonLocation] = useState<[number, number] | null>(null)
   const { mode, activePerson } = useRoleContext()
   const isCaregiverMode = mode === 'caregiver' && activePerson !== null
+
+  // Geocode active person's address whenever they change
+  useEffect(() => {
+    if (!activePerson?.address) { setPersonLocation(null); return }
+    fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(activePerson.address)}&format=json&limit=1&countrycodes=us`,
+      { headers: { 'Accept-Language': 'en' } }
+    )
+      .then(r => r.json())
+      .then((data: { lat: string; lon: string }[]) => {
+        if (data[0]) setPersonLocation([parseFloat(data[0].lat), parseFloat(data[0].lon)])
+        else setPersonLocation(null)
+      })
+      .catch(() => setPersonLocation(null))
+  }, [activePerson?.address])
+
 
   const supabase = createClient()
 
@@ -656,10 +673,13 @@ export default function CaregiverDashboard() {
             <LeafletMap
               nifc={nifc}
               userLocation={userLocation}
-              center={userLocation ?? [37.5, -119.5]}
+              center={isCaregiverMode && personLocation ? personLocation : (userLocation ?? [37.5, -119.5])}
               shelters={[]}
               showShelters={false}
-              watchedLocations={[]}
+              watchedLocations={isCaregiverMode && personLocation && activePerson
+                ? [{ label: activePerson.name, lat: personLocation[0], lng: personLocation[1] }]
+                : []
+              }
             />
             {/* "View Full Map" overlay button at bottom */}
             <div className="absolute inset-x-0 bottom-0 p-3 pointer-events-none">
