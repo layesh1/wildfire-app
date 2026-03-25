@@ -6,6 +6,7 @@ import LanguageProvider from '@/components/LanguageProvider'
 import ThemeWrapper from '@/components/ThemeWrapper'
 import UserSessionGuard from '@/components/UserSessionGuard'
 import MainWrapper from '@/components/MainWrapper'
+import PushSetup from '@/components/PushSetup'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerSupabaseClient()
@@ -23,6 +24,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <LanguageProvider initialLang={profile?.language_preference ?? null}>
       <ThemeWrapper>
         <UserSessionGuard />
+        <PushSetup />
         <Sidebar user={user} profile={profile} />
         <MainWrapper>
           {children}
