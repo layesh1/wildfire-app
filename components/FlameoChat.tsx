@@ -110,7 +110,6 @@ const INTRO: Message = {
 
 export default function FlameoChat() {
   const pathname = usePathname()
-  const isCaregiverHub = pathname === '/dashboard/caregiver'
   const isDispatcher = pathname?.startsWith('/dashboard/responder') ?? false
   const flameoSrc = isDispatcher ? '/Image (8).png' : '/flameo1.png'
   const fabStyle = { bottom: 16, right: 16, left: 'auto' } as React.CSSProperties
@@ -366,7 +365,7 @@ export default function FlameoChat() {
               Chat with Flameo
             </button>
             {/* Arrow pointing down to FAB */}
-            <div className={`absolute -bottom-2 w-4 h-4 bg-white border-r border-b border-gray-200 rotate-45 ${isCaregiverHub ? 'left-6' : 'right-6'}`} />
+            <div className="absolute -bottom-2 right-6 w-4 h-4 bg-white border-r border-b border-gray-200 rotate-45" />
           </div>
         </div>
       )}
