@@ -5,6 +5,7 @@ import { Flame, MapPin, CheckCircle, Shield, AlertTriangle, Package, ChevronRigh
 import { createClient } from '@/lib/supabase'
 import { useRoleContext } from '@/components/RoleContext'
 import { addNotification } from '@/components/NotificationCenter'
+import { loadPersons, loadGoBag, loadProfileCard } from '@/lib/user-data'
 
 type FireEvent = {
   id: string; incident_name: string; county: string; state: string
@@ -49,14 +50,33 @@ export default function MobileCaregiverHub() {
   const [userName, setUserName] = useState('')
 
   useEffect(() => {
-    try { setPersons(JSON.parse(localStorage.getItem('monitored_persons_v2') || '[]')) } catch {}
-    try { setBagChecked(new Set(JSON.parse(localStorage.getItem('wfa_gobag') || '[]'))) } catch {}
-    try {
-      const card = JSON.parse(localStorage.getItem('wfa_emergency_card') || '{}')
-      if (card.full_name) setUserName(card.full_name.split(' ')[0])
-    } catch {}
-
     const supabase = createClient()
+
+    // Load synced user data from Supabase (falls back to localStorage)
+    async function loadUserData() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const [persons, gobag, card] = await Promise.all([
+            loadPersons(supabase, user.id),
+            loadGoBag(supabase, user.id),
+            loadProfileCard(supabase, user.id),
+          ])
+          setPersons(persons)
+          setBagChecked(new Set(gobag))
+          if (card?.full_name) setUserName(card.full_name.split(' ')[0])
+          return
+        }
+      } catch {}
+      // Fallback to localStorage
+      try { setPersons(JSON.parse(localStorage.getItem('monitored_persons_v2') || '[]')) } catch {}
+      try { setBagChecked(new Set(JSON.parse(localStorage.getItem('wfa_gobag') || '[]'))) } catch {}
+      try {
+        const card = JSON.parse(localStorage.getItem('wfa_emergency_card') || '{}')
+        if (card.full_name) setUserName(card.full_name.split(' ')[0])
+      } catch {}
+    }
+    loadUserData()
     async function load() {
       try {
         const { data } = await supabase.from('fire_events')

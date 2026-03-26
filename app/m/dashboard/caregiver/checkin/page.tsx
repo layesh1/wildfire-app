@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { CheckCircle, Home, ArrowRight, HelpCircle, Flame } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+import { loadCheckinStatus, saveCheckinStatus } from '@/lib/user-data'
 
 type Status = 'evacuated' | 'sheltering' | 'returning' | 'unknown'
 
@@ -55,22 +56,35 @@ export default function MobileCheckinPage() {
       const card = JSON.parse(localStorage.getItem('wfa_emergency_card') || '{}')
       if (card.full_name) setUserName(card.full_name.split(' ')[0])
     } catch {}
-    // Load previous status
-    try {
-      const prev = localStorage.getItem('wfa_checkin_status')
-      if (prev) setSelected(prev as Status)
-    } catch {}
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (data?.user) {
+        const status = await loadCheckinStatus(supabase, data.user.id)
+        if (status) setSelected(status as Status)
+      } else {
+        try {
+          const prev = localStorage.getItem('wfa_checkin_status')
+          if (prev) setSelected(prev as Status)
+        } catch {}
+      }
+    }).catch(() => {
+      try {
+        const prev = localStorage.getItem('wfa_checkin_status')
+        if (prev) setSelected(prev as Status)
+      } catch {}
+    })
   }, [])
 
   async function submit() {
     if (!selected) return
     setSaving(true)
     try {
-      localStorage.setItem('wfa_checkin_status', selected)
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        await supabase.from('profiles').update({ checkin_status: selected, checkin_at: new Date().toISOString() }).eq('id', user.id)
+        await saveCheckinStatus(supabase, user.id, selected)
+      } else {
+        localStorage.setItem('wfa_checkin_status', selected)
       }
     } catch {}
     setSaving(false)

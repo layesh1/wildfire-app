@@ -1,5 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createClient } from '@/lib/supabase'
+import { loadPersons, savePersons, loadProfileCard } from '@/lib/user-data'
 import {
   Users,
   Heart,
@@ -358,31 +360,51 @@ export default function PersonsPage() {
   const personsRef = useRef<Person[]>([])
   personsRef.current = persons
 
-  // ── Load from localStorage on mount ─────────────────────────────────────
+  // ── Load from Supabase (with localStorage fallback) on mount ─────────────
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(LS_KEY)
-      if (raw) setPersons(JSON.parse(raw))
-    } catch {
-      // ignore parse errors
+    const supabase = createClient()
+    async function load() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const [persons, card] = await Promise.all([
+            loadPersons(supabase, user.id),
+            loadProfileCard(supabase, user.id),
+          ])
+          if (persons.length > 0) setPersons(persons)
+          if (card?.full_name) setMyName(card.full_name)
+          if (card?.address) setMyAddress(card.address)
+          return
+        }
+      } catch {}
+      // Fallback: localStorage only
+      try {
+        const raw = localStorage.getItem(LS_KEY)
+        if (raw) setPersons(JSON.parse(raw))
+      } catch {}
+      try {
+        const card = JSON.parse(localStorage.getItem('wfa_emergency_card') || '{}')
+        if (card.full_name) setMyName(card.full_name)
+        if (card.address) setMyAddress(card.address)
+      } catch {}
     }
-    try {
-      const card = JSON.parse(localStorage.getItem('wfa_emergency_card') || '{}')
-      if (card.full_name) setMyName(card.full_name)
-      if (card.address) setMyAddress(card.address)
-    } catch {}
+    load()
   }, [])
 
-  // ── Persist ──────────────────────────────────────────────────────────────
+  // ── Persist to Supabase + localStorage ───────────────────────────────────
 
   const persist = useCallback((updated: Person[]) => {
     setPersons(updated)
-    try {
-      localStorage.setItem(LS_KEY, JSON.stringify(updated))
-    } catch {
-      // storage full or unavailable
-    }
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) savePersons(supabase, data.user.id, updated)
+      else {
+        try { localStorage.setItem(LS_KEY, JSON.stringify(updated)) } catch {}
+      }
+    }).catch(() => {
+      try { localStorage.setItem(LS_KEY, JSON.stringify(updated)) } catch {}
+    })
   }, [])
 
   // ── Background fire check on mount ───────────────────────────────────────

@@ -11,6 +11,7 @@ import Link from 'next/link'
 import type { NifcFire } from './map/LeafletMap'
 import AlertJar from '@/components/AlertJar'
 import { useRoleContext } from '@/components/RoleContext'
+import { loadPersons, loadGoBag } from '@/lib/user-data'
 
 const LeafletMap = dynamic(() => import('./map/LeafletMap'), { ssr: false })
 
@@ -267,17 +268,6 @@ export default function CaregiverDashboard() {
       )
     }
 
-    // Load localStorage data
-    try {
-      const saved = JSON.parse(localStorage.getItem('monitored_persons_v2') || '[]')
-      setPersons(saved)
-    } catch {}
-
-    try {
-      const saved = JSON.parse(localStorage.getItem('wfa_gobag') || '[]')
-      setBagChecked(new Set(saved))
-    } catch {}
-
     // Supabase data + NIFC live fires
     async function load() {
       try {
@@ -298,6 +288,9 @@ export default function CaregiverDashboard() {
         }
         if (firesData) setFires(firesData)
         if (user) {
+          // Load synced persons + go-bag from Supabase (falls back to localStorage inside)
+          loadPersons(supabase, user.id).then(p => setPersons(p)).catch(() => {})
+          loadGoBag(supabase, user.id).then(items => setBagChecked(new Set(items))).catch(() => {})
           try {
             const card = JSON.parse(localStorage.getItem('wfa_emergency_card') || '{}')
             if (card.full_name) {

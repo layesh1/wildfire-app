@@ -1,6 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { Users, CheckCircle, MessageSquare, Phone, Plus, X, Copy, MapPin } from 'lucide-react'
+import { createClient } from '@/lib/supabase'
+import { loadPersons, savePersons } from '@/lib/user-data'
 
 type CheckinStatus = 'confirmed_safe' | 'waiting' | 'needs_help' | 'unknown'
 interface Person {
@@ -53,15 +55,30 @@ export default function MobilePersonsPage() {
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(LS_KEY)
-      if (raw) setPersons(JSON.parse(raw))
-    } catch {}
+    const supabase = createClient()
+    async function load() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const persons = await loadPersons(supabase, user.id)
+          if (persons.length > 0) { setPersons(persons); return }
+        }
+      } catch {}
+      try {
+        const raw = localStorage.getItem(LS_KEY)
+        if (raw) setPersons(JSON.parse(raw))
+      } catch {}
+    }
+    load()
   }, [])
 
   function persist(updated: Person[]) {
     setPersons(updated)
-    try { localStorage.setItem(LS_KEY, JSON.stringify(updated)) } catch {}
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) savePersons(supabase, data.user.id, updated)
+      else { try { localStorage.setItem(LS_KEY, JSON.stringify(updated)) } catch {} }
+    }).catch(() => { try { localStorage.setItem(LS_KEY, JSON.stringify(updated)) } catch {} })
   }
 
   function addPerson() {
