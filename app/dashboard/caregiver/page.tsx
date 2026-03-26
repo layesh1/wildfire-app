@@ -246,7 +246,10 @@ export default function CaregiverDashboard() {
     // Request geolocation
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        pos => setUserLocation([pos.coords.latitude, pos.coords.longitude]),
+        pos => {
+          const lat = pos.coords.latitude, lon = pos.coords.longitude
+          if (isFinite(lat) && isFinite(lon)) setUserLocation([lat, lon])
+        },
         () => {} // silently ignore denial
       )
     }

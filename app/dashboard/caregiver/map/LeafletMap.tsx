@@ -317,10 +317,12 @@ export default function LeafletMap({
   // Filter out fully contained fires (100%)
   const activeFires = nifc.filter(f => f.containment == null || f.containment < 100)
   const tl = TILE_LAYERS[tileLayer]
+  // Guard against NaN/Infinity coords — Leaflet crashes hard if center is invalid
+  const safeCenter: [number, number] = (isFinite(center[0]) && isFinite(center[1])) ? center : [37.5, -119.5]
 
   return (
     <div style={{ position: 'relative', height: '100%', width: '100%' }}>
-      <MapContainer center={center} zoom={5} style={{ height: '100%', width: '100%' }}>
+      <MapContainer center={safeCenter} zoom={5} style={{ height: '100%', width: '100%' }}>
         <TileLayer attribution={tl.attribution} url={tl.url} />
         <FlyToUser coords={userLocation} />
 
