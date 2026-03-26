@@ -14,6 +14,8 @@ import {
   AlertTriangle,
   Settings,
   Pencil,
+  UserCircle,
+  UserPlus,
 } from 'lucide-react'
 
 // ── Address autocomplete (Nominatim/OpenStreetMap, no API key) ─────────────────
@@ -351,6 +353,8 @@ export default function PersonsPage() {
   const [formError, setFormError] = useState<string | null>(null)
   const [openPingId, setOpenPingId] = useState<string | null>(null)
   const [fireWarningNames, setFireWarningNames] = useState<string[]>([])
+  const [myName, setMyName] = useState('')
+  const [myAddress, setMyAddress] = useState('')
   const personsRef = useRef<Person[]>([])
   personsRef.current = persons
 
@@ -363,6 +367,11 @@ export default function PersonsPage() {
     } catch {
       // ignore parse errors
     }
+    try {
+      const card = JSON.parse(localStorage.getItem('wfa_emergency_card') || '{}')
+      if (card.full_name) setMyName(card.full_name)
+      if (card.address) setMyAddress(card.address)
+    } catch {}
   }, [])
 
   // ── Persist ──────────────────────────────────────────────────────────────
@@ -563,8 +572,31 @@ export default function PersonsPage() {
     setOpenPingId(id)
   }
 
+  // ── Add myself ───────────────────────────────────────────────────────────
+
+  function addMyself() {
+    const selfEntry: Person = {
+      id: 'self_' + Date.now().toString(),
+      name: myName || 'Me',
+      address: myAddress || '',
+      relationship: 'Self' as Relationship,
+      mobility: 'Mobile Adult' as Mobility,
+      phone: '',
+      languages: [],
+      notes: '',
+      status: 'unknown',
+      last_confirmed: null,
+      checkin_token: null,
+      ping_sent_at: null,
+      justConfirmed: false,
+    }
+    persist([selfEntry, ...persons])
+  }
+
   // ── Stats ─────────────────────────────────────────────────────────────────
 
+  const selfEntry = persons.find(p => p.relationship === 'Self')
+  const others = persons.filter(p => p.relationship !== 'Self')
   const safeCount = persons.filter(p => p.status === 'confirmed_safe').length
   const total = persons.length
 
@@ -609,6 +641,73 @@ export default function PersonsPage() {
           </p>
         </div>
       )}
+
+      {/* ── Monitor Myself ─────────────────────────────────────────────── */}
+      <div className="mb-5">
+        <div className="flex items-center gap-2 text-ash-400 text-xs font-semibold uppercase tracking-widest mb-3">
+          <UserCircle className="w-3.5 h-3.5" /> Me
+        </div>
+        {selfEntry ? (
+          (() => {
+            const sc = statusConfig(selfEntry.status)
+            return (
+              <div className={`card p-5 border-2 transition-all duration-500 ${selfEntry.justConfirmed ? 'border-signal-safe/60 shadow-lg shadow-signal-safe/10' : sc.cardBorder}`}>
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex items-start gap-3">
+                    <div className={`w-2.5 h-2.5 rounded-full mt-2 shrink-0 ${sc.dotClass}`} />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-white font-semibold">{selfEntry.name}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-ash-800 text-ash-300 border border-ash-700">You</span>
+                      </div>
+                      {selfEntry.address && (
+                        <div className="flex items-center gap-1.5 mt-1 text-ash-500 text-xs">
+                          <MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{selfEntry.address}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <button onClick={() => removePerson(selfEntry.id)} className="p-1.5 rounded-lg text-ash-600 hover:text-signal-danger hover:bg-signal-danger/10 transition-colors" aria-label="Remove myself">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium mb-3 ${sc.badgeBg} ${sc.badgeText}`}>
+                  {selfEntry.status === 'confirmed_safe' && <CheckCircle className="w-3.5 h-3.5" />}
+                  {sc.label}
+                </div>
+                <div className="text-ash-500 text-xs mb-4">
+                  {selfEntry.status === 'confirmed_safe' && selfEntry.last_confirmed && <span>Last confirmed: {relativeTime(selfEntry.last_confirmed)}</span>}
+                  {selfEntry.status === 'unknown' && <span>Not yet confirmed</span>}
+                </div>
+                <button onClick={() => markSafe(selfEntry.id)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-signal-safe/30 text-signal-safe bg-signal-safe/10 hover:bg-signal-safe/20 transition-colors">
+                  <CheckCircle className="w-3.5 h-3.5" /> Mark Myself Safe
+                </button>
+              </div>
+            )
+          })()
+        ) : (
+          <div className="card p-5 border border-dashed border-ash-600 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-full bg-ash-800 flex items-center justify-center shrink-0">
+              <UserCircle className="w-5 h-5 text-ash-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-white text-sm font-medium mb-0.5">Are you also monitoring yourself?</div>
+              <div className="text-ash-400 text-xs">Add yourself so you can confirm your own safety during an event.</div>
+            </div>
+            <button
+              onClick={addMyself}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-signal-safe/30 text-signal-safe bg-signal-safe/10 hover:bg-signal-safe/20 transition-colors shrink-0"
+            >
+              <UserPlus className="w-3.5 h-3.5" /> Track Myself
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ── People I care for header ────────────────────────────────────── */}
+      <div className="flex items-center gap-2 text-ash-400 text-xs font-semibold uppercase tracking-widest mb-3">
+        <Users className="w-3.5 h-3.5" /> People I Care For
+      </div>
 
       {/* Progress bar */}
       {total > 0 && (
@@ -823,8 +922,8 @@ export default function PersonsPage() {
         </div>
       )}
 
-      {/* Empty state */}
-      {total === 0 && !showForm && (
+      {/* Empty state for others */}
+      {others.length === 0 && !showForm && (
         <div className="card p-10 text-center">
           <Users className="w-12 h-12 text-ash-700 mx-auto mb-3" />
           <div className="text-white font-semibold mb-2">No one added yet</div>
@@ -834,9 +933,9 @@ export default function PersonsPage() {
         </div>
       )}
 
-      {/* Person cards */}
+      {/* Person cards (others only — self is rendered above) */}
       <div className="space-y-4">
-        {persons.map(person => {
+        {others.map(person => {
           const sc = statusConfig(person.status)
           const isWaiting = person.status === 'waiting'
           const pingSentMin = person.ping_sent_at
