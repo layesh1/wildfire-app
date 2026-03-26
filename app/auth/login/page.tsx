@@ -129,6 +129,7 @@ function LoginForm() {
   })
   const [codeLoading, setCodeLoading] = useState(false)
   const [codeError, setCodeError] = useState('')
+  const [emailTaken, setEmailTaken] = useState(false)
   const [langSearch, setLangSearch] = useState('')
   const [showLangDrop, setShowLangDrop] = useState(false)
   const langRef = useRef<HTMLDivElement>(null)
@@ -256,8 +257,14 @@ function LoginForm() {
         setOnboardingStep(4)
       }
     } catch (err: any) {
-      setError(err.message)
-      setOnboardingStep(0)
+      const msg: string = err.message || ''
+      if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('user already exists')) {
+        setEmailTaken(true)
+        setOnboardingStep(0)
+      } else {
+        setError(msg)
+        setOnboardingStep(0)
+      }
     } finally {
       setLoading(false)
     }
@@ -424,7 +431,7 @@ function LoginForm() {
 
                 <p className="text-center text-gray-500 text-sm mt-6">
                   Don't have an account?{' '}
-                  <button onClick={() => { setMode('signup'); setError(''); setOnboardingStep(0) }}
+                  <button onClick={() => { setMode('signup'); setError(''); setEmailTaken(false); setOnboardingStep(0) }}
                     className="text-forest-600 hover:text-forest-700 transition-colors font-medium">
                     Sign up free
                   </button>
@@ -476,6 +483,16 @@ function LoginForm() {
                     </div>
                   </div>
                 </div>
+
+                {emailTaken && (
+                  <div className="text-sm px-4 py-3 rounded-lg mb-4 bg-amber-50 text-amber-800 border border-amber-200">
+                    An account with this email already exists.{' '}
+                    <button onClick={() => { setMode('login'); setEmailTaken(false); setError('') }}
+                      className="font-semibold underline hover:no-underline">
+                      Sign in instead
+                    </button>
+                  </div>
+                )}
 
                 {error && (
                   <div className="text-sm px-4 py-3 rounded-lg mb-4 bg-red-50 text-red-600 border border-red-200">{error}</div>
