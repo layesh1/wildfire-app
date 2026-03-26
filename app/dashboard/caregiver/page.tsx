@@ -229,8 +229,12 @@ export default function CaregiverDashboard() {
     )
       .then(r => r.json())
       .then((data: { lat: string; lon: string }[]) => {
-        if (data[0]) setPersonLocation([parseFloat(data[0].lat), parseFloat(data[0].lon)])
-        else setPersonLocation(null)
+        if (data[0]) {
+          const lat = parseFloat(data[0].lat)
+          const lon = parseFloat(data[0].lon)
+          if (isFinite(lat) && isFinite(lon)) setPersonLocation([lat, lon])
+          else setPersonLocation(null)
+        } else setPersonLocation(null)
       })
       .catch(() => setPersonLocation(null))
   }, [activePerson?.address])

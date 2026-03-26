@@ -189,7 +189,7 @@ function watchedIcon() {
 function FlyToUser({ coords }: { coords: [number, number] | null }) {
   const map = useMap()
   useEffect(() => {
-    if (coords) map.flyTo(coords, 8, { duration: 1.2 })
+    if (coords && isFinite(coords[0]) && isFinite(coords[1])) map.flyTo(coords, 8, { duration: 1.2 })
   }, [coords, map])
   return null
 }
