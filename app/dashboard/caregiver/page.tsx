@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, Component, type ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import {
   Flame, MapPin, Phone, AlertTriangle, CheckCircle,
@@ -13,6 +13,19 @@ import AlertJar from '@/components/AlertJar'
 import { useRoleContext } from '@/components/RoleContext'
 
 const LeafletMap = dynamic(() => import('./map/LeafletMap'), { ssr: false })
+
+class MapErrorBoundary extends Component<{ children: ReactNode }, { crashed: boolean }> {
+  state = { crashed: false }
+  static getDerivedStateFromError() { return { crashed: true } }
+  render() {
+    if (this.state.crashed) return (
+      <div className="w-full h-full flex items-center justify-center rounded-2xl bg-gray-100">
+        <Link href="/dashboard/caregiver/map" className="text-xs text-gray-400 hover:text-gray-600 underline">Open map</Link>
+      </div>
+    )
+    return this.props.children
+  }
+}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const GO_BAG_ITEMS = [
@@ -385,14 +398,16 @@ export default function CaregiverDashboard() {
 
         {/* Map preview */}
         <div className="h-44 rounded-2xl overflow-hidden relative">
-          <LeafletMap
-            nifc={nifc}
-            userLocation={userLocation}
-            center={isCaregiverMode && personLocation ? personLocation : (userLocation ?? [37.5, -119.5])}
-            shelters={[]}
-            showShelters={false}
-            watchedLocations={isCaregiverMode && personLocation && activePerson ? [{ label: activePerson.name, lat: personLocation[0], lng: personLocation[1] }] : []}
-          />
+          <MapErrorBoundary>
+            <LeafletMap
+              nifc={nifc}
+              userLocation={userLocation}
+              center={isCaregiverMode && personLocation ? personLocation : (userLocation ?? [37.5, -119.5])}
+              shelters={[]}
+              showShelters={false}
+              watchedLocations={isCaregiverMode && personLocation && activePerson ? [{ label: activePerson.name, lat: personLocation[0], lng: personLocation[1] }] : []}
+            />
+          </MapErrorBoundary>
           <div className="absolute inset-x-0 bottom-0 p-3 pointer-events-none">
             <Link href="/dashboard/caregiver/map"
               className="pointer-events-auto w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-semibold text-white"
@@ -825,17 +840,19 @@ export default function CaregiverDashboard() {
 
             {/* Map preview — same LeafletMap as the Evacuation Map tab */}
             <div className="flex-1 relative overflow-hidden m-4 rounded-2xl" style={{ minHeight: 200 }}>
-              <LeafletMap
-                nifc={nifc}
-                userLocation={userLocation}
-                center={isCaregiverMode && personLocation ? personLocation : (userLocation ?? [37.5, -119.5])}
-                shelters={[]}
-                showShelters={false}
-                watchedLocations={isCaregiverMode && personLocation && activePerson
-                  ? [{ label: activePerson.name, lat: personLocation[0], lng: personLocation[1] }]
-                  : []
-                }
-              />
+              <MapErrorBoundary>
+                <LeafletMap
+                  nifc={nifc}
+                  userLocation={userLocation}
+                  center={isCaregiverMode && personLocation ? personLocation : (userLocation ?? [37.5, -119.5])}
+                  shelters={[]}
+                  showShelters={false}
+                  watchedLocations={isCaregiverMode && personLocation && activePerson
+                    ? [{ label: activePerson.name, lat: personLocation[0], lng: personLocation[1] }]
+                    : []
+                  }
+                />
+              </MapErrorBoundary>
               {/* "View Full Map" overlay button at bottom */}
               <div className="absolute inset-x-0 bottom-0 p-3 pointer-events-none">
                 <Link
