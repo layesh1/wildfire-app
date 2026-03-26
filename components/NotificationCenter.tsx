@@ -77,7 +77,7 @@ export default function NotificationCenter() {
   }
 
   return (
-    <div ref={ref} className="fixed top-3 right-4 z-[1000]" data-tour="notification-center">
+    <div ref={ref} className="fixed top-3 right-4 z-[2000]" data-tour="notification-center">
       <button
         onClick={toggleOpen}
         className="relative p-2 rounded-xl bg-white border border-gray-200 shadow-sm hover:bg-gray-50 transition-colors"
