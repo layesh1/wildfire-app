@@ -2,14 +2,7 @@
 
 import { CheckCircle2, Zap, MapPin } from 'lucide-react'
 
-const KEYFRAMES = `
-  @keyframes alertJarGentleWave { 0%, 100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(1.02) rotate(2deg); } }
-  @keyframes alertJarMediumPulse { 0%, 100% { transform: scale(1); opacity: 0.9; } 50% { transform: scale(1.05); opacity: 1; } }
-  @keyframes alertJarUrgentShake { 0%, 100% { transform: scale(1) rotate(0deg); } 25% { transform: scale(1.03) rotate(-3deg); } 75% { transform: scale(1.03) rotate(3deg); } }
-  @keyframes alertJarCriticalPulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(211,47,47,0.5); } 50% { transform: scale(1.08); box-shadow: 0 0 40px rgba(211,47,47,0.8); } }
-  @keyframes alertJarGlowPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.7; } }
-  @keyframes alertJarRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-`
+// Keyframes defined in app/globals.css (avoids React 19 style-tag hydration crash)
 
 export type AlertLevel = 'safe' | 'caution' | 'warning' | 'act_now'
 
@@ -69,7 +62,6 @@ export default function AlertJar({ level = 'safe', size = 160 }: { level?: Alert
 
   return (
     <>
-      <style>{KEYFRAMES}</style>
       <div className="flex flex-col items-center">
         <div
           className="relative flex items-center justify-center"

@@ -11,7 +11,6 @@ import Link from 'next/link'
 import type { NifcFire } from './map/LeafletMap'
 import AlertJar from '@/components/AlertJar'
 import { useRoleContext } from '@/components/RoleContext'
-import DashboardTour from '@/components/DashboardTour'
 
 const LeafletMap = dynamic(() => import('./map/LeafletMap'), { ssr: false })
 
@@ -261,32 +260,37 @@ export default function CaregiverDashboard() {
 
     // Supabase data + NIFC live fires
     async function load() {
-      const [{ data: firesData }, { data: { user } }, nifcRes] = await Promise.all([
-        supabase
-          .from('fire_events')
-          .select('id, incident_name, county, state, acres_burned, containment_pct, started_at, signal_gap_hours, has_evacuation_order')
-          .order('started_at', { ascending: false })
-          .limit(6),
-        supabase.auth.getUser(),
-        fetch('/api/fires/nifc').catch(() => null),
-      ])
-      if (nifcRes?.ok) {
-        const json = await nifcRes.json().catch(() => ({}))
-        if (json?.data) setNifc(json.data)
-      }
-      if (firesData) setFires(firesData)
-      if (user) {
-        // Try localStorage emergency card first for full_name
-        try {
-          const card = JSON.parse(localStorage.getItem('wfa_emergency_card') || '{}')
-          if (card.full_name) {
-            setUserProfile({ full_name: card.full_name, email: user.email })
-            setLoading(false)
-            return
-          }
-        } catch {}
-        const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
-        setUserProfile({ full_name: prof?.full_name, email: user.email })
+      try {
+        const [firesRes, authRes, nifcRes] = await Promise.all([
+          supabase
+            .from('fire_events')
+            .select('id, incident_name, county, state, acres_burned, containment_pct, started_at, signal_gap_hours, has_evacuation_order')
+            .order('started_at', { ascending: false })
+            .limit(6),
+          supabase.auth.getUser(),
+          fetch('/api/fires/nifc').catch(() => null),
+        ])
+        const firesData = firesRes?.data
+        const user = authRes?.data?.user
+        if (nifcRes?.ok) {
+          const json = await nifcRes.json().catch(() => ({}))
+          if (json?.data) setNifc(json.data)
+        }
+        if (firesData) setFires(firesData)
+        if (user) {
+          try {
+            const card = JSON.parse(localStorage.getItem('wfa_emergency_card') || '{}')
+            if (card.full_name) {
+              setUserProfile({ full_name: card.full_name, email: user.email })
+              setLoading(false)
+              return
+            }
+          } catch {}
+          const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
+          setUserProfile({ full_name: prof?.full_name, email: user.email })
+        }
+      } catch (err) {
+        console.error('[Hub] load error:', err)
       }
       setLoading(false)
     }
@@ -307,7 +311,6 @@ export default function CaregiverDashboard() {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      <DashboardTour />
       {/* Preset buttons */}
       <div className="flex items-center gap-1 px-4 py-2 border-b shrink-0" style={{ borderColor: 'var(--wfa-border)', background: 'var(--wfa-page-bg)' }}>
         <span className="text-xs mr-2" style={{ color: 'var(--wfa-muted)' }}>Layout</span>
