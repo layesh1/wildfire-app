@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { RoleProvider } from '@/components/RoleContext'
 import MobileNav from '@/app/m/MobileNav'
 import MobileFlameo from '@/app/m/MobileFlameo'
+import NotificationCenter from '@/components/NotificationCenter'
 
 export const metadata = { title: 'WildfireAlert', viewport: 'width=device-width, initial-scale=1, viewport-fit=cover' }
 
@@ -27,6 +28,9 @@ export default async function MobileLayout({ children }: { children: React.React
         <main className="flex-1 overflow-y-auto pb-20">
           {children}
         </main>
+
+        {/* Notification bell */}
+        <NotificationCenter />
 
         {/* Bottom navigation */}
         <MobileNav role={role} />

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Flame, MapPin, CheckCircle, Shield, AlertTriangle, Package, ChevronRight, Monitor } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { useRoleContext } from '@/components/RoleContext'
+import { addNotification } from '@/components/NotificationCenter'
 
 type FireEvent = {
   id: string; incident_name: string; county: string; state: string
@@ -61,7 +62,35 @@ export default function MobileCaregiverHub() {
         const { data } = await supabase.from('fire_events')
           .select('id,incident_name,county,state,acres_burned,containment_pct,started_at,signal_gap_hours,has_evacuation_order')
           .order('started_at', { ascending: false }).limit(5)
-        if (data) setFires(data)
+        if (data) {
+          setFires(data)
+          const urgent = data.filter((f: any) => f.has_evacuation_order)
+          const uncontained = data.filter((f: any) => !f.has_evacuation_order && (f.containment_pct == null || f.containment_pct < 25))
+          if (urgent.length > 0) {
+            addNotification({
+              title: `Evacuation Order: ${urgent[0].incident_name || 'Active Fire'}`,
+              body: `${urgent[0].county ? urgent[0].county + ', ' : ''}${urgent[0].state || ''} — mandatory evacuation order issued.`,
+            })
+          }
+          if (uncontained.length > 0 && urgent.length === 0) {
+            addNotification({
+              title: `${uncontained.length} Active Fire${uncontained.length > 1 ? 's' : ''} Nearby`,
+              body: `${uncontained[0].incident_name || 'Fire'} is less than 25% contained. Monitor alerts.`,
+            })
+          }
+          // Notify for monitored persons if evacuation orders exist
+          try {
+            const storedPersons: Person[] = JSON.parse(localStorage.getItem('monitored_persons_v2') || '[]')
+            if (storedPersons.length > 0 && urgent.length > 0) {
+              for (const person of storedPersons) {
+                addNotification({
+                  title: `Alert for ${person.name}`,
+                  body: `Evacuation order issued near monitored person. Check on ${person.name.split(' ')[0]} immediately.`,
+                })
+              }
+            }
+          } catch {}
+        }
       } catch {}
       setLoading(false)
     }
