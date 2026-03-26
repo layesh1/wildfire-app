@@ -2,8 +2,20 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { getAllowedOrigin, corsHeaders } from '@/lib/cors'
 
+const MOBILE_UA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // ── Mobile redirect: /dashboard/* → /m/dashboard/* on phones/tablets ─────
+  if (pathname.startsWith('/dashboard/') && !request.headers.get('x-skip-mobile-redirect')) {
+    const ua = request.headers.get('user-agent') ?? ''
+    if (MOBILE_UA.test(ua)) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/m' + pathname
+      return NextResponse.redirect(url)
+    }
+  }
 
   // ── CORS for API routes ────────────────────────────────────
   if (pathname.startsWith('/api/')) {
@@ -48,7 +60,7 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   const isAuthRoute = pathname.startsWith('/auth')
-  const isDashboard = pathname.startsWith('/dashboard')
+  const isDashboard = pathname.startsWith('/dashboard') || pathname.startsWith('/m/dashboard')
 
   if (!user && isDashboard) {
     return NextResponse.redirect(new URL('/auth/login', request.url))
@@ -62,5 +74,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/auth/:path*', '/api/:path*'],
+  matcher: ['/dashboard/:path*', '/m/dashboard/:path*', '/auth/:path*', '/api/:path*'],
 }
