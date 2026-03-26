@@ -310,414 +310,559 @@ export default function CaregiverDashboard() {
 
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
-      {/* Preset buttons */}
-      <div className="flex items-center gap-1 px-4 py-2 border-b shrink-0" style={{ borderColor: 'var(--wfa-border)', background: 'var(--wfa-page-bg)' }}>
-        <span className="text-xs mr-2" style={{ color: 'var(--wfa-muted)' }}>Layout</span>
-        {([['equal', 'Equal', LayoutTemplate], ['default', 'Default', Minimize2], ['map', 'Map Focus', Maximize2]] as const).map(([p, label, Icon]) => (
-          <button key={p} onClick={() => applyPreset(p)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
-            style={{ background: preset === p ? 'var(--wfa-accent)' : 'transparent', color: preset === p ? '#fff' : 'var(--wfa-muted)', border: `1px solid ${preset === p ? 'transparent' : 'var(--wfa-border)'}` }}>
-            <Icon className="w-3 h-3" />{label}
-          </button>
-        ))}
-      </div>
+    <div className="flex flex-col md:h-screen md:overflow-hidden">
 
-      {/* Root: full height 3-column resizable layout */}
-      <div
-        ref={containerRef}
-        className="flex overflow-hidden"
-        style={{ flex: 1, background: 'var(--wfa-page-bg)', fontFamily: 'var(--font-body)', userSelect: dragging ? 'none' : undefined }}
-      >
+      {/* ══ MOBILE LAYOUT (< md) ══════════════════════════════════════════════ */}
+      <div className="flex md:hidden flex-col overflow-y-auto space-y-4 px-4 pt-4 pb-8" style={{ background: 'var(--wfa-page-bg)' }}>
 
-        {/* ══ LEFT COLUMN — tracking cards (340px) ══════════════════════════ */}
-        <div
-          className="flex flex-col shrink-0 border-r"
-          style={{ width: `${leftPct}%`, minWidth: 180, borderColor: 'var(--wfa-border)', background: 'var(--wfa-panel-l)' }}
-        >
-          {/* Header */}
-          <div className="px-5 pt-6 pb-4 border-b" style={{ borderColor: 'var(--wfa-border-lite)' }}>
-            <div
-              className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest mb-1"
-              style={{ color: 'var(--wfa-accent)' }}
-            >
-              <Users className="w-3.5 h-3.5" />
-              {isCaregiverMode ? 'Caring For' : 'My Persons'}
-            </div>
-            <div className="font-display font-bold text-xl" style={{ color: 'var(--wfa-text)' }}>
-              {isCaregiverMode ? activePerson!.name.split(' ')[0] : 'Tracking'}
-            </div>
-            <div className="text-xs mt-0.5" style={{ color: 'var(--wfa-text-40)' }}>
-              {isCaregiverMode
-                ? (activePerson!.relationship || 'Person in care')
-                : `${persons.length} ${persons.length === 1 ? 'person' : 'people'} monitored`}
-            </div>
+        {/* Header */}
+        <div className="pt-2">
+          <div className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--wfa-accent)' }}>
+            {isCaregiverMode ? `Caring for ${activePerson!.name}` : 'My Safety'}
           </div>
-
-          {/* Scrollable cards */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {persons.length === 0 ? (
-              <div className="flex flex-col items-center py-10 text-center">
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3"
-                  style={{ background: 'var(--wfa-tag-bg)' }}>
-                  <User className="w-6 h-6" style={{ color: 'var(--wfa-accent-lite)' }} />
-                </div>
-                <p className="text-sm mb-3" style={{ color: 'var(--wfa-text-50)' }}>No people added yet</p>
-                <Link
-                  href="/dashboard/caregiver/persons"
-                  className="text-xs font-semibold hover:underline flex items-center gap-1"
-                  style={{ color: 'var(--wfa-accent)' }}
-                >
-                  Add someone to monitor <ChevronRight className="w-3 h-3" />
-                </Link>
-              </div>
-            ) : (
-              persons.map((p, i) => <PersonCard key={p.id} person={p} index={i} />)
-            )}
-
-            {/* Go-bag widget */}
-            <div className="rounded-2xl p-4 bg-white border" style={{ borderColor: 'var(--wfa-border)' }}>
-              <div className="flex items-center justify-between mb-2.5">
-                <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--wfa-text)' }}>
-                  <Package className="w-4 h-4" style={{ color: 'var(--wfa-accent)' }} />
-                  Go-Bag Ready
-                </div>
-                <span
-                  className="text-xs font-bold"
-                  style={{ color: readyPct >= 80 ? '#7cb342' : readyPct >= 50 ? '#d4a574' : '#c86432' }}
-                >
-                  {readyPct}%
-                </span>
-              </div>
-              <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--wfa-progress-bg)' }}>
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${readyPct}%`,
-                    background: readyPct >= 80 ? '#7cb342' : readyPct >= 50 ? '#d4a574' : '#c86432',
-                  }}
-                />
-              </div>
-              <div className="text-[11px] mt-1.5" style={{ color: 'var(--wfa-text-40)' }}>
-                {bagChecked.size} / {GO_BAG_ITEMS.length} items packed
-              </div>
-            </div>
-
-            {/* Add person CTA */}
-            <Link
-              href="/dashboard/caregiver/persons"
-              className="group flex flex-col items-center justify-center gap-0.5 py-3 rounded-2xl text-sm font-medium transition-all border border-dashed hover:shadow-sm"
-              style={{ borderColor: 'var(--wfa-border)', color: 'var(--wfa-accent)' }}
-            >
-              <span className="flex items-center gap-1.5">+ Add person</span>
-              <span
-                className="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity max-h-0 group-hover:max-h-4 overflow-hidden leading-none"
-                style={{ color: 'var(--wfa-accent)' }}
-              >
-                Track location &amp; check‑in status
-              </span>
-            </Link>
-          </div>
+          <h1 className="font-display font-bold text-2xl mt-0.5" style={{ color: 'var(--wfa-text)' }}>
+            {isCaregiverMode ? `${activePerson!.name.split(' ')[0]}'s Hub` : 'My Hub'}
+          </h1>
         </div>
 
-        {/* ══ DRAG HANDLE — left/center ══════════════════════════════════ */}
-        <div onMouseDown={() => setDragging('left')} style={{ width: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'col-resize', zIndex: 10 }}>
-          <div style={{ width: 2, height: 40, borderRadius: 4, background: dragging === 'left' ? '#f97316' : 'var(--wfa-border)', transition: 'background 0.15s' }} />
-        </div>
-
-        {/* ══ CENTER COLUMN — fire alert + stats ════════════════════════════ */}
-        <div className="flex-1 flex flex-col overflow-hidden" style={{ minWidth: 240 }}>
-
-          {/* Top bar */}
-          <div className="shrink-0 px-8 pt-6 pb-4 flex items-center justify-between">
-            <div>
-              <div
-                className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest mb-0.5"
-                style={{ color: 'var(--wfa-accent)' }}
-              >
-                <Bell className="w-3.5 h-3.5" />
-                {isCaregiverMode ? `Caring for ${activePerson!.name}` : 'My Safety'}
-              </div>
-              <h1 className="font-display font-bold text-2xl" style={{ color: 'var(--wfa-text)' }}>
-                {isCaregiverMode ? `${activePerson!.name.split(' ')[0]}'s Hub` : 'My Hub'}
-              </h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="group relative">
-                <Link
-                  href="/dashboard/caregiver/map"
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 hover:scale-[1.03]"
-                  style={{ background: 'var(--wfa-btn-dark)' }}
-                >
-                  <MapPin className="w-3.5 h-3.5" />
-                  Evac Map
-                </Link>
-                <div
-                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2.5 py-1.5 rounded-lg text-[11px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 z-10 shadow-lg"
-                  style={{ background: 'var(--wfa-tooltip-bg)' }}
-                >
-                  Live fire map &amp; evacuation routes
-                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45" style={{ background: 'var(--wfa-tooltip-bg)' }} />
+        {/* Fire alert card */}
+        <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--wfa-hero-bg)' }}>
+          {loading ? (
+            <div className="h-32 animate-pulse" style={{ background: 'rgba(255,255,255,0.05)' }} />
+          ) : topFire ? (
+            <div className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(200,100,50,0.3)', border: '2px solid rgba(200,100,50,0.5)' }}>
+                  <Flame className="w-4 h-4 text-orange-300" />
                 </div>
-              </div>
-              <div className="group relative">
-                <Link
-                  href="/dashboard/caregiver/checkin"
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:scale-[1.03] hover:shadow-sm"
-                  style={{ background: 'var(--wfa-checkin-bg)', color: 'var(--wfa-text)', border: '1px solid var(--wfa-border)' }}
-                >
-                  <CheckCircle className="w-3.5 h-3.5" style={{ color: '#7cb342' }} />
-                  {isCaregiverMode ? `Ping ${activePerson!.name.split(' ')[0]}` : 'Check In Safe'}
-                </Link>
-                <div
-                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2.5 py-1.5 rounded-lg text-[11px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 z-10 shadow-lg"
-                  style={{ background: 'var(--wfa-tooltip-bg)' }}
-                >
-                  {isCaregiverMode ? `Send ${activePerson!.name.split(' ')[0]} a safety check-in` : 'Mark yourself safe & notify your network'}
-                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45" style={{ background: 'var(--wfa-tooltip-bg)' }} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Scrollable main area */}
-          <div className="flex-1 overflow-y-auto px-8 pb-8 space-y-5">
-
-            {/* Big fire alert card */}
-            {loading ? (
-              <div className="h-72 rounded-3xl animate-pulse" style={{ background: 'var(--wfa-accent-lite)' }} />
-            ) : topFire ? (
-              <div
-                data-tour="hub-panel"
-                className="wfa-dark-panel rounded-3xl p-8 relative overflow-hidden"
-                style={{
-                  background: 'var(--wfa-hero-bg)',
-                  minHeight: 280,
-                }}
-              >
-                {/* Decorative fire glow */}
-                <div
-                  className="absolute top-6 right-8 w-40 h-40 rounded-full pointer-events-none"
-                  style={{ background: 'radial-gradient(circle, rgba(200,100,50,0.35) 0%, transparent 70%)' }}
-                />
-
-                {/* Flame icon circle */}
-                <div className="flex flex-col items-center mb-7">
-                  <div
-                    className="w-20 h-20 rounded-full flex items-center justify-center mb-1"
-                    style={{
-                      background: 'rgba(200,100,50,0.2)',
-                      border: '3px solid rgba(200,100,50,0.45)',
-                      boxShadow: '0 0 40px rgba(200,100,50,0.3)',
-                    }}
-                  >
-                    <div
-                      className="w-13 h-13 w-14 h-14 rounded-full flex items-center justify-center"
-                      style={{ background: 'rgba(200,100,50,0.35)', border: '2px solid rgba(200,100,50,0.6)' }}
-                    >
-                      <Flame className="w-7 h-7 text-orange-300" />
-                    </div>
-                  </div>
-                  <h2 className="font-display font-bold text-2xl text-white text-center mt-4">
-                    {topFire.incident_name || 'Active Fire Alert'}
-                  </h2>
-                  <div className="flex items-center gap-3 mt-2">
-                    <span className="text-white/55 text-sm">
-                      {[topFire.county, topFire.state].filter(Boolean).join(', ')}
-                    </span>
-                    {stageMeta && (
-                      <span
-                        className="text-[11px] font-bold px-3 py-1 rounded-full tracking-wide"
-                        style={{ background: stageMeta.bg, color: stageMeta.text }}
-                      >
-                        {stage}
-                      </span>
-                    )}
-                  </div>
-                  {/* Stage action line */}
+                <div className="flex-1 min-w-0">
+                  <h2 className="font-display font-bold text-white text-base leading-tight truncate">{topFire.incident_name || 'Active Fire Alert'}</h2>
+                  <div className="text-white/55 text-xs mt-0.5">{[topFire.county, topFire.state].filter(Boolean).join(', ')}</div>
                   {stageMeta && (
-                    <p className="text-white/45 text-xs mt-3 max-w-md text-center leading-relaxed">
-                      {stageMeta.action}
-                    </p>
+                    <span className="inline-block mt-1.5 text-[10px] font-bold px-2.5 py-0.5 rounded-full" style={{ background: stageMeta.bg, color: stageMeta.text }}>{stage}</span>
                   )}
                 </div>
-
-                {/* 4 quick-action cards */}
-                <div data-tour="quick-actions" className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  {[
-                    { label: 'Evacuation Map', href: '/dashboard/caregiver/map',               icon: MapPin,        desc: 'View fires & shelters' },
-                    { label: isCaregiverMode ? `Ping ${activePerson!.name.split(' ')[0]}` : 'Check In Safe', href: '/dashboard/caregiver/checkin', icon: CheckCircle, desc: isCaregiverMode ? `Send ${activePerson!.name.split(' ')[0]} a check-in` : 'Mark yourself safe' },
-                    { label: 'Find Shelter',   href: '/dashboard/caregiver/map?filter=shelter', icon: Shield,        desc: 'Nearby evac shelters'  },
-                    { label: 'Fire Alert',     href: '/dashboard/caregiver/alert',              icon: AlertTriangle, desc: 'Report or view alerts' },
-                  ].map(action => (
-                    <Link
-                      key={action.label}
-                      href={action.href}
-                      className="rounded-2xl p-4 flex flex-col items-center text-center transition-all hover:scale-[1.03] hover:bg-white/15 group"
-                      style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)' }}
-                    >
-                      <action.icon className="w-5 h-5 text-orange-300 mb-2 group-hover:text-white transition-colors" />
-                      <div className="text-white font-semibold text-sm leading-tight">{action.label}</div>
-                      <div className="text-white/40 text-[11px] mt-1 leading-snug">{action.desc}</div>
-                    </Link>
-                  ))}
-                </div>
               </div>
-            ) : (
-              <div
-                className="wfa-dark-panel rounded-3xl pt-12 px-8 pb-8 flex flex-col items-center"
-                style={{ background: 'var(--wfa-empty-bg)' }}
-              >
-                <AlertJar level="safe" size={160} />
-                <h2 className="font-display text-xl font-bold text-white mt-16">No Active Alerts</h2>
-                <p className="text-white/45 text-sm mt-2 mb-6">Your area is currently clear. Stay prepared.</p>
-
-                {/* Alert level key */}
-                <div className="w-full grid grid-cols-4 gap-3">
-                  {[
-                    { dot: '#7cb342', label: 'Safe',    sub: 'All clear'   },
-                    { dot: '#d4a574', label: 'Caution', sub: 'Stay alert'  },
-                    { dot: '#c86432', label: 'Warning', sub: 'Prepare now' },
-                    { dot: '#d32f2f', label: 'Act Now', sub: 'Evacuate!'   },
-                  ].map(({ dot, label, sub }) => (
-                    <div key={label} className="flex flex-col items-center text-center gap-1.5 p-3 rounded-2xl" style={{ background: 'rgba(255,255,255,0.07)' }}>
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: dot + '22', border: `2px solid ${dot}` }}>
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: dot }} />
-                      </div>
-                      <div className="text-xs font-semibold text-white">{label}</div>
-                      <div className="text-[10px] text-white/40">{sub}</div>
-                    </div>
-                  ))}
-                </div>
+              <div className="flex gap-5 mt-3">
+                {topFire.acres_burned != null && <div><div className="text-white text-sm font-bold">{topFire.acres_burned.toLocaleString()}</div><div className="text-white/40 text-[10px]">Acres</div></div>}
+                {topFire.containment_pct != null && <div><div className="text-white text-sm font-bold">{topFire.containment_pct}%</div><div className="text-white/40 text-[10px]">Contained</div></div>}
+                {topFire.signal_gap_hours != null && <div><div className="text-white text-sm font-bold">{topFire.signal_gap_hours.toFixed(1)}h</div><div className="text-white/40 text-[10px]">Signal Gap</div></div>}
               </div>
-            )}
+            </div>
+          ) : (
+            <div className="p-4 flex flex-col items-center text-center">
+              <AlertJar level="safe" size={56} />
+              <h2 className="font-display text-sm font-bold text-white mt-2">No Active Alerts</h2>
+              <p className="text-white/45 text-xs mt-0.5">Your area is currently clear.</p>
+            </div>
+          )}
 
-            {/* Other fires */}
-            {otherFires.length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 font-semibold text-sm mb-3" style={{ color: 'var(--wfa-text)' }}>
-                  <AlertTriangle className="w-4 h-4" style={{ color: 'var(--wfa-accent)' }} />
-                  Other Recent Fires
-                </div>
-                <div className="space-y-2">
-                  {otherFires.map(fire => (
-                    <div
-                      key={fire.id}
-                      className="rounded-2xl p-4 bg-white flex items-center gap-4 shadow-sm"
-                      style={{ border: '1px solid var(--wfa-fire-border)' }}
-                    >
-                      <div className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse"
-                        style={{ background: fire.containment_pct != null && fire.containment_pct >= 75 ? '#7cb342' : '#c86432' }} />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate" style={{ color: 'var(--wfa-text)' }}>
-                          {fire.incident_name || 'Unnamed Fire'}
-                        </div>
-                        <div className="text-xs" style={{ color: 'var(--wfa-text-40)' }}>
-                          {[fire.county, fire.state].filter(Boolean).join(', ')}
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div
-                          className="text-sm font-semibold"
-                          style={{ color: fire.containment_pct != null && fire.containment_pct >= 50 ? '#7cb342' : '#c86432' }}
-                        >
-                          {fire.containment_pct != null ? `${fire.containment_pct}% contained` : 'Uncontained'}
-                        </div>
-                        {fire.acres_burned != null && (
-                          <div className="text-xs" style={{ color: 'var(--wfa-text-40)' }}>{fire.acres_burned.toLocaleString()} ac</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+          {/* Quick actions 2×2 */}
+          <div className="grid grid-cols-2 gap-px border-t border-white/10">
+            {[
+              { label: 'Evacuation Map', href: '/dashboard/caregiver/map', icon: MapPin, desc: 'Fires & shelters' },
+              { label: isCaregiverMode ? `Ping ${activePerson!.name.split(' ')[0]}` : 'Check In Safe', href: '/dashboard/caregiver/checkin', icon: CheckCircle, desc: 'Mark yourself safe' },
+              { label: 'Find Shelter', href: '/dashboard/caregiver/map?filter=shelter', icon: Shield, desc: 'Nearby shelters' },
+              { label: 'Fire Alert', href: '/dashboard/caregiver/alert', icon: AlertTriangle, desc: 'View alerts' },
+            ].map(action => (
+              <Link key={action.label} href={action.href}
+                className="flex flex-col items-center text-center p-3 transition-all active:bg-white/10"
+                style={{ background: 'rgba(0,0,0,0.15)' }}>
+                <action.icon className="w-4 h-4 text-orange-300 mb-1" />
+                <div className="text-white font-semibold text-xs leading-tight">{action.label}</div>
+                <div className="text-white/40 text-[10px] mt-0.5">{action.desc}</div>
+              </Link>
+            ))}
           </div>
         </div>
 
-        {/* ══ RIGHT COLUMN — profile + map + info cards (380px) ════════════ */}
-        {/* ══ DRAG HANDLE — center/right ══════════════════════════════════ */}
-        <div onMouseDown={() => setDragging('right')} style={{ width: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'col-resize', zIndex: 10 }}>
-          <div style={{ width: 2, height: 40, borderRadius: 4, background: dragging === 'right' ? '#f97316' : 'var(--wfa-border)', transition: 'background 0.15s' }} />
-        </div>
-
-        {/* ══ RIGHT COLUMN — map + profile + first person ════════════════════ */}
-        <div
-          className="flex flex-col shrink-0 border-l"
-          style={{ width: `${rightPct}%`, minWidth: 220, borderColor: 'var(--wfa-border)', background: 'var(--wfa-panel-r)' }}
-        >
-          {/* Profile badge */}
-          <div className="p-5 border-b" style={{ borderColor: 'var(--wfa-border-lite)' }}>
-            <div className="flex items-center gap-3">
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center font-display font-bold text-lg text-white shrink-0"
-                style={{ background: 'var(--wfa-profile-grad)' }}
-              >
-                {initials}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-semibold text-sm truncate" style={{ color: 'var(--wfa-text)' }}>
-                  {userProfile?.full_name || 'My Profile'}
-                </div>
-                {userProfile?.email && (
-                  <div className="text-xs truncate" style={{ color: 'var(--wfa-text-40)' }}>{userProfile.email}</div>
-                )}
-              </div>
-              <Link
-                href="/dashboard/settings"
-                className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-gray-100 transition-colors shrink-0"
-              >
-                <ChevronRight className="w-4 h-4" style={{ color: 'var(--wfa-text-40)' }} />
-              </Link>
-            </div>
-          </div>
-
-          {/* Map preview — same LeafletMap as the Evacuation Map tab */}
-          <div className="flex-1 relative overflow-hidden m-4 rounded-2xl" style={{ minHeight: 200 }}>
-            <LeafletMap
-              nifc={nifc}
-              userLocation={userLocation}
-              center={isCaregiverMode && personLocation ? personLocation : (userLocation ?? [37.5, -119.5])}
-              shelters={[]}
-              showShelters={false}
-              watchedLocations={isCaregiverMode && personLocation && activePerson
-                ? [{ label: activePerson.name, lat: personLocation[0], lng: personLocation[1] }]
-                : []
-              }
-            />
-            {/* "View Full Map" overlay button at bottom */}
-            <div className="absolute inset-x-0 bottom-0 p-3 pointer-events-none">
-              <Link
-                href="/dashboard/caregiver/map"
-                className="pointer-events-auto w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90"
-                style={{ background: 'var(--wfa-tooltip-bg)', backdropFilter: 'blur(8px)' }}
-              >
-                <MapPin className="w-3.5 h-3.5" />
-                View Full Evacuation Map
-              </Link>
-            </div>
-          </div>
-
-          {/* Early Fire Alert button */}
-          <div className="px-4 pb-4">
-            <Link
-              href="/dashboard/caregiver/alert"
-              className="rounded-xl text-white flex items-center gap-3 px-4 py-3 w-full transition-all duration-200 hover:shadow-lg hover:scale-[1.02]"
-              style={{ background: 'linear-gradient(135deg, #7a2e0e, #c86432)' }}
-            >
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.2)' }}>
-                <AlertTriangle className="w-4 h-4 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-white leading-tight">Early Fire Alert</div>
-                <div className="text-white/50 text-[11px]">Monitor nearby fires</div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-white/40 shrink-0" />
+        {/* Map preview */}
+        <div className="h-44 rounded-2xl overflow-hidden relative">
+          <LeafletMap
+            nifc={nifc}
+            userLocation={userLocation}
+            center={isCaregiverMode && personLocation ? personLocation : (userLocation ?? [37.5, -119.5])}
+            shelters={[]}
+            showShelters={false}
+            watchedLocations={isCaregiverMode && personLocation && activePerson ? [{ label: activePerson.name, lat: personLocation[0], lng: personLocation[1] }] : []}
+          />
+          <div className="absolute inset-x-0 bottom-0 p-3 pointer-events-none">
+            <Link href="/dashboard/caregiver/map"
+              className="pointer-events-auto w-full flex items-center justify-center gap-2 py-2 rounded-xl text-sm font-semibold text-white"
+              style={{ background: 'var(--wfa-tooltip-bg)', backdropFilter: 'blur(8px)' }}>
+              <MapPin className="w-3.5 h-3.5" /> View Full Evacuation Map
             </Link>
           </div>
         </div>
 
+        {/* Go-bag */}
+        <div className="rounded-2xl p-4 bg-white border" style={{ borderColor: 'var(--wfa-border)' }}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--wfa-text)' }}>
+              <Package className="w-4 h-4" style={{ color: 'var(--wfa-accent)' }} /> Go-Bag Ready
+            </div>
+            <span className="text-xs font-bold" style={{ color: readyPct >= 80 ? '#7cb342' : readyPct >= 50 ? '#d4a574' : '#c86432' }}>{readyPct}%</span>
+          </div>
+          <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--wfa-progress-bg)' }}>
+            <div className="h-full rounded-full transition-all" style={{ width: `${readyPct}%`, background: readyPct >= 80 ? '#7cb342' : readyPct >= 50 ? '#d4a574' : '#c86432' }} />
+          </div>
+          <div className="text-[11px] mt-1.5" style={{ color: 'var(--wfa-text-40)' }}>{bagChecked.size} / {GO_BAG_ITEMS.length} items packed</div>
+        </div>
+
+        {/* Persons */}
+        {persons.length > 0 && (
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--wfa-accent)' }}>Monitored Persons</div>
+            <div className="space-y-2">{persons.map((p, i) => <PersonCard key={p.id} person={p} index={i} />)}</div>
+          </div>
+        )}
+
+        {/* Early Fire Alert CTA */}
+        <Link href="/dashboard/caregiver/alert"
+          className="rounded-xl text-white flex items-center gap-3 px-4 py-3 w-full"
+          style={{ background: 'linear-gradient(135deg, #7a2e0e, #c86432)' }}>
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.2)' }}>
+            <AlertTriangle className="w-4 h-4 text-white" />
+          </div>
+          <div className="flex-1">
+            <div className="text-sm font-semibold">Early Fire Alert</div>
+            <div className="text-white/50 text-[11px]">Monitor nearby fires</div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-white/40" />
+        </Link>
+
+        {/* Other fires */}
+        {otherFires.length > 0 && (
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--wfa-accent)' }}>Other Recent Fires</div>
+            <div className="space-y-2">
+              {otherFires.map(fire => (
+                <div key={fire.id} className="rounded-2xl p-3 bg-white flex items-center gap-3 shadow-sm" style={{ border: '1px solid var(--wfa-fire-border)' }}>
+                  <div className="w-2 h-2 rounded-full shrink-0 animate-pulse" style={{ background: fire.containment_pct != null && fire.containment_pct >= 75 ? '#7cb342' : '#c86432' }} />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate" style={{ color: 'var(--wfa-text)' }}>{fire.incident_name || 'Unnamed Fire'}</div>
+                    <div className="text-xs" style={{ color: 'var(--wfa-text-40)' }}>{[fire.county, fire.state].filter(Boolean).join(', ')}</div>
+                  </div>
+                  <div className="text-right shrink-0 text-sm font-semibold" style={{ color: fire.containment_pct != null && fire.containment_pct >= 50 ? '#7cb342' : '#c86432' }}>
+                    {fire.containment_pct != null ? `${fire.containment_pct}%` : '—'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* ══ DESKTOP LAYOUT (≥ md) ══════════════════════════════════════════════ */}
+      <div className="hidden md:flex md:flex-col flex-1 overflow-hidden">
+        {/* Preset buttons */}
+        <div className="flex items-center gap-1 px-4 py-2 border-b shrink-0" style={{ borderColor: 'var(--wfa-border)', background: 'var(--wfa-page-bg)' }}>
+          <span className="text-xs mr-2" style={{ color: 'var(--wfa-muted)' }}>Layout</span>
+          {([['equal', 'Equal', LayoutTemplate], ['default', 'Default', Minimize2], ['map', 'Map Focus', Maximize2]] as const).map(([p, label, Icon]) => (
+            <button key={p} onClick={() => applyPreset(p)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
+              style={{ background: preset === p ? 'var(--wfa-accent)' : 'transparent', color: preset === p ? '#fff' : 'var(--wfa-muted)', border: `1px solid ${preset === p ? 'transparent' : 'var(--wfa-border)'}` }}>
+              <Icon className="w-3 h-3" />{label}
+            </button>
+          ))}
+        </div>
+
+        {/* Root: full height 3-column resizable layout */}
+        <div
+          ref={containerRef}
+          className="flex overflow-hidden"
+          style={{ flex: 1, background: 'var(--wfa-page-bg)', fontFamily: 'var(--font-body)', userSelect: dragging ? 'none' : undefined }}
+        >
+
+          {/* ══ LEFT COLUMN — tracking cards (340px) ══════════════════════════ */}
+          <div
+            className="flex flex-col shrink-0 border-r"
+            style={{ width: `${leftPct}%`, minWidth: 180, borderColor: 'var(--wfa-border)', background: 'var(--wfa-panel-l)' }}
+          >
+            {/* Header */}
+            <div className="px-5 pt-6 pb-4 border-b" style={{ borderColor: 'var(--wfa-border-lite)' }}>
+              <div
+                className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest mb-1"
+                style={{ color: 'var(--wfa-accent)' }}
+              >
+                <Users className="w-3.5 h-3.5" />
+                {isCaregiverMode ? 'Caring For' : 'My Persons'}
+              </div>
+              <div className="font-display font-bold text-xl" style={{ color: 'var(--wfa-text)' }}>
+                {isCaregiverMode ? activePerson!.name.split(' ')[0] : 'Tracking'}
+              </div>
+              <div className="text-xs mt-0.5" style={{ color: 'var(--wfa-text-40)' }}>
+                {isCaregiverMode
+                  ? (activePerson!.relationship || 'Person in care')
+                  : `${persons.length} ${persons.length === 1 ? 'person' : 'people'} monitored`}
+              </div>
+            </div>
+
+            {/* Scrollable cards */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {persons.length === 0 ? (
+                <div className="flex flex-col items-center py-10 text-center">
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3"
+                    style={{ background: 'var(--wfa-tag-bg)' }}>
+                    <User className="w-6 h-6" style={{ color: 'var(--wfa-accent-lite)' }} />
+                  </div>
+                  <p className="text-sm mb-3" style={{ color: 'var(--wfa-text-50)' }}>No people added yet</p>
+                  <Link
+                    href="/dashboard/caregiver/persons"
+                    className="text-xs font-semibold hover:underline flex items-center gap-1"
+                    style={{ color: 'var(--wfa-accent)' }}
+                  >
+                    Add someone to monitor <ChevronRight className="w-3 h-3" />
+                  </Link>
+                </div>
+              ) : (
+                persons.map((p, i) => <PersonCard key={p.id} person={p} index={i} />)
+              )}
+
+              {/* Go-bag widget */}
+              <div className="rounded-2xl p-4 bg-white border" style={{ borderColor: 'var(--wfa-border)' }}>
+                <div className="flex items-center justify-between mb-2.5">
+                  <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--wfa-text)' }}>
+                    <Package className="w-4 h-4" style={{ color: 'var(--wfa-accent)' }} />
+                    Go-Bag Ready
+                  </div>
+                  <span
+                    className="text-xs font-bold"
+                    style={{ color: readyPct >= 80 ? '#7cb342' : readyPct >= 50 ? '#d4a574' : '#c86432' }}
+                  >
+                    {readyPct}%
+                  </span>
+                </div>
+                <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--wfa-progress-bg)' }}>
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${readyPct}%`,
+                      background: readyPct >= 80 ? '#7cb342' : readyPct >= 50 ? '#d4a574' : '#c86432',
+                    }}
+                  />
+                </div>
+                <div className="text-[11px] mt-1.5" style={{ color: 'var(--wfa-text-40)' }}>
+                  {bagChecked.size} / {GO_BAG_ITEMS.length} items packed
+                </div>
+              </div>
+
+              {/* Add person CTA */}
+              <Link
+                href="/dashboard/caregiver/persons"
+                className="group flex flex-col items-center justify-center gap-0.5 py-3 rounded-2xl text-sm font-medium transition-all border border-dashed hover:shadow-sm"
+                style={{ borderColor: 'var(--wfa-border)', color: 'var(--wfa-accent)' }}
+              >
+                <span className="flex items-center gap-1.5">+ Add person</span>
+                <span
+                  className="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity max-h-0 group-hover:max-h-4 overflow-hidden leading-none"
+                  style={{ color: 'var(--wfa-accent)' }}
+                >
+                  Track location &amp; check‑in status
+                </span>
+              </Link>
+            </div>
+          </div>
+
+          {/* ══ DRAG HANDLE — left/center ══════════════════════════════════ */}
+          <div onMouseDown={() => setDragging('left')} style={{ width: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'col-resize', zIndex: 10 }}>
+            <div style={{ width: 2, height: 40, borderRadius: 4, background: dragging === 'left' ? '#f97316' : 'var(--wfa-border)', transition: 'background 0.15s' }} />
+          </div>
+
+          {/* ══ CENTER COLUMN — fire alert + stats ════════════════════════════ */}
+          <div className="flex-1 flex flex-col overflow-hidden" style={{ minWidth: 240 }}>
+
+            {/* Top bar */}
+            <div className="shrink-0 px-8 pt-6 pb-4 flex items-center justify-between">
+              <div>
+                <div
+                  className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest mb-0.5"
+                  style={{ color: 'var(--wfa-accent)' }}
+                >
+                  <Bell className="w-3.5 h-3.5" />
+                  {isCaregiverMode ? `Caring for ${activePerson!.name}` : 'My Safety'}
+                </div>
+                <h1 className="font-display font-bold text-2xl" style={{ color: 'var(--wfa-text)' }}>
+                  {isCaregiverMode ? `${activePerson!.name.split(' ')[0]}'s Hub` : 'My Hub'}
+                </h1>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="group relative">
+                  <Link
+                    href="/dashboard/caregiver/map"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 hover:scale-[1.03]"
+                    style={{ background: 'var(--wfa-btn-dark)' }}
+                  >
+                    <MapPin className="w-3.5 h-3.5" />
+                    Evac Map
+                  </Link>
+                  <div
+                    className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2.5 py-1.5 rounded-lg text-[11px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 z-10 shadow-lg"
+                    style={{ background: 'var(--wfa-tooltip-bg)' }}
+                  >
+                    Live fire map &amp; evacuation routes
+                    <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45" style={{ background: 'var(--wfa-tooltip-bg)' }} />
+                  </div>
+                </div>
+                <div className="group relative">
+                  <Link
+                    href="/dashboard/caregiver/checkin"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all hover:scale-[1.03] hover:shadow-sm"
+                    style={{ background: 'var(--wfa-checkin-bg)', color: 'var(--wfa-text)', border: '1px solid var(--wfa-border)' }}
+                  >
+                    <CheckCircle className="w-3.5 h-3.5" style={{ color: '#7cb342' }} />
+                    {isCaregiverMode ? `Ping ${activePerson!.name.split(' ')[0]}` : 'Check In Safe'}
+                  </Link>
+                  <div
+                    className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2.5 py-1.5 rounded-lg text-[11px] text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 z-10 shadow-lg"
+                    style={{ background: 'var(--wfa-tooltip-bg)' }}
+                  >
+                    {isCaregiverMode ? `Send ${activePerson!.name.split(' ')[0]} a safety check-in` : 'Mark yourself safe & notify your network'}
+                    <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45" style={{ background: 'var(--wfa-tooltip-bg)' }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Scrollable main area */}
+            <div className="flex-1 overflow-y-auto px-8 pb-8 space-y-5">
+
+              {/* Big fire alert card */}
+              {loading ? (
+                <div className="h-72 rounded-3xl animate-pulse" style={{ background: 'var(--wfa-accent-lite)' }} />
+              ) : topFire ? (
+                <div
+                  data-tour="hub-panel"
+                  className="wfa-dark-panel rounded-3xl p-8 relative overflow-hidden"
+                  style={{
+                    background: 'var(--wfa-hero-bg)',
+                    minHeight: 280,
+                  }}
+                >
+                  {/* Decorative fire glow */}
+                  <div
+                    className="absolute top-6 right-8 w-40 h-40 rounded-full pointer-events-none"
+                    style={{ background: 'radial-gradient(circle, rgba(200,100,50,0.35) 0%, transparent 70%)' }}
+                  />
+
+                  {/* Flame icon circle */}
+                  <div className="flex flex-col items-center mb-7">
+                    <div
+                      className="w-20 h-20 rounded-full flex items-center justify-center mb-1"
+                      style={{
+                        background: 'rgba(200,100,50,0.2)',
+                        border: '3px solid rgba(200,100,50,0.45)',
+                        boxShadow: '0 0 40px rgba(200,100,50,0.3)',
+                      }}
+                    >
+                      <div
+                        className="w-13 h-13 w-14 h-14 rounded-full flex items-center justify-center"
+                        style={{ background: 'rgba(200,100,50,0.35)', border: '2px solid rgba(200,100,50,0.6)' }}
+                      >
+                        <Flame className="w-7 h-7 text-orange-300" />
+                      </div>
+                    </div>
+                    <h2 className="font-display font-bold text-2xl text-white text-center mt-4">
+                      {topFire.incident_name || 'Active Fire Alert'}
+                    </h2>
+                    <div className="flex items-center gap-3 mt-2">
+                      <span className="text-white/55 text-sm">
+                        {[topFire.county, topFire.state].filter(Boolean).join(', ')}
+                      </span>
+                      {stageMeta && (
+                        <span
+                          className="text-[11px] font-bold px-3 py-1 rounded-full tracking-wide"
+                          style={{ background: stageMeta.bg, color: stageMeta.text }}
+                        >
+                          {stage}
+                        </span>
+                      )}
+                    </div>
+                    {/* Stage action line */}
+                    {stageMeta && (
+                      <p className="text-white/45 text-xs mt-3 max-w-md text-center leading-relaxed">
+                        {stageMeta.action}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* 4 quick-action cards */}
+                  <div data-tour="quick-actions" className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    {[
+                      { label: 'Evacuation Map', href: '/dashboard/caregiver/map',               icon: MapPin,        desc: 'View fires & shelters' },
+                      { label: isCaregiverMode ? `Ping ${activePerson!.name.split(' ')[0]}` : 'Check In Safe', href: '/dashboard/caregiver/checkin', icon: CheckCircle, desc: isCaregiverMode ? `Send ${activePerson!.name.split(' ')[0]} a check-in` : 'Mark yourself safe' },
+                      { label: 'Find Shelter',   href: '/dashboard/caregiver/map?filter=shelter', icon: Shield,        desc: 'Nearby evac shelters'  },
+                      { label: 'Fire Alert',     href: '/dashboard/caregiver/alert',              icon: AlertTriangle, desc: 'Report or view alerts' },
+                    ].map(action => (
+                      <Link
+                        key={action.label}
+                        href={action.href}
+                        className="rounded-2xl p-4 flex flex-col items-center text-center transition-all hover:scale-[1.03] hover:bg-white/15 group"
+                        style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.1)' }}
+                      >
+                        <action.icon className="w-5 h-5 text-orange-300 mb-2 group-hover:text-white transition-colors" />
+                        <div className="text-white font-semibold text-sm leading-tight">{action.label}</div>
+                        <div className="text-white/40 text-[11px] mt-1 leading-snug">{action.desc}</div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="wfa-dark-panel rounded-3xl pt-12 px-8 pb-8 flex flex-col items-center"
+                  style={{ background: 'var(--wfa-empty-bg)' }}
+                >
+                  <AlertJar level="safe" size={160} />
+                  <h2 className="font-display text-xl font-bold text-white mt-16">No Active Alerts</h2>
+                  <p className="text-white/45 text-sm mt-2 mb-6">Your area is currently clear. Stay prepared.</p>
+
+                  {/* Alert level key */}
+                  <div className="w-full grid grid-cols-4 gap-3">
+                    {[
+                      { dot: '#7cb342', label: 'Safe',    sub: 'All clear'   },
+                      { dot: '#d4a574', label: 'Caution', sub: 'Stay alert'  },
+                      { dot: '#c86432', label: 'Warning', sub: 'Prepare now' },
+                      { dot: '#d32f2f', label: 'Act Now', sub: 'Evacuate!'   },
+                    ].map(({ dot, label, sub }) => (
+                      <div key={label} className="flex flex-col items-center text-center gap-1.5 p-3 rounded-2xl" style={{ background: 'rgba(255,255,255,0.07)' }}>
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: dot + '22', border: `2px solid ${dot}` }}>
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ background: dot }} />
+                        </div>
+                        <div className="text-xs font-semibold text-white">{label}</div>
+                        <div className="text-[10px] text-white/40">{sub}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Other fires */}
+              {otherFires.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 font-semibold text-sm mb-3" style={{ color: 'var(--wfa-text)' }}>
+                    <AlertTriangle className="w-4 h-4" style={{ color: 'var(--wfa-accent)' }} />
+                    Other Recent Fires
+                  </div>
+                  <div className="space-y-2">
+                    {otherFires.map(fire => (
+                      <div
+                        key={fire.id}
+                        className="rounded-2xl p-4 bg-white flex items-center gap-4 shadow-sm"
+                        style={{ border: '1px solid var(--wfa-fire-border)' }}
+                      >
+                        <div className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse"
+                          style={{ background: fire.containment_pct != null && fire.containment_pct >= 75 ? '#7cb342' : '#c86432' }} />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm truncate" style={{ color: 'var(--wfa-text)' }}>
+                            {fire.incident_name || 'Unnamed Fire'}
+                          </div>
+                          <div className="text-xs" style={{ color: 'var(--wfa-text-40)' }}>
+                            {[fire.county, fire.state].filter(Boolean).join(', ')}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div
+                            className="text-sm font-semibold"
+                            style={{ color: fire.containment_pct != null && fire.containment_pct >= 50 ? '#7cb342' : '#c86432' }}
+                          >
+                            {fire.containment_pct != null ? `${fire.containment_pct}% contained` : 'Uncontained'}
+                          </div>
+                          {fire.acres_burned != null && (
+                            <div className="text-xs" style={{ color: 'var(--wfa-text-40)' }}>{fire.acres_burned.toLocaleString()} ac</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ══ RIGHT COLUMN — profile + map + info cards (380px) ════════════ */}
+          {/* ══ DRAG HANDLE — center/right ══════════════════════════════════ */}
+          <div onMouseDown={() => setDragging('right')} style={{ width: 16, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'col-resize', zIndex: 10 }}>
+            <div style={{ width: 2, height: 40, borderRadius: 4, background: dragging === 'right' ? '#f97316' : 'var(--wfa-border)', transition: 'background 0.15s' }} />
+          </div>
+
+          {/* ══ RIGHT COLUMN — map + profile + first person ════════════════════ */}
+          <div
+            className="flex flex-col shrink-0 border-l"
+            style={{ width: `${rightPct}%`, minWidth: 220, borderColor: 'var(--wfa-border)', background: 'var(--wfa-panel-r)' }}
+          >
+            {/* Profile badge */}
+            <div className="p-5 border-b" style={{ borderColor: 'var(--wfa-border-lite)' }}>
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-12 h-12 rounded-full flex items-center justify-center font-display font-bold text-lg text-white shrink-0"
+                  style={{ background: 'var(--wfa-profile-grad)' }}
+                >
+                  {initials}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-sm truncate" style={{ color: 'var(--wfa-text)' }}>
+                    {userProfile?.full_name || 'My Profile'}
+                  </div>
+                  {userProfile?.email && (
+                    <div className="text-xs truncate" style={{ color: 'var(--wfa-text-40)' }}>{userProfile.email}</div>
+                  )}
+                </div>
+                <Link
+                  href="/dashboard/settings"
+                  className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-gray-100 transition-colors shrink-0"
+                >
+                  <ChevronRight className="w-4 h-4" style={{ color: 'var(--wfa-text-40)' }} />
+                </Link>
+              </div>
+            </div>
+
+            {/* Map preview — same LeafletMap as the Evacuation Map tab */}
+            <div className="flex-1 relative overflow-hidden m-4 rounded-2xl" style={{ minHeight: 200 }}>
+              <LeafletMap
+                nifc={nifc}
+                userLocation={userLocation}
+                center={isCaregiverMode && personLocation ? personLocation : (userLocation ?? [37.5, -119.5])}
+                shelters={[]}
+                showShelters={false}
+                watchedLocations={isCaregiverMode && personLocation && activePerson
+                  ? [{ label: activePerson.name, lat: personLocation[0], lng: personLocation[1] }]
+                  : []
+                }
+              />
+              {/* "View Full Map" overlay button at bottom */}
+              <div className="absolute inset-x-0 bottom-0 p-3 pointer-events-none">
+                <Link
+                  href="/dashboard/caregiver/map"
+                  className="pointer-events-auto w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                  style={{ background: 'var(--wfa-tooltip-bg)', backdropFilter: 'blur(8px)' }}
+                >
+                  <MapPin className="w-3.5 h-3.5" />
+                  View Full Evacuation Map
+                </Link>
+              </div>
+            </div>
+
+            {/* Early Fire Alert button */}
+            <div className="px-4 pb-4">
+              <Link
+                href="/dashboard/caregiver/alert"
+                className="rounded-xl text-white flex items-center gap-3 px-4 py-3 w-full transition-all duration-200 hover:shadow-lg hover:scale-[1.02]"
+                style={{ background: 'linear-gradient(135deg, #7a2e0e, #c86432)' }}
+              >
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(255,255,255,0.2)' }}>
+                  <AlertTriangle className="w-4 h-4 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-white leading-tight">Early Fire Alert</div>
+                  <div className="text-white/50 text-[11px]">Monitor nearby fires</div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-white/40 shrink-0" />
+              </Link>
+            </div>
+          </div>
+
+        </div>
+      </div>{/* end desktop wrapper */}
     </div>
   )
 }
