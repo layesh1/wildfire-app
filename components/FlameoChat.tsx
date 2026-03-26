@@ -123,6 +123,7 @@ export default function FlameoChat() {
   const [latestAssistantIdx, setLatestAssistantIdx] = useState<number | null>(null)
   const [showIntro, setShowIntro] = useState(false)
   const [fabHovered, setFabHovered] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const { textareaRef, adjustHeight } = useAutoResizeTextarea({ minHeight: 40, maxHeight: 120 })
 
@@ -147,6 +148,8 @@ export default function FlameoChat() {
       setTimeout(() => textareaRef.current?.focus(), 100)
     }
   }, [messages, open, textareaRef])
+
+  useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
     if (pathname !== '/dashboard/caregiver') return
@@ -210,7 +213,7 @@ export default function FlameoChat() {
     setLoading(false)
   }
 
-  if (typeof document === 'undefined') return null
+  if (!mounted) return null
 
   return createPortal(
     <>
