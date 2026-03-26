@@ -23,7 +23,7 @@ export default function UserSessionGuard() {
           .forEach(k => localStorage.removeItem(k))
       }
       localStorage.setItem('wfa_user_id', user.id)
-    })
+    }).catch(err => console.warn('[UserSessionGuard]', err))
   }, [])
   return null
 }
