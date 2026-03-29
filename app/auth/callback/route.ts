@@ -28,19 +28,25 @@ export async function GET(request: NextRequest) {
       .eq('id', data.user.id)
       .single()
 
+    const pendingCookie = request.cookies.get('wfa_pending_consumer_role')?.value
+    const consumerRole = pendingCookie === 'evacuee' ? 'evacuee' : 'caregiver'
+
     if (!existing) {
       await supabase.from('profiles').insert({
         id: data.user.id,
         email: data.user.email,
         full_name: data.user.user_metadata?.full_name ?? null,
-        role: 'caregiver',
-        roles: ['caregiver'],
+        role: consumerRole,
+        roles: [consumerRole],
       })
     }
 
-    // Always go to dashboard — user picks/switches role there
-    return NextResponse.redirect(`${origin}/dashboard`)
+    const res = NextResponse.redirect(`${origin}/dashboard`)
+    res.cookies.set('wfa_pending_consumer_role', '', { path: '/', maxAge: 0 })
+    return res
   } catch (err: any) {
-    return NextResponse.redirect(`${origin}/auth/login?error=${encodeURIComponent(err.message)}`)
+    const res = NextResponse.redirect(`${origin}/auth/login?error=${encodeURIComponent(err.message)}`)
+    res.cookies.set('wfa_pending_consumer_role', '', { path: '/', maxAge: 0 })
+    return res
   }
 }

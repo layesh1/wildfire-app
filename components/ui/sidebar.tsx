@@ -87,7 +87,7 @@ export const DesktopSidebar = ({
   return (
     <motion.div
       className={cn(
-        "h-full px-4 py-4 hidden md:flex md:flex-col wfa-sidebar border-r border-[var(--wfa-sidebar-border)] flex-shrink-0",
+        "fixed left-0 top-0 z-[45] h-[100dvh] max-h-[100dvh] overflow-x-hidden overflow-y-auto px-4 py-4 hidden md:flex md:flex-col wfa-sidebar border-r border-[var(--wfa-sidebar-border)] shadow-[4px_0_20px_rgba(0,0,0,0.08)]",
         className
       )}
       animate={{
@@ -119,7 +119,7 @@ export const MobileSidebar = ({
       >
         <div className="flex justify-end z-20 w-full">
           <Menu
-            className="text-gray-600 cursor-pointer"
+            className="cursor-pointer text-[var(--wfa-text-50)] hover:text-[var(--wfa-text)]"
             onClick={() => setOpen(!open)}
           />
         </div>

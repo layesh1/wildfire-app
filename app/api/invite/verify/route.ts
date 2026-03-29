@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit, getClientIp } from '@/lib/ratelimit'
+import { normalizeInviteCodeInput } from '@/lib/invite-code-normalize'
 
 function adminClient() {
   return createClient(
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Code is required.' }, { status: 400 })
   }
 
-  const upperCode = code.trim().toUpperCase()
+  const upperCode = normalizeInviteCodeInput(code)
 
   // Admin bypass — lets admin/devs claim any role without invite_codes table
   // Falls back to hardcoded value if env var is not set in Vercel
@@ -56,44 +57,77 @@ export async function POST(req: NextRequest) {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!serviceKey || serviceKey === 'your_service_role_key_here') {
     return NextResponse.json(
-      { error: 'Invite system not configured.' },
+      {
+        error: 'Invite system not configured.',
+        hint: 'Set SUPABASE_SERVICE_ROLE_KEY in .env.local from Supabase → Settings → API (same project as NEXT_PUBLIC_SUPABASE_URL). Invite verification requires the service role key on the server.',
+      },
       { status: 503 }
     )
   }
 
   const supabase = adminClient()
-  const { data, error } = await supabase
-    .from('invite_codes')
-    .select('*')
-    .eq('code', upperCode)
-    .single()
 
-  if (error || !data) {
+  async function fetchInviteRow(): Promise<{ row: Record<string, unknown> | null; dbError: boolean }> {
+    const exact = await supabase.from('invite_codes').select('*').eq('code', upperCode).maybeSingle()
+    if (exact.error) {
+      return { row: null, dbError: true }
+    }
+    if (exact.data) {
+      return { row: exact.data as Record<string, unknown>, dbError: false }
+    }
+    // Case mismatch in DB (e.g. manual insert) — ilike is exact when the pattern has no LIKE wildcards; avoid `_` in pattern
+    if (!upperCode.includes('_') && !upperCode.includes('%')) {
+      const il = await supabase.from('invite_codes').select('*').ilike('code', upperCode).maybeSingle()
+      if (il.error) {
+        return { row: null, dbError: true }
+      }
+      if (il.data) {
+        return { row: il.data as Record<string, unknown>, dbError: false }
+      }
+    }
+    return { row: null, dbError: false }
+  }
+
+  const { row: data, dbError } = await fetchInviteRow()
+
+  if (dbError) {
+    return NextResponse.json({ error: 'Could not verify code. Try again.' }, { status: 500 })
+  }
+
+  if (!data) {
     return NextResponse.json({ error: 'Invalid access code.' }, { status: 400 })
   }
 
-  if (!data.active) {
+  if (data.active === false) {
     return NextResponse.json({ error: 'This code has been deactivated.' }, { status: 400 })
   }
 
-  if (data.expires_at && new Date(data.expires_at) < new Date()) {
+  const expiresAt = data.expires_at
+  if (expiresAt && new Date(String(expiresAt)) < new Date()) {
     return NextResponse.json({ error: 'This code has expired.' }, { status: 400 })
   }
 
-  if (data.uses >= data.max_uses) {
+  const uses = Number(data.uses)
+  const maxUses = Number(data.max_uses)
+  if (Number.isFinite(uses) && Number.isFinite(maxUses) && uses >= maxUses) {
     return NextResponse.json({ error: 'This code has reached its maximum uses.' }, { status: 400 })
   }
 
-  if (data.specific_email && email) {
-    if (email.toLowerCase() !== data.specific_email.toLowerCase()) {
+  const emailTrim = typeof email === 'string' ? email.trim() : ''
+
+  if (data.specific_email) {
+    const want = String(data.specific_email).toLowerCase().trim()
+    if (!emailTrim || emailTrim.toLowerCase() !== want) {
       return NextResponse.json({ error: 'This code is not valid for your email address.' }, { status: 400 })
     }
   }
 
-  if (data.email_domain && email) {
-    if (!email.toLowerCase().endsWith(data.email_domain.toLowerCase())) {
+  if (data.email_domain) {
+    const dom = String(data.email_domain).toLowerCase().trim()
+    const suffix = dom.startsWith('@') ? dom : `@${dom}`
+    if (!emailTrim || !emailTrim.toLowerCase().endsWith(suffix)) {
       return NextResponse.json(
-        { error: `This code is restricted to ${data.email_domain} email addresses.` },
+        { error: `This code is restricted to ${suffix} email addresses.` },
         { status: 400 }
       )
     }
@@ -101,8 +135,8 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     valid: true,
-    role: data.role,
-    org_name: data.org_name ?? null,
-    code_id: data.id,
+    role: data.role as string,
+    org_name: (data.org_name as string | null) ?? null,
+    code_id: data.id as string,
   })
 }

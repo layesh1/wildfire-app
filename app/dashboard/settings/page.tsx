@@ -1,6 +1,7 @@
 'use client'
 import React, { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import {
   Shield, Heart, BarChart3, Lock, Check, ShieldCheck, Globe,
   Settings, Plus, User, Bell, BellOff, Moon, Sun, Monitor, LogOut,
@@ -10,69 +11,9 @@ import {
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/components/LanguageProvider'
 import { LANGUAGES } from '@/lib/languages'
-
-// ── Address autocomplete (Nominatim, no API key) ───────────────────────────
-interface NominatimResult { place_id: number; display_name: string }
-
-function AddressInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
-  const [suggestions, setSuggestions] = React.useState<NominatimResult[]>([])
-  const [showDrop, setShowDrop] = React.useState(false)
-  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-  const wrapRef = React.useRef<HTMLDivElement>(null)
-
-  React.useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setShowDrop(false)
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
-
-  function handleChange(v: string) {
-    onChange(v)
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (v.length < 4) { setSuggestions([]); setShowDrop(false); return }
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(v)}&format=json&addressdetails=0&limit=5&countrycodes=us`,
-          { headers: { 'Accept-Language': 'en' } }
-        )
-        const data: NominatimResult[] = await res.json()
-        setSuggestions(data)
-        setShowDrop(data.length > 0)
-      } catch { setSuggestions([]) }
-    }, 400)
-  }
-
-  return (
-    <div ref={wrapRef} className="relative">
-      <input
-        type="text"
-        value={value}
-        onChange={e => handleChange(e.target.value)}
-        onFocus={() => suggestions.length > 0 && setShowDrop(true)}
-        placeholder={placeholder}
-        className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
-      />
-      {showDrop && (
-        <ul className="absolute z-50 top-full mt-1 left-0 right-0 bg-ash-800 border border-ash-700 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
-          {suggestions.map(s => (
-            <li key={s.place_id}>
-              <button
-                type="button"
-                className="w-full text-left px-3 py-2.5 text-sm text-ash-200 hover:bg-ash-700 hover:text-white transition-colors truncate"
-                onMouseDown={() => { onChange(s.display_name); setSuggestions([]); setShowDrop(false) }}
-              >
-                {s.display_name}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
+import { isAlertsAiDeploymentEnabled } from '@/lib/alerts-ai-feature'
+import { requiresConsumerHomeAddress } from '@/lib/profile-requirements'
+import AddressVerifySave from '@/components/AddressVerifySave'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface ProfileData {
@@ -81,25 +22,45 @@ interface ProfileData {
   special_notes: string
   emergency_contact_name: string; emergency_contact_phone: string
   language_preference: string; communication_needs: string[]; household_languages: string
+  mobility_access_needs: string[]
+  mobility_access_other: string
 }
 const DEFAULT: ProfileData = {
   full_name: '', phone: '', address: '', notification_email: '', notification_phone: '',
   notify_browser: false, special_notes: '',
   emergency_contact_name: '', emergency_contact_phone: '',
   language_preference: 'en', communication_needs: [], household_languages: '',
+  mobility_access_needs: [],
+  mobility_access_other: '',
 }
+
+const MOBILITY_ACCESS_OPTIONS: { key: string; label: string }[] = [
+  { key: 'wheelchair_user', label: 'Wheelchair user' },
+  { key: 'disabilities', label: 'Disabilities' },
+  { key: 'medical_conditions', label: 'Medical conditions or equipment' },
+  { key: 'other', label: 'Other' },
+]
 
 // ── Role config ────────────────────────────────────────────────────────────
 const ROLE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; activeBorder: string; protected: boolean }> = {
-  caregiver: { label: 'Caregiver / Evacuee', icon: Heart, color: 'text-amber-400', activeBorder: 'border-amber-500 bg-amber-500/10', protected: false },
+  evacuee: { label: 'Evacuee', icon: Heart, color: 'text-green-400', activeBorder: 'border-green-500 bg-green-500/10', protected: false },
+  caregiver: { label: 'Evacuee', icon: Heart, color: 'text-green-400', activeBorder: 'border-green-500 bg-green-500/10', protected: false },
   emergency_responder: { label: 'Emergency Responder', icon: Shield, color: 'text-red-400', activeBorder: 'border-red-500 bg-red-500/10', protected: true },
   data_analyst: { label: 'Data Analyst', icon: BarChart3, color: 'text-blue-400', activeBorder: 'border-blue-500 bg-blue-500/10', protected: true },
 }
-const ALL_ROLES = ['caregiver', 'emergency_responder', 'data_analyst']
+const ALL_ROLES = ['evacuee', 'emergency_responder', 'data_analyst']
+
+function isConsumerRole(r: string) {
+  return r === 'evacuee' || r === 'caregiver'
+}
+function normalizeDashboardRole(r: string) {
+  return r === 'caregiver' ? 'evacuee' : r
+}
 const ROLE_DESTINATIONS: Record<string, string> = {
   emergency_responder: '/dashboard/responder',
   data_analyst: '/dashboard/analyst',
-  caregiver: '/dashboard/caregiver',
+  evacuee: '/dashboard/home',
+  caregiver: '/dashboard/home',
 }
 
 // ── Small helpers ──────────────────────────────────────────────────────────
@@ -141,12 +102,15 @@ function SettingsInner() {
   const { lang, setLanguage } = useLanguage()
 
   const isOnboarding = searchParams.get('onboarding') === 'true'
-  const roleParam = searchParams.get('role') || 'caregiver'
-  const dashDest = roleParam === 'emergency_responder' ? '/dashboard/responder' : roleParam === 'data_analyst' ? '/dashboard/analyst' : '/dashboard/caregiver'
+  const roleParam = normalizeDashboardRole(searchParams.get('role') || 'evacuee')
+  const dashDest = roleParam === 'emergency_responder' ? '/dashboard/responder' : roleParam === 'data_analyst' ? '/dashboard/analyst' : '/dashboard/home'
 
   const [tab, setTab] = useState<Tab>('profile')
   const [profile, setProfile] = useState<ProfileData>(DEFAULT)
+  const [alertsAiEnabled, setAlertsAiEnabled] = useState(false)
+  const [alertRadiusMiles, setAlertRadiusMiles] = useState(25)
   const [monitoredPersons, setMonitoredPersons] = useState<{ id: string; name: string; relationship: string; mobility: string; notes: string }[]>([])
+  const [addressDraft, setAddressDraft] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -158,9 +122,10 @@ function SettingsInner() {
   const [myRoles, setMyRoles] = useState<string[]>([])
   const [activeRole, setActiveRole] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      return searchParams.get('role') || localStorage.getItem('wfa_active_role') || ''
+      const r = searchParams.get('role') || localStorage.getItem('wfa_active_role') || 'evacuee'
+      return normalizeDashboardRole(r)
     }
-    return searchParams.get('role') || ''
+    return normalizeDashboardRole(searchParams.get('role') || 'evacuee')
   })
   const [savingRole, setSavingRole] = useState('')
   const [addingRole, setAddingRole] = useState<string | null>(null)
@@ -182,6 +147,11 @@ function SettingsInner() {
   const [analystExportFormat, setAnalystExportFormat] = useState<'csv' | 'json'>('csv')
   const [analystDefaultRegion, setAnalystDefaultRegion] = useState('all')
   const [analystPrefsLoaded, setAnalystPrefsLoaded] = useState(false)
+
+  useEffect(() => {
+    const t = searchParams.get('tab')
+    if (t === 'profile' || t === 'account' || t === 'preferences') setTab(t)
+  }, [searchParams])
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -207,26 +177,36 @@ function SettingsInner() {
       setEmail(user.email || '')
       const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single()
       if (p) {
+        const addr = p.address || ''
+        setAddressDraft(addr)
         setProfile({
-          full_name: p.full_name || '', phone: p.phone || '', address: p.address || '',
+          full_name: p.full_name || '', phone: p.phone || '', address: addr,
           notification_email: p.notification_email || '', notification_phone: p.notification_phone || '',
           notify_browser: p.notify_browser || false,
           special_notes: p.special_notes || '', emergency_contact_name: p.emergency_contact_name || '',
           emergency_contact_phone: p.emergency_contact_phone || '',
           language_preference: p.language_preference || 'en',
           communication_needs: p.communication_needs || [], household_languages: p.household_languages || '',
+          mobility_access_needs: Array.isArray(p.mobility_access_needs) ? p.mobility_access_needs : [],
+          mobility_access_other: p.mobility_access_other || '',
         })
-        const dbRoles: string[] = Array.isArray(p.roles) && p.roles.length ? p.roles : p.role ? [p.role] : ['caregiver']
+        const dbRolesRaw: string[] = Array.isArray(p.roles) && p.roles.length ? p.roles : p.role ? [p.role] : ['evacuee']
+        const dbRoles = [...new Set(dbRolesRaw.map(normalizeDashboardRole))]
         // Merge with localStorage so claimed roles show as unlocked even if DB hasn't persisted them
         const localRole = localStorage.getItem('wfa_active_role')
         const localClaimedRaw = localStorage.getItem('wfa_claimed_roles')
         const localClaimed: string[] = localClaimedRaw ? JSON.parse(localClaimedRaw) : []
-        if (localRole && localRole !== 'caregiver') localClaimed.push(localRole)
-        const roles = [...new Set([...dbRoles, ...localClaimed])]
+        if (localRole) localClaimed.push(normalizeDashboardRole(localRole))
+        const roles = [...new Set([...dbRoles, ...localClaimed.map(normalizeDashboardRole)])]
         setMyRoles(roles)
+        if (p.alerts_ai_enabled != null) setAlertsAiEnabled(!!p.alerts_ai_enabled)
+        if (p.alert_radius_miles != null) setAlertRadiusMiles(Number(p.alert_radius_miles))
         // Only use DB role if nothing better is available
         if (!searchParams.get('role') && !localStorage.getItem('wfa_active_role')) {
-          setActiveRole(p.role || 'caregiver')
+          setActiveRole(normalizeDashboardRole(p.role || 'evacuee'))
+        }
+        if (localStorage.getItem('wfa_active_role') === 'caregiver') {
+          localStorage.setItem('wfa_active_role', 'evacuee')
         }
       }
       setLoading(false)
@@ -235,7 +215,9 @@ function SettingsInner() {
   }, [])
 
   function update<K extends keyof ProfileData>(key: K, value: ProfileData[K]) {
-    setProfile(p => ({ ...p, [key]: value })); setSaved(false)
+    setProfile(p => ({ ...p, [key]: value }))
+    setSaved(false)
+    setSaveError(null)
   }
   function toggleNeed(need: string) {
     setProfile(p => ({
@@ -244,11 +226,32 @@ function SettingsInner() {
     })); setSaved(false)
   }
 
+  function toggleMobility(key: string) {
+    setProfile(p => ({
+      ...p,
+      mobility_access_needs: p.mobility_access_needs.includes(key)
+        ? p.mobility_access_needs.filter(k => k !== key)
+        : [...p.mobility_access_needs, key],
+    }))
+    setSaved(false)
+    setSaveError(null)
+  }
+
   async function save() {
     setSaving(true); setSaveError(null)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setSaveError('Not signed in'); setSaving(false); return }
-    const { error } = await supabase.from('profiles').upsert({ id: user.id, ...profile })
+    if (requiresConsumerHomeAddress(activeRole) && !profile.address?.trim()) {
+      setSaveError('Home address is required. It centers your map, fire proximity alerts, and shelter distances.')
+      setSaving(false)
+      return
+    }
+    const { error } = await supabase.from('profiles').upsert({
+      id: user.id,
+      ...profile,
+      alerts_ai_enabled: alertsAiEnabled,
+      alert_radius_miles: alertRadiusMiles,
+    })
     if (error) {
       if (error.message.includes('column') || error.message.includes('schema cache') || error.message.includes('address') || error.message.includes('phone')) {
         setSaveError('Database needs updating. Run the migration in supabase/migrations/20260316_ensure_profile_columns.sql in your Supabase SQL editor, then try again.')
@@ -308,18 +311,19 @@ function SettingsInner() {
   }
 
   async function switchActive(role: string) {
-    setSavingRole(role)
-    localStorage.setItem('wfa_active_role', role)
+    const r = normalizeDashboardRole(role)
+    setSavingRole(r)
+    localStorage.setItem('wfa_active_role', r)
     try {
       const prev: string[] = JSON.parse(localStorage.getItem('wfa_claimed_roles') || '[]')
-      localStorage.setItem('wfa_claimed_roles', JSON.stringify([...new Set([...prev, role])]))
+      localStorage.setItem('wfa_claimed_roles', JSON.stringify([...new Set([...prev, r])]))
     } catch {}
     await fetch('/api/profile/role', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role }),
+      body: JSON.stringify({ role: r }),
     })
-    window.location.href = ROLE_DESTINATIONS[role] ?? '/dashboard'
+    window.location.href = ROLE_DESTINATIONS[r] ?? '/dashboard'
   }
 
   async function verifyCode() {
@@ -362,7 +366,12 @@ function SettingsInner() {
 
   function resetCode() { setAddingRole(null); setCode(''); setCodeVerified(false); setCodeError(''); setOrgName(null); setCodeId(null) }
 
-  const otherRoles = ALL_ROLES.filter(r => !myRoles.includes(r))
+  const hasConsumer = myRoles.some(isConsumerRole)
+  const otherRoles = ALL_ROLES.filter(r => {
+    if (myRoles.includes(r)) return false
+    if (hasConsumer && isConsumerRole(r)) return false
+    return true
+  })
   const profileTabLabel = activeRole === 'data_analyst' ? 'Analyst Profile'
     : activeRole === 'emergency_responder' ? 'Responder Profile'
     : 'Emergency Profile'
@@ -400,7 +409,9 @@ function SettingsInner() {
         <div className="bg-ember-500/10 border border-ember-500/30 rounded-xl p-5 mb-6 flex items-start justify-between gap-4">
           <div>
             <div className="text-ember-400 font-semibold text-sm mb-1">Welcome to WildfireAlert</div>
-            <p className="text-ash-300 text-sm">Fill out your emergency profile so we can personalize alerts for your location, household, and needs. You can always update this later.</p>
+            <p className="text-ash-300 text-sm">
+              Add your <strong className="text-ash-200">home address</strong> (required for evacuees) so My Hub and the evacuation map can anchor on your location. You can update other details anytime.
+            </p>
           </div>
           <button
             onClick={() => router.push(dashDest)}
@@ -615,18 +626,88 @@ function SettingsInner() {
 
       {tab === 'profile' && activeRole !== 'emergency_responder' && activeRole !== 'data_analyst' && (
         <div className="space-y-5">
+          {searchParams.get('needHomeAddress') === '1' && requiresConsumerHomeAddress(activeRole) && (
+            <div className="rounded-xl border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-amber-100 text-sm">
+              Add a <strong>specific street address</strong> (with a street number) so we can automate distance alerts and your map to safety — not a city or county alone.
+            </div>
+          )}
           <Section icon={User} title="Your Information">
             <div className="grid sm:grid-cols-2 gap-4">
               <Field label="Full name"><FInput value={profile.full_name} onChange={v => update('full_name', v)} placeholder="Jane Smith" /></Field>
               <Field label="Phone number"><FInput value={profile.phone} onChange={v => update('phone', v)} placeholder="+1 (555) 000-0000" type="tel" /></Field>
-              <Field label="Home address" hint="Used to assess your proximity to active fires">
-                <AddressInput value={profile.address} onChange={v => update('address', v)} placeholder="123 Main St, City, CA" />
+              <Field
+                label="Home address (required)"
+                hint="Must be a numbered street address — powers automation to safety (hub, Flameo, map, shelters). Cities/counties alone are not accepted in search."
+              >
+                <AddressVerifySave
+                  id="settings-home-address"
+                  variant="dark"
+                  value={addressDraft}
+                  onChange={v => {
+                    setAddressDraft(v)
+                    setSaved(false)
+                  }}
+                  savedAddress={profile.address}
+                  onVerifiedSave={async (line: string) => {
+                    const { data: { user } } = await supabase.auth.getUser()
+                    if (!user) throw new Error('Not signed in')
+                    const { error } = await supabase.from('profiles').update({ address: line }).eq('id', user.id)
+                    if (error) throw new Error(error.message)
+                    update('address', line)
+                    setAddressDraft(line)
+                    try {
+                      const existingCard = JSON.parse(localStorage.getItem('wfa_emergency_card') || '{}')
+                      localStorage.setItem('wfa_emergency_card', JSON.stringify({ ...existingCard, address: line }))
+                    } catch {
+                      /* ignore */
+                    }
+                    try {
+                      window.dispatchEvent(new CustomEvent('wfa-flameo-context-refresh'))
+                    } catch {
+                      /* ignore */
+                    }
+                    setSaved(true)
+                  }}
+                />
               </Field>
             </div>
           </Section>
 
-          <Section icon={Heart} title="People in Your Care">
-            <p className="text-ash-500 text-xs mb-4">Managed in My Persons — add evacuation addresses, check-in pings, and emergency details there.</p>
+          <Section icon={Activity} title="Mobility & access">
+            <p className="text-ash-500 text-xs mb-4">
+              Same options as signup — helps responders and your My People circle understand support needs during an evacuation.
+            </p>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {MOBILITY_ACCESS_OPTIONS.map(({ key, label }) => {
+                const on = profile.mobility_access_needs.includes(key)
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => toggleMobility(key)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${on ? 'bg-ember-500/20 border-ember-500/50 text-ember-300' : 'bg-ash-800 border-ash-700 text-ash-400 hover:border-ash-500 hover:text-ash-200'}`}
+                  >
+                    {on ? '✓ ' : ''}{label}
+                  </button>
+                )
+              })}
+            </div>
+            {profile.mobility_access_needs.includes('other') && (
+              <Field label="Other (describe)" hint="Shown when you select Other above.">
+                <FTextarea
+                  value={profile.mobility_access_other}
+                  onChange={v => { update('mobility_access_other', v); setSaved(false) }}
+                  placeholder="Describe other mobility, access, or medical context…"
+                  rows={3}
+                />
+              </Field>
+            )}
+          </Section>
+
+          <Section icon={Heart} title="My People">
+            <p className="text-ash-500 text-xs mb-4">
+              If you are caring for somebody or watching out for your family, add them here — evacuation addresses, check-in pings, and emergency details are managed from My Hub.
+            </p>
             <div className="space-y-2 mb-4">
               {monitoredPersons.length === 0 ? (
                 <div className="text-ash-600 text-sm text-center py-4 border border-dashed border-ash-700 rounded-xl">
@@ -644,16 +725,18 @@ function SettingsInner() {
                 ))
               )}
             </div>
-            <a
-              href="/dashboard/caregiver/persons"
-              className="flex items-center gap-2 text-sm text-ash-400 hover:text-white border border-dashed border-ash-700 hover:border-ash-500 rounded-xl px-4 py-3 w-full justify-center transition-colors"
-            >
-              <Plus className="w-4 h-4" /> Add or update in My Persons
-            </a>
+            {isConsumerRole(activeRole) && (
+              <Link
+                href="/dashboard/home/persons"
+                className="flex items-center gap-2 text-sm text-ash-400 hover:text-white border border-dashed border-ash-700 hover:border-ash-500 rounded-xl px-4 py-3 w-full justify-center transition-colors"
+              >
+                <Plus className="w-4 h-4" /> Manage My People
+              </Link>
+            )}
           </Section>
 
           <Section icon={Brain} title="Cognitive & Behavioral Needs">
-            <p className="text-ash-500 text-xs mb-4">Helps caregivers and first responders understand how to communicate and provide support during an evacuation. This information is included in the Emergency Card.</p>
+            <p className="text-ash-500 text-xs mb-4">Helps first responders understand how to communicate and provide support during an evacuation. This information is included in the Emergency Card.</p>
 
             <div className="mb-5">
               <label className="block text-ash-300 text-xs font-medium mb-1">Cognitive conditions</label>
@@ -727,7 +810,7 @@ function SettingsInner() {
           <Section icon={FileText} title="Emergency Card">
             <p className="text-ash-500 text-xs mb-4">Your printable emergency card for first responders and shelter staff — medications, pets, contacts, and evacuation route.</p>
             <a
-              href="/dashboard/caregiver/emergency-card"
+              href="/dashboard/home/emergency-card"
               className="flex items-center gap-2 text-sm text-ash-400 hover:text-white border border-dashed border-ash-700 hover:border-ash-500 rounded-xl px-4 py-3 w-full justify-center transition-colors"
             >
               <FileText className="w-4 h-4" /> Open Emergency Card
@@ -802,11 +885,13 @@ function SettingsInner() {
                     </div>
                     {isActive ? (
                       <span className="text-xs text-ash-500 px-2 py-1 rounded-lg bg-ash-800 border border-ash-700">Current</span>
-                    ) : (
+                    ) : (role === 'emergency_responder' || role === 'data_analyst') ? (
                       <button onClick={() => switchActive(role)} disabled={savingRole === role}
                         className="text-xs px-3 py-1.5 rounded-lg bg-ember-500/20 border border-ember-500/40 text-ember-400 hover:bg-ember-500/30 transition-colors disabled:opacity-40">
                         {savingRole === role ? '…' : 'Switch to this'}
                       </button>
+                    ) : (
+                      <span className="text-xs text-ash-600 px-2 py-1">—</span>
                     )}
                   </div>
                 )
@@ -878,14 +963,14 @@ function SettingsInner() {
               <button
                 onClick={() => {
                   if (typeof window !== 'undefined') localStorage.removeItem('wfa_tour_done_v1')
-                  router.push('/dashboard/caregiver')
+                  router.push('/dashboard/home')
                 }}
                 className="flex items-center gap-2 text-ash-400 hover:text-white transition-colors text-sm py-1"
               >
                 <Flame className="w-4 h-4 text-ember-400" /> Replay Flameo tour
               </button>
               <button
-                onClick={() => router.push('/auth/onboarding?role=caregiver')}
+                onClick={() => router.push('/auth/onboarding?role=evacuee')}
                 className="flex items-center gap-2 text-ash-400 hover:text-white transition-colors text-sm py-1"
               >
                 <Settings className="w-4 h-4" /> Re-run setup wizard
@@ -946,6 +1031,63 @@ function SettingsInner() {
                   {label}
                 </button>
               ))}
+            </div>
+          </section>
+
+          <section className="card p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <Bell className="w-4 h-4 text-amber-400" />
+              <h2 className="font-semibold text-white">Wildfire alerts</h2>
+            </div>
+            <p className="text-ash-400 text-sm mb-4">
+              Control how far out we look for NIFC incidents on My Hub and the evacuation map, and optional AI summaries (bounded to data we already fetched).
+            </p>
+            <div className="space-y-4">
+              <Field label="Alert radius (miles)">
+                <select
+                  value={alertRadiusMiles}
+                  onChange={e => {
+                    setAlertRadiusMiles(Number(e.target.value))
+                    setSaved(false)
+                  }}
+                  className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60"
+                >
+                  {[10, 25, 50, 100, 200].map(m => (
+                    <option key={m} value={m}>
+                      {m} mi
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <label
+                className={`flex items-start gap-3 ${isAlertsAiDeploymentEnabled() ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={alertsAiEnabled}
+                  disabled={!isAlertsAiDeploymentEnabled()}
+                  onChange={e => {
+                    if (!isAlertsAiDeploymentEnabled()) return
+                    setAlertsAiEnabled(e.target.checked)
+                    setSaved(false)
+                  }}
+                  className="mt-1 rounded border-ash-600"
+                />
+                <div>
+                  <div className="text-ash-200 text-sm font-medium">Enable AI summaries for nearby fires</div>
+                  <p className="text-ash-500 text-xs mt-0.5">
+                    Uses Anthropic to interpret nearby incidents only — never invents new fires. Requires{' '}
+                    <code className="text-ash-400">ANTHROPIC_API_KEY</code> on the server and deploy flag{' '}
+                    <code className="text-ash-400">NEXT_PUBLIC_ALERTS_AI=1</code>.
+                  </p>
+                  {!isAlertsAiDeploymentEnabled() && (
+                    <p className="text-amber-400/90 text-xs mt-2">
+                      This deployment does not have AI summaries enabled. Add{' '}
+                      <code className="text-ash-300">NEXT_PUBLIC_ALERTS_AI=1</code> to your environment and rebuild.
+                    </p>
+                  )}
+                </div>
+              </label>
             </div>
           </section>
 

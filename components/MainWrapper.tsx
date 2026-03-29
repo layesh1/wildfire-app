@@ -3,30 +3,52 @@ import { usePathname } from 'next/navigation'
 import RoleContextBar from '@/components/RoleContextBar'
 
 // Pages where text-white should become dark green in light mode.
-// Excludes My Hub (/dashboard/caregiver) and Ask FlameoAI (/dashboard/caregiver/ai).
+// Consumer hub and subpages use unified styling (canonical /dashboard/home).
 const CONTENT_PAGES = [
   '/dashboard/caregiver/persons',
-  '/dashboard/caregiver/alert',
   '/dashboard/caregiver/checkin',
   '/dashboard/caregiver/emergency-card',
   '/dashboard/caregiver/map',
+  '/dashboard/caregiver/ai',
+  '/dashboard/home',
+  '/dashboard/home/map',
+  '/dashboard/home/checkin',
+  '/dashboard/home/ai',
+  '/dashboard/home/persons',
+  '/dashboard/home/emergency-card',
+  '/dashboard/evacuee/map',
+  '/dashboard/evacuee/checkin',
+  '/dashboard/evacuee/ai',
   '/dashboard/settings',
 ]
 
-// Caregiver pages that show the role context bar
+// Pages that show the role context bar (not the unified home hub)
 const CAREGIVER_PAGES = [
   '/dashboard/caregiver',
 ]
 
 export default function MainWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const isContentPage = CONTENT_PAGES.some(p => pathname?.startsWith(p))
-  const showContextBar = pathname?.startsWith('/dashboard/caregiver') || isContentPage
+  const isResponderSection = pathname?.startsWith('/dashboard/responder')
+  const isEvacueeHub =
+    pathname?.startsWith('/dashboard/evacuee') ||
+    pathname?.startsWith('/m/dashboard/evacuee') ||
+    pathname?.startsWith('/dashboard/home') ||
+    pathname?.startsWith('/m/dashboard/home')
+  const isContentPage = CONTENT_PAGES.some(p => pathname?.startsWith(p)) || isResponderSection
+  const showContextBar =
+    !isEvacueeHub &&
+    (pathname?.startsWith('/dashboard/caregiver') ||
+      pathname?.startsWith('/m/dashboard/caregiver') ||
+      isContentPage)
 
   return (
-    <main className={`flex-1 overflow-auto flex flex-col${isContentPage ? ' wfa-content-page' : ''}`}>
+    <main
+      className={`relative flex min-h-0 min-w-0 w-full flex-1 flex-col md:pl-16${isContentPage ? ' wfa-content-page' : ''}`}
+    >
       {showContextBar && <RoleContextBar />}
-      <div className="flex-1 overflow-auto">
+      {/* No overflow-y on this shell so the row in ThemeWrapper can grow with tall pages; sidebar stretches via items-stretch + min-h-full */}
+      <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-x-hidden">
         {children}
       </div>
     </main>

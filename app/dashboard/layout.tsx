@@ -2,12 +2,12 @@ import { redirect } from 'next/navigation'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import Sidebar from '@/components/Sidebar'
 import FlameoChat from '@/components/FlameoChat'
+import { FlameoHubAgentProvider } from '@/components/FlameoHubAgentBridge'
 import LanguageProvider from '@/components/LanguageProvider'
 import ThemeWrapper from '@/components/ThemeWrapper'
 import UserSessionGuard from '@/components/UserSessionGuard'
 import MainWrapper from '@/components/MainWrapper'
 import PushSetup from '@/components/PushSetup'
-import NotificationCenter from '@/components/NotificationCenter'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerSupabaseClient()
@@ -24,9 +24,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <LanguageProvider initialLang={profile?.language_preference ?? null}>
       <ThemeWrapper>
+        <FlameoHubAgentProvider>
         <UserSessionGuard />
         <PushSetup />
-        <NotificationCenter />
         <Sidebar user={user} profile={profile} />
         <MainWrapper>
           {children}
@@ -34,6 +34,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <FlameoChat />
         {/* Honeypot: invisible to users, visible to crawlers/scanners */}
         <a href="/api/honeypot" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} />
+        </FlameoHubAgentProvider>
       </ThemeWrapper>
     </LanguageProvider>
   )

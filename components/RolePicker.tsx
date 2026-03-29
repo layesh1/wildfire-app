@@ -1,8 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Flame, Shield, Heart, BarChart3, ChevronRight, Plus, Lock, Loader2, CheckCircle, X } from 'lucide-react'
+import { Flame, Shield, Heart, Home, BarChart3, ChevronRight, Plus, Lock, Loader2, CheckCircle, X } from 'lucide-react'
 
-const ALL_ROLES = ['caregiver', 'emergency_responder', 'data_analyst'] as const
+const ALL_ROLES = ['caregiver', 'evacuee', 'emergency_responder', 'data_analyst'] as const
 
 const ROLE_CONFIG: Record<string, {
   label: string
@@ -16,8 +16,8 @@ const ROLE_CONFIG: Record<string, {
   protected: boolean
 }> = {
   caregiver: {
-    label: 'Caregiver / Evacuee',
-    description: 'Evacuation map, safety check-ins, household emergency profile',
+    label: 'Caregiver',
+    description: 'Monitor people you care for, map, check-ins, and household profile',
     icon: Heart,
     href: '/dashboard/caregiver',
     color: 'text-amber-400',
@@ -26,9 +26,20 @@ const ROLE_CONFIG: Record<string, {
     activeBorder: 'border-amber-500/60',
     protected: false,
   },
+  evacuee: {
+    label: 'Evacuee',
+    description: 'Personal safety hub, fires near your address, shelters, and check-in',
+    icon: Home,
+    href: '/dashboard/evacuee',
+    color: 'text-green-400',
+    bg: 'bg-green-500/10',
+    border: 'border-green-500/20',
+    activeBorder: 'border-green-500/60',
+    protected: false,
+  },
   emergency_responder: {
     label: 'Emergency Responder',
-    description: 'Live incident map, signal gap analysis, ML spread predictor, COMMAND-INTEL AI',
+    description: 'Live incident map, signal gap analysis, ML spread predictor, Flameo field intelligence',
     icon: Shield,
     href: '/dashboard/responder',
     color: 'text-red-400',

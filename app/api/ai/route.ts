@@ -4,11 +4,24 @@ import { checkRateLimit, getClientIp } from '@/lib/ratelimit'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { validateMessages, validateString, ValidationError } from '@/lib/validate'
 import { logger } from '@/lib/logger'
+import {
+  FLAMEO_TOOLS,
+  COMMAND_INTEL_TOOLS,
+  FLAMEO_TOOLS_SYSTEM_SUFFIX,
+  COMMAND_INTEL_TOOLS_SYSTEM_SUFFIX,
+  extractTextAndToolActionsFromAnthropicContent,
+} from '@/lib/flameo-phase-c-tools'
+import {
+  buildFlameoGroundingPrefix,
+  FLAMEO_RESPONDER_SYSTEM,
+  parseOptionalFlameoContext,
+  parseFlameoNavContext,
+  resolveFlameoAiRole,
+} from '@/lib/flameo-ai-prompt'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-const PERSONAS = {
-  'FLAMEO': `You are Flameo, a calm, compassionate wildfire safety assistant for the WildfireAlert app.
+const FLAMEO_CONSUMER_SYSTEM = `You are Flameo, a calm, compassionate wildfire safety assistant for the WildfireAlert app.
 Your name is Flameo. You help caregivers, evacuees, and people with access and functional needs during wildfire emergencies.
 Your tone is warm, clear, and reassuring — like a knowledgeable friend, not a government agency. Use plain language, no jargon.
 Key facts you know:
@@ -25,26 +38,7 @@ Key facts you know:
 - Fire containment % tells you how controlled a fire is — under 25% means it's actively spreading
 Always end responses with a warm, brief closing line. Keep responses concise and actionable.
 
-IMPORTANT - TOPIC BOUNDARIES: You ONLY answer questions about wildfires, evacuation, fire safety, emergency preparedness, go-bags, evacuation routes, shelter locations, fire risk, and related emergency topics. If someone asks about anything unrelated (cooking, coding, homework, general knowledge, etc.), politely decline and say: "I'm only able to help with wildfire safety and evacuation questions. For other needs, please use a general assistant. If you have an emergency, call 911 or your local evacuation hotline."`,
-
-  'COMMAND-INTEL': `You are COMMAND-INTEL, a tactical AI analyst for emergency responders in the WildfireAlert system.
-You support incident commanders with data-driven wildfire intelligence.
-Your tone is precise, direct, and analytical. Use professional emergency management terminology.
-Key facts you know:
-- Dataset: 62,696 fire records (2021-2025), WatchDuty/WiDS dataset; 50,664 are true wildfires (17.7% of records, 11,115, are prescribed burns — filter to is_true_wildfire=1 for accurate analysis)
-- 33,423 true wildfires had external signals; 33,181 (99.3%) never received a formal evacuation order
-- Median hours_to_order (fire start to order): 1.1h (n=653 fires)
-- Median signal lead time (first external signal to order): 4.1h (n=242)
-- 9x disparity between fastest and slowest response states
-- High-SVI counties experience lower ORDER RATES — not slower service, but absence of service altogether
-- SVI score does NOT predict delay hours when orders do occur (all tiers ~1.1h); SVI predicts whether an order is issued at all
-- 99.7% of monitored fires are single-channel; 100% of signal channels are regional dispatch (no AlertWest AI or NIFC satellite detection) — if dispatch fails, zero backup exists
-- ML models (XGBoost, Random Forest) available for spread prediction
-- CDC SVI used for vulnerability scoring
-Provide actionable intelligence, cite data where relevant, and flag equity concerns.
-
-IMPORTANT - TOPIC BOUNDARIES: You ONLY answer questions related to wildfire incident management, fire behavior, evacuation operations, resource deployment, ICS, FEMA coordination, signal gap analysis, and related emergency management topics. If asked about unrelated topics, respond: "COMMAND-INTEL is restricted to wildfire and emergency management queries. For other information, consult appropriate resources. For immediate emergencies, call 911."`,
-}
+IMPORTANT - TOPIC BOUNDARIES: You ONLY answer questions about wildfires, evacuation, fire safety, emergency preparedness, go-bags, evacuation routes, shelter locations, fire risk, and related emergency topics. If someone asks about anything unrelated (cooking, coding, homework, general knowledge, etc.), politely decline and say: "I'm only able to help with wildfire safety and evacuation questions. For other needs, please use a general assistant. If you have an emergency, call 911 or your local evacuation hotline."`
 
 export async function POST(request: NextRequest) {
   const start = Date.now()
@@ -68,22 +62,80 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const body = await request.json()
+    const body = await request.json() as Record<string, unknown>
     const messages = validateMessages(body.messages)
-    const persona = validateString(body.persona ?? 'FLAMEO', 'persona', {
-      allowedValues: Object.keys(PERSONAS),
-    })
+    const legacyPersona = validateString(
+      typeof body.persona === 'string' ? body.persona : 'FLAMEO',
+      'persona',
+      { allowedValues: ['FLAMEO', 'COMMAND-INTEL'] }
+    )
+    const flameoRole = resolveFlameoAiRole(body, legacyPersona)
+    const flameoContext = parseOptionalFlameoContext(body.flameoContext)
 
-    const response = await client.messages.create({
+    const anthropicMessages = messages.map(m => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    }))
+
+    const isResponder = flameoRole === 'responder'
+    const tools = isResponder ? [...COMMAND_INTEL_TOOLS] : [...FLAMEO_TOOLS]
+    const useTools = true
+
+    let system = isResponder
+      ? FLAMEO_RESPONDER_SYSTEM + COMMAND_INTEL_TOOLS_SYSTEM_SUFFIX
+      : FLAMEO_CONSUMER_SYSTEM + FLAMEO_TOOLS_SYSTEM_SUFFIX
+
+    if (!isResponder) {
+      const { consumer, navBase } = parseFlameoNavContext(body)
+      system += `\n\nNAVIGATION CONTEXT (do not repeat to user as raw JSON): consumer=${consumer}, navBase=${navBase}. Tools open in-app routes for this user only.`
+    }
+
+    if (flameoContext) {
+      system = `${buildFlameoGroundingPrefix(flameoContext)}\n\n${system}`
+    }
+
+    const createParams: Parameters<typeof client.messages.create>[0] = {
       model: 'claude-sonnet-4-6',
-      max_tokens: 600,
-      system: PERSONAS[persona as keyof typeof PERSONAS],
-      messages,
+      max_tokens: 900,
+      system,
+      messages: anthropicMessages,
+    }
+    if (useTools && tools.length) {
+      createParams.tools = tools as Parameters<typeof client.messages.create>[0]['tools']
+      createParams.tool_choice = { type: 'auto' }
+    }
+
+    const response = (await client.messages.create(createParams)) as Anthropic.Messages.Message
+
+    const rawContent = response.content as { type: string; text?: string; name?: string; input?: unknown }[]
+    const { text, actions } = extractTextAndToolActionsFromAnthropicContent(rawContent)
+
+    let content = text
+    if (!content && actions.length > 0) {
+      content = 'Opening that in the app for you — use the buttons below.'
+    }
+    if (!content) {
+      content = response.content[0]?.type === 'text' ? (response.content[0] as { text: string }).text : ''
+    }
+    if (!content) content = 'I could not form a reply. Please try again.'
+
+    logger.info('ai response', {
+      route: 'ai',
+      flameoRole,
+      durationMs: Date.now() - start,
+      userId: user?.id,
+      toolActions: actions.length,
+      grounded: Boolean(flameoContext),
     })
 
-    const content = response.content[0].type === 'text' ? response.content[0].text : ''
-    logger.info('ai response', { route: 'ai', persona, durationMs: Date.now() - start, userId: user?.id })
-    return NextResponse.json({ content, persona })
+    const { consumer, navBase } = parseFlameoNavContext(body)
+    return NextResponse.json({
+      content,
+      persona: 'FLAMEO',
+      flameoRole,
+      actions: actions.length ? actions : undefined,
+      flameoNavContext: !isResponder ? { consumer, navBase } : undefined,
+    })
   } catch (err: unknown) {
     if (err instanceof ValidationError) {
       return NextResponse.json({ error: err.message }, { status: 400 })

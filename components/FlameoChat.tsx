@@ -6,6 +6,12 @@ import { X, CornerRightUp, Trash2 } from 'lucide-react'
 import { useAutoResizeTextarea } from '@/components/hooks/use-auto-resize-textarea'
 import { LiquidMetalFab } from '@/components/ui/liquid-metal-button'
 import { ResponseStream } from '@/components/ui/response-stream'
+import { FlameoActionChips, type Chip } from '@/components/flameo/FlameoActionChips'
+import { useFlameoNavContext } from '@/hooks/useFlameoNavContext'
+import { commandIntelActionsToChips, flameoActionsToChips, partitionAiActions } from '@/lib/flameo-phase-c-client'
+import type { FlameoContext, FlameoContextStatus, FlameoAiRole } from '@/lib/flameo-context-types'
+import { flameoGroundingBadgeText } from '@/lib/flameo-grounding-ui'
+import { useFlameoHubAgentBridge } from '@/components/FlameoHubAgentBridge'
 
 // ── Smoke particle ────────────────────────────────────────────────────────────
 const FIRE_COLORS = [
@@ -101,6 +107,7 @@ function FlameoIcon({ size = 32, src = '/flameo1.png' }: { size?: number; src?: 
 interface Message {
   role: 'user' | 'assistant'
   content: string
+  chips?: Chip[]
 }
 
 const INTRO: Message = {
@@ -108,9 +115,32 @@ const INTRO: Message = {
   content: `Hi! I'm Flameo!\n\nI'm your personal wildfire safety assistant — here to help you understand evacuation alerts, plan your escape route, protect the people and pets in your care, and stay calm when things feel overwhelming.\n\nYou can ask me things like:\n• "Is my area at risk?"\n• "What should be in a go-bag?"\n• "How do I evacuate with someone in a wheelchair?"\n\nWhat can I help you with?`,
 }
 
-export default function FlameoChat() {
+export type FlameoChatProps = {
+  context?: FlameoContext | null
+  status?: FlameoContextStatus | null
+  flameoRole?: FlameoAiRole
+}
+
+export default function FlameoChat({
+  context: contextProp,
+  status: statusProp,
+  flameoRole: flameoRoleProp,
+}: FlameoChatProps = {}) {
   const pathname = usePathname()
-  const isDispatcher = pathname?.startsWith('/dashboard/responder') ?? false
+  const isDispatcher =
+    pathname?.startsWith('/dashboard/responder') || pathname?.startsWith('/m/dashboard/responder') || false
+  const { payload: hubPayload } = useFlameoHubAgentBridge()
+  const flameoContext = contextProp ?? hubPayload?.context ?? undefined
+  const flameoStatus = statusProp ?? hubPayload?.status ?? undefined
+  const flameoRole: FlameoAiRole =
+    flameoRoleProp
+    ?? hubPayload?.flameoRole
+    ?? (isDispatcher ? 'responder' : pathname?.includes('/evacuee') ? 'evacuee' : 'caregiver')
+  const badgeLine = flameoGroundingBadgeText(
+    flameoContext ?? null,
+    flameoStatus ?? null
+  )
+  const { flameoNavContext, consumer, navBase } = useFlameoNavContext()
   const flameoSrc = isDispatcher ? '/Image (8).png' : '/flameo1.png'
   const fabStyle = { bottom: 16, right: 16, left: 'auto' } as React.CSSProperties
   const popupStyle = { bottom: 96, right: 16, left: 'auto' } as React.CSSProperties
@@ -151,10 +181,9 @@ export default function FlameoChat() {
 
   useEffect(() => { setMounted(true) }, [])
 
+  // Briefing + chat entry live in My Hub / My alerts — skip floating "Meet Flameo" on consumer hubs
   useEffect(() => {
-    if (pathname !== '/dashboard/caregiver') return
-    const t = setTimeout(() => setShowIntro(true), 1800)
-    return () => clearTimeout(t)
+    setShowIntro(false)
   }, [pathname])
 
   function clearHistory() {
@@ -183,10 +212,17 @@ export default function FlameoChat() {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [...messages, userMsg], persona: 'FLAMEO' }),
+        body: JSON.stringify({
+          messages: [...messages, userMsg],
+          persona: 'FLAMEO',
+          flameoRole,
+          flameoNavContext,
+          ...(flameoContext ? { flameoContext } : {}),
+        }),
       })
       const data = await res.json()
       let reply: string
+      let chips: Chip[] | undefined
       if (!res.ok) {
         if (res.status === 429) {
           reply = data.error ?? "You've sent a lot of messages recently — please wait a minute and try again."
@@ -197,9 +233,20 @@ export default function FlameoChat() {
         }
       } else {
         reply = data.content || "I didn't get a response — please try again."
+        if (Array.isArray(data.actions) && data.actions.length > 0) {
+          const apiRole = (data.flameoRole as FlameoAiRole | undefined) ?? flameoRole
+          if (apiRole === 'responder') {
+            const { intel } = partitionAiActions(data.actions)
+            chips = commandIntelActionsToChips(intel)
+          } else {
+            const { flameo } = partitionAiActions(data.actions)
+            chips = flameoActionsToChips(flameo, consumer, navBase)
+          }
+          if (chips.length === 0) chips = undefined
+        }
       }
       setMessages(m => {
-        const next = [...m, { role: 'assistant' as const, content: reply }]
+        const next = [...m, { role: 'assistant' as const, content: reply, chips }]
         setLatestAssistantIdx(next.length - 1)
         return next
       })
@@ -220,8 +267,8 @@ export default function FlameoChat() {
       {/* Chat panel */}
       {open && (
         <div
-          className="fixed z-[9999] flex flex-col bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden"
-          style={{ width: 360, maxHeight: '72vh', ...popupStyle }}
+          className="fixed z-[9999] flex flex-col bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden w-[min(360px,calc(100vw-20px))]"
+          style={{ maxHeight: '72vh', ...popupStyle }}
         >
           {/* Header */}
           <div className="flex items-center gap-3 p-4 border-b border-forest-100 shrink-0 bg-white">
@@ -231,6 +278,11 @@ export default function FlameoChat() {
             <div className="flex-1 min-w-0">
               <div className="text-gray-900 font-semibold text-sm">Flameo</div>
               <div className="text-gray-500 text-xs">Wildfire safety assistant · always here</div>
+              {badgeLine && (
+                <div className="text-[11px] text-gray-600 mt-0.5 leading-tight" data-testid="flameo-grounding-badge">
+                  {badgeLine}
+                </div>
+              )}
             </div>
             <button
               onClick={clearHistory}
@@ -256,23 +308,28 @@ export default function FlameoChat() {
                     <FlameoIcon size={18} />
                   </div>
                 )}
-                <div
-                  className={`max-w-[82%] rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words ${
-                    msg.role === 'user'
-                      ? 'text-white rounded-tr-sm'
-                      : 'bg-white text-gray-900 border border-gray-200 rounded-tl-sm'
-                  }`}
-                  style={msg.role === 'user' ? { background: 'linear-gradient(135deg, #16a34a, #15803d)' } : undefined}
-                >
-                  {msg.role === 'assistant' && i === latestAssistantIdx ? (
-                    <ResponseStream
-                      textStream={msg.content}
-                      mode="typewriter"
-                      speed={75}
-                      as="span"
-                    />
-                  ) : (
-                    msg.content
+                <div className="max-w-[82%]">
+                  <div
+                    className={`rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words ${
+                      msg.role === 'user'
+                        ? 'text-white rounded-tr-sm'
+                        : 'bg-white text-gray-900 border border-gray-200 rounded-tl-sm'
+                    }`}
+                    style={msg.role === 'user' ? { background: 'linear-gradient(135deg, #16a34a, #15803d)' } : undefined}
+                  >
+                    {msg.role === 'assistant' && i === latestAssistantIdx ? (
+                      <ResponseStream
+                        textStream={msg.content}
+                        mode="typewriter"
+                        speed={75}
+                        as="span"
+                      />
+                    ) : (
+                      msg.content
+                    )}
+                  </div>
+                  {msg.role === 'assistant' && msg.chips && msg.chips.length > 0 && (
+                    <FlameoActionChips chips={msg.chips} variant="light" />
                   )}
                 </div>
               </div>

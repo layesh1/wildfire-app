@@ -1,7 +1,8 @@
 'use client'
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 
-export type RoleMode = 'self' | 'caregiver'
+/** `member` = focusing map/Flameo on someone in My People (no separate “caregiver” product role). */
+export type RoleMode = 'self' | 'member'
 
 export interface RolePerson {
   id: string
@@ -44,8 +45,9 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
       if (raw) setPersons(JSON.parse(raw))
     } catch {}
 
-    const savedMode = localStorage.getItem('wfa_role_mode') as RoleMode | null
-    if (savedMode === 'self' || savedMode === 'caregiver') setModeState(savedMode)
+    const savedMode = localStorage.getItem('wfa_role_mode') as string | null
+    if (savedMode === 'self') setModeState('self')
+    else if (savedMode === 'member' || savedMode === 'caregiver') setModeState('member')
 
     const savedPersonId = localStorage.getItem('wfa_active_person_id')
     if (savedPersonId) {
@@ -83,10 +85,11 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
     setActivePersonState(p)
     if (p) {
       localStorage.setItem('wfa_active_person_id', p.id)
-      setModeState('caregiver')
-      localStorage.setItem('wfa_role_mode', 'caregiver')
+      setModeState('member')
+      localStorage.setItem('wfa_role_mode', 'member')
     } else {
       localStorage.removeItem('wfa_active_person_id')
+      localStorage.setItem('wfa_role_mode', 'self')
     }
   }, [])
 

@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Flame, MapPin, CheckCircle, Shield, AlertTriangle, Package, ChevronRight, Monitor } from 'lucide-react'
+import { Flame, MapPin, CheckCircle, Shield, Bell, Package, ChevronRight, Monitor } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { useRoleContext } from '@/components/RoleContext'
 import { addNotification } from '@/components/NotificationCenter'
@@ -34,15 +34,15 @@ const LEVEL_CONFIG: Record<AlertLevel, { bg: string; text: string; label: string
 }
 
 const QUICK_ACTIONS = [
-  { label: 'Evac Map',    href: '/m/dashboard/caregiver/map',              icon: MapPin        },
-  { label: 'Check In',   href: '/m/dashboard/caregiver/checkin',           icon: CheckCircle   },
-  { label: 'Shelter',    href: '/m/dashboard/caregiver/map?filter=shelter', icon: Shield        },
-  { label: 'Fire Alert', href: '/m/dashboard/caregiver/alert',             icon: AlertTriangle },
+  { label: 'Evac Map', href: '/m/dashboard/home/map', icon: MapPin },
+  { label: 'Check In', href: '/m/dashboard/home/checkin', icon: CheckCircle },
+  { label: 'Shelter', href: '/m/dashboard/home/map?filter=shelter', icon: Shield },
+  { label: 'Alerts', href: '/m/dashboard/home/map', icon: Bell },
 ]
 
 export default function MobileCaregiverHub() {
   const { mode, activePerson } = useRoleContext()
-  const isCaregiverMode = mode === 'caregiver' && activePerson !== null
+  const isViewingMember = mode === 'member' && activePerson !== null
   const [fires, setFires] = useState<FireEvent[]>([])
   const [persons, setPersons] = useState<Person[]>([])
   const [bagChecked, setBagChecked] = useState<Set<string>>(new Set())
@@ -128,7 +128,7 @@ export default function MobileCaregiverHub() {
       <div className="relative px-4 pt-12 pb-8" style={{ background: cfg.bg }}>
         {/* Desktop switch link */}
         <Link
-          href="/dashboard/caregiver"
+          href="/dashboard/home"
           className="absolute top-4 right-4 flex items-center gap-1 text-[11px] text-white/60 hover:text-white/90 transition-colors"
           prefetch={false}
         >
@@ -136,10 +136,10 @@ export default function MobileCaregiverHub() {
         </Link>
 
         <div className="text-white/60 text-xs font-semibold uppercase tracking-widest mb-1">
-          {isCaregiverMode ? `Caring for ${activePerson!.name.split(' ')[0]}` : `Hi${userName ? ` ${userName}` : ''} ·`} My Safety
+          {isViewingMember ? `Viewing ${activePerson!.name.split(' ')[0]}` : `Hi${userName ? ` ${userName}` : ''} ·`} My Hub
         </div>
         <h1 className="font-display font-bold text-3xl text-white mb-1">
-          {isCaregiverMode ? `${activePerson!.name.split(' ')[0]}'s Hub` : 'My Hub'}
+          {isViewingMember ? `${activePerson!.name.split(' ')[0]}'s Hub` : 'My Hub'}
         </h1>
 
         {/* Big status pill */}
@@ -199,7 +199,7 @@ export default function MobileCaregiverHub() {
         {/* Monitored persons */}
         {persons.length > 0 && (
           <div>
-            <h2 className="text-xs font-semibold uppercase tracking-widest text-green-700 mb-2">Monitored Persons</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-widest text-green-700 mb-2">My Family</h2>
             <div className="space-y-2">
               {persons.map(p => (
                 <div key={p.id} className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm flex items-center gap-3">
@@ -242,18 +242,17 @@ export default function MobileCaregiverHub() {
           </div>
         )}
 
-        {/* Early fire alert CTA */}
         <Link
-          href="/m/dashboard/caregiver/alert"
+          href="/m/dashboard/home/map"
           className="flex items-center gap-3 rounded-2xl px-4 py-4 text-white"
           style={{ background: 'linear-gradient(135deg, #7a2e0e, #c86432)' }}
         >
           <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-            <AlertTriangle className="w-4 h-4 text-white" />
+            <Bell className="w-4 h-4 text-white" />
           </div>
           <div className="flex-1">
-            <div className="font-semibold text-sm">Early Fire Alert</div>
-            <div className="text-white/60 text-xs">Monitor nearby fires before orders are issued</div>
+            <div className="font-semibold text-sm">My alerts</div>
+            <div className="text-white/60 text-xs">Fires, shelters, and hazards on the evacuation map</div>
           </div>
           <ChevronRight className="w-4 h-4 text-white/40 shrink-0" />
         </Link>

@@ -1,9 +1,10 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { MapContainer, TileLayer, CircleMarker, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { HazardFacility, FacilityType } from '@/lib/hazard-facilities'
+import LeafletInvalidateOnLayout from '@/components/leaflet/LeafletInvalidateOnLayout'
 
 export interface NifcFire {
   id: string
@@ -104,22 +105,6 @@ export function hazardIcon(type: FacilityType) {
   })
 }
 
-function windArrowIcon(spreadDeg: number) {
-  // Arrow points in the fire spread direction (downwind)
-  const svg = encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="36" height="36">
-    <g transform="rotate(${spreadDeg}, 18, 18)">
-      <polygon points="18,4 24,22 18,18 12,22" fill="#f97316" stroke="#ea580c" stroke-width="1" stroke-linejoin="round"/>
-    </g>
-  </svg>`)
-  return L.divIcon({
-    html: `<img src="data:image/svg+xml,${svg}" width="36" height="36" style="display:block" />`,
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
-    popupAnchor: [0, -18],
-    className: '',
-  })
-}
-
 function WindCompass({ wind }: { wind: WindData }) {
   const needleRot = wind.directionDeg  // needle points where wind comes FROM
   return (
@@ -186,11 +171,11 @@ function watchedIcon() {
   })
 }
 
-function FlyToUser({ coords }: { coords: [number, number] | null }) {
+function FlyToUser({ coords, zoom }: { coords: [number, number] | null; zoom: number }) {
   const map = useMap()
   useEffect(() => {
-    if (coords && isFinite(coords[0]) && isFinite(coords[1])) map.flyTo(coords, 8, { duration: 1.2 })
-  }, [coords, map])
+    if (coords && isFinite(coords[0]) && isFinite(coords[1])) map.flyTo(coords, zoom, { duration: 1.2 })
+  }, [coords, map, zoom])
   return null
 }
 
@@ -221,7 +206,15 @@ function TileLayerSwitcher({ active, onChange }: { active: TileLayerType; onChan
   )
 }
 
-function MapLegend({ showShelters, showFacilities }: { showShelters: boolean; showFacilities: boolean }) {
+function MapLegend({
+  showShelters,
+  showFacilities,
+  showHomePin,
+}: {
+  showShelters: boolean
+  showFacilities: boolean
+  showHomePin: boolean
+}) {
   return (
     <div style={{
       position: 'absolute', bottom: 24, right: 10, zIndex: 1000,
@@ -251,6 +244,12 @@ function MapLegend({ showShelters, showFacilities }: { showShelters: boolean; sh
         <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#3b82f6', flexShrink: 0 }} />
         Your location
       </div>
+      {showHomePin && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#a855f7', flexShrink: 0 }} />
+          Home (saved address)
+        </div>
+      )}
       {showShelters && (
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -293,6 +292,11 @@ interface Props {
   nifc: NifcFire[]
   userLocation: [number, number] | null
   center: [number, number]
+  /** Zoom level when flying to GPS after location is granted (default 7 — regional / state-scale). */
+  flyToUserZoom?: number
+  /** Geocoded home from profile — shown when you’re away from home. */
+  homePosition?: [number, number] | null
+  showHomePin?: boolean
   shelters?: EvacShelter[]
   showShelters?: boolean
   watchedLocations?: WatchedLocation[]
@@ -305,6 +309,9 @@ export default function LeafletMap({
   nifc,
   userLocation,
   center,
+  flyToUserZoom = 7,
+  homePosition = null,
+  showHomePin = false,
   shelters = [],
   showShelters = false,
   watchedLocations = [],
@@ -313,24 +320,63 @@ export default function LeafletMap({
   windData = null,
 }: Props) {
   const [tileLayer, setTileLayer] = useState<TileLayerType>('street')
+  /** Unique per component instance so React never reuses a Leaflet container incorrectly. */
+  const mapInstanceKey = useMemo(
+    () =>
+      typeof globalThis.crypto !== 'undefined' && globalThis.crypto.randomUUID
+        ? globalThis.crypto.randomUUID()
+        : `leaflet-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    []
+  )
+  /** Mount map only after client hydration. */
+  const [mapReady, setMapReady] = useState(false)
+  useEffect(() => {
+    setMapReady(true)
+  }, [])
 
   // Filter out fully contained fires (100%)
-  const activeFires = nifc.filter(f => f.containment == null || f.containment < 100)
+  const activeFires = nifc
+    .filter(f => f.containment == null || f.containment < 100)
+    .filter(f => Number.isFinite(f.latitude) && Number.isFinite(f.longitude))
   const tl = TILE_LAYERS[tileLayer]
   // Guard against NaN/Infinity coords — Leaflet crashes hard if center is invalid
   const safeCenter: [number, number] = (isFinite(center[0]) && isFinite(center[1])) ? center : [37.5, -119.5]
 
+  if (!mapReady) {
+    return (
+      <div className="h-full w-full min-h-[200px] animate-pulse rounded-lg bg-gray-100" aria-hidden />
+    )
+  }
+
   return (
-    <div style={{ position: 'relative', height: '100%', width: '100%' }}>
-      <MapContainer center={safeCenter} zoom={5} style={{ height: '100%', width: '100%' }}>
+    <div className="relative h-full min-h-[220px] w-full min-w-0 sm:min-h-[280px]">
+      <MapContainer
+        key={mapInstanceKey}
+        center={safeCenter}
+        zoom={6}
+        className="z-0 h-full w-full min-h-[inherit]"
+        style={{ height: '100%', width: '100%', minHeight: 'inherit' }}
+        scrollWheelZoom
+      >
         <TileLayer attribution={tl.attribution} url={tl.url} />
-        <FlyToUser coords={userLocation} />
+        <LeafletInvalidateOnLayout />
+        <FlyToUser coords={userLocation} zoom={flyToUserZoom} />
 
-        {/* Tile layer switcher overlay */}
-        <TileLayerSwitcher active={tileLayer} onChange={setTileLayer} />
-
-        {/* Legend overlay */}
-        <MapLegend showShelters={showShelters} showFacilities={showFacilities} />
+        {/* Home address pin when you’re away from saved home */}
+        {showHomePin && homePosition && isFinite(homePosition[0]) && isFinite(homePosition[1]) && (
+          <CircleMarker
+            center={homePosition}
+            radius={7}
+            pathOptions={{ color: '#a855f7', fillColor: '#a855f7', fillOpacity: 0.95, weight: 2 }}
+          >
+            <Popup>
+              <div style={{ fontFamily: 'sans-serif', fontSize: 12 }}>
+                <strong>Home</strong>
+                <div style={{ color: '#6b7280', marginTop: 4 }}>Saved address</div>
+              </div>
+            </Popup>
+          </CircleMarker>
+        )}
 
         {/* User location pin */}
         {userLocation && (
@@ -422,17 +468,11 @@ export default function LeafletMap({
             </CircleMarker>
           )
         })}
-
-        {/* Wind spread arrows — one per active fire */}
-        {windData && activeFires.map((f) => (
-          <Marker
-            key={`wind-${f.id}`}
-            position={[f.latitude, f.longitude]}
-            icon={windArrowIcon(windData.spreadDeg)}
-            interactive={false}
-          />
-        ))}
       </MapContainer>
+
+      {/* UI overlays live outside MapContainer (react-leaflet layer tree); same absolute positioning as before */}
+      <TileLayerSwitcher active={tileLayer} onChange={setTileLayer} />
+      <MapLegend showShelters={showShelters} showFacilities={showFacilities} showHomePin={showHomePin} />
 
       {/* Wind compass overlay */}
       {windData && <WindCompass wind={windData} />}

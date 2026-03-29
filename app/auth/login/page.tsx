@@ -4,88 +4,44 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, ArrowLeft, ArrowRight, Check, ChevronDown } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { LANGUAGES } from '@/lib/languages'
-
-// ── Address autocomplete (Nominatim) ─────────────────────────────────────────
-interface NominatimResult { place_id: number; display_name: string }
-
-function AddressInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [suggestions, setSuggestions] = useState<NominatimResult[]>([])
-  const [showDrop, setShowDrop] = useState(false)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const wrapRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setShowDrop(false)
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
-
-  function handleChange(v: string) {
-    onChange(v)
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (v.length < 4) { setSuggestions([]); setShowDrop(false); return }
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(v)}&format=json&addressdetails=0&limit=5&countrycodes=us`,
-          { headers: { 'Accept-Language': 'en' } }
-        )
-        const data = await res.json()
-        setSuggestions(data)
-        setShowDrop(data.length > 0)
-      } catch { /* ignore */ }
-    }, 400)
-  }
-
-  return (
-    <div ref={wrapRef} className="relative">
-      <input
-        type="text"
-        className="input"
-        placeholder="123 Main St, City, CA"
-        value={value}
-        onChange={e => handleChange(e.target.value)}
-        onFocus={() => suggestions.length > 0 && setShowDrop(true)}
-        autoComplete="off"
-      />
-      {showDrop && (
-        <ul className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto text-sm">
-          {suggestions.map(s => (
-            <li
-              key={s.place_id}
-              className="px-3 py-2 hover:bg-gray-50 cursor-pointer text-gray-700 border-b border-gray-100 last:border-0"
-              onMouseDown={() => { onChange(s.display_name); setSuggestions([]); setShowDrop(false) }}
-            >
-              {s.display_name}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
+import AddressAutocomplete, { looksLikeUsStreetAddress } from '@/components/AddressAutocomplete'
 
 // ── Onboarding state ──────────────────────────────────────────────────────────
 interface OnboardingData {
   fullName: string
   phone: string
   address: string
-  role: 'caregiver' | 'emergency_responder' | 'data_analyst'
+  role: 'evacuee' | 'emergency_responder' | 'data_analyst'
   inviteCode: string
   language: string
   emergencyContactName: string
   emergencyContactPhone: string
   communicationNeeds: string[]
+  /** Stored as mobility_access_needs / mobility_access_other on profiles */
+  mobilityAccessNeeds: string[]
+  mobilityAccessOther: string
 }
 
 const COMM_OPTIONS = ['Screen reader', 'Large text', 'Translation needed', 'Deaf / hard of hearing', 'Limited English']
 
+const MOBILITY_ACCESS_OPTIONS: { key: string; label: string }[] = [
+  { key: 'wheelchair_user', label: 'Wheelchair user' },
+  { key: 'disabilities', label: 'Disabilities' },
+  { key: 'medical_conditions', label: 'Medical conditions or equipment' },
+  { key: 'other', label: 'Other' },
+]
+
+/** Basic format check so random text cannot advance past signup step 0. */
+function isValidEmailFormat(s: string): boolean {
+  const t = s.trim()
+  if (!t) return false
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(t)
+}
+
 const ROLE_INFO = {
-  caregiver: {
-    label: 'Caregiver / Evacuee',
-    desc: 'Monitor wildfires, plan evacuations, and keep your people safe.',
+  evacuee: {
+    label: 'Evacuee',
+    desc: 'Add people under My People to track safety and get location alerts — everyone creates their own account. Your home address powers maps and Flameo for your household.',
     restricted: false,
   },
   emergency_responder: {
@@ -122,13 +78,16 @@ function LoginForm() {
   const [onboardingStep, setOnboardingStep] = useState(0) // 0 = credentials, 1-3 = steps, 4 = done
   const [ob, setOb] = useState<OnboardingData>({
     fullName: '', phone: '', address: '',
-    role: 'caregiver', inviteCode: '',
+    role: 'evacuee', inviteCode: '',
     language: 'en',
     emergencyContactName: '', emergencyContactPhone: '',
     communicationNeeds: [],
+    mobilityAccessNeeds: [],
+    mobilityAccessOther: '',
   })
   const [codeLoading, setCodeLoading] = useState(false)
   const [codeError, setCodeError] = useState('')
+  const [emailFormatError, setEmailFormatError] = useState('')
   const [emailTaken, setEmailTaken] = useState(false)
   const [langSearch, setLangSearch] = useState('')
   const [showLangDrop, setShowLangDrop] = useState(false)
@@ -143,6 +102,17 @@ function LoginForm() {
   }, [])
 
   const errorParam = searchParams.get('error')
+
+  /** Deep link e.g. /auth/login?mode=signup&role=emergency_responder — align signup role with invite */
+  const roleFromUrlApplied = useRef(false)
+  useEffect(() => {
+    if (roleFromUrlApplied.current) return
+    const r = searchParams.get('role')
+    if (r === 'evacuee' || r === 'emergency_responder' || r === 'data_analyst') {
+      setOb(prev => ({ ...prev, role: r }))
+      roleFromUrlApplied.current = true
+    }
+  }, [searchParams])
 
   const filteredLangs = LANGUAGES.filter(l =>
     l.name.toLowerCase().includes(langSearch.toLowerCase()) ||
@@ -164,6 +134,18 @@ function LoginForm() {
     }))
   }
 
+  function toggleMobility(key: string) {
+    setOb(prev => {
+      const next = prev.mobilityAccessNeeds.includes(key)
+        ? prev.mobilityAccessNeeds.filter(k => k !== key)
+        : [...prev.mobilityAccessNeeds, key]
+      if (key === 'other' && next.includes('other') === false) {
+        return { ...prev, mobilityAccessNeeds: next, mobilityAccessOther: '' }
+      }
+      return { ...prev, mobilityAccessNeeds: next }
+    })
+  }
+
   const handleGoogleLogin = async () => {
     setGoogleLoading(true)
     setError('')
@@ -177,15 +159,27 @@ function LoginForm() {
   // Step 0 → 1: validate credentials, move to onboarding
   async function handleCredentialsNext() {
     if (!email || !password) return
+    setEmailFormatError('')
+    if (!isValidEmailFormat(email)) {
+      setEmailFormatError('Invalid email format. Please enter a real email address (for example you@example.com).')
+      return
+    }
     if (password.length < 6) { setError('Password must be at least 6 characters.'); return }
     setError('')
     setOnboardingStep(1)
   }
 
-  // Step 1 validation
-  function step1Valid() { return ob.fullName.trim().length > 0 }
+  /** Step 2 (profile): home address required for family members — powers automation to safety. */
+  function profileStepValid() {
+    if (!ob.fullName.trim()) return false
+    if (ob.role === 'evacuee') {
+      const a = ob.address.trim()
+      if (a.length < 8 || !looksLikeUsStreetAddress(a)) return false
+    }
+    return true
+  }
 
-  // Step 2 validation (role + invite code if restricted)
+  // Step 1 validation (role + invite code if restricted)
   async function validateStep2(): Promise<boolean> {
     if (!ROLE_INFO[ob.role].restricted) return true
     if (!ob.inviteCode.trim()) { setCodeError('Enter your invite code.'); return false }
@@ -198,7 +192,13 @@ function LoginForm() {
         body: JSON.stringify({ code: ob.inviteCode.trim(), email, role: ob.role }),
       })
       const data = await res.json()
-      if (!res.ok) { setCodeError(data.error || 'Invalid code.'); return false }
+      if (!res.ok) {
+        const msg = [data.error, typeof data.hint === 'string' ? data.hint : '']
+          .filter(Boolean)
+          .join(' ')
+        setCodeError(msg || 'Invalid code.')
+        return false
+      }
       if (data.role !== ob.role) {
         setCodeError(`This code is for ${data.role.replace('_', ' ')}, not ${ob.role.replace('_', ' ')}.`)
         return false
@@ -214,11 +214,15 @@ function LoginForm() {
 
   async function handleNext() {
     if (onboardingStep === 1) {
-      if (!step1Valid()) return
-      setOnboardingStep(2)
-    } else if (onboardingStep === 2) {
       const ok = await validateStep2()
-      if (ok) setOnboardingStep(3)
+      if (ok) setOnboardingStep(2)
+    } else if (onboardingStep === 2) {
+      if (!profileStepValid()) {
+        setError('Add a full street address with a number (not a city or county alone) to enable safety automations.')
+        return
+      }
+      setError('')
+      setOnboardingStep(3)
     } else if (onboardingStep === 3) {
       await handleSignup()
     }
@@ -237,6 +241,8 @@ function LoginForm() {
 
       // Save profile data immediately (works before email confirmation)
       if (data.user) {
+        const mobilityNeeds = ob.mobilityAccessNeeds.filter(k => k !== 'other')
+        if (ob.mobilityAccessNeeds.includes('other')) mobilityNeeds.push('other')
         const profilePayload: Record<string, unknown> = {
           full_name: ob.fullName.trim(),
           phone: ob.phone.trim(),
@@ -245,6 +251,11 @@ function LoginForm() {
           roles: [ob.role],
           language_preference: ob.language,
           communication_needs: ob.communicationNeeds,
+          mobility_access_needs: mobilityNeeds,
+          mobility_access_other:
+            ob.mobilityAccessNeeds.includes('other') && ob.mobilityAccessOther.trim()
+              ? ob.mobilityAccessOther.trim()
+              : null,
           ...(ob.emergencyContactName && { emergency_contact_name: ob.emergencyContactName.trim() }),
           ...(ob.emergencyContactPhone && { emergency_contact_phone: ob.emergencyContactPhone.trim() }),
         }
@@ -277,6 +288,11 @@ function LoginForm() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
+      const next = searchParams.get('next')
+      if (next && next.startsWith('/') && !next.startsWith('//')) {
+        window.location.href = next
+        return
+      }
       window.location.href = '/dashboard'
     } catch (err: any) {
       setError(err.message)
@@ -326,15 +342,15 @@ function LoginForm() {
             <>
               <h2 className="font-display font-bold text-white leading-tight mb-4" style={{ fontSize: 'clamp(2rem, 3.5vw, 2.75rem)' }}>
                 {onboardingStep === 0 && <>Wildfire alerts<br/>when it matters most.</>}
-                {onboardingStep === 1 && <>Tell us about<br/>yourself.</>}
-                {onboardingStep === 2 && <>How will you<br/>use this?</>}
+                {onboardingStep === 1 && <>Caregiver or<br/>evacuee?</>}
+                {onboardingStep === 2 && <>Your home<br/>on the map.</>}
                 {onboardingStep === 3 && <>Almost done.</>}
-                {onboardingStep === 4 && <>You're all set.</>}
+                {onboardingStep === 4 && <>You&apos;re all set.</>}
               </h2>
               <p className="text-green-200/70 text-base leading-relaxed mb-10">
-                {onboardingStep === 0 && 'Get personalized evacuation alerts, plan safe routes, and protect the people in your care before the fire reaches you.'}
-                {onboardingStep === 1 && 'This helps us pre-fill your emergency profile so you\'re ready to act when every minute counts.'}
-                {onboardingStep === 2 && 'Your role determines which tools and dashboards you\'ll see. You can always add more roles later.'}
+                {onboardingStep === 0 && 'Get personalized evacuation intelligence, plan safe routes, and automate distance-to-fire awareness for the people in your care.'}
+                {onboardingStep === 1 && 'Choose Caregiver to coordinate others, or Evacuee for your own household. Both paths use home-address automation to safety — not city- or county-level guesses.'}
+                {onboardingStep === 2 && 'Enter a numbered street address. Our search filters out cities and counties so alerts and Flameo stay tied to a real location.'}
                 {onboardingStep === 3 && 'Set your language and emergency contact so we can reach the right people the right way.'}
                 {onboardingStep === 4 && 'Check your inbox to confirm your email, then sign in to access your dashboard.'}
               </p>
@@ -431,7 +447,7 @@ function LoginForm() {
 
                 <p className="text-center text-gray-500 text-sm mt-6">
                   Don't have an account?{' '}
-                  <button onClick={() => { setMode('signup'); setError(''); setEmailTaken(false); setOnboardingStep(0) }}
+                  <button onClick={() => { setMode('signup'); setError(''); setEmailFormatError(''); setEmailTaken(false); setOnboardingStep(0) }}
                     className="text-forest-600 hover:text-forest-700 transition-colors font-medium">
                     Sign up free
                   </button>
@@ -442,8 +458,7 @@ function LoginForm() {
             {/* ── SIGNUP — Step 0: Credentials ── */}
             {mode === 'signup' && onboardingStep === 0 && (
               <>
-                <h2 className="font-display text-2xl font-bold text-gray-900 mb-1 text-center">Create your account</h2>
-                <p className="text-gray-500 text-sm mb-6 text-center">Free to use. No credit card required.</p>
+                <h2 className="font-display text-2xl font-bold text-gray-900 mb-6 text-center">Create your account</h2>
 
                 <button onClick={handleGoogleLogin} disabled={googleLoading}
                   className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-gray-900 font-medium px-4 py-3 rounded-lg transition-all duration-200 mb-6 disabled:opacity-50 border border-gray-200 shadow-sm">
@@ -465,9 +480,26 @@ function LoginForm() {
 
                 <div className="space-y-4 mb-4">
                   <div>
-                    <label className="label">Email address</label>
-                    <input type="email" className="input" placeholder="you@example.com"
-                      value={email} onChange={e => setEmail(e.target.value)} />
+                    <label className="label" htmlFor="signup-email">Email address</label>
+                    <input
+                      id="signup-email"
+                      type="email"
+                      autoComplete="email"
+                      aria-invalid={emailFormatError ? true : undefined}
+                      aria-describedby={emailFormatError ? 'signup-email-error' : undefined}
+                      className={`input ${emailFormatError ? 'border-red-400 ring-1 ring-red-200 focus:border-red-500 focus:ring-red-200' : ''}`}
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={e => {
+                        setEmail(e.target.value)
+                        setEmailFormatError('')
+                      }}
+                    />
+                    {emailFormatError && (
+                      <p id="signup-email-error" className="mt-1.5 text-sm text-red-600" role="alert">
+                        {emailFormatError}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="label">Password</label>
@@ -505,7 +537,7 @@ function LoginForm() {
 
                 <p className="text-center text-gray-500 text-sm mt-6">
                   Already have an account?{' '}
-                  <button onClick={() => { setMode('login'); setError('') }}
+                  <button onClick={() => { setMode('login'); setError(''); setEmailFormatError('') }}
                     className="text-forest-600 hover:text-forest-700 transition-colors font-medium">
                     Sign in
                   </button>
@@ -513,7 +545,7 @@ function LoginForm() {
               </>
             )}
 
-            {/* ── SIGNUP — Step 1: Basic Info ── */}
+            {/* ── SIGNUP — Step 1: Role ── */}
             {mode === 'signup' && onboardingStep === 1 && (
               <>
                 <div className="flex items-center gap-3 mb-6">
@@ -521,48 +553,14 @@ function LoginForm() {
                     <ArrowLeft className="w-5 h-5" />
                   </button>
                   <div>
-                    <h2 className="font-display text-xl font-bold text-gray-900">About you</h2>
+                    <h2 className="font-display text-xl font-bold text-gray-900">How you&apos;ll use the app</h2>
                     <p className="text-gray-400 text-xs">Step 1 of 3</p>
                   </div>
                 </div>
 
-                <div className="space-y-4 mb-6">
-                  <div>
-                    <label className="label">Full name <span className="text-red-400">*</span></label>
-                    <input type="text" className="input" placeholder="Jane Smith"
-                      value={ob.fullName} onChange={e => obSet('fullName', e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="label">Phone number <span className="text-gray-400 font-normal">(optional)</span></label>
-                    <input type="tel" className="input" placeholder="+1 (555) 000-0000"
-                      value={ob.phone} onChange={e => obSet('phone', e.target.value)} />
-                  </div>
-                  <div>
-                    <label className="label">Home address <span className="text-gray-400 font-normal">(optional)</span></label>
-                    <AddressInput value={ob.address} onChange={v => obSet('address', v)} />
-                    <p className="text-xs text-gray-400 mt-1">Used to monitor nearby fires and pre-fill your emergency profile.</p>
-                  </div>
-                </div>
-
-                <button onClick={handleNext} disabled={!step1Valid()}
-                  className="btn-primary w-full flex items-center justify-center gap-2">
-                  Continue <ArrowRight className="w-4 h-4" />
-                </button>
-              </>
-            )}
-
-            {/* ── SIGNUP — Step 2: Role ── */}
-            {mode === 'signup' && onboardingStep === 2 && (
-              <>
-                <div className="flex items-center gap-3 mb-6">
-                  <button onClick={() => setOnboardingStep(1)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                    <ArrowLeft className="w-5 h-5" />
-                  </button>
-                  <div>
-                    <h2 className="font-display text-xl font-bold text-gray-900">Your role</h2>
-                    <p className="text-gray-400 text-xs">Step 2 of 3</p>
-                  </div>
-                </div>
+                <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+                  <strong className="text-gray-800">Evacuees</strong> use a real home street address to automate distance alerts, maps, and notifications — and you can add people under My People to watch out for family or others you support.
+                </p>
 
                 <div className="space-y-3 mb-6">
                   {(Object.entries(ROLE_INFO) as [keyof typeof ROLE_INFO, typeof ROLE_INFO[keyof typeof ROLE_INFO]][]).map(([key, info]) => (
@@ -604,11 +602,69 @@ function LoginForm() {
               </>
             )}
 
+            {/* ── SIGNUP — Step 2: Profile + street address ── */}
+            {mode === 'signup' && onboardingStep === 2 && (
+              <>
+                <div className="flex items-center gap-3 mb-6">
+                  <button onClick={() => { setOnboardingStep(1); setError('') }} className="text-gray-400 hover:text-gray-600 transition-colors">
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+                  <div>
+                    <h2 className="font-display text-xl font-bold text-gray-900">About you</h2>
+                    <p className="text-gray-400 text-xs">Step 2 of 3</p>
+                  </div>
+                </div>
+
+                <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+                  {ob.role === 'evacuee' && (
+                    <>Your <strong>home street address</strong> anchors maps, Flameo, and alerts for your household — and lets you add people to your dashboard for shared status and notifications.</>
+                  )}
+                  {(ob.role === 'emergency_responder' || ob.role === 'data_analyst') && (
+                    <>Optional contact details for your account. No home-address automation on this path.</>
+                  )}
+                </p>
+
+                <div className="space-y-4 mb-6">
+                  <div>
+                    <label className="label">Full name <span className="text-red-400">*</span></label>
+                    <input type="text" className="input" placeholder="Jane Smith"
+                      value={ob.fullName} onChange={e => obSet('fullName', e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="label">Phone number <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input type="tel" className="input" placeholder="+1 (555) 000-0000"
+                      value={ob.phone} onChange={e => obSet('phone', e.target.value)} />
+                  </div>
+                  {ob.role === 'evacuee' && (
+                    <div>
+                      <label className="label">Home address <span className="text-red-400">*</span></label>
+                      <AddressAutocomplete
+                        value={ob.address}
+                        onChange={v => { obSet('address', v); setError('') }}
+                        variant="light"
+                        placeholder="123 Main Street, City, ST 12345"
+                        required
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {error && onboardingStep === 2 && (
+                  <div className="text-sm px-4 py-3 rounded-lg mb-4 bg-red-50 text-red-600 border border-red-200">{error}</div>
+                )}
+
+                <button onClick={handleNext}
+                  className="btn-primary w-full flex items-center justify-center gap-2">
+                  Continue <ArrowRight className="w-4 h-4" />
+                </button>
+              </>
+            )}
+
             {/* ── SIGNUP — Step 3: Preferences + Emergency Contact ── */}
             {mode === 'signup' && onboardingStep === 3 && (
               <>
                 <div className="flex items-center gap-3 mb-6">
-                  <button onClick={() => setOnboardingStep(2)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                  <button onClick={() => { setOnboardingStep(2); setError('') }} className="text-gray-400 hover:text-gray-600 transition-colors">
                     <ArrowLeft className="w-5 h-5" />
                   </button>
                   <div>
@@ -664,6 +720,44 @@ function LoginForm() {
                       ))}
                     </div>
                   </div>
+
+                  {ob.role === 'evacuee' && (
+                    <div>
+                      <label className="label">
+                        Mobility, access &amp; health <span className="text-gray-400 font-normal">(optional)</span>
+                      </label>
+                      <p className="text-xs text-gray-500 mb-2">
+                        Helps responders and family understand what might affect evacuation or check-ins.
+                      </p>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {MOBILITY_ACCESS_OPTIONS.map(({ key, label }) => (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => toggleMobility(key)}
+                            className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                              ob.mobilityAccessNeeds.includes(key)
+                                ? 'border-forest-600 bg-forest-50 text-forest-700'
+                                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      {ob.mobilityAccessNeeds.includes('other') && (
+                        <label className="block mt-3">
+                          <span className="label text-sm">Describe your situation</span>
+                          <textarea
+                            className="input mt-1 min-h-[88px] resize-y"
+                            placeholder="Anything unique we should know (optional)"
+                            value={ob.mobilityAccessOther}
+                            onChange={e => obSet('mobilityAccessOther', e.target.value)}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  )}
 
                   {/* Emergency contact */}
                   <div>
