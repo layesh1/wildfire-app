@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, CircleMarker, Circle, Popup, useMap } from 'react-leaflet'
+import LeafletInvalidateOnLayout from '@/components/leaflet/LeafletInvalidateOnLayout'
 import 'leaflet/dist/leaflet.css'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -239,8 +240,10 @@ export default function PredictionMap({ fires, center = [38, -100] }: Props) {
     <MapContainer
       center={center}
       zoom={fires.length > 0 ? 5 : 4}
+      className="h-full w-full min-w-0 z-0"
       style={{ height: '100%', width: '100%' }}
     >
+      <LeafletInvalidateOnLayout />
       <MapInner fires={fires} />
     </MapContainer>
   )

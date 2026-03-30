@@ -6,11 +6,17 @@ import { createClient } from '@/lib/supabase'
 
 const PROTECTED_ROLES = ['data_analyst', 'emergency_responder']
 
+const CONSUMER_ROLES = new Set(['caregiver', 'evacuee'])
+
+function normalizeConsumerRole(r: string): string {
+  return r === 'caregiver' ? 'evacuee' : r
+}
+
 const ROLE_DESTINATIONS: Record<string, string> = {
   emergency_responder: '/dashboard/responder',
   data_analyst: '/dashboard/analyst',
-  caregiver: '/dashboard/caregiver',
-  evacuee: '/dashboard/caregiver',
+  caregiver: '/dashboard/home',
+  evacuee: '/dashboard/home',
 }
 
 function PostLoginRedirect() {
@@ -27,7 +33,7 @@ function PostLoginRedirect() {
       // Fallback: ?role= query param (set by callback, works for email confirmations)
       const stored = typeof window !== 'undefined' ? localStorage.getItem('wfa_pending_role') : null
       const queryRole = searchParams.get('role')
-      const intendedRole = stored || queryRole || 'caregiver'
+      const intendedRole = normalizeConsumerRole(stored || queryRole || 'evacuee')
       if (stored) localStorage.removeItem('wfa_pending_role')
 
       // Fetch current profile
@@ -37,11 +43,14 @@ function PostLoginRedirect() {
         .eq('id', user.id)
         .single()
 
-      const existingRoles: string[] = Array.isArray(profile?.roles) && profile.roles.length
+      const existingRolesRaw: string[] = Array.isArray(profile?.roles) && profile.roles.length
         ? profile.roles
         : profile?.role ? [profile.role] : []
+      const existingRoles = [...new Set(existingRolesRaw.map(normalizeConsumerRole))]
 
-      const alreadyHasRole = existingRoles.includes(intendedRole)
+      const alreadyHasRole =
+        existingRoles.includes(intendedRole) ||
+        (intendedRole === 'evacuee' && existingRolesRaw.some(r => CONSUMER_ROLES.has(r)))
 
       if (alreadyHasRole) {
         // Just switch active role

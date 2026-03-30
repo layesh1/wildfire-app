@@ -1,6 +1,11 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import { Activity, Send, AlertTriangle } from 'lucide-react'
+import { Send, AlertTriangle, Flame } from 'lucide-react'
+import { FlameoActionChips, type Chip } from '@/components/flameo/FlameoActionChips'
+import { commandIntelActionsToChips, partitionAiActions } from '@/lib/flameo-phase-c-client'
+import { useFlameoContext } from '@/hooks/useFlameoContext'
+import { useFlameoHubAgentBridge } from '@/components/FlameoHubAgentBridge'
+import { flameoGroundingBadgeText } from '@/lib/flameo-grounding-ui'
 
 function renderMarkdown(text: string) {
   const lines = text.split('\n')
@@ -43,21 +48,33 @@ function inlineMarkdown(text: string): React.ReactNode {
   })
 }
 
-interface Message { role: 'user' | 'assistant'; content: string }
+interface Message { role: 'user' | 'assistant'; content: string; chips?: Chip[] }
 
 const STARTERS = [
   'What mutual aid resources are available near current high-risk incidents?',
-  'Run a Critical Task Analysis for a 50,000+ acre fire in a high-SVI county',
-  'Which counties have the worst signal gaps and need the most mutual aid?',
-  'What FEMA resource categories should I prioritize for a rural high-SVI fire?',
-  'Summarize evacuation order delays by state and which populations are most at risk',
-  'What does high SVI mean for resource deployment and press briefing priorities?',
+  'Summarize evacuation coverage gaps for my jurisdiction based on verified perimeter data',
+  'Which priority zones need engines based on active incidents in context?',
+  'What resource categories should we pre-stage for rural high-SVI fires?',
+  'Give a concise operational briefing from the current fire context',
 ]
 
-export default function CommandIntelPage() {
+export default function ResponderFlameoAiPage() {
+  const flameo = useFlameoContext({ role: 'emergency_responder' })
+  const { setPayload: setFlameoHubAgentPayload } = useFlameoHubAgentBridge()
+
+  useEffect(() => {
+    setFlameoHubAgentPayload({
+      context: flameo.context,
+      status: flameo.status,
+      flameoRole: 'responder',
+    })
+  }, [flameo.context, flameo.status, setFlameoHubAgentPayload])
+
+  const badgeLine = flameoGroundingBadgeText(flameo.context, flameo.status)
+
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
-    content: "**COMMAND-INTEL online.** I have access to the WiDS wildfire dataset covering 62,696 records (50,664 true wildfires; 11,115 prescribed burns excluded), signal gap analysis by state and county, SVI vulnerability scores, and ML spread predictions.\n\nHow can I assist your incident command?",
+    content: "**Flameo (field intel) online.** I use verified fire perimeter and incident data from your hub context. Ask for operational briefings, coverage gaps, or priority zones — I'll stay within confirmed data.\n\nHow can I assist?",
   }])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -76,10 +93,24 @@ export default function CommandIntelPage() {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: next, persona: 'COMMAND-INTEL' }),
+        body: JSON.stringify({
+          messages: next,
+          persona: 'FLAMEO',
+          flameoRole: 'responder',
+          ...(flameo.context ? { flameoContext: flameo.context } : {}),
+        }),
       })
       const data = await res.json()
-      setMessages(m => [...m, { role: 'assistant', content: data.content ?? data.error ?? 'No response.' }])
+      let chips: Chip[] | undefined
+      if (res.ok && Array.isArray(data.actions) && data.actions.length > 0) {
+        const { intel } = partitionAiActions(data.actions)
+        chips = commandIntelActionsToChips(intel)
+        if (chips.length === 0) chips = undefined
+      }
+      setMessages(m => [
+        ...m,
+        { role: 'assistant', content: data.content ?? data.error ?? 'No response.', chips },
+      ])
     } catch {
       setMessages(m => [...m, { role: 'assistant', content: 'Connection error. Please try again.' }])
     }
@@ -87,54 +118,63 @@ export default function CommandIntelPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-0px)]">
-      {/* Header */}
-      <div className="px-8 py-5 border-b border-ash-800 flex items-center gap-3 shrink-0">
-        <div className="w-9 h-9 rounded-xl bg-signal-info/20 border border-signal-info/30 flex items-center justify-center">
-          <Activity className="w-5 h-5 text-signal-info" />
+    <div className="flex flex-col flex-1 min-h-0 w-full md:min-h-[calc(100dvh-5.5rem)]">
+      <div className="px-4 sm:px-8 py-4 sm:py-5 border-b border-ash-800 flex items-center gap-3 shrink-0">
+        <div className="w-9 h-9 rounded-xl bg-ember-500/20 border border-ember-500/30 flex items-center justify-center">
+          <Flame className="w-5 h-5 text-ember-400" />
         </div>
-        <div>
-          <div className="font-display text-lg font-bold text-white">COMMAND-INTEL</div>
-          <div className="text-ash-500 text-xs">AI-powered incident intelligence for emergency responders</div>
+        <div className="min-w-0 flex-1">
+          <div className="font-display text-lg font-bold text-white">Flameo · Field intelligence</div>
+          <div className="text-ash-500 text-xs">Operational briefings for emergency responders</div>
+          {badgeLine && (
+            <div className="text-[11px] text-ash-500 mt-1 leading-tight">{badgeLine}</div>
+          )}
         </div>
-        <div className="ml-auto flex items-center gap-2 px-3 py-1.5 rounded-lg bg-signal-safe/10 border border-signal-safe/30">
+        <div className="ml-auto flex items-center gap-2 px-3 py-1.5 rounded-lg bg-signal-safe/10 border border-signal-safe/30 shrink-0">
           <div className="w-2 h-2 rounded-full bg-signal-safe animate-pulse" />
           <span className="text-signal-safe text-xs font-medium">Online</span>
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-8 py-6 space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-8 py-4 sm:py-6 space-y-4">
         {messages.map((m, i) => (
           <div key={i} className={`flex gap-3 ${m.role === 'user' ? 'justify-end' : ''}`}>
             {m.role === 'assistant' && (
-              <div className="w-8 h-8 rounded-lg bg-signal-info/20 border border-signal-info/30 flex items-center justify-center shrink-0 mt-0.5">
-                <Activity className="w-4 h-4 text-signal-info" />
+              <div className="w-8 h-8 rounded-lg bg-ember-500/20 border border-ember-500/30 flex items-center justify-center shrink-0 mt-0.5">
+                <Flame className="w-4 h-4 text-ember-400" />
               </div>
             )}
-            <div className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-              m.role === 'user' ? 'bg-ember-500/20 border border-ember-500/30 text-white rounded-tr-sm' : 'bg-ash-800 border border-ash-700 text-ash-200 rounded-tl-sm'
-            }`}>
-              {m.role === 'assistant' ? renderMarkdown(m.content) : m.content}
+            <div className="max-w-[min(100%,28rem)]">
+              <div
+                className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                  m.role === 'user'
+                    ? 'bg-ember-500/20 border border-ember-500/30 text-white rounded-tr-sm'
+                    : 'bg-ash-800 border border-ash-700 text-ash-200 rounded-tl-sm'
+                }`}
+              >
+                {m.role === 'assistant' ? renderMarkdown(m.content) : m.content}
+              </div>
+              {m.role === 'assistant' && m.chips && m.chips.length > 0 && (
+                <FlameoActionChips chips={m.chips} variant="dark" />
+              )}
             </div>
           </div>
         ))}
         {loading && (
           <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-lg bg-signal-info/20 border border-signal-info/30 flex items-center justify-center shrink-0">
-              <Activity className="w-4 h-4 text-signal-info" />
+            <div className="w-8 h-8 rounded-lg bg-ember-500/20 border border-ember-500/30 flex items-center justify-center shrink-0">
+              <Flame className="w-4 h-4 text-ember-400" />
             </div>
             <div className="bg-ash-800 border border-ash-700 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1.5">
-              {[0,1,2].map(i => <div key={i} className="w-2 h-2 rounded-full bg-ash-500 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}
+              {[0, 1, 2].map(i => <div key={i} className="w-2 h-2 rounded-full bg-ash-500 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}
             </div>
           </div>
         )}
         <div ref={bottomRef} />
       </div>
 
-      {/* Starters */}
       {messages.length === 1 && (
-        <div className="px-8 pb-4 flex flex-wrap gap-2">
+        <div className="px-4 sm:px-8 pb-4 flex flex-wrap gap-2">
           {STARTERS.map(s => (
             <button key={s} onClick={() => send(s)}
               className="px-3 py-2 rounded-lg text-xs border border-ash-700 text-ash-400 hover:text-white hover:border-ash-500 hover:bg-ash-800 transition-all text-left">
@@ -144,12 +184,11 @@ export default function CommandIntelPage() {
         </div>
       )}
 
-      {/* Input */}
-      <div className="px-8 py-4 border-t border-ash-800 shrink-0">
+      <div className="px-4 sm:px-8 py-4 border-t border-ash-800 shrink-0">
         <div className="flex gap-3 max-w-3xl mx-auto">
           <input
-            className="flex-1 bg-ash-800 border border-ash-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-signal-info/60 placeholder:text-ash-500"
-            placeholder="Ask about fire incidents, signal gaps, evacuation patterns…"
+            className="flex-1 bg-ash-800 border border-ash-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-ember-500/60 placeholder:text-ash-500"
+            placeholder="Ask for an operational briefing from verified incident data…"
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), send())}
@@ -157,7 +196,7 @@ export default function CommandIntelPage() {
             autoComplete="off"
           />
           <button onClick={() => send()} disabled={!input.trim() || loading}
-            className="w-11 h-11 flex items-center justify-center rounded-xl bg-signal-info/20 border border-signal-info/40 text-signal-info hover:bg-signal-info/30 transition-colors disabled:opacity-40">
+            className="w-11 h-11 flex items-center justify-center rounded-xl bg-ember-500/20 border border-ember-500/40 text-ember-300 hover:bg-ember-500/30 transition-colors disabled:opacity-40">
             <Send className="w-4 h-4" />
           </button>
         </div>

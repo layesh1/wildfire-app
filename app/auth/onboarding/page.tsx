@@ -1,81 +1,29 @@
 'use client'
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Flame, Heart, Shield, BarChart3, ArrowRight, ArrowLeft, Check } from 'lucide-react'
+import { Flame, Heart, Shield, BarChart3, ArrowRight, ArrowLeft, Check, Home } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
-
-// ── Address autocomplete (Nominatim / OpenStreetMap, no API key) ────────────
-interface NominatimResult { place_id: number; display_name: string }
-
-function AddressInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
-  const [suggestions, setSuggestions] = useState<NominatimResult[]>([])
-  const [showDrop, setShowDrop] = useState(false)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const wrapRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setShowDrop(false)
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
-
-  function handleChange(v: string) {
-    onChange(v)
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (v.length < 4) { setSuggestions([]); setShowDrop(false); return }
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(v)}&format=json&addressdetails=0&limit=5&countrycodes=us`,
-          { headers: { 'Accept-Language': 'en' } }
-        )
-        const data: NominatimResult[] = await res.json()
-        setSuggestions(data)
-        setShowDrop(data.length > 0)
-      } catch { setSuggestions([]) }
-    }, 400)
-  }
-
-  return (
-    <div ref={wrapRef} className="relative">
-      <input
-        type="text"
-        value={value}
-        onChange={e => handleChange(e.target.value)}
-        onFocus={() => suggestions.length > 0 && setShowDrop(true)}
-        placeholder={placeholder}
-        className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
-      />
-      {showDrop && (
-        <ul className="absolute z-50 top-full mt-1 left-0 right-0 bg-ash-800 border border-ash-700 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
-          {suggestions.map(s => (
-            <li key={s.place_id}>
-              <button
-                type="button"
-                className="w-full text-left px-3 py-2.5 text-sm text-ash-200 hover:bg-ash-700 hover:text-white transition-colors truncate"
-                onMouseDown={() => { onChange(s.display_name); setSuggestions([]); setShowDrop(false) }}
-              >
-                {s.display_name}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
+import AddressVerifySave from '@/components/AddressVerifySave'
+import { looksLikeUsStreetAddress } from '@/components/AddressAutocomplete'
 
 const ROLES = [
   {
     id: 'caregiver',
-    label: 'Caregiver / Family',
-    desc: 'I want to monitor fires, set up alerts, and keep track of people I care for during evacuations.',
+    label: 'Caregiver',
+    desc: 'Automate alerts and maps for people you support — anchored to real home addresses.',
     icon: Heart,
     color: 'text-amber-400',
     border: 'border-amber-500/40 bg-amber-500/5',
     activeBorder: 'border-amber-400 bg-amber-500/10',
+  },
+  {
+    id: 'evacuee',
+    label: 'Evacuee',
+    desc: 'Personal safety automation: fire distance, shelters, and check-ins from your actual address.',
+    icon: Home,
+    color: 'text-green-400',
+    border: 'border-green-500/40 bg-green-500/5',
+    activeBorder: 'border-green-400 bg-green-500/10',
   },
   {
     id: 'emergency_responder',
@@ -103,6 +51,7 @@ const ROLE_DESTINATIONS: Record<string, string> = {
   emergency_responder: '/dashboard/responder',
   data_analyst: '/dashboard/analyst',
   caregiver: '/dashboard/caregiver',
+  evacuee: '/dashboard/evacuee',
 }
 
 const MOBILITY_OPTIONS = ['Mobile Adult', 'Elderly', 'Elderly (needs driver)', 'Disabled', 'Wheelchair', 'No Vehicle', 'Medical Equipment', 'Other']
@@ -133,7 +82,10 @@ function OnboardingInner() {
   // Step 2 fields
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
+  /** Draft text in the address field (typing / autocomplete display). */
   const [address, setAddress] = useState('')
+  /** Set only after successful "Verify & Save" (geocode + profiles.address write). */
+  const [verifiedHomeAddress, setVerifiedHomeAddress] = useState<string | null>(null)
   const [bloodType, setBloodType] = useState('')
   const [allergies, setAllergies] = useState('')
   const [notifEmail, setNotifEmail] = useState('')
@@ -152,7 +104,8 @@ function OnboardingInner() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const totalSteps = selectedRole === 'caregiver' ? 3 : 2
+  const isConsumerHomeRole = selectedRole === 'caregiver' || selectedRole === 'evacuee'
+  const totalSteps = isConsumerHomeRole ? 3 : 2
 
   useEffect(() => {
     const supabase = createClient()
@@ -170,6 +123,15 @@ function OnboardingInner() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setError('Not signed in'); setSaving(false); return }
 
+    if (isConsumerHomeRole) {
+      const line = verifiedHomeAddress?.trim() || ''
+      if (!line || !looksLikeUsStreetAddress(line)) {
+        setError('Verify and save your home address using the button below (search, pick a street, then Verify & Save).')
+        setSaving(false)
+        return
+      }
+    }
+
     const resolvedMobility = mobility === 'Other' && mobilityOther.trim() ? mobilityOther.trim() : mobility
 
     const basePayload: Record<string, unknown> = {
@@ -181,10 +143,10 @@ function OnboardingInner() {
       notification_email: notifEmail || null,
     }
 
-    if (selectedRole === 'caregiver') {
+    if (isConsumerHomeRole) {
       Object.assign(basePayload, {
         phone: phone || null,
-        address: address || null,
+        address: verifiedHomeAddress?.trim() || null,
         emergency_contact_name: ecName || null,
         emergency_contact_phone: ecPhone || null,
         household_languages: languages || null,
@@ -204,12 +166,12 @@ function OnboardingInner() {
     }
 
     // Pre-populate emergency card in localStorage
-    if (selectedRole === 'caregiver') {
+    if (isConsumerHomeRole) {
       try {
         const card = {
           name: fullName,
           phone,
-          address,
+          address: verifiedHomeAddress || '',
           bloodType,
           allergies,
           languages,
@@ -230,7 +192,7 @@ function OnboardingInner() {
         const selfPerson = {
           id: 'self-user',
           name: fullName || 'Me',
-          address: address || '',
+          address: verifiedHomeAddress || '',
           relationship: 'Self',
           mobility: resolvedMobility || 'Mobile Adult',
           phone: phone || '',
@@ -264,7 +226,7 @@ function OnboardingInner() {
   }
 
   const roleConfig = ROLES.find(r => r.id === selectedRole)
-  const stepLabels = selectedRole === 'caregiver'
+  const stepLabels = isConsumerHomeRole
     ? ['Your role', 'Your info', 'Emergency setup']
     : ['Your role', 'Set up profile']
 
@@ -303,8 +265,8 @@ function OnboardingInner() {
         {/* Step 1: Role selection */}
         {step === 1 && (
           <div>
-            <h1 className="font-display text-2xl font-bold text-white mb-1">What brings you here?</h1>
-            <p className="text-ash-400 text-sm mb-6">Choose the role that best describes you. You can add more roles later.</p>
+            <h1 className="font-display text-2xl font-bold text-white mb-1">Caregiver or evacuee?</h1>
+            <p className="text-ash-400 text-sm mb-6">Caregiver coordinates people you support; Evacuee focuses on your own household. Both use home-address automation toward safety.</p>
             <div className="space-y-3 mb-8">
               {ROLES.map(role => {
                 const Icon = role.icon
@@ -347,8 +309,8 @@ function OnboardingInner() {
               <h1 className="font-display text-2xl font-bold text-white">Your information</h1>
             </div>
             <p className="text-ash-400 text-sm mb-6">
-              {selectedRole === 'caregiver'
-                ? 'Used to personalize fire alerts and pre-fill your emergency card.'
+              {selectedRole === 'caregiver' || selectedRole === 'evacuee'
+                ? `${selectedRole === 'caregiver' ? 'Caregiver' : 'Evacuee'} mode uses your real street address to automate distance-to-fire awareness, routing, and safety flows. Search suggests numbered street addresses only — not cities or counties.`
                 : selectedRole === 'emergency_responder'
                 ? 'Customize incident intelligence for your agency.'
                 : 'Tailor the analyst dashboard to your research context.'}
@@ -356,12 +318,34 @@ function OnboardingInner() {
             <div className="space-y-4 mb-6">
               <div><Label>Full name</Label>{inp(fullName, setFullName, 'Your name')}</div>
 
-              {selectedRole === 'caregiver' && (
+              {(selectedRole === 'caregiver' || selectedRole === 'evacuee') && (
                 <>
                   <div><Label>Phone number</Label>{inp(phone, setPhone, '+1 (555) 000-0000', 'tel')}</div>
                   <div>
-                    <Label>Home address <span className="text-ash-600 font-normal">(used for nearby fire alerts)</span></Label>
-                    <AddressInput value={address} onChange={setAddress} placeholder="123 Main St, City, CA" />
+                    <Label>Home address <span className="text-ember-400/90 font-normal">(required)</span></Label>
+                    <AddressVerifySave
+                      variant="dark"
+                      value={address}
+                      onChange={v => {
+                        setAddress(v)
+                        setError('')
+                      }}
+                      savedAddress={verifiedHomeAddress}
+                      onVerifiedSave={async (line: string) => {
+                        const supabase = createClient()
+                        const { data: { user } } = await supabase.auth.getUser()
+                        if (!user) throw new Error('Not signed in')
+                        const { error } = await supabase.from('profiles').update({ address: line }).eq('id', user.id)
+                        if (error) throw new Error(error.message)
+                        setVerifiedHomeAddress(line)
+                        setAddress(line)
+                        try {
+                          window.dispatchEvent(new CustomEvent('wfa-flameo-context-refresh'))
+                        } catch {
+                          /* ignore */
+                        }
+                      }}
+                    />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -386,32 +370,45 @@ function OnboardingInner() {
               <div><Label>Email for alerts</Label>{inp(notifEmail, setNotifEmail, 'you@example.com', 'email')}</div>
             </div>
             {error && <p className="text-signal-danger text-sm mb-4">{error}</p>}
-            {selectedRole !== 'caregiver' && (selectedRole === 'emergency_responder' || selectedRole === 'data_analyst') && (
+            {selectedRole !== 'caregiver' && selectedRole !== 'evacuee' && (selectedRole === 'emergency_responder' || selectedRole === 'data_analyst') && (
               <div className="bg-ash-800/60 border border-ash-700 rounded-xl p-3 mb-4 text-ash-400 text-xs">
                 You'll need an access code from your organization on the next step.
               </div>
             )}
             <button
-              onClick={() => selectedRole === 'caregiver' ? setStep(3) : finish()}
-              disabled={saving}
+              onClick={() => {
+                if ((selectedRole === 'caregiver' || selectedRole === 'evacuee') && !verifiedHomeAddress?.trim()) {
+                  setError('Search for your address, pick a suggestion, then use Verify & Save before continuing.')
+                  return
+                }
+                setError('')
+                if (selectedRole === 'caregiver' || selectedRole === 'evacuee') setStep(3)
+                else void finish()
+              }}
+              disabled={saving || ((selectedRole === 'caregiver' || selectedRole === 'evacuee') && !verifiedHomeAddress?.trim())}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-forest-700 hover:bg-forest-600 disabled:opacity-50 text-white font-semibold transition-colors">
               {saving ? (
                 <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Setting up…</>
-              ) : selectedRole === 'caregiver' ? (
+              ) : (selectedRole === 'caregiver' || selectedRole === 'evacuee') ? (
                 <>Continue <ArrowRight className="w-4 h-4" /></>
               ) : (
                 <>Set up my account <ArrowRight className="w-4 h-4" /></>
               )}
             </button>
-            <button onClick={() => router.replace(ROLE_DESTINATIONS[selectedRole] ?? '/dashboard')}
-              className="w-full text-center text-ash-500 hover:text-ash-300 text-sm mt-3 transition-colors py-1">
-              Skip for now
-            </button>
+            {selectedRole !== 'caregiver' && selectedRole !== 'evacuee' && (
+              <button
+                type="button"
+                onClick={() => router.replace(ROLE_DESTINATIONS[selectedRole] ?? '/dashboard')}
+                className="w-full text-center text-ash-500 hover:text-ash-300 text-sm mt-3 transition-colors py-1"
+              >
+                Skip for now
+              </button>
+            )}
           </div>
         )}
 
-        {/* Step 3: Emergency setup (caregiver only) */}
-        {step === 3 && selectedRole === 'caregiver' && (
+        {/* Step 3: Emergency setup (caregiver & evacuee) */}
+        {step === 3 && (selectedRole === 'caregiver' || selectedRole === 'evacuee') && (
           <div>
             <button onClick={() => setStep(2)} className="flex items-center gap-1.5 text-ash-400 hover:text-white text-sm mb-4 transition-colors">
               <ArrowLeft className="w-4 h-4" /> Back
@@ -470,10 +467,6 @@ function OnboardingInner() {
               ) : (
                 <>Set up my account <ArrowRight className="w-4 h-4" /></>
               )}
-            </button>
-            <button onClick={() => router.replace(ROLE_DESTINATIONS[selectedRole] ?? '/dashboard')}
-              className="w-full text-center text-ash-500 hover:text-ash-300 text-sm mt-3 transition-colors py-1">
-              Skip for now
             </button>
           </div>
         )}

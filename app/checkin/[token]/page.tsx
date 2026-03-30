@@ -26,13 +26,14 @@ export default function CheckinPage({ params }: { params: { token: string } }) {
   async function submitStatus(status: 'confirmed_safe' | 'needs_help') {
     setConfirmState('loading')
     broadcastStatus(status)
+    const apiStatus = status === 'confirmed_safe' ? 'not_evacuated' : 'cannot_evacuate'
     try {
       await fetch('/api/checkin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           token,
-          status,
+          status: apiStatus,
           confirmed_at: new Date().toISOString(),
         }),
       })

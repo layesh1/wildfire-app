@@ -1,15 +1,14 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Shield, Flame, AlertTriangle, Activity, TrendingUp, Clock, ChevronRight, Wind, Droplets, Users, Truck, Radio, Map, ChevronDown, ChevronUp, Building2, ExternalLink, ShieldAlert, Brain, Factory, CheckCircle, MapPin, Phone, RefreshCw } from 'lucide-react'
+import { Shield, Flame, AlertTriangle, Activity, Clock, ChevronRight, Wind, Droplets, Users, Truck, Radio, Map, Building2, Brain, Factory, CheckCircle, MapPin, Phone, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase'
-import type { PredictionFire } from './PredictionMap'
 import type { EvacueePin } from '@/components/EvacueeStatusMap'
 import { HAZARD_FACILITIES } from '@/lib/hazard-facilities'
-
-const PredictionMap = dynamic(() => import('./PredictionMap'), { ssr: false })
-const AnimatedFireSpread = dynamic(() => import('@/components/AnimatedFireSpread'), { ssr: false })
+import { useResponderStationAnchor } from '@/hooks/useResponderStationAnchor'
+import { useFlameoContext } from '@/hooks/useFlameoContext'
+import { useFlameoHubAgentBridge } from '@/components/FlameoHubAgentBridge'
 
 const EvacueeStatusMap = dynamic(() => import('@/components/EvacueeStatusMap'), { ssr: false })
 
@@ -72,17 +71,6 @@ const DEMO_FIRES = [
   { id: 'd8', incident_name: 'Whitewater-Baldy', county: 'Catron', state: 'NM', acres_burned: 297845, containment_pct: null, svi_score: 0.78, signal_gap_hours: null },
 ]
 
-const PREDICTION_FIRES: PredictionFire[] = [
-  { id: 'd1', fire_name: 'Dixie Fire', latitude: 40.0, longitude: -121.1, acres: 963309, containment: null, svi_score: 0.69, signal_gap_hours: 3.5 },
-  { id: 'd2', fire_name: 'Bootleg Fire', latitude: 42.4, longitude: -121.0, acres: 401279, containment: null, svi_score: 0.58, signal_gap_hours: 2.1 },
-  { id: 'd3', fire_name: 'Wallow Fire', latitude: 33.8, longitude: -109.2, acres: 538049, containment: null, svi_score: 0.74, signal_gap_hours: 18.4 },
-  { id: 'd4', fire_name: 'Creek Fire', latitude: 37.2, longitude: -119.3, acres: 379895, containment: null, svi_score: 0.72, signal_gap_hours: 4.2 },
-  { id: 'd5', fire_name: 'Caldor Fire', latitude: 38.6, longitude: -120.1, acres: 221774, containment: null, svi_score: 0.61, signal_gap_hours: 6.8 },
-  { id: 'd6', fire_name: 'Monument Fire', latitude: 40.7, longitude: -123.0, acres: 223124, containment: null, svi_score: 0.63, signal_gap_hours: null },
-  { id: 'd7', fire_name: 'Snake River Complex', latitude: 42.5, longitude: -116.8, acres: 481838, containment: null, svi_score: 0.71, signal_gap_hours: null },
-  { id: 'd8', fire_name: 'Whitewater-Baldy', latitude: 33.4, longitude: -108.3, acres: 297845, containment: null, svi_score: 0.78, signal_gap_hours: null },
-]
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface RedFlagWarning {
@@ -116,11 +104,10 @@ interface Shelter {
   pct_full: number | null
 }
 
-const QUICK_NAV = [
-  { label: 'ML Fire Prediction', href: '/dashboard/responder/ml', icon: Brain, badge: 'AI', badgeColor: 'text-xs font-bold text-ember-400' },
-  { label: 'Evacuation Map', href: '/dashboard/responder/map', icon: Map, badge: 'Live', badgeColor: 'text-xs font-bold text-signal-safe' },
+const COMMAND_QUICK_LINKS = [
+  { label: 'ML Fire Prediction', href: '/dashboard/responder/analytics?tab=ml', icon: Brain, badge: 'AI', badgeColor: 'text-xs font-bold text-ember-400' },
   { label: 'ICS Board', href: '/dashboard/responder/ics', icon: Shield, badge: 'ICS', badgeColor: 'text-xs font-bold text-blue-400' },
-  { label: 'Signal Gap Analysis', href: '/dashboard/responder/signal-gap', icon: Activity, badge: '99%', badgeColor: 'text-xs font-bold text-signal-warn' },
+  { label: 'Signal Gap Analysis', href: '/dashboard/responder/analytics?tab=signals', icon: Activity, badge: '99%', badgeColor: 'text-xs font-bold text-signal-warn' },
 ] as const
 
 // ─── Helper: format ISO date ──────────────────────────────────────────────────
@@ -269,7 +256,7 @@ function SituationReportHeader() {
 
 // ─── Sub-component: Red Flag Warnings ────────────────────────────────────────
 
-function RedFlagSection() {
+function RedFlagSection({ mapCenter }: { mapCenter: [number, number] }) {
   const [pins, setPins] = useState<EvacueePin[]>([])
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
@@ -325,17 +312,17 @@ function RedFlagSection() {
   const needHelp = pins.filter(p => p.status === 'unknown' && p.special_needs)
 
   return (
-    <div className="flex flex-col h-screen bg-ash-950">
+    <div className="flex flex-col min-h-[70dvh] h-[85dvh] max-h-[100dvh] sm:min-h-[80dvh] lg:h-screen lg:max-h-none bg-ash-950 wfa-responder-map-surface rounded-xl overflow-hidden border border-ash-800">
       {/* Top bar */}
-      <div className="px-6 py-3 border-b border-ash-800 flex items-center gap-4 shrink-0 bg-ash-900">
-        <div className="flex items-center gap-2">
-          <Shield className="w-5 h-5 text-signal-info" />
-          <span className="font-display font-bold text-white text-sm">Evacuation Status Map</span>
-          <span className="text-ash-600 text-xs ml-1">· API map layer concept</span>
+      <div className="px-3 sm:px-6 py-2.5 sm:py-3 border-b border-ash-800 flex flex-wrap items-center gap-x-3 gap-y-2 shrink-0 bg-ash-900">
+        <div className="flex items-center gap-2 min-w-0">
+          <Shield className="w-5 h-5 text-signal-info shrink-0" />
+          <span className="font-display font-bold text-white text-sm truncate">Evacuation Status Map</span>
+          <span className="text-ash-600 text-xs ml-1 hidden sm:inline">· API map layer concept</span>
         </div>
 
         {/* Status counts */}
-        <div className="flex items-center gap-3 ml-2">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 sm:ml-2">
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-signal-safe/10 border border-signal-safe/20">
             <CheckCircle className="w-3 h-3 text-signal-safe" />
             <span className="text-signal-safe text-xs font-bold">{byStatus.evacuated}</span>
@@ -365,15 +352,15 @@ function RedFlagSection() {
           {showFacilities ? 'Hazard Sites: ON' : 'Hazard Sites'}
         </button>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="w-full sm:w-auto sm:ml-auto flex flex-wrap items-center gap-2 sm:gap-3 justify-end">
           {redFlagCount !== null && redFlagCount > 0 && (
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-signal-danger/10 border border-signal-danger/30">
-              <AlertTriangle className="w-3 h-3 text-signal-danger" />
+              <AlertTriangle className="w-3 h-3 text-signal-danger shrink-0" />
               <span className="text-signal-danger text-xs font-medium">{redFlagCount} Red Flag Warning{redFlagCount !== 1 ? 's' : ''}</span>
             </div>
           )}
           <div className="flex items-center gap-1.5 text-ash-500 text-xs">
-            <Clock className="w-3 h-3" />
+            <Clock className="w-3 h-3 shrink-0" />
             Updated {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
           <button onClick={loadData} disabled={loading}
@@ -385,9 +372,9 @@ function RedFlagSection() {
       </div>
 
       {/* Main content: map + priority sidebar */}
-      <div className="flex flex-1 min-h-0 gap-0">
+      <div className="flex flex-1 min-h-0 min-w-0 flex-col lg:flex-row gap-0">
         {/* Map — takes most of the space */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-h-[220px] min-w-0 lg:min-h-0">
           {loading ? (
             <div className="h-full flex items-center justify-center">
               <div className="text-center">
@@ -398,7 +385,7 @@ function RedFlagSection() {
           ) : (
             <EvacueeStatusMap
               pins={pins}
-              center={[35.4250, -80.5900]}
+              center={mapCenter}
               zoom={12}
               facilities={HAZARD_FACILITIES}
               showFacilities={showFacilities}
@@ -407,7 +394,7 @@ function RedFlagSection() {
         </div>
 
         {/* Priority sidebar — households that need help */}
-        <div className="w-72 shrink-0 border-l border-ash-800 bg-ash-900 flex flex-col overflow-hidden">
+        <div className="w-full max-h-[42vh] lg:max-h-none lg:w-72 shrink-0 border-t lg:border-t-0 lg:border-l border-ash-800 bg-ash-900 flex flex-col overflow-hidden">
           <div className="px-4 py-3 border-b border-ash-800">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-signal-danger" />
@@ -492,57 +479,6 @@ function RedFlagSection() {
   )
 }
 
-// ─── Sub-component: Fire Prediction Map ──────────────────────────────────────
-
-function PredictionMapSection() {
-  return (
-    <div className="mb-8">
-      <div className="flex items-center gap-2 mb-4">
-        <Brain className="w-4 h-4 text-ember-400" />
-        <h2 className="text-white font-semibold text-sm">Fire Prediction Map — ML Risk Zones</h2>
-        <span className="ml-auto text-ash-600 text-xs">WiDS historical incidents · click a fire for details</span>
-      </div>
-      <div className="card overflow-hidden" style={{ height: 500 }}>
-        <PredictionMap fires={PREDICTION_FIRES} center={[38.5, -115]} />
-      </div>
-      <p className="text-ash-600 text-xs mt-2">
-        Risk zones show estimated at-risk housing radius. Popup shows ML-derived evacuation estimates. Dot size = fire acreage. Color = containment level.
-      </p>
-    </div>
-  )
-}
-
-// ─── Sub-component: Fire Behavior Simulator ───────────────────────────────────
-
-const SCENARIOS = [
-  { label: 'Calm',     windMps: 8,  slopeDeg: 0  },
-  { label: 'Moderate', windMps: 14, slopeDeg: 15 },
-  { label: 'Extreme',  windMps: 20, slopeDeg: 30 },
-] as const
-
-function FireBehaviorSection() {
-  const [scenario, setScenario] = useState(1)
-  const s = SCENARIOS[scenario]
-  return (
-    <div className="mb-8">
-      <div className="flex items-center gap-2 mb-4">
-        <Brain className="w-4 h-4 text-ember-400" />
-        <h2 className="text-white font-semibold text-sm">Fire Behavior Simulator</h2>
-        <span className="ml-auto text-ash-600 text-xs">FireBench-calibrated · Google Research physics model</span>
-      </div>
-      <div className="flex gap-2 mb-3">
-        {SCENARIOS.map((sc, i) => (
-          <button key={sc.label} onClick={() => setScenario(i)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${scenario === i ? 'bg-ember-500 text-white' : 'bg-ash-800 text-ash-400 hover:text-white'}`}>
-            {sc.label} ({sc.windMps}m/s / {sc.slopeDeg}°)
-          </button>
-        ))}
-      </div>
-      <AnimatedFireSpread windMps={s.windMps} slopeDeg={s.slopeDeg} currentAcres={500} title="Fire Spread — Tactical Simulation" />
-    </div>
-  )
-}
-
 // ─── Sub-component: NIFC Live Incidents ───────────────────────────────────────
 
 function NifcSection() {
@@ -588,48 +524,6 @@ function NifcSection() {
             ))}
           </div>
         )}
-      </div>
-    </div>
-  )
-}
-
-// ─── Sub-component: WiDS Intelligence Panel ───────────────────────────────────
-
-function WiDSIntelligencePanel({ activeFires, loading }: { activeFires: any[], loading: boolean }) {
-  const withGap = activeFires.filter(f => f.signal_gap_hours != null)
-  const avgGap = withGap.length > 0
-    ? (withGap.reduce((s, f) => s + f.signal_gap_hours, 0) / withGap.length).toFixed(1)
-    : null
-  const highSvi = activeFires.filter(f => f.svi_score != null && f.svi_score > 0.7).length
-  const longGap = activeFires.filter(f => f.signal_gap_hours != null && f.signal_gap_hours > 12).length
-
-  return (
-    <div className="mb-8">
-      <div className="flex items-center gap-2 mb-4">
-        <ShieldAlert className="w-4 h-4 text-signal-warn" />
-        <h2 className="text-white font-semibold text-sm">WiDS Signal Gap Intelligence</h2>
-        <span className="ml-auto text-ash-600 text-xs">WiDS 2021–2025 dataset · 62,696 incidents</span>
-      </div>
-      <div className="grid grid-cols-3 gap-4 mb-4">
-        {[
-          { label: 'Avg Alert Delay', value: loading ? '…' : avgGap ? `${avgGap}h` : '—', color: 'text-signal-warn', sub: 'hours before formal order' },
-          { label: 'High Vulnerability', value: loading ? '…' : `${highSvi}`, color: 'text-signal-danger', sub: 'fires in SVI > 0.7 zones' },
-          { label: 'Critical Gap (>12h)', value: loading ? '…' : `${longGap}`, color: 'text-signal-danger', sub: 'fires with 12h+ delay' },
-        ].map(s => (
-          <div key={s.label} className="card p-4 text-center">
-            <div className={`font-display text-2xl font-bold ${s.color}`}>{s.value}</div>
-            <div className="text-white text-xs font-medium mt-1">{s.label}</div>
-            <div className="text-ash-500 text-xs mt-0.5">{s.sub}</div>
-          </div>
-        ))}
-      </div>
-      <div className="card p-4 bg-signal-warn/5 border-signal-warn/20">
-        <p className="text-ash-400 text-xs leading-relaxed">
-          <span className="text-signal-warn font-semibold">Research finding: </span>
-          99.74% of wildfire incidents in the WiDS dataset had no formal evacuation order — only an informal signal gap.
-          The median delay between fire detection and formal order is <span className="text-white font-semibold">11.5 hours</span>.
-          Use ML prediction to identify high-risk zones before the gap becomes critical.
-        </p>
       </div>
     </div>
   )
@@ -697,12 +591,41 @@ export default function ResponderDashboard() {
   const [activeFires, setActiveFires] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
+  const flameoAgent = useFlameoContext({ role: 'emergency_responder' })
+  const { setPayload: setFlameoHubAgentPayload } = useFlameoHubAgentBridge()
 
-  const [weatherLocation, setWeatherLocation] = useState('')
+  useEffect(() => {
+    setFlameoHubAgentPayload({
+      context: flameoAgent.context,
+      status: flameoAgent.status,
+      flameoRole: 'responder',
+    })
+  }, [flameoAgent.context, flameoAgent.status, setFlameoHubAgentPayload])
+
+  const { center, weatherLocation, stationLabel, manualInput, setManualInput, applyManualStation, geoReady } = useResponderStationAnchor()
   const [weather, setWeather] = useState<any>(null)
   const [weatherLoading, setWeatherLoading] = useState(false)
 
-  async function fetchWeather() {
+  useEffect(() => {
+    if (!geoReady || !weatherLocation.trim()) return
+    let cancelled = false
+    async function loadWeather() {
+      setWeatherLoading(true)
+      try {
+        const res = await fetch(`/api/weather?location=${encodeURIComponent(weatherLocation)}`)
+        if (res.ok && !cancelled) setWeather(await res.json())
+      } catch {}
+      if (!cancelled) setWeatherLoading(false)
+    }
+    loadWeather()
+    return () => { cancelled = true }
+  }, [geoReady, weatherLocation])
+
+  async function applyStationAndRefresh() {
+    await applyManualStation()
+  }
+
+  async function refreshWeatherOnly() {
     if (!weatherLocation.trim()) return
     setWeatherLoading(true)
     try {
@@ -728,7 +651,7 @@ export default function ResponderDashboard() {
   }, [])
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="w-full min-w-0 max-w-6xl mx-auto px-4 py-6 sm:px-6 sm:py-8 md:px-8">
 
       {/* Situation Report Header */}
       <SituationReportHeader />
@@ -736,27 +659,40 @@ export default function ResponderDashboard() {
       <div className="mb-8">
         <div className="flex items-center gap-2 text-red-400 text-sm font-medium mb-3">
           <Shield className="w-4 h-4" />
-          EMERGENCY RESPONDER · COMMAND-INTEL
+          EMERGENCY RESPONDER · FLAMEO FIELD INTEL
         </div>
-        <h1 className="font-display text-4xl font-bold text-white mb-2">Incident Command Center</h1>
-        <p className="text-ash-400 text-sm">Live fire intelligence, mutual aid coordination, and signal gap analysis.</p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        <div className="card p-5">
-          <div className="text-signal-danger font-display text-3xl font-bold">—</div>
-          <div className="text-ash-400 text-sm mt-1">Active incidents in jurisdiction</div>
-        </div>
-        <Link href="/dashboard/responder/ics" className="card p-5 hover:bg-ash-800 transition-colors">
-          <div className="text-ember-400 font-display text-3xl font-bold">ICS</div>
-          <div className="text-ash-400 text-sm mt-1">Open Incident Board</div>
+        <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2">Incident Command Center</h1>
+        <p className="text-ash-400 text-sm mb-2">Live fire intelligence, mutual aid coordination, and evacuation status on this hub.</p>
+        <Link href="/dashboard/responder/analytics" className="inline-flex items-center gap-1 text-signal-info text-sm font-medium hover:underline">
+          Open Command Analytics dashboard
+          <ChevronRight className="w-4 h-4" />
         </Link>
       </div>
 
-      {/* Quick nav */}
+      {/* Quick nav — single path to ICS; evacuation map stays on this page */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        {QUICK_NAV.map(({ label, href, icon: Icon, badge, badgeColor }) => (
+        <Link href="/dashboard/responder/analytics?tab=ml" className="card p-5 hover:bg-ash-800 transition-all hover:scale-[1.02] group">
+          <div className="flex items-center justify-between mb-3">
+            <Brain className="w-5 h-5 text-ash-400 group-hover:text-white transition-colors" />
+            <span className="text-xs font-bold text-ember-400">AI</span>
+          </div>
+          <div className="text-white text-sm font-medium">ML Fire Prediction</div>
+          <ChevronRight className="w-4 h-4 text-ash-600 group-hover:text-ash-300 mt-2 transition-colors" />
+        </Link>
+
+        <div
+          className="card p-5 cursor-default border border-dashed border-ash-600/50"
+          aria-label="Active incidents in jurisdiction. Details are on this page below."
+        >
+          <div className="flex items-center justify-between mb-3">
+            <Flame className="w-5 h-5 text-signal-danger" />
+            <span className="text-xs font-bold text-signal-danger tabular-nums">{loading ? '…' : activeFires.length}</span>
+          </div>
+          <div className="text-white text-sm font-medium">Active incidents in jurisdiction</div>
+          <p className="text-ash-500 text-xs mt-2 leading-snug">Evacuation map and largest incidents table are on this hub — not a separate route.</p>
+        </div>
+
+        {COMMAND_QUICK_LINKS.slice(1).map(({ label, href, icon: Icon, badge, badgeColor }) => (
           <Link key={href} href={href} className="card p-5 hover:bg-ash-800 transition-all hover:scale-[1.02] group">
             <div className="flex items-center justify-between mb-3">
               <Icon className="w-5 h-5 text-ash-400 group-hover:text-white transition-colors" />
@@ -769,7 +705,7 @@ export default function ResponderDashboard() {
       </div>
 
       {/* Red Flag Warnings — TIME-CRITICAL: shown above NFDRS scale */}
-      <RedFlagSection />
+      <RedFlagSection mapCenter={center} />
 
       <div className="grid md:grid-cols-2 gap-6 mb-8">
         {/* NFDRS Risk Scale */}
@@ -846,20 +782,29 @@ export default function ResponderDashboard() {
           <div className="flex items-center gap-2 mb-3">
             <Wind className="w-4 h-4 text-signal-info" />
             <h2 className="text-white font-semibold text-sm">Current Conditions</h2>
-            <span className="ml-auto text-ash-600 text-xs">NOAA live</span>
+            <span className="ml-auto text-ash-600 text-xs">Open-Meteo · station anchor</span>
           </div>
-          <div className="flex gap-2 mb-4">
+          {stationLabel && (
+            <p className="text-ash-500 text-xs mb-3">
+              Auto: profile home or device location{stationLabel ? ` · ${stationLabel}` : ''}. Adjust to query nearby counties.
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2 mb-4">
             <input
               type="text"
-              value={weatherLocation}
-              onChange={e => setWeatherLocation(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && fetchWeather()}
+              value={manualInput}
+              onChange={e => setManualInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && applyStationAndRefresh()}
               placeholder="City, zip, or county…"
-              className="flex-1 bg-ash-800 border border-ash-700 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-signal-info/60 placeholder:text-ash-600"
+              className="flex-1 min-w-[12rem] bg-ash-800 border border-ash-700 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:border-signal-info/60 placeholder:text-ash-600"
             />
-            <button onClick={fetchWeather} disabled={weatherLoading}
+            <button type="button" onClick={() => applyStationAndRefresh()} disabled={weatherLoading}
               className="px-3 py-1.5 rounded-lg text-xs bg-signal-info/20 border border-signal-info/30 text-signal-info hover:bg-signal-info/30 transition-colors disabled:opacity-50">
-              {weatherLoading ? '…' : 'Fetch'}
+              Apply
+            </button>
+            <button type="button" onClick={() => refreshWeatherOnly()} disabled={weatherLoading}
+              className="px-3 py-1.5 rounded-lg text-xs border border-ash-600 text-ash-400 hover:text-white hover:border-ash-500 transition-colors disabled:opacity-50">
+              {weatherLoading ? '…' : 'Refresh'}
             </button>
           </div>
           {weather ? (
@@ -891,22 +836,15 @@ export default function ResponderDashboard() {
               </div>
             </>
           ) : (
-            <div className="text-center py-6 text-ash-600 text-xs">Enter a location to see live NOAA conditions</div>
+            <div className="text-center py-6 text-ash-600 text-xs">
+              {geoReady ? 'Loading conditions for your station…' : 'Resolving station from profile or device…'}
+            </div>
           )}
         </div>
       </div>
 
       {/* Live NIFC Incidents — added section */}
       <NifcSection />
-
-      {/* Fire Prediction Map */}
-      <PredictionMapSection />
-
-      {/* Fire Behavior Simulator */}
-      <FireBehaviorSection />
-
-      {/* WiDS Intelligence Panel */}
-      <WiDSIntelligencePanel activeFires={activeFires} loading={loading} />
 
       {/* Active fires table */}
       <div>

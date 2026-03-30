@@ -70,6 +70,24 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
+  // Consumer hubs: canonical /dashboard/home (Life360-style). Legacy caregiver/evacuee URLs redirect.
+  if (user && isDashboard) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle()
+    const pr = profile?.role
+    const mobile = pathname.startsWith('/m/dashboard')
+    const dash = mobile ? pathname.slice('/m'.length) : pathname
+    if ((pr === 'evacuee' || pr === 'caregiver') && (dash.startsWith('/dashboard/caregiver') || dash.startsWith('/dashboard/evacuee'))) {
+      const rest = dash.replace(/^\/dashboard\/(caregiver|evacuee)/, '') || ''
+      const url = request.nextUrl.clone()
+      url.pathname = (mobile ? '/m' : '') + '/dashboard/home' + rest
+      return NextResponse.redirect(url)
+    }
+  }
+
   return supabaseResponse
 }
 

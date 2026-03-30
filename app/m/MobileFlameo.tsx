@@ -1,11 +1,18 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { usePathname } from 'next/navigation'
 import { X, CornerRightUp } from 'lucide-react'
 import { useAutoResizeTextarea } from '@/components/hooks/use-auto-resize-textarea'
 import { ResponseStream } from '@/components/ui/response-stream'
+import { FlameoActionChips, type Chip } from '@/components/flameo/FlameoActionChips'
+import { useFlameoNavContext } from '@/hooks/useFlameoNavContext'
+import { commandIntelActionsToChips, flameoActionsToChips, partitionAiActions } from '@/lib/flameo-phase-c-client'
+import type { FlameoAiRole } from '@/lib/flameo-context-types'
+import { flameoGroundingBadgeText } from '@/lib/flameo-grounding-ui'
+import { useFlameoHubAgentBridge } from '@/components/FlameoHubAgentBridge'
 
-interface Message { role: 'user' | 'assistant'; content: string }
+interface Message { role: 'user' | 'assistant'; content: string; chips?: Chip[] }
 
 const INTRO: Message = {
   role: 'assistant',
@@ -13,6 +20,17 @@ const INTRO: Message = {
 }
 
 export default function MobileFlameo() {
+  const pathname = usePathname()
+  const isResponder = pathname?.startsWith('/m/dashboard/responder') ?? false
+  const { payload: hubPayload } = useFlameoHubAgentBridge()
+  const flameoContext = hubPayload?.context
+  const flameoStatus = hubPayload?.status
+  const flameoRole: FlameoAiRole =
+    hubPayload?.flameoRole
+    ?? (isResponder ? 'responder' : pathname?.includes('/evacuee') ? 'evacuee' : 'caregiver')
+  const badgeLine = flameoGroundingBadgeText(flameoContext ?? null, flameoStatus ?? null)
+  const { flameoNavContext, consumer, navBase } = useFlameoNavContext()
+
   const [mounted, setMounted] = useState(false)
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([INTRO])
@@ -51,11 +69,33 @@ export default function MobileFlameo() {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [...messages, userMsg], persona: 'FLAMEO' }),
+        body: JSON.stringify({
+          messages: [...messages, userMsg],
+          persona: 'FLAMEO',
+          flameoRole,
+          flameoNavContext,
+          ...(flameoContext ? { flameoContext } : {}),
+        }),
       })
       const data = await res.json()
-      const reply = res.ok ? (data.content || 'No response — try again.') : "I'm having trouble right now. Try again in a moment."
-      setMessages(m => { const next = [...m, { role: 'assistant' as const, content: reply }]; setLatestIdx(next.length - 1); return next })
+      let reply = res.ok ? (data.content || 'No response — try again.') : "I'm having trouble right now. Try again in a moment."
+      let chips: Chip[] | undefined
+      if (res.ok && Array.isArray(data.actions) && data.actions.length > 0) {
+        const apiRole = (data.flameoRole as FlameoAiRole | undefined) ?? flameoRole
+        if (apiRole === 'responder') {
+          const { intel } = partitionAiActions(data.actions)
+          chips = commandIntelActionsToChips(intel)
+        } else {
+          const { flameo } = partitionAiActions(data.actions)
+          chips = flameoActionsToChips(flameo, consumer, navBase)
+        }
+        if (chips.length === 0) chips = undefined
+      }
+      setMessages(m => {
+        const next = [...m, { role: 'assistant' as const, content: reply, chips }]
+        setLatestIdx(next.length - 1)
+        return next
+      })
     } catch {
       setMessages(m => { const next = [...m, { role: 'assistant' as const, content: "Can't reach server. Check connection." }]; setLatestIdx(next.length - 1); return next })
     }
@@ -88,9 +128,14 @@ export default function MobileFlameo() {
           {/* Handle + header */}
           <div className="flex flex-col items-center pt-2.5 pb-3 border-b border-gray-100 shrink-0">
             <div className="w-10 h-1 rounded-full bg-gray-200 mb-3" />
-            <div className="flex items-center gap-2">
-              <img src="/flameo1.png" alt="Flameo" width={24} height={24} style={{ objectFit: 'contain' }} />
-              <span className="font-semibold text-gray-900 text-sm">Flameo · Wildfire Assistant</span>
+            <div className="flex flex-col items-center gap-0.5 px-4">
+              <div className="flex items-center gap-2">
+                <img src="/flameo1.png" alt="Flameo" width={24} height={24} style={{ objectFit: 'contain' }} />
+                <span className="font-semibold text-gray-900 text-sm">Flameo · Wildfire Assistant</span>
+              </div>
+              {badgeLine && (
+                <span className="text-[11px] text-gray-600 text-center leading-tight">{badgeLine}</span>
+              )}
             </div>
           </div>
 
@@ -103,15 +148,20 @@ export default function MobileFlameo() {
                     <img src="/flameo1.png" alt="Flameo" width={16} height={16} style={{ objectFit: 'contain' }} />
                   </div>
                 )}
-                <div
-                  className={`max-w-[82%] rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words ${
-                    msg.role === 'user' ? 'text-white rounded-tr-sm' : 'bg-white text-gray-900 border border-gray-200 rounded-tl-sm'
-                  }`}
-                  style={msg.role === 'user' ? { background: 'linear-gradient(135deg, #16a34a, #15803d)' } : undefined}
-                >
-                  {msg.role === 'assistant' && i === latestIdx
-                    ? <ResponseStream textStream={msg.content} mode="typewriter" speed={75} as="span" />
-                    : msg.content}
+                <div className="max-w-[82%]">
+                  <div
+                    className={`rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words ${
+                      msg.role === 'user' ? 'text-white rounded-tr-sm' : 'bg-white text-gray-900 border border-gray-200 rounded-tl-sm'
+                    }`}
+                    style={msg.role === 'user' ? { background: 'linear-gradient(135deg, #16a34a, #15803d)' } : undefined}
+                  >
+                    {msg.role === 'assistant' && i === latestIdx
+                      ? <ResponseStream textStream={msg.content} mode="typewriter" speed={75} as="span" />
+                      : msg.content}
+                  </div>
+                  {msg.role === 'assistant' && msg.chips && msg.chips.length > 0 && (
+                    <FlameoActionChips chips={msg.chips} variant="light" />
+                  )}
                 </div>
               </div>
             ))}

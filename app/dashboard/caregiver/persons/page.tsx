@@ -19,84 +19,7 @@ import {
   UserCircle,
   UserPlus,
 } from 'lucide-react'
-
-// ── Address autocomplete (Nominatim/OpenStreetMap, no API key) ─────────────────
-
-interface NominatimResult {
-  place_id: number
-  display_name: string
-  lat: string
-  lon: string
-}
-
-function AddressInput({
-  value, onChange, placeholder, className = ''
-}: {
-  value: string
-  onChange: (val: string) => void
-  placeholder?: string
-  className?: string
-}) {
-  const [suggestions, setSuggestions] = useState<NominatimResult[]>([])
-  const [showDrop, setShowDrop] = useState(false)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const wrapRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setShowDrop(false)
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
-
-  function handleChange(v: string) {
-    onChange(v)
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (v.length < 4) { setSuggestions([]); setShowDrop(false); return }
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(v)}&format=json&addressdetails=0&limit=5&countrycodes=us`,
-          { headers: { 'Accept-Language': 'en' } }
-        )
-        const data: NominatimResult[] = await res.json()
-        setSuggestions(data)
-        setShowDrop(data.length > 0)
-      } catch {
-        setSuggestions([])
-      }
-    }, 400)
-  }
-
-  return (
-    <div ref={wrapRef} className="relative">
-      <input
-        type="text"
-        value={value}
-        onChange={e => handleChange(e.target.value)}
-        onFocus={() => suggestions.length > 0 && setShowDrop(true)}
-        placeholder={placeholder}
-        className={className}
-      />
-      {showDrop && (
-        <ul className="absolute z-50 top-full mt-1 left-0 right-0 bg-ash-800 border border-ash-700 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
-          {suggestions.map(s => (
-            <li key={s.place_id}>
-              <button
-                type="button"
-                className="w-full text-left px-3 py-2.5 text-sm text-ash-200 hover:bg-ash-700 hover:text-white transition-colors truncate"
-                onMouseDown={() => { onChange(s.display_name); setSuggestions([]); setShowDrop(false) }}
-              >
-                {s.display_name}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
+import AddressAutocomplete from '@/components/AddressAutocomplete'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -628,7 +551,7 @@ export default function PersonsPage() {
       <div className="mb-6">
         <div className="flex items-center gap-2 text-ember-400 text-sm font-medium mb-3">
           <Users className="w-4 h-4" />
-          CAREGIVER &middot; MY PEOPLE
+          CAREGIVER &middot; MY FAMILY
         </div>
         <h1 className="font-display text-3xl font-bold text-white mb-2">My People</h1>
         <p className="text-ash-400 text-sm">Track people in your care and confirm they're safe during a wildfire event</p>
@@ -834,16 +757,17 @@ export default function PersonsPage() {
 
             {/* Address */}
             <div className="sm:col-span-2">
-              <label className="label">Address *</label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ash-500 pointer-events-none z-10" />
-                <AddressInput
-                  value={form.address}
-                  onChange={v => setForm(f => ({ ...f, address: v }))}
-                  placeholder="123 Main St, Paradise, CA 95969"
-                  className="input pl-9"
-                />
-              </div>
+              <label className="label flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-ash-500 shrink-0" />
+                Street address *
+              </label>
+              <AddressAutocomplete
+                variant="dark"
+                value={form.address}
+                onChange={v => setForm(f => ({ ...f, address: v }))}
+                placeholder="123 Main Street, Paradise, CA 95969"
+                hint="Use a numbered street address for map distance — not a city or county alone."
+              />
             </div>
 
             {/* Mobility */}

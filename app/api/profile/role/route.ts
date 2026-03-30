@@ -4,10 +4,15 @@ import { validateString, ValidationError } from '@/lib/validate'
 
 const VALID_ROLES = ['caregiver', 'evacuee', 'emergency_responder', 'data_analyst']
 
+function normalizeRole(r: string): string {
+  return r === 'caregiver' ? 'evacuee' : r
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const role = validateString(body.role, 'role', { allowedValues: VALID_ROLES })
+    const rawRole = validateString(body.role, 'role', { allowedValues: VALID_ROLES })
+    const role = normalizeRole(rawRole)
 
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -22,9 +27,10 @@ export async function POST(request: Request) {
 
     const existingRoles: string[] = Array.isArray(profile?.roles) && profile.roles.length
       ? profile.roles
-      : profile?.role ? [profile.role] : ['caregiver']
+      : profile?.role ? [profile.role] : ['evacuee']
 
-    const updatedRoles = [...new Set([...existingRoles, role])]
+    const normalizedExisting = [...new Set(existingRoles.map(normalizeRole))]
+    const updatedRoles = [...new Set([...normalizedExisting, role])]
 
     const { error } = await supabase
       .from('profiles')

@@ -3,71 +3,9 @@ import { useState, useEffect, useRef } from 'react'
 import { FileText, Share2, Download, Phone, AlertTriangle, Heart, Shield, Plus, X, Droplets, User } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { LANGUAGES } from '@/lib/languages'
+import AddressAutocomplete from '@/components/AddressAutocomplete'
 
 const MOBILITY_OPTIONS = ['Mobile Adult', 'Elderly', 'Elderly (needs driver)', 'Disabled', 'Wheelchair', 'No Vehicle', 'Medical Equipment', 'Other']
-
-// ── Address autocomplete (Nominatim / OpenStreetMap, no API key) ────────────
-interface NominatimResult { place_id: number; display_name: string }
-
-function AddressInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
-  const [suggestions, setSuggestions] = useState<NominatimResult[]>([])
-  const [showDrop, setShowDrop] = useState(false)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const wrapRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setShowDrop(false)
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
-
-  function handleChange(v: string) {
-    onChange(v)
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (v.length < 4) { setSuggestions([]); setShowDrop(false); return }
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(v)}&format=json&addressdetails=0&limit=5&countrycodes=us`,
-          { headers: { 'Accept-Language': 'en' } }
-        )
-        const data: NominatimResult[] = await res.json()
-        setSuggestions(data)
-        setShowDrop(data.length > 0)
-      } catch { setSuggestions([]) }
-    }, 400)
-  }
-
-  return (
-    <div ref={wrapRef} className="relative">
-      <input
-        type="text"
-        value={value}
-        onChange={e => handleChange(e.target.value)}
-        onFocus={() => suggestions.length > 0 && setShowDrop(true)}
-        placeholder={placeholder}
-        className="input"
-      />
-      {showDrop && (
-        <ul className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
-          {suggestions.map(s => (
-            <li key={s.place_id}>
-              <button
-                type="button"
-                className="w-full text-left px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors truncate"
-                onMouseDown={() => { onChange(s.display_name); setSuggestions([]); setShowDrop(false) }}
-              >
-                {s.display_name}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
 
 type CardProfile = {
   name: string
@@ -393,8 +331,17 @@ export default function EmergencyCardPage() {
                 placeholder="+1 (555) 000-0000" className="input" />
             </div>
             <div className="sm:col-span-2">
-              <label className="text-gray-500 text-xs block mb-1">Home address</label>
-              <AddressInput value={profile.address} onChange={v => update('address', v)} placeholder="123 Main St, City, CA 95003" />
+              <label className="text-gray-500 text-xs block mb-1">
+                Home address <span className="text-amber-700">(required — street number + street name)</span>
+              </label>
+              <AddressAutocomplete
+                variant="light"
+                value={profile.address}
+                onChange={v => update('address', v)}
+                placeholder="123 Main Street, City, CA 95003"
+                hint="Suggestions exclude cities and counties — pick a specific address for safety automations."
+              />
+              <p className="text-gray-400 text-xs mt-1">Keep this aligned with Settings so My Hub and Flameo use the same anchor.</p>
             </div>
             <div>
               <label className="text-gray-500 text-xs block mb-1">Blood type <span className="text-gray-400">(optional)</span></label>

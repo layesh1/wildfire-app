@@ -13,7 +13,7 @@ export default async function DashboardPage() {
     .eq('id', user.id)
     .single()
 
-  const activeRole = profile?.role || user.user_metadata?.role || 'caregiver'
+  const activeRole = profile?.role || user.user_metadata?.role || 'evacuee'
   const allRoles: string[] = Array.isArray(profile?.roles) && profile.roles.length > 0
     ? profile.roles
     : [activeRole]
@@ -30,8 +30,8 @@ export default async function DashboardPage() {
   const ROLE_ROUTES: Record<string, string> = {
     emergency_responder: '/dashboard/responder',
     data_analyst: '/dashboard/analyst',
-    caregiver: '/dashboard/caregiver',
-    evacuee: '/dashboard/caregiver',
+    caregiver: '/dashboard/home',
+    evacuee: '/dashboard/home',
   }
-  redirect(ROLE_ROUTES[activeRole] ?? '/dashboard/caregiver')
+  redirect(ROLE_ROUTES[activeRole] ?? '/dashboard/home')
 }

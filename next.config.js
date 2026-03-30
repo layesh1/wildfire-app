@@ -26,7 +26,7 @@ const securityHeaders = [
       // Images: self + data URIs (Leaflet SVG icons) + tile servers + Supabase + Google
       "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.tile.opentopomap.org https://server.arcgisonline.com https://*.supabase.co https://firms.modaps.eosdis.nasa.gov https://www.gstatic.com https://ssl.gstatic.com https://translate.googleapis.com https://www.google.com",
       // API calls: self + Supabase + external APIs + Nominatim address autocomplete + FEMA NRI
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.anthropic.com https://firms.modaps.eosdis.nasa.gov https://services3.arcgis.com https://opendata.arcgis.com https://*.googleapis.com https://translate.google.com https://www.google.com https://nominatim.openstreetmap.org https://hazards.fema.gov",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.anthropic.com https://firms.modaps.eosdis.nasa.gov https://services3.arcgis.com https://opendata.arcgis.com https://*.googleapis.com https://translate.google.com https://www.google.com https://nominatim.openstreetmap.org https://hazards.fema.gov https://api.open-meteo.com",
       // Google OAuth + Google Translate iframes
       "frame-src https://accounts.google.com https://translate.google.com https://translate.googleapis.com https://www.google.com",
       "object-src 'none'",
@@ -38,6 +38,9 @@ const securityHeaders = [
 ]
 
 const nextConfig = {
+  // Leaflet + react-leaflet throw "Map container is already initialized" under React 18/19
+  // Strict Mode (dev double-mount). Evacuation map uses the same LeafletMap component.
+  reactStrictMode: false,
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },
