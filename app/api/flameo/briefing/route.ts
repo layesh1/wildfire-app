@@ -16,8 +16,13 @@ const client = process.env.ANTHROPIC_API_KEY
 
 const SYSTEM_BRIEFING = `You are Flameo, a wildfire safety assistant. You receive verified fire data tied to one or more reference points:
 - anchor id "home" is the user's saved street address (geocoded).
+- anchor id "work" (when present) is their saved work/s secondary address; context.location_anchor may include building_type, floor_number, and location_note when they are detected at work.
 - anchor id "live" (when present) is their current GPS position from the device; context.flags.live_differs_from_home is true when both are included.
+- anchor id "unknown" means proximity was computed from GPS alone when the client could not match home vs work.
 Incidents list distance_miles_from_home, distance_miles_from_live, and nearest_anchor_id so you can distinguish threats near their household vs near where they are right now.
+Shelters listed are human emergency evacuation shelters only. Do not recommend animal shelters or veterinary facilities as evacuation destinations.
+
+When context.location_anchor.anchor is "work" and the building is an office or apartment, prioritize stairwell evacuation (never elevators). If mobility notes suggest a wheelchair or mobility device, mention asking building security for stair-assisted evacuation help.
 
 Based ONLY on this data, generate a concise proactive briefing (3-5 sentences max). When both anchors exist, briefly acknowledge home vs current location when relevant to the incidents. Do not invent fire names, distances, or locations not in the data. If data is insufficient, say so explicitly.`
 
@@ -98,6 +103,7 @@ export async function POST(request: NextRequest) {
       alert_radius_miles: context.alert_radius_miles,
       anchors: context.anchors,
       incidents_nearby: context.incidents_nearby,
+      shelters_nearby: context.shelters_nearby ?? [],
       weather_summary: context.weather_summary,
       flags: context.flags,
     }

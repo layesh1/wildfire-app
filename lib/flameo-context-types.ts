@@ -41,7 +41,16 @@ export interface FlameoIncidentNearby {
   /** Miles from live GPS when client sent `liveLat`/`liveLon` and it differs from home. */
   distance_miles_from_live?: number | null
   /** Which reference point is closest to this incident. */
-  nearest_anchor_id?: 'home' | 'live'
+  nearest_anchor_id?: 'home' | 'live' | 'work' | 'unknown'
+}
+
+/** Active grounding anchor for copy and UI (work / unknown modes from client). */
+export interface FlameoLocationAnchorDetail {
+  anchor: 'home' | 'work' | 'unknown'
+  anchor_address?: string | null
+  building_type?: string | null
+  floor_number?: number | null
+  location_note?: string | null
 }
 
 export interface FlameoContextFlags {
@@ -59,17 +68,42 @@ export interface FlameoWeatherSummary {
   fire_risk: string
 }
 
+export interface FlameoShelterNearby {
+  name: string
+  county: string
+  lat: number
+  lon: number
+  distance_miles: number
+  phone?: string | null
+}
+
+export interface FlameoShelterRouteRanked {
+  name: string
+  lat: number
+  lon: number
+  travel_minutes: number
+  distance_miles: number
+  route_summary: string
+  route_avoids_fire: boolean
+  accessibility_likely?: boolean
+  phone?: string | null
+}
+
 export interface FlameoContext {
   role: FlameoUserRole
   /** Usually `[home]`; includes `live` when the client sends GPS that differs from geocoded home. */
   anchors: FlameoAnchor[]
   incidents_nearby: FlameoIncidentNearby[]
   weather_summary: FlameoWeatherSummary | null
+  shelters_nearby?: FlameoShelterNearby[]
+  shelters_ranked?: FlameoShelterRouteRanked[]
   flags: FlameoContextFlags
   /** Miles — from profile `alert_radius_miles` or default */
   alert_radius_miles: number
   /** Distance between geocoded home and live GPS when both anchors are active (mi). */
   live_vs_home_miles?: number | null
+  /** When client signals work / unknown anchor; drives briefing and floor guidance. */
+  location_anchor?: FlameoLocationAnchorDetail
 }
 
 /** POST /api/flameo/briefing */

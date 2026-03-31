@@ -109,7 +109,7 @@
 
 ### Implemented behavior
 
-1. **`lib/nominatim-address.ts`** — `reverseGeocodeDisplayName(lat, lon)` via Nominatim reverse.  
+1. **`lib/geocoding.ts`** — server geocoding and reverse geocoding via Google Geocoding API.  
 2. **`components/AddressAutocomplete.tsx`** — optional `onPickSuggestion(hit)` when a suggestion is chosen.  
 3. **`components/AddressVerifySave.tsx`** — wires draft input, geocode, disabled **Verify & Save** until geocode OK, success line, **✅ Address saved**, event dispatch.  
 4. **`hooks/useFlameoContext.ts`** — listens for `wfa-flameo-context-refresh` and refetches context.  
@@ -122,7 +122,7 @@
 
 ### Key files
 
-- `lib/nominatim-address.ts`  
+- `lib/geocoding.ts`  
 - `components/AddressAutocomplete.tsx`, `components/AddressVerifySave.tsx`  
 - `hooks/useFlameoContext.ts`  
 - `app/auth/onboarding/page.tsx`, `app/dashboard/settings/page.tsx`

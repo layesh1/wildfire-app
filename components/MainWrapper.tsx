@@ -44,7 +44,7 @@ export default function MainWrapper({ children }: { children: React.ReactNode })
 
   return (
     <main
-      className={`relative flex min-h-0 min-w-0 w-full flex-1 flex-col md:pl-16${isContentPage ? ' wfa-content-page' : ''}`}
+      className={`relative flex min-h-0 min-w-0 w-full flex-1 flex-col lg:pl-16${isContentPage ? ' wfa-content-page' : ''}`}
     >
       {showContextBar && <RoleContextBar />}
       {/* No overflow-y on this shell so the row in ThemeWrapper can grow with tall pages; sidebar stretches via items-stretch + min-h-full */}

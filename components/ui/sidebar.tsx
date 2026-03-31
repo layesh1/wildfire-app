@@ -39,7 +39,7 @@ export const SidebarProvider = ({
   setOpen?: React.Dispatch<React.SetStateAction<boolean>>;
   animate?: boolean;
 }) => {
-  const [openState, setOpenState] = useState(true);
+  const [openState, setOpenState] = useState(false);
 
   const open = openProp !== undefined ? openProp : openState;
   const setOpen = setOpenProp !== undefined ? setOpenProp : setOpenState;
@@ -87,7 +87,7 @@ export const DesktopSidebar = ({
   return (
     <motion.div
       className={cn(
-        "fixed left-0 top-0 z-[45] h-[100dvh] max-h-[100dvh] overflow-x-hidden overflow-y-auto px-4 py-4 hidden md:flex md:flex-col wfa-sidebar border-r border-[var(--wfa-sidebar-border)] shadow-[4px_0_20px_rgba(0,0,0,0.08)]",
+        "fixed left-0 top-0 z-[45] h-[100dvh] max-h-[100dvh] overflow-x-hidden overflow-y-auto px-4 py-4 hidden lg:flex lg:flex-col wfa-sidebar border-r border-[var(--wfa-sidebar-border)] shadow-[4px_0_20px_rgba(0,0,0,0.08)]",
         className
       )}
       animate={{
@@ -98,7 +98,7 @@ export const DesktopSidebar = ({
       onMouseLeave={() => setOpen(false)}
       {...props}
     >
-      {children}
+      {children as React.ReactNode}
     </motion.div>
   );
 };
@@ -113,7 +113,7 @@ export const MobileSidebar = ({
     <>
       <div
         className={cn(
-          "h-10 px-4 py-4 flex flex-row md:hidden items-center justify-between wfa-sidebar border-b border-[var(--wfa-sidebar-border)] w-full"
+          "h-10 px-4 py-4 flex flex-row lg:hidden items-center justify-between wfa-sidebar border-b border-[var(--wfa-sidebar-border)] w-full"
         )}
         {...props}
       >

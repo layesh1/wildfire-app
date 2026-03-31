@@ -12,6 +12,13 @@ interface Shelter {
   pct_full: number | null
 }
 
+const ANIMAL_NAME_BLACKLIST =
+  /\b(animal|humane society|spca|veterinary|vet\s|pet\s|dog|cat|wildlife|kennel|zoo)\b/i
+
+function isHumanShelterName(name: string): boolean {
+  return !ANIMAL_NAME_BLACKLIST.test(name)
+}
+
 const FEMA_URL =
   'https://gis.fema.gov/arcgis/rest/services/NSS/OpenShelters/FeatureServer/0/query' +
   '?where=1%3D1' +
@@ -85,7 +92,8 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    const filtered = stateFilter ? shelters.filter(s => s.state?.toUpperCase() === stateFilter) : shelters
+    const humanShelters = shelters.filter(s => isHumanShelterName(s.name || ''))
+    const filtered = stateFilter ? humanShelters.filter(s => s.state?.toUpperCase() === stateFilter) : humanShelters
 
     const near_capacity = filtered.filter(
       s => s.pct_full !== null && s.pct_full >= 80
@@ -122,7 +130,8 @@ export async function GET(request: NextRequest) {
       // Florida
       { name: 'Tampa Convention Center', county: 'Hillsborough', state: 'FL', lat: 27.944, lon: -82.456, capacity: 3000, occupancy: 2700, pct_full: 90 },
     ]
-    const filtered = stateFilter ? demoShelters.filter(s => s.state === stateFilter) : demoShelters
+    const humanDemoShelters = demoShelters.filter(s => isHumanShelterName(s.name || ''))
+    const filtered = stateFilter ? humanDemoShelters.filter(s => s.state === stateFilter) : humanDemoShelters
     const near_capacity = filtered.filter(s => s.pct_full !== null && s.pct_full >= 80).length
     return NextResponse.json({ shelters: filtered, near_capacity, demo: true })
   }

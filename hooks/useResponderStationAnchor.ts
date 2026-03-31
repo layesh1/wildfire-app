@@ -2,16 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
+import { geocodeAddressClient } from '@/lib/geocoding-client'
 
 const DEFAULT_CENTER: [number, number] = [38.5, -115]
 
 async function geocodeAddress(addr: string): Promise<{ lat: number; lon: number; display: string } | null> {
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1&countrycodes=us`
-    const res = await fetch(url, { headers: { 'User-Agent': 'WildfireAlert/2.0 (wildfire-app)' } })
-    const data = await res.json()
-    if (!data[0]) return null
-    return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), display: data[0].display_name }
+    const g = await geocodeAddressClient(addr)
+    return { lat: g.lat, lon: g.lng, display: g.formatted }
   } catch {
     return null
   }
@@ -61,14 +59,9 @@ export function useResponderStationAnchor() {
             const locStr = `${lat.toFixed(4)},${lon.toFixed(4)}`
             let label = 'Device location'
             try {
-              const rev = await fetch(
-                `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
-                { headers: { 'User-Agent': 'WildfireAlert/2.0 (wildfire-app)' } }
-              )
+              const rev = await fetch(`/api/geocode/reverse?lat=${lat}&lng=${lon}`)
               const j = await rev.json()
-              const c = j.address?.county
-              const st = j.address?.state
-              if (c && st) label = `${c}, ${st}`
+              if (typeof j.formatted === 'string' && j.formatted.trim()) label = j.formatted
             } catch { /* ignore */ }
             applyFromCoords(lat, lon, locStr, label)
             setGeoReady(true)

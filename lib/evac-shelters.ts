@@ -96,3 +96,17 @@ export const EVAC_SHELTERS: EvacShelter[] = [
   { id: 82, name: 'Denver Dumb Friends League', lat: 39.6914, lng: -104.9903, type: 'animal', county: 'Denver, CO', capacity: 180 },
   { id: 83, name: 'Washington Humane Society', lat: 38.9072, lng: -77.0369, type: 'animal', county: 'DC', capacity: 150 },
 ]
+
+const ANIMAL_NAME_BLACKLIST =
+  /\b(animal|humane society|spca|veterinary|vet\s|pet\s|dog|cat|wildlife|kennel|zoo)\b/i
+
+export function isHumanEvacShelterName(name: string): boolean {
+  return !ANIMAL_NAME_BLACKLIST.test(name)
+}
+
+export function isHumanEvacShelter(s: EvacShelter): boolean {
+  if (s.type !== 'evacuation') return false
+  return isHumanEvacShelterName(s.name)
+}
+
+export const HUMAN_EVAC_SHELTERS: EvacShelter[] = EVAC_SHELTERS.filter(isHumanEvacShelter)

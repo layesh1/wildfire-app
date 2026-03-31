@@ -5,6 +5,8 @@ import { Flame, Heart, Shield, BarChart3, ArrowRight, ArrowLeft, Check, Home } f
 import { createClient } from '@/lib/supabase'
 import AddressVerifySave from '@/components/AddressVerifySave'
 import { looksLikeUsStreetAddress } from '@/components/AddressAutocomplete'
+import { type WorkBuildingType, workBuildingNeedsFloor } from '@/lib/profile-work-location'
+import { detectBuildingType } from '@/lib/geocoding'
 
 const ROLES = [
   {
@@ -54,7 +56,42 @@ const ROLE_DESTINATIONS: Record<string, string> = {
   evacuee: '/dashboard/evacuee',
 }
 
-const MOBILITY_OPTIONS = ['Mobile Adult', 'Elderly', 'Elderly (needs driver)', 'Disabled', 'Wheelchair', 'No Vehicle', 'Medical Equipment', 'Other']
+const MOBILITY_MOVEMENT_OPTIONS = [
+  'Uses wheelchair or mobility device',
+  'Uses walker or cane',
+  'Cannot climb stairs',
+  'Cannot walk long distances',
+  'Requires assistance to evacuate',
+  'Bedridden or limited mobility',
+] as const
+
+const DISABILITY_OPTIONS = [
+  'Visual impairment or blind',
+  'Hearing impairment or deaf',
+  'Cognitive or developmental disability',
+  'Mental health condition affecting emergency response',
+  'Other',
+] as const
+
+const MEDICAL_OPTIONS = [
+  'Requires oxygen or ventilator',
+  'Requires dialysis',
+  'Has pacemaker or cardiac device',
+  'Diabetes — insulin dependent',
+  'Severe allergies',
+  'Other medications or conditions',
+] as const
+
+const DISABILITY_OTHER_LABEL = 'Other'
+const MEDICAL_OTHER_LABEL = 'Other medications or conditions'
+
+function chipClass(active: boolean) {
+  return `rounded-full px-3 py-1.5 text-xs border transition text-left ${
+    active
+      ? 'bg-ember-500/25 border-ember-500 text-white'
+      : 'border-ash-600 text-ash-300 hover:border-ash-500'
+  }`
+}
 
 function inp(value: string, onChange: (v: string) => void, placeholder: string, type = 'text') {
   return (
@@ -92,20 +129,34 @@ function OnboardingInner() {
   const [agency, setAgency] = useState('')
   const [institution, setInstitution] = useState('')
 
-  // Step 3 fields (caregiver only)
+  // Step 3 fields (caregiver & evacuee)
   const [ecName, setEcName] = useState('')
   const [ecPhone, setEcPhone] = useState('')
   const [languages, setLanguages] = useState('')
-  const [mobility, setMobility] = useState('Mobile Adult')
-  const [mobilityOther, setMobilityOther] = useState('')
+  const [mobilityNeeds, setMobilityNeeds] = useState<string[]>([])
+  const [disabilityNeeds, setDisabilityNeeds] = useState<string[]>([])
+  const [disabilityOther, setDisabilityOther] = useState('')
+  const [medicalNeeds, setMedicalNeeds] = useState<string[]>([])
+  const [medicalOther, setMedicalOther] = useState('')
   const [responderNotes, setResponderNotes] = useState('')
   const [forOthers, setForOthers] = useState(false)
+  const [responderConsent, setResponderConsent] = useState(false)
+  const [consentError, setConsentError] = useState('')
+
+  /** Evacuee only — step after preferences (mobility note needs mobility_needs). */
+  const [workAddress, setWorkAddress] = useState('')
+  const [verifiedWorkAddress, setVerifiedWorkAddress] = useState<string | null>(null)
+  const [workBuildingType, setWorkBuildingType] = useState<WorkBuildingType | ''>('')
+  const [workFloor, setWorkFloor] = useState<string>('')
+  const [workLocationNote, setWorkLocationNote] = useState('')
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   const isConsumerHomeRole = selectedRole === 'caregiver' || selectedRole === 'evacuee'
-  const totalSteps = isConsumerHomeRole ? 3 : 2
+  const isEvacuee = selectedRole === 'evacuee'
+  const totalSteps = isEvacuee ? 4 : isConsumerHomeRole ? 3 : 2
+  const hasMobilityNeedsForWorkNote = mobilityNeeds.length > 0
 
   useEffect(() => {
     const supabase = createClient()
@@ -130,9 +181,23 @@ function OnboardingInner() {
         setSaving(false)
         return
       }
+      if (!responderConsent) {
+        setConsentError('Please confirm your consent to continue')
+        setSaving(false)
+        return
+      }
+      setConsentError('')
     }
 
-    const resolvedMobility = mobility === 'Other' && mobilityOther.trim() ? mobilityOther.trim() : mobility
+    const resolvedMobility =
+      mobilityNeeds.length > 0 ? mobilityNeeds.join(', ') : 'Mobile Adult'
+
+    const disabilityOtherTrim = disabilityNeeds.includes(DISABILITY_OTHER_LABEL)
+      ? disabilityOther.trim().slice(0, 100)
+      : ''
+    const medicalOtherTrim = medicalNeeds.includes(MEDICAL_OTHER_LABEL)
+      ? medicalOther.trim().slice(0, 150)
+      : ''
 
     const basePayload: Record<string, unknown> = {
       id: user.id,
@@ -144,6 +209,11 @@ function OnboardingInner() {
     }
 
     if (isConsumerHomeRole) {
+      const wf = parseInt(workFloor, 10)
+      const floorOk =
+        Number.isFinite(wf) && wf >= 1 && wf <= 200
+          ? wf
+          : null
       Object.assign(basePayload, {
         phone: phone || null,
         address: verifiedHomeAddress?.trim() || null,
@@ -151,7 +221,31 @@ function OnboardingInner() {
         emergency_contact_phone: ecPhone || null,
         household_languages: languages || null,
         special_notes: responderNotes || null,
+        mobility_needs: mobilityNeeds.length ? mobilityNeeds : null,
+        disability_needs: disabilityNeeds.length ? disabilityNeeds : null,
+        disability_other:
+          disabilityNeeds.includes(DISABILITY_OTHER_LABEL) && disabilityOtherTrim
+            ? disabilityOtherTrim
+            : null,
+        medical_needs: medicalNeeds.length ? medicalNeeds : null,
+        medical_other:
+          medicalNeeds.includes(MEDICAL_OTHER_LABEL) && medicalOtherTrim ? medicalOtherTrim : null,
+        responder_data_consent: responderConsent,
+        responder_data_consent_at: responderConsent ? new Date().toISOString() : null,
       })
+      if (selectedRole === 'evacuee') {
+        Object.assign(basePayload, {
+          work_address: verifiedWorkAddress?.trim() || null,
+          work_address_verified: Boolean(verifiedWorkAddress?.trim()),
+          work_building_type: workBuildingType || null,
+          work_floor_number:
+            workBuildingType && workBuildingNeedsFloor(workBuildingType) ? floorOk : null,
+          work_location_note:
+            hasMobilityNeedsForWorkNote && workLocationNote.trim()
+              ? workLocationNote.trim().slice(0, 150)
+              : null,
+        })
+      }
     } else if (selectedRole === 'emergency_responder') {
       basePayload.phone = agency || null
     } else if (selectedRole === 'data_analyst') {
@@ -176,7 +270,7 @@ function OnboardingInner() {
           allergies,
           languages,
           mobility: resolvedMobility,
-          mobilityOther: mobility === 'Other' ? mobilityOther : '',
+          mobilityOther: disabilityNeeds.includes(DISABILITY_OTHER_LABEL) ? disabilityOtherTrim : '',
           medications: '',
           medicalEquipment: '',
           pets: '',
@@ -226,9 +320,11 @@ function OnboardingInner() {
   }
 
   const roleConfig = ROLES.find(r => r.id === selectedRole)
-  const stepLabels = isConsumerHomeRole
-    ? ['Your role', 'Your info', 'Emergency setup']
-    : ['Your role', 'Set up profile']
+  const stepLabels = isEvacuee
+    ? ['Your role', 'Your info', 'Preferences', 'Work / secondary']
+    : isConsumerHomeRole
+      ? ['Your role', 'Your info', 'Preferences']
+      : ['Your role', 'Set up profile']
 
   return (
     <div className="min-h-screen bg-ash-950 flex items-center justify-center p-4">
@@ -407,26 +503,111 @@ function OnboardingInner() {
           </div>
         )}
 
-        {/* Step 3: Emergency setup (caregiver & evacuee) */}
+        {/* Step 3: Preferences (caregiver & evacuee) */}
         {step === 3 && (selectedRole === 'caregiver' || selectedRole === 'evacuee') && (
           <div>
-            <button onClick={() => setStep(2)} className="flex items-center gap-1.5 text-ash-400 hover:text-white text-sm mb-4 transition-colors">
+            <button
+              onClick={() => setStep(2)}
+              className="flex items-center gap-1.5 text-ash-400 hover:text-white text-sm mb-4 transition-colors"
+            >
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
-            <h1 className="font-display text-2xl font-bold text-white mb-1">Emergency setup</h1>
+            <h1 className="font-display text-2xl font-bold text-white mb-1">Preferences</h1>
             <p className="text-ash-400 text-sm mb-6">This builds your emergency card — shown to shelter staff and first responders if needed.</p>
 
-            <div className="space-y-4 mb-6">
+            <div className="space-y-6 mb-6">
               <div>
-                <Label>Mobility level</Label>
-                <select value={mobility} onChange={e => setMobility(e.target.value)}
-                  className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60">
-                  {MOBILITY_OPTIONS.map(m => <option key={m}>{m}</option>)}
-                </select>
-                {mobility === 'Other' && (
-                  <input value={mobilityOther} onChange={e => setMobilityOther(e.target.value)}
-                    placeholder="Describe your mobility needs…"
-                    className="w-full mt-2 bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600" />
+                <div className="font-medium text-white text-sm mb-0.5">Mobility & Movement</div>
+                <p className="text-ash-500 text-xs mb-2">Helps responders reach you first in an emergency</p>
+                <div className="flex flex-wrap gap-2">
+                  {MOBILITY_MOVEMENT_OPTIONS.map(opt => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() =>
+                        setMobilityNeeds(prev =>
+                          prev.includes(opt) ? prev.filter(x => x !== opt) : [...prev, opt]
+                        )
+                      }
+                      className={chipClass(mobilityNeeds.includes(opt))}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="font-medium text-white text-sm mb-0.5">Disabilities</div>
+                <p className="text-ash-500 text-xs mb-2">Helps responders communicate and assist you</p>
+                <div className="flex flex-wrap gap-2">
+                  {DISABILITY_OPTIONS.map(opt => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => {
+                        setDisabilityNeeds(prev => {
+                          const on = prev.includes(opt)
+                          if (on) {
+                            const next = prev.filter(x => x !== opt)
+                            if (opt === DISABILITY_OTHER_LABEL) setDisabilityOther('')
+                            return next
+                          }
+                          return [...prev, opt]
+                        })
+                      }}
+                      className={chipClass(disabilityNeeds.includes(opt))}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+                {disabilityNeeds.includes(DISABILITY_OTHER_LABEL) && (
+                  <input
+                    value={disabilityOther}
+                    onChange={e => setDisabilityOther(e.target.value.slice(0, 100))}
+                    placeholder="e.g. severe anxiety, autism"
+                    className="w-full mt-2 bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
+                    maxLength={100}
+                    aria-label="Describe other disability"
+                  />
+                )}
+              </div>
+
+              <div>
+                <div className="font-medium text-white text-sm mb-0.5">Medical conditions & equipment</div>
+                <p className="text-ash-500 text-xs mb-2">Helps responders prioritize life-critical needs</p>
+                <div className="flex flex-wrap gap-2">
+                  {MEDICAL_OPTIONS.map(opt => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => {
+                        setMedicalNeeds(prev => {
+                          const on = prev.includes(opt)
+                          if (on) {
+                            const next = prev.filter(x => x !== opt)
+                            if (opt === MEDICAL_OTHER_LABEL) setMedicalOther('')
+                            return next
+                          }
+                          return [...prev, opt]
+                        })
+                      }}
+                      className={chipClass(medicalNeeds.includes(opt))}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+                {medicalNeeds.includes(MEDICAL_OTHER_LABEL) && (
+                  <input
+                    value={medicalOther}
+                    onChange={e => setMedicalOther(e.target.value.slice(0, 150))}
+                    placeholder="e.g. takes blood thinners, seizure disorder"
+                    className="w-full mt-2 bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
+                    maxLength={150}
+                    aria-label="Describe other medical conditions or medications"
+                  />
                 )}
               </div>
 
@@ -441,7 +622,7 @@ function OnboardingInner() {
               </div>
 
               <div>
-                <Label>Notes for first responders <span className="text-ash-600 font-normal">(optional)</span></Label>
+                <Label>Communication needs</Label>
                 <textarea value={responderNotes} onChange={e => setResponderNotes(e.target.value)}
                   placeholder="e.g. front door code, oxygen on 2nd floor, non-verbal household member, dog may bark"
                   rows={2}
@@ -452,21 +633,203 @@ function OnboardingInner() {
                 <input type="checkbox" checked={forOthers} onChange={e => setForOthers(e.target.checked)}
                   className="mt-0.5 accent-ember-500" />
                 <div>
-                  <div className="text-ash-200 text-sm font-medium">I'm also setting this up for someone else</div>
+                  <div className="text-ash-200 text-sm font-medium">I&apos;m also setting this up for someone else</div>
                   <div className="text-ash-500 text-xs mt-0.5">Parents, clients, neighbors — you can add them in My Persons after setup.</div>
                 </div>
               </label>
+
+              <div className="rounded-xl border border-ash-700 bg-ash-900/40 p-4">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={responderConsent}
+                    onChange={e => {
+                      setResponderConsent(e.target.checked)
+                      if (e.target.checked) setConsentError('')
+                    }}
+                    className="mt-1 accent-ember-500 shrink-0"
+                  />
+                  <span className="text-ash-200 text-sm leading-relaxed">
+                    I consent to sharing my profile, address, and any health or mobility information I&apos;ve provided with
+                    emergency responders during an active incident in my area.
+                  </span>
+                </label>
+                {consentError && <p className="text-signal-danger text-sm mt-2">{consentError}</p>}
+              </div>
             </div>
 
             {error && <p className="text-signal-danger text-sm mb-4">{error}</p>}
 
-            <button onClick={finish} disabled={saving}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-forest-700 hover:bg-forest-600 disabled:opacity-50 text-white font-semibold transition-colors">
+            {selectedRole === 'evacuee' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setError('')
+                  if (!responderConsent) {
+                    setConsentError('Please confirm your consent to continue')
+                    return
+                  }
+                  setConsentError('')
+                  setStep(4)
+                }}
+                disabled={saving || !responderConsent}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-forest-700 hover:bg-forest-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition-colors"
+              >
+                Continue <ArrowRight className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                onClick={finish}
+                disabled={saving || !responderConsent}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-forest-700 hover:bg-forest-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition-colors"
+              >
+                {saving ? (
+                  <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Setting up…</>
+                ) : (
+                  <>Create account <ArrowRight className="w-4 h-4" /></>
+                )}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Step 4: Work / secondary (evacuee only, optional) */}
+        {step === 4 && selectedRole === 'evacuee' && (
+          <div>
+            <button
+              onClick={() => setStep(3)}
+              className="flex items-center gap-1.5 text-ash-400 hover:text-white text-sm mb-4 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
+            <h1 className="font-display text-2xl font-bold text-white mb-1">
+              Do you have a work or secondary location?
+            </h1>
+            <p className="text-ash-400 text-sm mb-6">
+              We&apos;ll alert you based on where you&apos;re most likely to be during the day.
+            </p>
+
+            <div className="space-y-5 mb-6">
+              <div>
+                <Label>Work address <span className="text-ash-600 font-normal">(optional)</span></Label>
+                <p className="text-ash-500 text-xs mb-2">
+                  We&apos;ll check this location during weekday hours.
+                </p>
+                <AddressVerifySave
+                  variant="dark"
+                  id="onboarding-work-address"
+                  hint="Search for a numbered street address. We use it to compare with your live location during emergencies."
+                  value={workAddress}
+                  onChange={v => {
+                    setWorkAddress(v)
+                    setError('')
+                  }}
+                  savedAddress={verifiedWorkAddress}
+                  onVerified={({ types }) => {
+                    if (!workBuildingType) setWorkBuildingType(detectBuildingType(types))
+                  }}
+                  onVerifiedSave={async (line: string) => {
+                    const supabase = createClient()
+                    const { data: { user } } = await supabase.auth.getUser()
+                    if (!user) throw new Error('Not signed in')
+                    const { error: upErr } = await supabase
+                      .from('profiles')
+                      .update({
+                        work_address: line,
+                        work_address_verified: true,
+                      })
+                      .eq('id', user.id)
+                    if (upErr) throw new Error(upErr.message)
+                    setVerifiedWorkAddress(line)
+                    setWorkAddress(line)
+                    try {
+                      window.dispatchEvent(new CustomEvent('wfa-flameo-context-refresh'))
+                    } catch {
+                      /* ignore */
+                    }
+                  }}
+                />
+              </div>
+
+              {verifiedWorkAddress?.trim() ? (
+                <>
+                  <div>
+                    <Label>Building type</Label>
+                    <select
+                      value={workBuildingType}
+                      onChange={e =>
+                        setWorkBuildingType((e.target.value || '') as WorkBuildingType | '')
+                      }
+                      className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60"
+                    >
+                      <option value="">Select…</option>
+                      <option value="house">House / Single family home</option>
+                      <option value="apartment">Apartment or condo</option>
+                      <option value="office">Office building</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  {workBuildingType && workBuildingNeedsFloor(workBuildingType) && (
+                    <div>
+                      <Label>What floor do you work or live on?</Label>
+                      <p className="text-ash-500 text-xs mb-2">
+                        Helps Flameo give floor-specific evacuation guidance.
+                      </p>
+                      <input
+                        type="number"
+                        min={1}
+                        max={200}
+                        value={workFloor}
+                        onChange={e => setWorkFloor(e.target.value)}
+                        placeholder="e.g. 6"
+                        className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
+                      />
+                    </div>
+                  )}
+
+                  {hasMobilityNeedsForWorkNote && (
+                    <div>
+                      <Label>Anything responders should know about your situation at this location?</Label>
+                      <input
+                        type="text"
+                        value={workLocationNote}
+                        onChange={e => setWorkLocationNote(e.target.value.slice(0, 150))}
+                        maxLength={150}
+                        placeholder={
+                          workFloor
+                            ? `e.g. Wheelchair user on floor ${workFloor}`
+                            : 'e.g. Wheelchair user on floor 6'
+                        }
+                        className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
+                      />
+                    </div>
+                  )}
+                </>
+              ) : null}
+            </div>
+
+            {error && <p className="text-signal-danger text-sm mb-4">{error}</p>}
+
+            <button
+              type="button"
+              onClick={() => void finish()}
+              disabled={saving}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-forest-700 hover:bg-forest-600 disabled:opacity-50 text-white font-semibold transition-colors"
+            >
               {saving ? (
                 <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Setting up…</>
               ) : (
-                <>Set up my account <ArrowRight className="w-4 h-4" /></>
+                <>Create account <ArrowRight className="w-4 h-4" /></>
               )}
+            </button>
+            <button
+              type="button"
+              onClick={() => void finish()}
+              disabled={saving}
+              className="w-full text-center text-ash-500 hover:text-ash-300 text-sm mt-3 transition-colors py-1"
+            >
+              Skip — add later in Settings
             </button>
           </div>
         )}
