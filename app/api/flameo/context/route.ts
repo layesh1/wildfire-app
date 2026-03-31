@@ -1,41 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { distanceMiles } from '@/lib/hub-map-distance'
+import { HUMAN_EVAC_SHELTERS } from '@/lib/evac-shelters'
+import { geocodeAddress } from '@/lib/geocoding'
+import { reverseGeocode } from '@/lib/geocoding'
+import { rankSheltersByProximity } from '@/lib/shelter-ranking'
 import type {
   FlameoAnchor,
   FlameoContext,
   FlameoContextApiResponse,
   FlameoContextStatus,
   FlameoIncidentNearby,
+  FlameoLocationAnchorDetail,
   FlameoUserRole,
   FlameoWeatherSummary,
 } from '@/lib/flameo-context-types'
 
 const DEFAULT_RADIUS_MI = 50
 const MAX_INCIDENTS = 25
+const MAX_SHELTERS = 6
 /** Match map “away from home” — below this, treat GPS as same place as saved home for Flameo. */
 const LIVE_HOME_DIVERGENCE_MI = 0.35
 
 function parseLiveCoords(searchParams: URLSearchParams): [number, number] | null {
-  const lat = parseFloat(searchParams.get('liveLat') || '')
-  const lon = parseFloat(searchParams.get('liveLon') || '')
+  const lat = parseFloat(
+    searchParams.get('liveLat') || searchParams.get('currentLat') || ''
+  )
+  const lon = parseFloat(
+    searchParams.get('liveLon') || searchParams.get('currentLng') || ''
+  )
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null
   if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null
   return [lat, lon]
 }
 
-async function geocodeUs(location: string): Promise<{ lat: number; lon: number; display: string } | null> {
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1&countrycodes=us`
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'WildfireAlert/2.0 (wildfire-app@vercel.app)' },
-    })
-    const data = await res.json()
-    if (!data[0]) return null
-    return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), display: data[0].display_name }
-  } catch {
-    return null
-  }
+function parseDetectedAnchor(
+  raw: string | null
+): 'work' | 'home' | 'unknown' | null {
+  if (raw === 'work' || raw === 'home' || raw === 'unknown') return raw
+  return null
 }
 
 function resolveRole(profileRole: string | undefined, q: string | null): FlameoUserRole {
@@ -63,6 +66,8 @@ function emptyContext(role: FlameoUserRole, radius: number): FlameoContext {
     role,
     anchors: [],
     incidents_nearby: [],
+    shelters_nearby: [],
+    shelters_ranked: [],
     weather_summary: null,
     flags: { has_confirmed_threat: false, no_data: true },
     alert_radius_miles: radius,
@@ -82,10 +87,13 @@ export async function GET(request: NextRequest) {
   const fallbackAddress = (searchParams.get('fallbackAddress') || '').trim()
   /** My People: anchor Flameo on this address instead of the signed-in user’s profile home. */
   const contextAddress = (searchParams.get('contextAddress') || '').trim()
+  const detectedAnchorParam = parseDetectedAnchor(searchParams.get('detectedAnchor'))
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('address, alert_radius_miles, role')
+    .select(
+      'address, alert_radius_miles, role, work_address, work_building_type, work_floor_number, work_location_note, mobility_needs'
+    )
     .eq('id', user.id)
     .single()
 
@@ -98,10 +106,27 @@ export async function GET(request: NextRequest) {
       ? rawRadius
       : DEFAULT_RADIUS_MI
 
+  const workAddr =
+    typeof (profile as { work_address?: string | null }).work_address === 'string'
+      ? (profile as { work_address?: string }).work_address!.trim()
+      : ''
+  const workBuildingType =
+    (profile as { work_building_type?: string | null }).work_building_type ?? null
+  const workFloorNumber =
+    (profile as { work_floor_number?: number | null }).work_floor_number ?? null
+  const workLocationNote =
+    (profile as { work_location_note?: string | null }).work_location_note ?? null
+  const mobilityNeeds =
+    (profile as { mobility_needs?: string[] | null }).mobility_needs ?? null
+  const prefersAccessibleShelter =
+    Array.isArray(mobilityNeeds)
+    && mobilityNeeds.some(x => /\b(wheelchair|mobility|device)\b/i.test(String(x)))
+
   let address = (profile?.address || '').trim()
   if (!address && fallbackAddress) address = fallbackAddress
+  const preferWorkAnchor = detectedAnchorParam === 'work' && Boolean(workAddr)
 
-  if (!address) {
+  if (!address && !preferWorkAnchor) {
     const body: FlameoContextApiResponse = {
       status: 'address_missing',
       message: 'Add your home address in Settings to enable proximity-based Flameo context.',
@@ -111,11 +136,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(body)
   }
 
-  const geo = await geocodeUs(address)
+  let geo: { lat: number; lon: number; display: string } | null = null
+  let baseAnchorSource: 'home' | 'work' = 'home'
+  const firstAddress = preferWorkAnchor ? workAddr : address
+  try {
+    const g = await geocodeAddress(firstAddress)
+    geo = { lat: g.lat, lon: g.lng, display: g.formatted }
+    baseAnchorSource = preferWorkAnchor ? 'work' : 'home'
+  } catch {
+    geo = null
+  }
+  if (!geo && workAddr && firstAddress !== workAddr) {
+    try {
+      const g = await geocodeAddress(workAddr)
+      geo = { lat: g.lat, lon: g.lng, display: g.formatted }
+      baseAnchorSource = 'work'
+    } catch {
+      geo = null
+    }
+  }
   if (!geo) {
     const body: FlameoContextApiResponse = {
       status: 'geocode_failed',
-      message: 'Could not locate your address. Check spelling in Settings.',
+      message: 'Could not locate your saved home/work address. Check spelling in Settings.',
       context: emptyContext(role, alertRadiusMiles),
       feeds: { nifc: false, firms: false },
     }
@@ -123,17 +166,39 @@ export async function GET(request: NextRequest) {
   }
 
   const homeAnchor: FlameoContext['anchors'][0] = {
-    id: 'home',
+    id: baseAnchorSource === 'work' ? 'work' : 'home',
     label: geo.display,
     lat: geo.lat,
     lon: geo.lon,
   }
   const homePoint: [number, number] = [geo.lat, geo.lon]
 
-  const liveCoords = parseLiveCoords(new URL(request.url).searchParams)
+  const sp = new URL(request.url).searchParams
+  const liveCoords = parseLiveCoords(sp)
+
+  let location_anchor: FlameoLocationAnchorDetail | undefined
+  if (baseAnchorSource === 'work') {
+    location_anchor = {
+      anchor: 'work',
+      anchor_address: workAddr || geo.display,
+      building_type: workBuildingType,
+      floor_number: workFloorNumber,
+      location_note: workLocationNote,
+    }
+  } else {
+    location_anchor = {
+      anchor: 'home',
+      anchor_address: address || geo.display,
+    }
+  }
+
   let liveVsHomeMiles: number | null = null
   let liveAnchor: FlameoAnchor | null = null
-  if (liveCoords) {
+  if (
+    liveCoords
+    && detectedAnchorParam !== 'work'
+    && detectedAnchorParam !== 'unknown'
+  ) {
     liveVsHomeMiles = distanceMiles(homePoint, liveCoords)
     if (liveVsHomeMiles > LIVE_HOME_DIVERGENCE_MI) {
       liveAnchor = {
@@ -145,9 +210,94 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const anchors: FlameoContext['anchors'] = liveAnchor ? [homeAnchor, liveAnchor] : [homeAnchor]
-  const livePoint: [number, number] | null = liveAnchor ? [liveAnchor.lat, liveAnchor.lon] : null
-  const dualMode = livePoint != null
+  let anchors: FlameoContext['anchors'] = liveAnchor ? [homeAnchor, liveAnchor] : [homeAnchor]
+  let livePoint: [number, number] | null = liveAnchor ? [liveAnchor.lat, liveAnchor.lon] : null
+  let dualMode = livePoint != null
+
+  if (detectedAnchorParam === 'work' && workAddr) {
+    let wg: { lat: number; lon: number; display: string } | null = null
+    try {
+      const g = await geocodeAddress(workAddr)
+      wg = { lat: g.lat, lon: g.lng, display: g.formatted }
+    } catch {
+      wg = null
+    }
+    if (wg) {
+      anchors = [{ id: 'work', label: workAddr, lat: wg.lat, lon: wg.lon }]
+      liveAnchor = null
+      livePoint = null
+      dualMode = false
+      liveVsHomeMiles = null
+      location_anchor = {
+        anchor: 'work',
+        anchor_address: workAddr,
+        building_type: workBuildingType,
+        floor_number: workFloorNumber,
+        location_note: workLocationNote,
+      }
+    }
+  } else if (detectedAnchorParam === 'unknown' && liveCoords) {
+    let unknownAddress: string | null = null
+    try {
+      const rev = await reverseGeocode(liveCoords[0], liveCoords[1])
+      unknownAddress = rev.formatted
+    } catch {
+      unknownAddress = null
+    }
+    anchors = [
+      {
+        id: 'unknown',
+        label: unknownAddress || 'Your current location (GPS)',
+        lat: liveCoords[0],
+        lon: liveCoords[1],
+      },
+    ]
+    liveAnchor = null
+    livePoint = null
+    dualMode = false
+    liveVsHomeMiles = null
+    location_anchor = { anchor: 'unknown', anchor_address: unknownAddress }
+  }
+
+  /** Reference points for distance-to-fire: A = primary; B = optional second (live vs home). */
+  let refA: [number, number] = homePoint
+  let refB: [number, number] | null = livePoint
+  let dualForIncidents = dualMode
+  if (location_anchor?.anchor === 'work' && anchors[0]?.id === 'work') {
+    refA = [anchors[0].lat, anchors[0].lon]
+    refB = null
+    dualForIncidents = false
+  } else if (location_anchor?.anchor === 'unknown' && liveCoords) {
+    refA = liveCoords
+    refB = null
+    dualForIncidents = false
+  }
+
+  // Grounding for shelter-oriented Flameo requests: only vetted human evacuation shelters.
+  const shelterOrigin: [number, number] = refB ?? refA
+  const shelters_nearby = HUMAN_EVAC_SHELTERS
+    .map(s => ({
+      name: s.name,
+      county: s.county,
+      lat: s.lat,
+      lon: s.lng,
+      distance_miles: Math.round(distanceMiles(shelterOrigin, [s.lat, s.lng]) * 10) / 10,
+    }))
+    .sort((a, b) => a.distance_miles - b.distance_miles)
+    .slice(0, MAX_SHELTERS)
+
+  const shelterOriginObj = { lat: shelterOrigin[0], lng: shelterOrigin[1] }
+  let rankedByTravel = await rankSheltersByProximity(
+    shelterOriginObj,
+    shelters_nearby.map(s => ({
+      name: s.name,
+      lat: s.lat,
+      lng: s.lon,
+      county: s.county,
+    }))
+    ,
+    { preferAccessible: prefersAccessibleShelter }
+  ).catch(() => [])
 
   const origin = new URL(request.url).origin
 
@@ -164,20 +314,24 @@ export async function GET(request: NextRequest) {
       for (const f of rows) {
         if (f.latitude == null || f.longitude == null) continue
         const dHome = distanceMiles(homePoint, [f.latitude, f.longitude])
+        const dA = distanceMiles(refA, [f.latitude, f.longitude])
+        const dB = refB ? distanceMiles(refB, [f.latitude, f.longitude]) : null
         const dLive = livePoint ? distanceMiles(livePoint, [f.latitude, f.longitude]) : null
         const inRadius =
-          dHome <= alertRadiusMiles || (dLive != null && dLive <= alertRadiusMiles)
+          dA <= alertRadiusMiles || (dB != null && dB <= alertRadiusMiles)
         if (!inRadius) continue
-        const distMin = Math.min(dHome, dLive ?? Infinity)
-        const nearest: 'home' | 'live' =
-          dualMode && dLive != null && dLive < dHome ? 'live' : 'home'
+        const distMin = Math.min(dA, dB ?? Infinity)
+        let nearest: 'home' | 'live' | 'work' | 'unknown' = 'home'
+        if (location_anchor?.anchor === 'work') nearest = 'work'
+        else if (location_anchor?.anchor === 'unknown') nearest = 'unknown'
+        else if (dualForIncidents && dB != null && dB < dA) nearest = 'live'
         candidates.push({
           id: String(f.id),
           source: 'nifc',
           distance_miles: Math.round(distMin * 10) / 10,
           distance_miles_from_home: Math.round(dHome * 10) / 10,
           distance_miles_from_live: dLive != null ? Math.round(dLive * 10) / 10 : null,
-          nearest_anchor_id: dualMode ? nearest : 'home',
+          nearest_anchor_id: dualForIncidents || location_anchor ? nearest : 'home',
           name: f.fire_name || null,
           lat: f.latitude,
           lon: f.longitude,
@@ -199,20 +353,24 @@ export async function GET(request: NextRequest) {
         const lon = parseFloat(row.longitude || '')
         if (Number.isNaN(lat) || Number.isNaN(lon)) return
         const dHome = distanceMiles(homePoint, [lat, lon])
+        const dA = distanceMiles(refA, [lat, lon])
+        const dB = refB ? distanceMiles(refB, [lat, lon]) : null
         const dLive = livePoint ? distanceMiles(livePoint, [lat, lon]) : null
         const inRadius =
-          dHome <= alertRadiusMiles || (dLive != null && dLive <= alertRadiusMiles)
+          dA <= alertRadiusMiles || (dB != null && dB <= alertRadiusMiles)
         if (!inRadius) return
-        const distMin = Math.min(dHome, dLive ?? Infinity)
-        const nearest: 'home' | 'live' =
-          dualMode && dLive != null && dLive < dHome ? 'live' : 'home'
+        const distMin = Math.min(dA, dB ?? Infinity)
+        let nearest: 'home' | 'live' | 'work' | 'unknown' = 'home'
+        if (location_anchor?.anchor === 'work') nearest = 'work'
+        else if (location_anchor?.anchor === 'unknown') nearest = 'unknown'
+        else if (dualForIncidents && dB != null && dB < dA) nearest = 'live'
         candidates.push({
           id: `firms-${i}-${lat.toFixed(3)}-${lon.toFixed(3)}`,
           source: 'firms',
           distance_miles: Math.round(distMin * 10) / 10,
           distance_miles_from_home: Math.round(dHome * 10) / 10,
           distance_miles_from_live: dLive != null ? Math.round(dLive * 10) / 10 : null,
-          nearest_anchor_id: dualMode ? nearest : 'home',
+          nearest_anchor_id: dualForIncidents || location_anchor ? nearest : 'home',
           name: null,
           lat,
           lon,
@@ -228,9 +386,69 @@ export async function GET(request: NextRequest) {
   candidates.sort((a, b) => a.distance_miles - b.distance_miles)
   const incidents_nearby = candidates.slice(0, MAX_INCIDENTS)
 
+  let shelters_ranked: NonNullable<FlameoContext['shelters_ranked']> = []
+  if (rankedByTravel.length > 0) {
+    try {
+      const firePerimeter = incidents_nearby
+        .slice(0, 8)
+        .map(i => ({ lat: i.lat, lng: i.lon }))
+      const routeRes = await fetch(`${origin}/api/shelter`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          originLat: shelterOrigin[0],
+          originLng: shelterOrigin[1],
+          shelters: rankedByTravel.slice(0, 6).map(s => ({ name: s.name, lat: s.lat, lng: s.lng })),
+          firePerimeter: firePerimeter.length >= 3 ? firePerimeter : undefined,
+        }),
+        cache: 'no-store',
+      })
+      const routeJson = (await routeRes.json()) as {
+        ranked?: Array<{
+          shelter: { name: string; lat: number; lng: number }
+          duration_seconds: number
+          distance_meters: number
+          summary: string
+          passes_near_fire: boolean
+        }>
+      }
+      const routeRows = Array.isArray(routeJson.ranked) ? routeJson.ranked : []
+      shelters_ranked = routeRows.map(r => {
+        const match = rankedByTravel.find(
+          s => s.name === r.shelter.name && s.lat === r.shelter.lat && s.lng === r.shelter.lng
+        )
+        return {
+          name: r.shelter.name,
+          lat: r.shelter.lat,
+          lon: r.shelter.lng,
+          travel_minutes: Math.max(1, Math.round((r.duration_seconds || 0) / 60)),
+          distance_miles: Math.round(((r.distance_meters || 0) / 1609.344) * 10) / 10,
+          route_summary: r.summary || 'Primary route',
+          route_avoids_fire: !r.passes_near_fire,
+          accessibility_likely: match?.accessibilityLikely ?? false,
+          phone: match?.phone ?? null,
+        }
+      })
+    } catch {
+      shelters_ranked = rankedByTravel.slice(0, 3).map(s => ({
+        name: s.name,
+        lat: s.lat,
+        lon: s.lng,
+        travel_minutes: Math.max(1, Math.round(s.travelTimeSeconds / 60)),
+        distance_miles: Math.round((s.travelDistanceMeters / 1609.344) * 10) / 10,
+        route_summary: 'Primary route',
+        route_avoids_fire: true,
+        accessibility_likely: s.accessibilityLikely,
+        phone: s.phone ?? null,
+      }))
+    }
+  }
+
   let weather_summary: FlameoWeatherSummary | null = null
   try {
-    const wUrl = `${origin}/api/weather?location=${encodeURIComponent(address)}`
+    const weatherLine =
+      location_anchor?.anchor === 'work' && workAddr ? workAddr : address
+    const wUrl = `${origin}/api/weather?location=${encodeURIComponent(weatherLine)}`
     const wRes = await fetch(wUrl, { next: { revalidate: 300 } })
     if (wRes.ok) {
       const w = await wRes.json()
@@ -277,6 +495,8 @@ export async function GET(request: NextRequest) {
     role,
     anchors,
     incidents_nearby,
+    shelters_nearby,
+    shelters_ranked,
     weather_summary,
     flags: {
       has_confirmed_threat: hasThreat,
@@ -285,6 +505,7 @@ export async function GET(request: NextRequest) {
     },
     alert_radius_miles: alertRadiusMiles,
     live_vs_home_miles: dualMode ? liveVsHomeMiles : null,
+    location_anchor,
   }
 
   if (status === 'feeds_unavailable') {

@@ -8,18 +8,13 @@ import {
   MapPin,
   CheckCircle,
   X,
-  Plus,
   Phone,
   MessageSquare,
   Mail,
   Copy,
   AlertTriangle,
   Settings,
-  Pencil,
-  UserCircle,
-  UserPlus,
 } from 'lucide-react'
-import AddressAutocomplete from '@/components/AddressAutocomplete'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -45,8 +40,6 @@ interface Person {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const RELATIONSHIPS: Relationship[] = ['Family Member', 'Client', 'Neighbor', 'Self', 'Other']
-const FAMILY_RELATIONS = ['Parent', 'Child', 'Sibling', 'Spouse / Partner', 'Grandparent', 'Grandchild', 'Aunt / Uncle', 'Cousin', 'Other']
 const MOBILITIES: Mobility[] = ['Mobile Adult', 'Elderly', 'Disabled', 'No Vehicle', 'Medical Equipment', 'Other']
 const PERSON_LANGUAGES = [
   { code: 'en', label: 'English', flag: '🇺🇸' },
@@ -164,22 +157,6 @@ function statusConfig(status: CheckinStatus): {
   }
 }
 
-// ── Empty form ─────────────────────────────────────────────────────────────
-
-function emptyForm() {
-  return {
-    name: '',
-    address: '',
-    relationship: 'Family Member' as Relationship,
-    familyRelation: '',
-    mobility: 'Mobile Adult' as Mobility,
-    mobilityOther: '',
-    phone: '',
-    languages: [] as string[],
-    notes: '',
-  }
-}
-
 // ── Ping popover ──────────────────────────────────────────────────────────────
 
 function PingPopover({
@@ -272,10 +249,15 @@ function PingPopover({
 
 export default function PersonsPage() {
   const [persons, setPersons] = useState<Person[]>([])
-  const [showForm, setShowForm] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [form, setForm] = useState(emptyForm())
-  const [formError, setFormError] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteError, setInviteError] = useState<string | null>(null)
+  const [inviteOk, setInviteOk] = useState<string | null>(null)
+  const [inviteLoading, setInviteLoading] = useState(false)
+  const [pendingInvites, setPendingInvites] = useState<
+    Array<{ id: string; email: string; createdAt: string }>
+  >([])
+  const [pendingActionEmail, setPendingActionEmail] = useState<string | null>(null)
   const [openPingId, setOpenPingId] = useState<string | null>(null)
   const [fireWarningNames, setFireWarningNames] = useState<string[]>([])
   const [myName, setMyName] = useState('')
@@ -291,6 +273,7 @@ export default function PersonsPage() {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
+          setUserId(user.id)
           const [persons, card] = await Promise.all([
             loadPersons(supabase, user.id),
             loadProfileCard(supabase, user.id),
@@ -314,6 +297,46 @@ export default function PersonsPage() {
     }
     load()
   }, [])
+
+  const loadPendingInvites = useCallback(async (uid: string) => {
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('family_invites')
+      .select('id, invitee_email, created_at, status')
+      .eq('inviter_user_id', uid)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+    const normalized = (Array.isArray(data) ? data : []).map((row: Record<string, unknown>) => ({
+      id: String(row.id ?? ''),
+      email: String(row.invitee_email ?? ''),
+      createdAt: String(row.created_at ?? ''),
+    }))
+    setPendingInvites(normalized.filter(x => x.id && x.email))
+  }, [])
+
+  useEffect(() => {
+    if (!userId) return
+    loadPendingInvites(userId).catch(() => {})
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`pending-family-invites-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'family_invites',
+          filter: `inviter_user_id=eq.${userId}`,
+        },
+        () => {
+          loadPendingInvites(userId).catch(() => {})
+        }
+      )
+      .subscribe()
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [loadPendingInvites, userId])
 
   // ── Persist to Supabase + localStorage ───────────────────────────────────
 
@@ -401,70 +424,88 @@ export default function PersonsPage() {
     return () => clearInterval(interval)
   }, [])
 
-  // ── Add / Edit person ─────────────────────────────────────────────────────
-
-  function startEdit(person: Person) {
-    setEditingId(person.id)
-    setForm({
-      name: person.name,
-      address: person.address,
-      relationship: RELATIONSHIPS.includes(person.relationship as Relationship)
-        ? person.relationship as Relationship
-        : 'Other',
-      familyRelation: '',
-      mobility: MOBILITIES.includes(person.mobility as Mobility)
-        ? person.mobility as Mobility
-        : 'Other',
-      mobilityOther: MOBILITIES.includes(person.mobility as Mobility) ? '' : person.mobility,
-      phone: person.phone,
-      languages: person.languages,
-      notes: person.notes,
-    })
-    setShowForm(true)
-    setFormError(null)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  function savePerson() {
-    if (!form.name.trim()) { setFormError('Name is required'); return }
-    if (!form.address.trim()) { setFormError('Address is required'); return }
-    setFormError(null)
-
-    const resolvedRelationship = form.relationship === 'Family Member' && form.familyRelation
-      ? form.familyRelation as Relationship
-      : form.relationship
-    const resolvedMobility = form.mobility === 'Other' && form.mobilityOther.trim()
-      ? form.mobilityOther.trim() as Mobility
-      : form.mobility
-
-    if (editingId) {
-      persist(persons.map(p =>
-        p.id === editingId
-          ? { ...p, name: form.name.trim(), address: form.address.trim(), relationship: resolvedRelationship, mobility: resolvedMobility, phone: form.phone.trim(), languages: form.languages, notes: form.notes.trim() }
-          : p
-      ))
-    } else {
-      persist([{
-        id: Date.now().toString(),
-        name: form.name.trim(),
-        address: form.address.trim(),
-        relationship: resolvedRelationship,
-        mobility: resolvedMobility,
-        phone: form.phone.trim(),
-        languages: form.languages,
-        notes: form.notes.trim(),
-        status: 'unknown',
-        last_confirmed: null,
-        checkin_token: null,
-        ping_sent_at: null,
-        justConfirmed: false,
-      }, ...persons])
+  const sendInvite = useCallback(async () => {
+    const email = inviteEmail.trim().toLowerCase()
+    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email)
+    if (!validEmail) {
+      setInviteError('Please enter a valid email address')
+      setInviteOk(null)
+      return
+    }
+    if (persons.some(p => (p as { email?: string }).email?.toLowerCase() === email)) {
+      setInviteError('This person is already in your My People list')
+      setInviteOk(null)
+      return
     }
 
-    setForm(emptyForm())
-    setShowForm(false)
-    setEditingId(null)
-  }
+    setInviteLoading(true)
+    setInviteError(null)
+    setInviteOk(null)
+    try {
+      const res = await fetch('/api/family/send-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const msg = String(data?.error || '').toLowerCase()
+        if (msg.includes('already') && msg.includes('my people')) {
+          setInviteError('This person is already in your My People list')
+        } else if (msg.includes('valid email')) {
+          setInviteError('Please enter a valid email address')
+        } else {
+          setInviteError('Something went wrong. Try again.')
+        }
+        return
+      }
+      setInviteOk(`Invite sent to ${email}`)
+      setInviteEmail('')
+    } catch {
+      setInviteError('Something went wrong. Try again.')
+    } finally {
+      setInviteLoading(false)
+    }
+  }, [inviteEmail, persons])
+
+  const resendInvite = useCallback(async (email: string) => {
+    setPendingActionEmail(email)
+    setInviteError(null)
+    setInviteOk(null)
+    try {
+      const res = await fetch('/api/family/send-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setInviteError(typeof data?.error === 'string' ? data.error : 'Something went wrong. Try again.')
+        return
+      }
+      setInviteOk(`Invite sent to ${email}`)
+    } catch {
+      setInviteError('Something went wrong. Try again.')
+    } finally {
+      setPendingActionEmail(null)
+    }
+  }, [])
+
+  const cancelInvite = useCallback(async (id: string) => {
+    setPendingActionEmail(id)
+    setInviteError(null)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from('family_invites').delete().eq('id', id)
+      if (error) {
+        setInviteError('Something went wrong. Try again.')
+        return
+      }
+      setPendingInvites(prev => prev.filter(inv => inv.id !== id))
+    } finally {
+      setPendingActionEmail(null)
+    }
+  }, [])
 
   // ── Remove person ────────────────────────────────────────────────────────
 
@@ -517,30 +558,8 @@ export default function PersonsPage() {
     setOpenPingId(id)
   }
 
-  // ── Add myself ───────────────────────────────────────────────────────────
-
-  function addMyself() {
-    const selfEntry: Person = {
-      id: 'self_' + Date.now().toString(),
-      name: myName || 'Me',
-      address: myAddress || '',
-      relationship: 'Self' as Relationship,
-      mobility: 'Mobile Adult' as Mobility,
-      phone: '',
-      languages: [],
-      notes: '',
-      status: 'unknown',
-      last_confirmed: null,
-      checkin_token: null,
-      ping_sent_at: null,
-      justConfirmed: false,
-    }
-    persist([selfEntry, ...persons])
-  }
-
   // ── Stats ─────────────────────────────────────────────────────────────────
 
-  const selfEntry = persons.find(p => p.relationship === 'Self')
   const others = persons.filter(p => p.relationship !== 'Self')
   const safeCount = persons.filter(p => p.status === 'confirmed_safe').length
   const total = persons.length
@@ -564,10 +583,10 @@ export default function PersonsPage() {
           How My People works
         </div>
         <ul className="text-ash-400 text-xs space-y-1.5 list-none">
-          <li>① <strong className="text-ash-300">Add a person</strong> — name, address, and mobility info for each person you care for</li>
-          <li>② <strong className="text-ash-300">Ping them</strong> — tap "Ping" to generate a unique check-in link, then send it via text, WhatsApp, or email</li>
-          <li>③ <strong className="text-ash-300">They tap the link</strong> — they confirm safe, need help, or are evacuating. You see their status update here instantly</li>
-          <li>④ <strong className="text-ash-300">Mark Safe manually</strong> — if you've spoken to them directly, you can mark them safe yourself</li>
+          <li>① <strong className="text-ash-300">Invite by email</strong> — send a WildfireAlert invite to someone you care for</li>
+          <li>② <strong className="text-ash-300">They accept</strong> — once they join, they appear in your My People list automatically</li>
+          <li>③ <strong className="text-ash-300">Monitor status</strong> — view their latest safety status and alert context in one place</li>
+          <li>④ <strong className="text-ash-300">Ping if needed</strong> — send a direct check-in link during an active event</li>
         </ul>
       </div>
 
@@ -586,68 +605,6 @@ export default function PersonsPage() {
           </p>
         </div>
       )}
-
-      {/* ── Monitor Myself ─────────────────────────────────────────────── */}
-      <div className="mb-5">
-        <div className="flex items-center gap-2 text-ash-400 text-xs font-semibold uppercase tracking-widest mb-3">
-          <UserCircle className="w-3.5 h-3.5" /> Me
-        </div>
-        {selfEntry ? (
-          (() => {
-            const sc = statusConfig(selfEntry.status)
-            return (
-              <div className={`card p-5 border-2 transition-all duration-500 ${selfEntry.justConfirmed ? 'border-signal-safe/60 shadow-lg shadow-signal-safe/10' : sc.cardBorder}`}>
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="flex items-start gap-3">
-                    <div className={`w-2.5 h-2.5 rounded-full mt-2 shrink-0 ${sc.dotClass}`} />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-white font-semibold">{selfEntry.name}</span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-ash-800 text-ash-300 border border-ash-700">You</span>
-                      </div>
-                      {selfEntry.address && (
-                        <div className="flex items-center gap-1.5 mt-1 text-ash-500 text-xs">
-                          <MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{selfEntry.address}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <button onClick={() => removePerson(selfEntry.id)} className="p-1.5 rounded-lg text-ash-600 hover:text-signal-danger hover:bg-signal-danger/10 transition-colors" aria-label="Remove myself">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium mb-3 ${sc.badgeBg} ${sc.badgeText}`}>
-                  {selfEntry.status === 'confirmed_safe' && <CheckCircle className="w-3.5 h-3.5" />}
-                  {sc.label}
-                </div>
-                <div className="text-ash-500 text-xs mb-4">
-                  {selfEntry.status === 'confirmed_safe' && selfEntry.last_confirmed && <span>Last confirmed: {relativeTime(selfEntry.last_confirmed)}</span>}
-                  {selfEntry.status === 'unknown' && <span>Not yet confirmed</span>}
-                </div>
-                <button onClick={() => markSafe(selfEntry.id)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-signal-safe/30 text-signal-safe bg-signal-safe/10 hover:bg-signal-safe/20 transition-colors">
-                  <CheckCircle className="w-3.5 h-3.5" /> Mark Myself Safe
-                </button>
-              </div>
-            )
-          })()
-        ) : (
-          <div className="card p-5 border border-dashed border-ash-600 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-ash-800 flex items-center justify-center shrink-0">
-              <UserCircle className="w-5 h-5 text-ash-500" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-white text-sm font-medium mb-0.5">Are you also monitoring yourself?</div>
-              <div className="text-ash-400 text-xs">Add yourself so you can confirm your own safety during an event.</div>
-            </div>
-            <button
-              onClick={addMyself}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-signal-safe/30 text-signal-safe bg-signal-safe/10 hover:bg-signal-safe/20 transition-colors shrink-0"
-            >
-              <UserPlus className="w-3.5 h-3.5" /> Track Myself
-            </button>
-          </div>
-        )}
-      </div>
 
       {/* ── People I care for header ────────────────────────────────────── */}
       <div className="flex items-center gap-2 text-ash-400 text-xs font-semibold uppercase tracking-widest mb-3">
@@ -693,183 +650,73 @@ export default function PersonsPage() {
         </div>
       )}
 
-      {/* Add person button */}
-      <button
-        onClick={() => { setShowForm(v => !v); setEditingId(null); setForm(emptyForm()); setFormError(null) }}
-        className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium border transition-all mb-5 ${
-          showForm
-            ? 'border-ash-700 text-ash-400 bg-ash-800/50 hover:bg-ash-800'
-            : 'border-dashed border-ash-600 text-ash-400 hover:border-ember-500/50 hover:text-ember-400 hover:bg-ember-500/5'
-        }`}
-      >
-        {showForm ? (
-          <><X className="w-4 h-4" /> Cancel</>
-        ) : (
-          <><Plus className="w-4 h-4" /> Add Person</>
-        )}
-      </button>
-
-      {/* Add / Edit person form */}
-      {showForm && (
-        <div className="card p-5 mb-6 space-y-4 border-ember-500/20">
-          <h2 className="text-white font-semibold text-sm flex items-center gap-2">
-            <Plus className="w-4 h-4 text-ember-400" /> {editingId ? 'Edit Person' : 'New Person'}
-          </h2>
-
-          <div className="grid sm:grid-cols-2 gap-4">
-            {/* Name */}
-            <div>
-              <label className="label">Full name *</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                placeholder="e.g. Maria Garcia"
-                className="input"
-              />
-            </div>
-
-            {/* Relationship */}
-            <div>
-              <label className="label">Relationship *</label>
-              <select
-                value={form.relationship}
-                onChange={e => setForm(f => ({ ...f, relationship: e.target.value as Relationship, familyRelation: '' }))}
-                className="input appearance-none cursor-pointer"
-              >
-                {RELATIONSHIPS.map(r => (
-                  <option key={r} value={r}>{r}</option>
-                ))}
-              </select>
-              {form.relationship === 'Family Member' && (
-                <select
-                  value={form.familyRelation}
-                  onChange={e => setForm(f => ({ ...f, familyRelation: e.target.value }))}
-                  className="input appearance-none cursor-pointer mt-2"
-                >
-                  <option value="">Select relation type...</option>
-                  {FAMILY_RELATIONS.map(r => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
-              )}
-            </div>
-
-            {/* Address */}
-            <div className="sm:col-span-2">
-              <label className="label flex items-center gap-1.5">
-                <MapPin className="w-4 h-4 text-ash-500 shrink-0" />
-                Street address *
-              </label>
-              <AddressAutocomplete
-                variant="dark"
-                value={form.address}
-                onChange={v => setForm(f => ({ ...f, address: v }))}
-                placeholder="123 Main Street, Paradise, CA 95969"
-                hint="Use a numbered street address for map distance — not a city or county alone."
-              />
-            </div>
-
-            {/* Mobility */}
-            <div>
-              <label className="label">Mobility level</label>
-              <select
-                value={form.mobility}
-                onChange={e => setForm(f => ({ ...f, mobility: e.target.value as Mobility, mobilityOther: '' }))}
-                className="input appearance-none cursor-pointer"
-              >
-                {MOBILITIES.map(m => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-              {form.mobility === 'Other' && (
-                <input
-                  type="text"
-                  value={form.mobilityOther}
-                  onChange={e => setForm(f => ({ ...f, mobilityOther: e.target.value }))}
-                  placeholder="Describe mobility needs..."
-                  className="input mt-2"
-                />
-              )}
-            </div>
-
-            {/* Phone */}
-            <div>
-              <label className="label">
-                Phone <span className="text-ash-600 font-normal">(optional)</span>
-              </label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ash-500 pointer-events-none" />
-                <input
-                  type="tel"
-                  value={form.phone}
-                  onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                  placeholder="+1 (530) 555-0100"
-                  className="input pl-9"
-                />
-              </div>
-            </div>
-
-            {/* Languages */}
-            <div className="sm:col-span-2">
-              <label className="label">Languages spoken <span className="text-ash-600 font-normal">(click to select all that apply)</span></label>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {PERSON_LANGUAGES.map(l => {
-                  const selected = form.languages.includes(l.code)
-                  return (
-                    <button
-                      key={l.code}
-                      type="button"
-                      onClick={() => setForm(f => ({
-                        ...f,
-                        languages: selected
-                          ? f.languages.filter(c => c !== l.code)
-                          : [...f.languages, l.code]
-                      }))}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                        selected
-                          ? 'bg-ember-500/20 border-ember-500/50 text-ember-300'
-                          : 'bg-ash-800 border-ash-700 text-ash-400 hover:border-ash-600 hover:text-ash-300'
-                      }`}
-                    >
-                      <span>{l.flag}</span>
-                      <span>{l.label}</span>
-                      {selected && <span className="text-ember-400">✓</span>}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Personal Notes */}
-            <div className="sm:col-span-2">
-              <label className="label">Personal notes <span className="text-ash-600 font-normal">(medical needs, sensitivities, other info)</span></label>
-              <textarea
-                value={form.notes}
-                onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                placeholder="e.g. needs nebulizer, nonverbal, has latex sensitivity, uses wheelchair, carries EpiPen..."
-                rows={3}
-                className="input resize-none font-normal"
-              />
-            </div>
-          </div>
-
-          {formError && (
-            <p className="text-signal-danger text-xs">{formError}</p>
-          )}
-
+      <div className="card p-5 mb-6 space-y-3 border-ember-500/20">
+        <h2 className="text-white font-semibold text-sm">ADD SOMEONE TO MY PEOPLE</h2>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            type="email"
+            value={inviteEmail}
+            onChange={e => setInviteEmail(e.target.value)}
+            placeholder="Enter their email address"
+            className="input flex-1"
+          />
           <button
-            onClick={savePerson}
-            className="btn-primary w-full flex items-center justify-center gap-2"
+            type="button"
+            onClick={sendInvite}
+            disabled={inviteLoading}
+            className="btn-primary px-4 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Plus className="w-4 h-4" />
-            {editingId ? 'Save Changes' : 'Add Person'}
+            {inviteLoading ? 'Sending...' : 'Send Invite'}
           </button>
+        </div>
+        <p className="text-ash-400 text-xs">
+          They&apos;ll receive an email to join WildfireAlert. Once they sign up, you&apos;ll see their safety status here automatically.
+        </p>
+        {inviteOk && <p className="text-signal-safe text-xs">✅ {inviteOk}</p>}
+        {inviteError && <p className="text-signal-danger text-xs">{inviteError}</p>}
+      </div>
+
+      {pendingInvites.length > 0 && (
+        <div className="card p-5 mb-6 space-y-3 border-ash-700">
+          <div className="text-ash-300 text-xs font-semibold uppercase tracking-widest">Pending Invites</div>
+          <div className="space-y-2">
+            {pendingInvites.map(invite => {
+              const daysAgo = Math.max(
+                0,
+                Math.floor((Date.now() - new Date(invite.createdAt).getTime()) / 86400000)
+              )
+              const busy = pendingActionEmail === invite.id || pendingActionEmail === invite.email
+              return (
+                <div key={invite.id} className="rounded-lg border border-ash-700 bg-ash-900/40 p-3">
+                  <div className="text-sm text-white">{invite.email}</div>
+                  <div className="text-xs text-ash-500 mb-2">Sent {daysAgo} day{daysAgo === 1 ? '' : 's'} ago</div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => resendInvite(invite.email)}
+                      className="px-2.5 py-1 rounded-md text-xs border border-ember-500/40 text-ember-300 hover:bg-ember-500/10 disabled:opacity-50"
+                    >
+                      Resend
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => cancelInvite(invite.id)}
+                      className="px-2.5 py-1 rounded-md text-xs border border-ash-600 text-ash-300 hover:bg-ash-800 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 
       {/* Empty state for others */}
-      {others.length === 0 && !showForm && (
+      {others.length === 0 && (
         <div className="card p-10 text-center">
           <Users className="w-12 h-12 text-ash-700 mx-auto mb-3" />
           <div className="text-white font-semibold mb-2">No one added yet</div>
@@ -938,15 +785,8 @@ export default function PersonsPage() {
                   </div>
                 </div>
 
-                {/* Edit + Remove buttons */}
+                {/* Remove button */}
                 <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => startEdit(person)}
-                    className="p-1.5 rounded-lg text-ash-600 hover:text-ember-400 hover:bg-ember-500/10 transition-colors"
-                    aria-label={`Edit ${person.name}`}
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
                   <button
                     onClick={() => removePerson(person.id)}
                     className="p-1.5 rounded-lg text-ash-600 hover:text-signal-danger hover:bg-signal-danger/10 transition-colors"

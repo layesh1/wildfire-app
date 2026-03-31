@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { geocodeAddress } from '@/lib/geocoding'
 
 async function geocode(location: string): Promise<{ lat: number; lon: number; display: string } | null> {
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1&countrycodes=us`
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'WildfireAlert/2.0 (wildfire-app@vercel.app)' },
-    })
-    const data = await res.json()
-    if (!data[0]) return null
-    return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), display: data[0].display_name }
+    const g = await geocodeAddress(location)
+    return { lat: g.lat, lon: g.lng, display: g.formatted }
   } catch { return null }
 }
 

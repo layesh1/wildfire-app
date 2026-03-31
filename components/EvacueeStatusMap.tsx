@@ -1,5 +1,5 @@
 'use client'
-import { MapContainer, TileLayer, CircleMarker, Marker, Popup, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, CircleMarker, Marker, Popup, Tooltip, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useEffect } from 'react'
@@ -20,6 +20,28 @@ export interface EvacueePin {
   status: 'evacuated' | 'sheltering' | 'returning' | 'unknown'
   phone?: string
   special_needs?: string
+  /** Short tags from onboarding / profile (responder map). */
+  mobility_needs?: string[]
+  medical_needs?: string[]
+  disability_other?: string
+  medical_other?: string
+}
+
+const OXY_DIALYSIS = new Set([
+  'Requires oxygen or ventilator',
+  'Requires dialysis',
+])
+
+function truncate(s: string | undefined, max: number) {
+  if (!s) return ''
+  const t = s.trim()
+  return t.length <= max ? t : `${t.slice(0, max)}…`
+}
+
+function pinShowsLifeEquipment(pin: EvacueePin): boolean {
+  const m = pin.medical_needs
+  if (!m?.length) return false
+  return m.some(x => OXY_DIALYSIS.has(x))
 }
 
 /** Maps demo pin legacy status → home evacuation model (display only; does not mutate pins). */
@@ -28,7 +50,7 @@ function pinHomeEvacuationStatus(pin: EvacueePin): HomeEvacuationStatus {
 }
 
 const HOME_STATUS_COLOR: Record<HomeEvacuationStatus, string> = {
-  not_evacuated: '#64748b',
+  not_evacuated: '#f59e0b',
   evacuated: '#22c55e',
   cannot_evacuate: '#ef4444',
 }
@@ -134,6 +156,10 @@ export default function EvacueeStatusMap({ pins, center = [35.4088, -80.5795], z
           const home = pinHomeEvacuationStatus(pin)
           const fill = HOME_STATUS_COLOR[home]
           const homeLabel = labelForHomeEvacuationStatus(home)
+          const mobility = pin.mobility_needs?.length ? pin.mobility_needs : []
+          const lifeEq = pinShowsLifeEquipment(pin)
+          const ttOther =
+            [truncate(pin.disability_other, 50), truncate(pin.medical_other, 50)].filter(Boolean).join(' · ')
           return (
           <CircleMarker
             key={pin.id}
@@ -146,6 +172,47 @@ export default function EvacueeStatusMap({ pins, center = [35.4088, -80.5795], z
               weight: 2,
             }}
           >
+            <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
+              <div style={{ maxWidth: 260, fontFamily: 'sans-serif', fontSize: 10, lineHeight: 1.35 }}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>{pin.name}</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
+                  {mobility.map(tag => (
+                    <span
+                      key={tag}
+                      style={{
+                        display: 'inline-block',
+                        padding: '1px 6px',
+                        borderRadius: 6,
+                        background: 'rgba(100,116,139,0.25)',
+                        color: '#334155',
+                        fontSize: 9,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                  {lifeEq && (
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        padding: '1px 6px',
+                        borderRadius: 6,
+                        background: 'rgba(59,130,246,0.2)',
+                        color: '#1d4ed8',
+                        fontSize: 9,
+                        fontWeight: 700,
+                      }}
+                    >
+                      ⚕️ Life equipment
+                    </span>
+                  )}
+                </div>
+                {ttOther && (
+                  <div style={{ color: '#64748b', fontSize: 9 }}>{ttOther}</div>
+                )}
+              </div>
+            </Tooltip>
             <Popup>
               <div style={{ minWidth: 180, fontFamily: 'sans-serif' }}>
                 <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>{pin.name}</div>
@@ -162,6 +229,51 @@ export default function EvacueeStatusMap({ pins, center = [35.4088, -80.5795], z
                 }}>
                   {homeLabel}
                 </div>
+                {(mobility.length > 0 || lifeEq) && (
+                  <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {mobility.map(tag => (
+                      <span
+                        key={tag}
+                        style={{
+                          display: 'inline-block',
+                          padding: '2px 8px',
+                          borderRadius: 8,
+                          background: '#f1f5f9',
+                          color: '#334155',
+                          fontSize: 10,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                    {lifeEq && (
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          padding: '2px 8px',
+                          borderRadius: 8,
+                          background: '#dbeafe',
+                          color: '#1d4ed8',
+                          fontSize: 10,
+                          fontWeight: 700,
+                        }}
+                      >
+                        ⚕️ Life equipment
+                      </span>
+                    )}
+                  </div>
+                )}
+                {(pin.disability_other || pin.medical_other) && (
+                  <div style={{ fontSize: 11, color: '#475569', marginTop: 8, lineHeight: 1.4 }}>
+                    {pin.disability_other && (
+                      <div><strong>Other (disability):</strong> {pin.disability_other}</div>
+                    )}
+                    {pin.medical_other && (
+                      <div style={{ marginTop: 4 }}><strong>Other (medical):</strong> {pin.medical_other}</div>
+                    )}
+                  </div>
+                )}
                 {home === 'cannot_evacuate' && pin.special_needs && (
                   <div style={{ fontSize: 12, color: '#b91c1c', marginTop: 8, fontWeight: 700, borderTop: '1px solid #fecaca', paddingTop: 6 }}>
                     Mobility / needs: {pin.special_needs}

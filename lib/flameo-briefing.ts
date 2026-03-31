@@ -75,7 +75,8 @@ export function templatedReadyWithoutLlm(context: FlameoContext): string {
         return `• ${i.name ?? i.source.toUpperCase()} (~${i.distance_miles} mi${near})`
       })
       .join(' '),
-    'Review the evacuation map and My Alerts for shelter and hazard information.'
+    'Review the evacuation map and My Alerts for shelter and hazard information.',
+    'Shelters listed are human emergency evacuation shelters only. Do not use animal shelters or veterinary facilities as evacuation destinations.'
   )
   return lines.join(' ')
 }

@@ -33,6 +33,8 @@ export interface UseFlameoContextOptions {
    * address instead of the signed-in user’s profile home.
    */
   contextAddress?: string | null
+  /** Client-side anchor from GPS + saved addresses (`useUserLocation`). */
+  detectedAnchor?: 'work' | 'home' | 'unknown' | null
 }
 
 export function useFlameoContext(options?: UseFlameoContextOptions) {
@@ -54,6 +56,8 @@ export function useFlameoContext(options?: UseFlameoContextOptions) {
       ? options.contextAddress.trim()
       : ''
   const contextKey = ctxAddr || ''
+  const detectedAnchor = options?.detectedAnchor
+  const anchorKey = detectedAnchor ?? ''
 
   useEffect(() => {
     let cancelled = false
@@ -72,6 +76,9 @@ export function useFlameoContext(options?: UseFlameoContextOptions) {
         if (live && Number.isFinite(live[0]) && Number.isFinite(live[1])) {
           params.set('liveLat', String(live[0]))
           params.set('liveLon', String(live[1]))
+        }
+        if (detectedAnchor === 'work' || detectedAnchor === 'home' || detectedAnchor === 'unknown') {
+          params.set('detectedAnchor', detectedAnchor)
         }
 
         const qs = params.toString()
@@ -108,7 +115,7 @@ export function useFlameoContext(options?: UseFlameoContextOptions) {
     return () => {
       cancelled = true
     }
-  }, [role, refreshTick, liveKey, contextKey])
+  }, [role, refreshTick, liveKey, contextKey, anchorKey])
 
   useEffect(() => {
     function onRefresh() {

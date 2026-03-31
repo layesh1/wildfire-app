@@ -327,7 +327,7 @@ const HOW_STEPS = [
     num: '4',
     title: 'Personalized Alerts',
     tag: 'Delivery',
-    desc: 'Caregivers receive tailored alerts, accessible evacuation routes, and safe shelter locations in plain, accessible language.',
+    desc: 'Evacuees receive tailored alerts, accessible evacuation routes, and safe shelter locations in plain, accessible language.',
     detail: 'Alerts are delivered in 30+ languages with mobility-adaptive guidance. Flameo AI helps caregivers plan step-by-step evacuations for elderly relatives or people with disabilities.',
     color: '#2563eb',
   },
@@ -460,7 +460,7 @@ export default function Home() {
               </span>
             </h1>
             <p className="text-green-200/60 text-base lg:text-lg mb-10 leading-relaxed max-w-lg">
-              Real-time wildfire alerts for caregivers, elderly residents, and communities that need them most — before it's too late.
+              Real-time wildfire alerts for you, your family, and everyone you&apos;re watching out for — before it&apos;s too late.
             </p>
             {/* CTA buttons */}
             <div className="flex flex-wrap gap-3">
@@ -519,7 +519,7 @@ export default function Home() {
       {/* ── PEACE OF MIND ── */}
       <section className="pt-8 pb-12 bg-white">
         <div className="max-w-4xl mx-auto px-6 text-center">
-          <div className="text-green-600 text-sm font-semibold uppercase tracking-widest mb-5">For Caregivers Everywhere</div>
+          <div className="text-green-600 text-sm font-semibold uppercase tracking-widest mb-5">For Evacuees Everywhere</div>
           <h2 className="font-display font-bold text-gray-900 leading-tight mb-6" style={{ fontSize: 'clamp(2.25rem, 5vw, 3.75rem)' }}>
             Know they're safe.<br />
             <span className="italic" style={{ color: '#92400e' }}>From anywhere.</span>
@@ -538,8 +538,8 @@ export default function Home() {
                 desc: 'Your loved one taps once to confirm they are safe. You see it instantly, wherever you are.',
               },
               {
-                title: 'Accessible Routes',
-                desc: 'Evacuation guidance adapted for elderly or disabled family members, in plain language and 30+ languages.',
+                title: 'Clear Evacuation Routes',
+                desc: 'Step-by-step guidance to safely leave your area, with the nearest shelters and open roads updated in real time.',
               },
             ].map(item => (
               <div key={item.title} className="relative flex flex-col items-center gap-4 p-8 rounded-2xl border border-gray-200 bg-gray-100 hover:border-green-300 hover:bg-green-50 transition-colors">
@@ -689,7 +689,7 @@ export default function Home() {
                 <span className="text-white text-xs font-semibold">Free Access</span>
               </div>
               <div className="relative z-10 flex flex-col h-full">
-                <p className="font-mono text-orange-400/80 text-xs uppercase tracking-widest mb-1">Caregiver / Evacuee</p>
+                <p className="font-mono text-orange-400/80 text-xs uppercase tracking-widest mb-1">Evacuee</p>
                 <p className="font-display font-bold text-white text-3xl mb-3">Free</p>
                 <p className="text-green-100/70 text-sm font-medium mb-5 leading-snug">Because when every second counts, you shouldn&apos;t have to search for answers.</p>
                 <ul className="space-y-2.5 mb-6 flex-1">

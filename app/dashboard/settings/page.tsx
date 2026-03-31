@@ -14,6 +14,11 @@ import { LANGUAGES } from '@/lib/languages'
 import { isAlertsAiDeploymentEnabled } from '@/lib/alerts-ai-feature'
 import { requiresConsumerHomeAddress } from '@/lib/profile-requirements'
 import AddressVerifySave from '@/components/AddressVerifySave'
+import {
+  type WorkBuildingType,
+  workBuildingNeedsFloor,
+} from '@/lib/profile-work-location'
+import { detectBuildingType } from '@/lib/geocoding'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface ProfileData {
@@ -111,6 +116,13 @@ function SettingsInner() {
   const [alertRadiusMiles, setAlertRadiusMiles] = useState(25)
   const [monitoredPersons, setMonitoredPersons] = useState<{ id: string; name: string; relationship: string; mobility: string; notes: string }[]>([])
   const [addressDraft, setAddressDraft] = useState('')
+  const [workAddressDraft, setWorkAddressDraft] = useState('')
+  const [workBuildingType, setWorkBuildingType] = useState<WorkBuildingType | ''>('')
+  const [workFloor, setWorkFloor] = useState('')
+  const [workLocationNote, setWorkLocationNote] = useState('')
+  const [workSaveMsg, setWorkSaveMsg] = useState<string | null>(null)
+  const [workSaving, setWorkSaving] = useState<string | null>(null)
+  const [savedWorkAddress, setSavedWorkAddress] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -179,6 +191,22 @@ function SettingsInner() {
       if (p) {
         const addr = p.address || ''
         setAddressDraft(addr)
+        const wa = (p as Record<string, unknown>).work_address
+        const waStr = typeof wa === 'string' ? wa : ''
+        setWorkAddressDraft(waStr)
+        setSavedWorkAddress(waStr.trim() ? waStr : null)
+        const wbt = (p as Record<string, unknown>).work_building_type
+        setWorkBuildingType(
+          wbt === 'house' || wbt === 'apartment' || wbt === 'office' || wbt === 'other'
+            ? wbt
+            : ''
+        )
+        const wfn = (p as Record<string, unknown>).work_floor_number
+        setWorkFloor(
+          typeof wfn === 'number' && Number.isFinite(wfn) ? String(wfn) : ''
+        )
+        const wln = (p as Record<string, unknown>).work_location_note
+        setWorkLocationNote(typeof wln === 'string' ? wln : '')
         setProfile({
           full_name: p.full_name || '', phone: p.phone || '', address: addr,
           notification_email: p.notification_email || '', notification_phone: p.notification_phone || '',
@@ -362,6 +390,22 @@ function SettingsInner() {
     })
     if (codeId) await fetch('/api/invite/consume', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code_id: codeId }) })
     window.location.href = ROLE_DESTINATIONS[addingRole] ?? '/dashboard'
+  }
+
+  async function claimEvacueeWithoutCode() {
+    const role = 'evacuee'
+    localStorage.setItem('wfa_active_role', role)
+    try {
+      const prev: string[] = JSON.parse(localStorage.getItem('wfa_claimed_roles') || '[]')
+      localStorage.setItem('wfa_claimed_roles', JSON.stringify([...new Set([...prev, role])]))
+    } catch {}
+    setMyRoles(prev => [...new Set([...prev, role])])
+    await fetch('/api/profile/role', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role }),
+    })
+    window.location.href = ROLE_DESTINATIONS[role] ?? '/dashboard'
   }
 
   function resetCode() { setAddingRole(null); setCode(''); setCodeVerified(false); setCodeError(''); setOrgName(null); setCodeId(null) }
@@ -627,7 +671,7 @@ function SettingsInner() {
       {tab === 'profile' && activeRole !== 'emergency_responder' && activeRole !== 'data_analyst' && (
         <div className="space-y-5">
           {searchParams.get('needHomeAddress') === '1' && requiresConsumerHomeAddress(activeRole) && (
-            <div className="rounded-xl border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-amber-100 text-sm">
+            <div className="rounded-xl border border-emerald-400/60 bg-emerald-50 px-4 py-3 text-emerald-900 text-sm font-medium">
               Add a <strong>specific street address</strong> (with a street number) so we can automate distance alerts and your map to safety — not a city or county alone.
             </div>
           )}
@@ -672,6 +716,199 @@ function SettingsInner() {
               </Field>
             </div>
           </Section>
+
+          {isConsumerRole(activeRole) && (
+            <Section icon={Globe} title="Work &amp; Secondary Location">
+              <p className="text-ash-500 text-xs mb-4">
+                Optional — we use this with your live location during weekday hours to anchor alerts when you&apos;re away from home.
+              </p>
+              {workSaveMsg && (
+                <p className="text-signal-safe text-sm mb-3">{workSaveMsg}</p>
+              )}
+              <div className="space-y-6">
+                <Field
+                  label="Work address"
+                  hint="We&apos;ll check this location during weekday hours. Search for a numbered street address, then Verify &amp; Save."
+                >
+                  <AddressVerifySave
+                    id="settings-work-address"
+                    variant="dark"
+                    hint="Search for a numbered street address. We compare it to your live location during emergencies."
+                    value={workAddressDraft}
+                    onChange={v => {
+                      setWorkAddressDraft(v)
+                      setWorkSaveMsg(null)
+                    }}
+                    savedAddress={savedWorkAddress}
+                    onVerified={({ types }) => {
+                      if (!workBuildingType) {
+                        setWorkBuildingType(detectBuildingType(types))
+                      }
+                    }}
+                    onVerifiedSave={async (line: string) => {
+                      const { data: { user } } = await supabase.auth.getUser()
+                      if (!user) throw new Error('Not signed in')
+                      const { error } = await supabase
+                        .from('profiles')
+                        .update({ work_address: line, work_address_verified: true })
+                        .eq('id', user.id)
+                      if (error) throw new Error(error.message)
+                      setSavedWorkAddress(line)
+                      setWorkAddressDraft(line)
+                      setWorkSaveMsg('✅ Work location saved')
+                      try {
+                        window.dispatchEvent(new CustomEvent('wfa-flameo-context-refresh'))
+                      } catch {
+                        /* ignore */
+                      }
+                    }}
+                  />
+                </Field>
+
+                {savedWorkAddress?.trim() ? (
+                  <>
+                    <div>
+                      <Field label="Building type" hint="Helps Flameo tailor evacuation guidance.">
+                        <select
+                          value={workBuildingType}
+                          onChange={e => {
+                            setWorkBuildingType((e.target.value || '') as WorkBuildingType | '')
+                            setWorkSaveMsg(null)
+                          }}
+                          className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60"
+                        >
+                          <option value="">Select…</option>
+                          <option value="house">House / Single family home</option>
+                          <option value="apartment">Apartment or condo</option>
+                          <option value="office">Office building</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </Field>
+                      <button
+                        type="button"
+                        disabled={!workBuildingType || workSaving === 'building'}
+                        onClick={async () => {
+                          if (!workBuildingType) return
+                          setWorkSaving('building')
+                          setWorkSaveMsg(null)
+                          const { data: { user } } = await supabase.auth.getUser()
+                          if (!user) {
+                            setWorkSaving(null)
+                            return
+                          }
+                          const { error } = await supabase
+                            .from('profiles')
+                            .update({ work_building_type: workBuildingType })
+                            .eq('id', user.id)
+                          setWorkSaving(null)
+                          if (error) setSaveError(error.message)
+                          else setWorkSaveMsg('✅ Work location saved')
+                        }}
+                        className="mt-2 px-4 py-2 rounded-xl text-sm font-semibold bg-forest-700 hover:bg-forest-600 text-white disabled:opacity-40"
+                      >
+                        {workSaving === 'building' ? 'Saving…' : 'Save building type'}
+                      </button>
+                    </div>
+
+                    {workBuildingType && workBuildingNeedsFloor(workBuildingType) && (
+                      <div>
+                        <Field
+                          label="What floor do you work or live on?"
+                          hint="Helps Flameo give floor-specific evacuation guidance."
+                        >
+                          <FInput
+                            type="number"
+                            value={workFloor}
+                            onChange={v => {
+                              setWorkFloor(v.replace(/[^\d]/g, '').slice(0, 3))
+                              setWorkSaveMsg(null)
+                            }}
+                            placeholder="e.g. 6"
+                          />
+                        </Field>
+                        <button
+                          type="button"
+                          disabled={workSaving === 'floor'}
+                          onClick={async () => {
+                            const n = parseInt(workFloor, 10)
+                            if (!Number.isFinite(n) || n < 1 || n > 200) {
+                              setSaveError('Enter a floor between 1 and 200.')
+                              return
+                            }
+                            setSaveError(null)
+                            setWorkSaving('floor')
+                            setWorkSaveMsg(null)
+                            const { data: { user } } = await supabase.auth.getUser()
+                            if (!user) {
+                              setWorkSaving(null)
+                              return
+                            }
+                            const { error } = await supabase
+                              .from('profiles')
+                              .update({ work_floor_number: n })
+                              .eq('id', user.id)
+                            setWorkSaving(null)
+                            if (error) setSaveError(error.message)
+                            else setWorkSaveMsg('✅ Work location saved')
+                          }}
+                          className="mt-2 px-4 py-2 rounded-xl text-sm font-semibold bg-forest-700 hover:bg-forest-600 text-white disabled:opacity-40"
+                        >
+                          {workSaving === 'floor' ? 'Saving…' : 'Save floor'}
+                        </button>
+                      </div>
+                    )}
+
+                    {profile.mobility_access_needs.length > 0 && (
+                      <div>
+                        <Field
+                          label="Anything responders should know about your situation at this location?"
+                          hint="Optional — shown when you have mobility &amp; access tags above."
+                        >
+                          <FInput
+                            value={workLocationNote}
+                            onChange={v => {
+                              setWorkLocationNote(v.slice(0, 150))
+                              setWorkSaveMsg(null)
+                            }}
+                            placeholder={
+                              workFloor
+                                ? `e.g. Wheelchair user on floor ${workFloor}`
+                                : 'e.g. Wheelchair user on floor 6'
+                            }
+                          />
+                        </Field>
+                        <button
+                          type="button"
+                          disabled={workSaving === 'note'}
+                          onClick={async () => {
+                            setWorkSaving('note')
+                            setWorkSaveMsg(null)
+                            const { data: { user } } = await supabase.auth.getUser()
+                            if (!user) {
+                              setWorkSaving(null)
+                              return
+                            }
+                            const { error } = await supabase
+                              .from('profiles')
+                              .update({
+                                work_location_note: workLocationNote.trim() || null,
+                              })
+                              .eq('id', user.id)
+                            setWorkSaving(null)
+                            if (error) setSaveError(error.message)
+                            else setWorkSaveMsg('✅ Work location saved')
+                          }}
+                          className="mt-2 px-4 py-2 rounded-xl text-sm font-semibold bg-forest-700 hover:bg-forest-600 text-white disabled:opacity-40"
+                        >
+                          {workSaving === 'note' ? 'Saving…' : 'Save note'}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : null}
+              </div>
+            </Section>
+          )}
 
           <Section icon={Activity} title="Mobility & access">
             <p className="text-ash-500 text-xs mb-4">
@@ -873,6 +1110,20 @@ function SettingsInner() {
           <section className="card p-6">
             <div className="flex items-center gap-2 mb-1"><Shield className="w-4 h-4 text-ember-400" /><h2 className="font-semibold text-white">Roles & dashboards</h2></div>
             <p className="text-ash-500 text-sm mb-4">Switch your active dashboard or add a new role with an access code.</p>
+            {!myRoles.includes('evacuee') && (
+              <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">
+                <div className="text-emerald-200 text-sm font-medium mb-2">
+                  Emergency responders can add evacuee mode without an access code.
+                </div>
+                <button
+                  type="button"
+                  onClick={claimEvacueeWithoutCode}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-600/20 border border-emerald-500/40 text-emerald-100 hover:bg-emerald-600/30 transition-colors text-xs font-semibold"
+                >
+                  Add / switch to Evacuee
+                </button>
+              </div>
+            )}
             <div className="space-y-2 mb-4">
               {myRoles.filter(r => ROLE_CONFIG[r]).map(role => {
                 const cfg = ROLE_CONFIG[role]; const Icon = cfg.icon; const isActive = role === activeRole

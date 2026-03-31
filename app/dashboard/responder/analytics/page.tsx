@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Activity, Brain, ChevronLeft, MapPin, Radio, ShieldAlert } from 'lucide-react'
+import { Activity, Brain, ChevronLeft, MapPin, Radio, ShieldAlert, ClipboardList, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { useResponderStationAnchor } from '@/hooks/useResponderStationAnchor'
 import AssistCoveragePanel from '@/components/responder/AssistCoveragePanel'
@@ -27,6 +27,7 @@ const TABS = [
   { id: 'spread' as const, label: 'Fire spread & tactical', short: 'Spread', icon: Activity },
   { id: 'assist' as const, label: 'Assist & coverage', short: 'Assist', icon: Radio },
   { id: 'signals' as const, label: 'Signal gap analysis', short: 'Signals', icon: ShieldAlert },
+  { id: 'ics' as const, label: 'ICS board', short: 'ICS', icon: ClipboardList },
 ]
 
 type TabId = (typeof TABS)[number]['id']
@@ -143,6 +144,23 @@ function CommandAnalyticsInner() {
           <WiDSIntelligencePanel activeFires={activeFires} loading={loadingFires} />
           <SignalGapsPanel embedded />
         </>
+      )}
+      {tab === 'ics' && (
+        <div className="card p-6 border border-ash-700">
+          <div className="flex items-center gap-2 mb-2">
+            <ClipboardList className="w-4 h-4 text-ember-400" />
+            <h2 className="text-white font-semibold text-sm">ICS Board</h2>
+          </div>
+          <p className="text-ash-400 text-sm mb-4">
+            ICS board is part of Command Analytics. Open it here for incident command workflow.
+          </p>
+          <Link
+            href="/dashboard/responder/ics"
+            className="inline-flex items-center gap-1 rounded-lg border border-ember-500/40 bg-ember-500/10 px-3 py-2 text-ember-300 text-sm font-medium hover:bg-ember-500/20"
+          >
+            Open ICS Board <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
       )}
     </div>
   )

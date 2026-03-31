@@ -378,21 +378,6 @@ export default function LeafletMap({
           </CircleMarker>
         )}
 
-        {/* User location pin */}
-        {userLocation && (
-          <CircleMarker
-            center={userLocation}
-            radius={8}
-            pathOptions={{ color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 1, weight: 3 }}
-          >
-            <Popup>
-              <div style={{ fontFamily: 'sans-serif', fontSize: 12 }}>
-                <strong>Your location</strong>
-              </div>
-            </Popup>
-          </CircleMarker>
-        )}
-
         {/* Watched person pins — purple teardrop */}
         {watchedLocations.map((w, i) => (
           <Marker key={`watched-${i}`} position={[w.lat, w.lng]} icon={watchedIcon()}>
@@ -468,6 +453,21 @@ export default function LeafletMap({
             </CircleMarker>
           )
         })}
+
+        {/* User location pin (render last so it overlays shelters/hazards/fires) */}
+        {userLocation && (
+          <CircleMarker
+            center={userLocation}
+            radius={8}
+            pathOptions={{ color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 1, weight: 3 }}
+          >
+            <Popup>
+              <div style={{ fontFamily: 'sans-serif', fontSize: 12 }}>
+                <strong>Your location</strong>
+              </div>
+            </Popup>
+          </CircleMarker>
+        )}
       </MapContainer>
 
       {/* UI overlays live outside MapContainer (react-leaflet layer tree); same absolute positioning as before */}

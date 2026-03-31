@@ -1,16 +1,16 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import AddressAutocomplete from '@/components/AddressAutocomplete'
-import type { NominatimSearchHit } from '@/lib/nominatim-address'
-import { reverseGeocodeDisplayName } from '@/lib/nominatim-address'
+import AddressAutocomplete, { type PlaceSuggestion } from '@/components/AddressAutocomplete'
 
-const HELPER =
+const DEFAULT_HELPER =
   'Enter your home address. Emergency responders use this for door-to-door safety checks.'
 
 export type AddressVerifySaveProps = {
   variant?: 'light' | 'dark'
   id?: string
+  /** Overrides default hint under the autocomplete (e.g. work address). */
+  hint?: string
   /** Current input text (draft; not DB until save). */
   value: string
   onChange: (v: string) => void
@@ -18,6 +18,8 @@ export type AddressVerifySaveProps = {
   savedAddress?: string | null
   /** Called only from explicit Verify & Save after geocode succeeds. */
   onVerifiedSave: (verifiedLine: string) => Promise<void>
+  /** Optional metadata callback for auto-detection flows (work building type, etc.). */
+  onVerified?: (meta: { address: string; lat: number; lng: number; types: string[] }) => void
   disabled?: boolean
 }
 
@@ -28,21 +30,25 @@ export type AddressVerifySaveProps = {
 export default function AddressVerifySave({
   variant = 'dark',
   id,
+  hint,
   value,
   onChange,
   savedAddress,
   onVerifiedSave,
+  onVerified,
   disabled,
 }: AddressVerifySaveProps) {
+  const helperText = hint ?? DEFAULT_HELPER
   const [geocodedLine, setGeocodedLine] = useState<string | null>(null)
+  const [selected, setSelected] = useState<PlaceSuggestion | null>(null)
   const [geocodeError, setGeocodeError] = useState<string | null>(null)
-  const [verifying, setVerifying] = useState(false)
   const [saving, setSaving] = useState(false)
   const [justSaved, setJustSaved] = useState(false)
 
   const handleDraftChange = useCallback(
     (v: string) => {
       setGeocodedLine(null)
+      setSelected(null)
       setGeocodeError(null)
       setJustSaved(false)
       onChange(v)
@@ -50,27 +56,11 @@ export default function AddressVerifySave({
     [onChange]
   )
 
-  const onPickSuggestion = useCallback(async (hit: NominatimSearchHit) => {
+  const onPickSuggestion = useCallback((hit: PlaceSuggestion) => {
     setGeocodeError(null)
-    setGeocodedLine(null)
+    setGeocodedLine(hit.formatted_address)
+    setSelected(hit)
     setJustSaved(false)
-    setVerifying(true)
-    try {
-      const line = await reverseGeocodeDisplayName(hit.lat, hit.lon)
-      if (!line) {
-        setGeocodeError(
-          "We couldn't verify this address. Check spelling and try again."
-        )
-        return
-      }
-      setGeocodedLine(line)
-    } catch {
-      setGeocodeError(
-        "We couldn't verify this address. Check spelling and try again."
-      )
-    } finally {
-      setVerifying(false)
-    }
   }, [])
 
   useEffect(() => {
@@ -78,25 +68,35 @@ export default function AddressVerifySave({
   }, [savedAddress])
 
   async function handleVerifySave() {
-    if (!geocodedLine || saving || disabled) return
+    if (!geocodedLine || !selected || saving || disabled) return
     setSaving(true)
     setGeocodeError(null)
     try {
       await onVerifiedSave(geocodedLine)
+      onVerified?.({
+        address: geocodedLine,
+        lat: selected.lat,
+        lng: selected.lng,
+        types: selected.types,
+      })
       setJustSaved(true)
       try {
         window.dispatchEvent(new CustomEvent('wfa-flameo-context-refresh'))
       } catch {
         /* ignore */
       }
-    } catch {
-      setGeocodeError('Could not save. Try again.')
+    } catch (e) {
+      setGeocodeError(
+        e instanceof Error && e.message
+          ? e.message
+          : 'Could not save. Try again.'
+      )
     } finally {
       setSaving(false)
     }
   }
 
-  const canSave = Boolean(geocodedLine) && !verifying && !saving && !disabled
+  const canSave = Boolean(geocodedLine && selected) && !saving && !disabled
 
   return (
     <div className="space-y-2">
@@ -106,24 +106,8 @@ export default function AddressVerifySave({
         value={value}
         onChange={handleDraftChange}
         onPickSuggestion={onPickSuggestion}
-        hint={HELPER}
+        hint={helperText}
       />
-      {verifying && (
-        <p className={variant === 'dark' ? 'text-xs text-ash-400' : 'text-xs text-gray-500'}>
-          Verifying address…
-        </p>
-      )}
-      {geocodedLine && (
-        <p
-          className={
-            variant === 'dark'
-              ? 'text-sm text-ash-200 mt-1'
-              : 'text-sm text-gray-800 mt-1'
-          }
-        >
-          📍 {geocodedLine} — Is this correct?
-        </p>
-      )}
       {geocodeError && (
         <p className="text-sm text-red-400 mt-1">{geocodeError}</p>
       )}
@@ -133,8 +117,8 @@ export default function AddressVerifySave({
         onClick={handleVerifySave}
         className={
           variant === 'dark'
-            ? 'mt-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-forest-700 hover:bg-forest-600 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors'
-            : 'mt-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-green-700 hover:bg-green-600 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors'
+            ? 'mt-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-forest-700 hover:bg-forest-600 text-ash-950 disabled:opacity-40 disabled:cursor-not-allowed transition-colors'
+            : 'mt-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-green-700 hover:bg-green-600 !text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors'
         }
       >
         {saving ? 'Saving…' : 'Verify & Save'}

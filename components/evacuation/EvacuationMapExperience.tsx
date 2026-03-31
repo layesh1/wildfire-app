@@ -10,10 +10,11 @@ import type { NifcFire, WindData, EvacShelter } from '@/app/dashboard/caregiver/
 import type { HazardFacility } from '@/lib/hazard-facilities'
 import { useRoleContext, type RolePerson } from '@/components/RoleContext'
 import { loadPersons } from '@/lib/user-data'
-import { EVAC_SHELTERS } from '@/lib/evac-shelters'
+import { HUMAN_EVAC_SHELTERS } from '@/lib/evac-shelters'
 import { HAZARD_FACILITIES } from '@/lib/hazard-facilities'
 import { distanceMiles } from '@/lib/hub-map-distance'
 import { useConsumerAlerts } from '@/hooks/useConsumerAlerts'
+import { geocodeAddressClient } from '@/lib/geocoding-client'
 const LeafletMap = dynamic(() => import('@/app/dashboard/caregiver/map/LeafletMap'), { ssr: false })
 
 class MapErrorBoundary extends Component<{ children: ReactNode }, { crashed: boolean }> {
@@ -98,20 +99,22 @@ export default function EvacuationMapExperience({
       setPersonLocation(null)
       return
     }
-    fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(activePerson.address)}&format=json&limit=1&countrycodes=us`,
-      { headers: { 'Accept-Language': 'en' } }
-    )
-      .then(r => r.json())
-      .then((data: { lat: string; lon: string }[]) => {
-        if (data[0]) {
-          const lat = parseFloat(data[0].lat)
-          const lon = parseFloat(data[0].lon)
-          if (Number.isFinite(lat) && Number.isFinite(lon)) setPersonLocation([lat, lon])
-          else setPersonLocation(null)
-        } else setPersonLocation(null)
-      })
-      .catch(() => setPersonLocation(null))
+    let cancelled = false
+    ;(async () => {
+      try {
+        const g = await geocodeAddressClient(activePerson.address!)
+        if (!cancelled && Number.isFinite(g.lat) && Number.isFinite(g.lng)) {
+          setPersonLocation([g.lat, g.lng])
+          return
+        }
+      } catch {
+        /* ignore */
+      }
+      if (!cancelled) setPersonLocation(null)
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [activePerson?.address])
 
   useEffect(() => {
@@ -120,20 +123,22 @@ export default function EvacuationMapExperience({
       setHomeCoords(null)
       return
     }
-    fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1&countrycodes=us`,
-      { headers: { 'Accept-Language': 'en' } }
-    )
-      .then(r => r.json())
-      .then((data: { lat: string; lon: string }[]) => {
-        if (data[0]) {
-          const lat = parseFloat(data[0].lat)
-          const lon = parseFloat(data[0].lon)
-          if (Number.isFinite(lat) && Number.isFinite(lon)) setHomeCoords([lat, lon])
-          else setHomeCoords(null)
-        } else setHomeCoords(null)
-      })
-      .catch(() => setHomeCoords(null))
+    let cancelled = false
+    ;(async () => {
+      try {
+        const g = await geocodeAddressClient(addr)
+        if (!cancelled && Number.isFinite(g.lat) && Number.isFinite(g.lng)) {
+          setHomeCoords([g.lat, g.lng])
+          return
+        }
+      } catch {
+        /* ignore */
+      }
+      if (!cancelled) setHomeCoords(null)
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [userProfile?.address])
 
   const mapAnchor = useMemo((): [number, number] | null => {
@@ -183,7 +188,7 @@ export default function EvacuationMapExperience({
   const nearestSheltersList = useMemo(() => {
     if (!mapAnchor) return [] as EvacShelter[]
     const origin: [number, number] = [mapAnchor[0], mapAnchor[1]]
-    return [...EVAC_SHELTERS]
+    return [...HUMAN_EVAC_SHELTERS]
       .map(s => ({ s, d: distanceMiles(origin, [s.lat, s.lng]) }))
       .sort((a, b) => a.d - b.d)
       .slice(0, 6)
@@ -220,18 +225,10 @@ export default function EvacuationMapExperience({
       for (const p of persons) {
         if (!p.address?.trim()) continue
         try {
-          const r = await fetch(
-            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(p.address)}&format=json&limit=1&countrycodes=us`,
-            { headers: { 'Accept-Language': 'en' } }
-          )
-          const data = await r.json()
-          if (data[0]) {
-            const lat = parseFloat(data[0].lat)
-            const lon = parseFloat(data[0].lon)
-            if (Number.isFinite(lat) && Number.isFinite(lon)) next[p.id] = [lat, lon]
-          }
+          const g = await geocodeAddressClient(p.address)
+          if (Number.isFinite(g.lat) && Number.isFinite(g.lng)) next[p.id] = [g.lat, g.lng]
         } catch { /* ignore */ }
-        await new Promise(res => setTimeout(res, 350))
+        await new Promise(res => setTimeout(res, 1000))
         if (cancelled) return
       }
       if (!cancelled) setPersonCoords(next)
@@ -433,7 +430,7 @@ export default function EvacuationMapExperience({
         )}
         <Link
           href={`${checkinHref}?returnTo=${encodeURIComponent(mobile ? mHub : hubBase)}`}
-          className="block text-center py-2.5 rounded-xl bg-gray-900 text-white text-xs font-semibold"
+          className="block text-center py-2.5 rounded-xl border-2 border-amber-500 bg-white text-amber-900 text-xs font-semibold shadow-sm hover:bg-amber-50 transition-colors"
         >
           Open check-in
         </Link>
@@ -492,7 +489,7 @@ export default function EvacuationMapExperience({
         flyToUserZoom={7}
         homePosition={homeCoords}
         showHomePin={isAwayFromHome && !!homeCoords}
-        shelters={EVAC_SHELTERS}
+        shelters={HUMAN_EVAC_SHELTERS}
         showShelters={showShelters}
         watchedLocations={watchedLocationsForMap}
         facilities={HAZARD_FACILITIES}

@@ -124,6 +124,7 @@ export async function POST(request: Request) {
     const emailed = await sendFamilyInviteEmail({
       to: email,
       acceptUrl,
+      inviteToken: token,
       inviterName,
       inviterRole: 'evacuee',
     })

@@ -5,11 +5,16 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 
+/** Same token as in email; strips grouping spaces/dashes from pasted “invite code”. */
+function normalizeInviteToken(s: string) {
+  return s.trim().replace(/[\s-]/g, '')
+}
+
 function FamilyInviteInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const tokenParam = searchParams.get('token')?.trim() || ''
-  const [token, setToken] = useState(tokenParam)
+  const [inviteCode, setInviteCode] = useState(tokenParam)
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
   const [accepting, setAccepting] = useState(false)
@@ -23,12 +28,21 @@ function FamilyInviteInner() {
       } catch {
         /* ignore */
       }
-      setToken(tokenParam)
+      setInviteCode(tokenParam)
     } else if (typeof window !== 'undefined') {
       const stored = sessionStorage.getItem('wfa_family_invite_token')
-      if (stored) setToken(stored)
+      if (stored) setInviteCode(stored)
     }
   }, [tokenParam])
+
+  useEffect(() => {
+    if (!inviteCode.trim()) return
+    try {
+      sessionStorage.setItem('wfa_family_invite_token', inviteCode)
+    } catch {
+      /* ignore */
+    }
+  }, [inviteCode])
 
   useEffect(() => {
     let cancelled = false
@@ -49,9 +63,9 @@ function FamilyInviteInner() {
   }, [])
 
   async function accept() {
-    const t = token.trim()
+    const t = normalizeInviteToken(inviteCode)
     if (!t) {
-      setError('Missing invitation link. Ask your family member to send the invite again.')
+      setError('Paste the invite code from your email, or open the link from the email.')
       return
     }
     setAccepting(true)
@@ -73,7 +87,7 @@ function FamilyInviteInner() {
       } catch {
         /* ignore */
       }
-      setSuccess(data.message || 'Connected in My Family.')
+      setSuccess(data.message || 'Connected in My People.')
       setTimeout(() => {
         router.replace('/dashboard')
       }, 2000)
@@ -84,15 +98,31 @@ function FamilyInviteInner() {
     }
   }
 
-  const loginHref = token
-    ? `/auth/login?mode=login&next=${encodeURIComponent(`/auth/family-invite?token=${encodeURIComponent(token)}`)}`
+  const loginHref = inviteCode.trim()
+    ? `/auth/login?mode=login&next=${encodeURIComponent(`/auth/family-invite?token=${encodeURIComponent(normalizeInviteToken(inviteCode))}`)}`
     : '/auth/login?mode=login'
 
-  if (!token && !loading) {
+  const hasCode = Boolean(normalizeInviteToken(inviteCode))
+
+  if (!hasCode && !loading) {
     return (
-      <div className="mx-auto max-w-md px-4 py-16 text-center">
-        <h1 className="font-display text-xl font-bold text-gray-900">Family invite</h1>
-        <p className="mt-2 text-sm text-gray-600">This link is missing a token. Open the link from your email.</p>
+      <div className="mx-auto max-w-md px-4 py-16">
+        <h1 className="font-display text-xl font-bold text-gray-900">My People invite</h1>
+        <p className="mt-2 text-sm text-gray-600">
+          Paste the <strong>invite code</strong> from your email (or open the link from the email).
+        </p>
+        <label htmlFor="wfa-invite-code" className="mt-6 block text-left text-xs font-medium text-gray-700">
+          Invite code
+        </label>
+        <input
+          id="wfa-invite-code"
+          type="text"
+          autoComplete="off"
+          value={inviteCode}
+          onChange={(e) => setInviteCode(e.target.value)}
+          placeholder="Paste the code from your email"
+          className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm text-gray-900 shadow-sm focus:border-green-600 focus:outline-none focus:ring-1 focus:ring-green-600"
+        />
         <Link href="/auth/login" className="mt-6 inline-block text-sm font-semibold text-green-700">
           Sign in
         </Link>
@@ -102,11 +132,26 @@ function FamilyInviteInner() {
 
   return (
     <div className="mx-auto max-w-md px-4 py-16">
-      <h1 className="font-display text-xl font-bold text-gray-900">Family invitation</h1>
+      <h1 className="font-display text-xl font-bold text-gray-900">My People invitation</h1>
       <p className="mt-2 text-sm text-gray-600">
-        Accept to connect in My Family. You must be signed in with the <strong>same email</strong> this invite was sent
+        Accept to connect in My People. You must be signed in with the <strong>same email</strong> this invite was sent
         to.
       </p>
+      {hasCode && (
+        <div className="mt-4">
+          <label htmlFor="wfa-invite-code-edit" className="block text-xs font-medium text-gray-700">
+            Invite code (from email)
+          </label>
+          <input
+            id="wfa-invite-code-edit"
+            type="text"
+            autoComplete="off"
+            value={inviteCode}
+            onChange={(e) => setInviteCode(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-xs text-gray-900 shadow-sm focus:border-green-600 focus:outline-none focus:ring-1 focus:ring-green-600"
+          />
+        </div>
+      )}
 
       {loading ? (
         <p className="mt-8 text-sm text-gray-500">Loading…</p>
@@ -130,7 +175,7 @@ function FamilyInviteInner() {
         <div className="mt-8 space-y-3">
           <button
             type="button"
-            disabled={accepting || !token}
+            disabled={accepting || !hasCode}
             onClick={() => accept()}
             className="w-full rounded-xl bg-green-700 py-3 text-sm font-semibold text-white disabled:opacity-50"
           >

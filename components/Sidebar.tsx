@@ -25,10 +25,6 @@ const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> 
   emergency_responder: [
     { label: 'Command Hub', href: '/dashboard/responder', icon: Map },
     { label: 'Command Analytics', href: '/dashboard/responder/analytics', icon: BarChart3 },
-    { label: 'ICS Board', href: '/dashboard/responder/ics', icon: Shield },
-    { label: 'Coverage', href: '/dashboard/responder/coverage', icon: Globe },
-    { label: 'Signals', href: '/dashboard/responder/signals', icon: Radio },
-    { label: 'ML Tools', href: '/dashboard/responder/ml', icon: Brain },
     { label: 'Flameo · Field', href: '/dashboard/responder/ai', icon: Activity },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
@@ -346,7 +342,7 @@ function SidebarInner({ user, profile }: Props) {
 export default function Sidebar({ user, profile }: Props) {
   return (
     <SidebarRoot animate>
-      <SidebarBody className="justify-between gap-0 py-4 px-3">
+      <SidebarBody className="justify-between gap-0 pt-2 pb-3 px-3">
         <SidebarInner user={user} profile={profile} />
       </SidebarBody>
     </SidebarRoot>

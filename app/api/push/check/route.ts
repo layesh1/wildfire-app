@@ -8,6 +8,7 @@ import {
   shouldSendEscalationPush,
   shouldSendStatusPrompt,
 } from '@/lib/flameo-push-escalation'
+import { geocodeAddress } from '@/lib/geocoding'
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://wildfire-app-three.vercel.app'
 const DEFAULT_RADIUS_MI = 50
@@ -23,14 +24,11 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
 
 async function geocode(address: string): Promise<{ lat: number; lon: number } | null> {
   try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&countrycodes=us`,
-      { headers: { 'Accept-Language': 'en', 'User-Agent': 'WildfireApp/1.0 (push-check)' } }
-    )
-    const data = await res.json()
-    if (data?.[0]) return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) }
-  } catch { /* ignore */ }
-  return null
+    const g = await geocodeAddress(address)
+    return { lat: g.lat, lon: g.lng }
+  } catch {
+    return null
+  }
 }
 
 interface FirmsPoint { lat: number; lon: number; brightness: number; frp: number }
@@ -190,6 +188,8 @@ export async function GET(req: NextRequest) {
   async function coordsFor(addr: string) {
     if (geoCache.has(addr)) return geoCache.get(addr)!
     const c = await geocode(addr)
+    // Batch pacing for geocoding loops.
+    await new Promise(resolve => setTimeout(resolve, 1000))
     geoCache.set(addr, c)
     return c
   }
