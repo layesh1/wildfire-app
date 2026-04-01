@@ -3,6 +3,7 @@ import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Flame, Lock, ShieldCheck, Check, ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+import { inviteCodeAllowedForProfile, profileRolesFromRow } from '@/lib/profile-role-policy'
 
 const ROLE_LABELS: Record<string, { label: string; placeholder: string; hint: string }> = {
   data_analyst: {
@@ -63,6 +64,12 @@ function AddRoleForm() {
       const gateOk = typeof window !== 'undefined' && sessionStorage.getItem('wfa_allow_add_role') === role
       if (!gateOk) {
         router.replace('/dashboard/home')
+        return
+      }
+      const policy = inviteCodeAllowedForProfile(role, profileRolesFromRow(profile), false)
+      if (!policy.ok) {
+        router.replace('/dashboard/home')
+        return
       }
     }
     gate()

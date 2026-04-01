@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit, getClientIp } from '@/lib/ratelimit'
 import { normalizeInviteCodeInput } from '@/lib/invite-code-normalize'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
+import {
+  inviteCodeAllowedForProfile,
+  profileRolesFromRow,
+} from '@/lib/profile-role-policy'
 
 function adminClient() {
   return createClient(
@@ -51,6 +56,22 @@ export async function POST(req: NextRequest) {
       org_name: 'WiDS Demo',
       code_id: null,
     })
+  }
+
+  async function policyCheck(codeRole: string, policyBypass: boolean): Promise<NextResponse | null> {
+    if (codeRole !== 'data_analyst' && codeRole !== 'emergency_responder') return null
+    const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Sign in to verify this code.' }, { status: 401 })
+    }
+    const { data: prof } = await supabase.from('profiles').select('role, roles').eq('id', user.id).single()
+    const profileRoles = profileRolesFromRow(prof)
+    const policy = inviteCodeAllowedForProfile(codeRole, profileRoles, policyBypass)
+    if (!policy.ok) {
+      return NextResponse.json({ error: policy.error }, { status: policy.status })
+    }
+    return null
   }
 
   // Normal invite code lookup
@@ -133,9 +154,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const codeRole = String(data.role)
+  const policyBlock = await policyCheck(codeRole, false)
+  if (policyBlock) return policyBlock
+
   return NextResponse.json({
     valid: true,
-    role: data.role as string,
+    role: codeRole,
     org_name: (data.org_name as string | null) ?? null,
     code_id: data.id as string,
   })

@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Activity, Brain, ChevronLeft, MapPin, Radio, ShieldAlert, ClipboardList, ChevronRight } from 'lucide-react'
+import { Activity, Brain, ChevronLeft, MapPin, Shield, ShieldAlert, ClipboardList, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { useResponderStationAnchor } from '@/hooks/useResponderStationAnchor'
 import AssistCoveragePanel from '@/components/responder/AssistCoveragePanel'
@@ -25,7 +25,7 @@ const DEMO_FIRES = [
 const TABS = [
   { id: 'ml' as const, label: 'ML fire prediction', short: 'ML', icon: Brain },
   { id: 'spread' as const, label: 'Fire spread & tactical', short: 'Spread', icon: Activity },
-  { id: 'assist' as const, label: 'Assist & coverage', short: 'Assist', icon: Radio },
+  { id: 'assist' as const, label: 'Coverage & access gaps', short: 'Coverage', icon: Shield },
   { id: 'signals' as const, label: 'Signal gap analysis', short: 'Signals', icon: ShieldAlert },
   { id: 'ics' as const, label: 'ICS board', short: 'ICS', icon: ClipboardList },
 ]
@@ -79,7 +79,7 @@ function CommandAnalyticsInner() {
         </div>
         <h1 className="font-display text-2xl sm:text-3xl font-bold text-white mb-2">Analytics dashboard</h1>
         <p className="text-ash-400 text-sm max-w-2xl">
-          ML prediction, spread simulation, assist requests, and signal-gap intel in one place. Map views use your station anchor (profile address → device location → default).
+          ML prediction, spread simulation, agency coverage intel, and signal-gap analysis in one place. Map views use your station anchor (profile address → device location → default).
         </p>
       </div>
 

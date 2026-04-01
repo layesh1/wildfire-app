@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase'
+import { isConsumerOnlyAccount, profileRolesFromRow } from '@/lib/profile-role-policy'
 
 const PROTECTED_ROLES = ['data_analyst', 'emergency_responder']
 
@@ -47,6 +48,7 @@ function PostLoginRedirect() {
         ? profile.roles
         : profile?.role ? [profile.role] : []
       const existingRoles = [...new Set(existingRolesRaw.map(normalizeConsumerRole))]
+      const policyRoles = profileRolesFromRow(profile)
 
       const alreadyHasRole =
         existingRoles.includes(intendedRole) ||
@@ -56,6 +58,10 @@ function PostLoginRedirect() {
         // Just switch active role
         await supabase.from('profiles').update({ role: intendedRole }).eq('id', user.id)
         router.replace(ROLE_DESTINATIONS[intendedRole] ?? '/dashboard')
+      } else if (intendedRole === 'data_analyst' && !policyRoles.includes('emergency_responder')) {
+        router.replace('/dashboard/home')
+      } else if (intendedRole === 'emergency_responder' && isConsumerOnlyAccount(policyRoles)) {
+        router.replace('/dashboard/home')
       } else if (PROTECTED_ROLES.includes(intendedRole)) {
         // Needs invite code verification — gate /auth/add-role against cold links
         if (typeof window !== 'undefined') {

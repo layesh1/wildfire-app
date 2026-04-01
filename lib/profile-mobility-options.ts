@@ -39,6 +39,7 @@ export function wordCount(s: string): number {
 
 export function clampToMaxWords(s: string, max: number): string {
   const words = s.trim().split(/\s+/).filter(Boolean)
-  if (words.length <= max) return s.trim()
+  // Keep raw `s` while under the cap so spaces between words are not stripped on every keystroke.
+  if (words.length <= max) return s
   return words.slice(0, max).join(' ')
 }

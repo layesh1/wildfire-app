@@ -61,7 +61,7 @@ function hazardTypeLabel(type: 'nuclear' | 'chemical' | 'lng_energy'): string {
 }
 
 const panel =
-  'rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900'
+  'rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800'
 const sectionHead =
   'text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400'
 
@@ -113,8 +113,8 @@ export default function FlameoSituationRoom({
     }
     if (flameoError) {
       return (
-        <p className="mt-2 text-sm text-red-600 dark:text-red-400" role="alert">
-          {flameoError}
+        <p className="mt-2 text-sm text-amber-700 dark:text-amber-400" role="alert">
+          Unable to load fire data. Refresh to try again.
         </p>
       )
     }
@@ -146,8 +146,8 @@ export default function FlameoSituationRoom({
     }
     if (status === 'feeds_unavailable') {
       return (
-        <p className="mt-2 text-sm text-amber-800 dark:text-amber-200">
-          Fire activity feeds are temporarily unavailable. Try again in a few minutes.
+        <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">
+          Fire data temporarily unavailable. Your alerts will resume automatically.
         </p>
       )
     }
@@ -185,7 +185,7 @@ export default function FlameoSituationRoom({
     if (readyLike && !hasThreat) {
       return (
         <div className="mt-2 space-y-1">
-          <p className="text-sm text-emerald-800 dark:text-emerald-300">✅ No active fire threats near your locations</p>
+          <p className="text-sm text-green-700 dark:text-green-400">✅ No active fire threats near your locations</p>
           {status === 'feeds_partial' && (
             <p className="text-xs text-amber-800 dark:text-amber-200">Limited feed coverage — no nearby threats in available data.</p>
           )}
@@ -194,7 +194,7 @@ export default function FlameoSituationRoom({
     }
     if (status === 'no_fires_in_radius') {
       return (
-        <p className="mt-2 text-sm text-emerald-800 dark:text-emerald-300">
+        <p className="mt-2 text-sm text-green-700 dark:text-green-400">
           ✅ No active fires within {flameoContext?.alert_radius_miles ?? '—'} miles
         </p>
       )
@@ -229,10 +229,18 @@ export default function FlameoSituationRoom({
               return (
                 <div
                   key={anchor.id}
-                  className="rounded-lg border border-gray-200 px-2.5 py-2 text-sm dark:border-gray-600"
+                  className="rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-sm dark:border-gray-700 dark:bg-gray-800/50"
                 >
                   <div className="font-semibold text-gray-900 dark:text-gray-100">{anchor.label}</div>
-                  <div className="mt-0.5 text-gray-700 dark:text-gray-300">
+                  <div
+                    className={
+                      band === 'danger'
+                        ? 'mt-0.5 text-sm text-red-700 dark:text-red-400'
+                        : band === 'monitor'
+                          ? 'mt-0.5 text-sm text-amber-700 dark:text-amber-400'
+                          : 'mt-0.5 text-sm text-green-700 dark:text-green-400'
+                    }
+                  >
                     {band === 'danger' ? '🔴 IN DANGER ZONE' : band === 'monitor' ? '🟡 MONITOR' : '🟢 Clear'}
                   </div>
                 </div>
@@ -260,13 +268,13 @@ export default function FlameoSituationRoom({
           <div className="text-sm text-gray-700 dark:text-gray-300">via {topShelter.route_summary}</div>
           <div className="mt-2 text-sm">
             {!topShelter.route_avoids_fire && (
-              <span className="text-amber-800 dark:text-amber-200">⚠️ Route passes near fire — use caution</span>
+              <span className="text-amber-700 dark:text-amber-400">⚠️ Route passes near fire — use caution</span>
             )}
             {topShelter.route_avoids_fire && topShelter.passes_near_hazard === true && (
-              <span className="text-amber-800 dark:text-amber-200">⚠️ Route passes near hazard site</span>
+              <span className="text-amber-700 dark:text-amber-400">⚠️ Route passes near hazard site</span>
             )}
             {topShelter.route_avoids_fire && topShelter.passes_near_hazard !== true && (
-              <span className="text-emerald-800 dark:text-emerald-300">✅ Route avoids fire and hazard sites</span>
+              <span className="text-green-700 dark:text-green-400">✅ Route avoids fire and hazard sites</span>
             )}
           </div>
           {userLat != null && userLng != null && (
@@ -299,7 +307,7 @@ export default function FlameoSituationRoom({
         <div className={panel}>
           <div className={sectionHead}>Route Avoids</div>
           {topShelter?.passes_near_hazard ? (
-            <p className="mt-2 text-sm text-amber-900 dark:text-amber-100">
+            <p className="mt-2 text-sm text-amber-700 dark:text-amber-400">
               ⚠️ Best available route passes near {topHazardName}. Proceed with caution.
             </p>
           ) : (
@@ -327,14 +335,14 @@ export default function FlameoSituationRoom({
               return (
                 <div
                   key={p.id}
-                  className="rounded-md border border-gray-200 px-2.5 py-2 text-sm dark:border-gray-600"
+                  className="rounded-md border border-gray-200 bg-white px-2.5 py-2 text-sm dark:border-gray-700 dark:bg-gray-800/50"
                 >
                   <div className="font-semibold text-gray-900 dark:text-gray-100">{p.name}</div>
                   <div className="text-gray-700 dark:text-gray-300">
                     {s.icon} {s.label}
                   </div>
                   {p.in_danger_zone && (
-                    <span className="mt-1 inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800 dark:bg-red-950/50 dark:text-red-200">
+                    <span className="mt-1 inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-950/50 dark:text-red-400">
                       ⚠️ In danger zone
                     </span>
                   )}

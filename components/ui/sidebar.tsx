@@ -136,7 +136,7 @@ export const MobileSidebar = ({
               )}
             >
               <div
-                className="absolute right-10 top-10 z-50 text-gray-600 cursor-pointer"
+                className="absolute right-10 top-10 z-50 cursor-pointer text-white/80 hover:text-white dark:text-gray-200 dark:hover:text-white"
                 onClick={() => setOpen(!open)}
               >
                 <X />

@@ -30,6 +30,7 @@ import { FlameoHubTour } from '@/components/hub/FlameoHubTour'
 import { HUMAN_EVAC_SHELTERS } from '@/lib/evac-shelters'
 import { HAZARD_FACILITIES } from '@/lib/hazard-facilities'
 import { distanceMiles } from '@/lib/hub-map-distance'
+import { cn } from '@/lib/utils'
 import {
   mapLegacyCheckinToDual,
   labelForHomeEvacuationStatus,
@@ -1048,31 +1049,33 @@ export function ConsumerHubDashboard({
 
   const meCard = (
     <div
-      className={`rounded-xl border-2 bg-white/80 px-3 py-2.5 ${
-        missingHomeAddress ? 'border-red-500 bg-red-50/90 dark:bg-red-950/30' : ''
-      }`}
-      style={missingHomeAddress ? undefined : { borderColor: 'var(--wfa-border)' }}
+      className={cn(
+        'rounded-xl border-2 px-3 py-2.5',
+        missingHomeAddress
+          ? 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40'
+          : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
+      )}
     >
-      <div className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--wfa-accent)' }}>
+      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
         Me
       </div>
-      <div className="text-xs font-semibold" style={{ color: 'var(--wfa-text)' }}>
+      <div className="text-xs font-semibold text-gray-900 dark:text-white">
         {userProfile?.full_name?.trim() || 'You'}
       </div>
       {userProfile?.email && (
-        <div className="text-[11px]" style={{ color: 'var(--wfa-text-40)' }}>
+        <div className="text-[11px] text-gray-500 dark:text-gray-400">
           {userProfile.email}
         </div>
       )}
-      <div className="mt-1.5 space-y-1 text-[11px]" style={{ color: 'var(--wfa-text-40)' }}>
+      <div className="mt-1.5 space-y-1 text-[11px] text-gray-500 dark:text-gray-400">
         <div>
-          <span className="font-medium" style={{ color: 'var(--wfa-text)' }}>Home:</span>{' '}
+          <span className="font-medium text-gray-900 dark:text-white">Home:</span>{' '}
           {userProfile?.address?.trim() || (
-            <span className="font-medium text-red-700 dark:text-red-300">Add your address in Settings to unlock hub features</span>
+            <span className="font-medium text-amber-800 dark:text-amber-200">Add your address in Settings to unlock hub features</span>
           )}
         </div>
         <div>
-          <span className="font-medium" style={{ color: 'var(--wfa-text)' }}>Work:</span>{' '}
+          <span className="font-medium text-gray-900 dark:text-white">Work:</span>{' '}
           {userProfile?.work_address?.trim() || 'Not set'}
         </div>
       </div>
@@ -1131,15 +1134,15 @@ export function ConsumerHubDashboard({
       {missingHomeAddress && bpMd !== undefined && (
         <div
           role="alert"
-          className="mx-4 mt-4 shrink-0 rounded-xl border-2 border-red-500 bg-red-50 px-4 py-3 text-sm text-red-900 shadow-sm dark:border-red-500 dark:bg-red-950/40 dark:text-red-100"
+          className="mx-4 mt-4 shrink-0 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm shadow-sm dark:border-amber-800 dark:bg-amber-950/50"
         >
-          <p className="font-semibold">Add your home address</p>
-          <p className="mt-1 text-red-800/95 dark:text-red-200/95">
+          <p className="font-semibold text-amber-900 dark:text-amber-100">Add your home address</p>
+          <p className="mt-1 text-amber-800 dark:text-amber-300">
             The hub, fire alerts, and distance-to-fire features need a saved home location. Add it in Settings when you&apos;re ready — we won&apos;t send you away from this page.
           </p>
           <Link
             href="/dashboard/settings?tab=profile"
-            className="mt-2 inline-block text-sm font-semibold text-red-700 underline underline-offset-2 hover:text-red-900 dark:text-red-300 dark:hover:text-red-100"
+            className="mt-2 inline-block text-sm font-semibold text-amber-800 underline underline-offset-2 hover:text-amber-950 dark:text-amber-200 dark:hover:text-amber-50"
           >
             Open Settings to add address
           </Link>
@@ -1268,14 +1271,14 @@ export function ConsumerHubDashboard({
             className="pointer-events-none absolute left-2 right-2 top-full z-30 mt-2 hidden rounded-xl border bg-white p-2 shadow-xl transition-opacity duration-150 md:block md:opacity-0 md:group-hover:pointer-events-auto md:group-hover:opacity-100"
             style={{ borderColor: 'var(--wfa-border)' }}
           >
-            <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-ash-600">Checklist</div>
+            <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-gray-600 dark:text-gray-400">Checklist</div>
             <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
               {GO_BAG_ITEMS.map(item => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => toggleGoBagItem(item.id)}
-                  className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-ash-50"
+                  className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/80"
                 >
                   <input
                     type="checkbox"
@@ -1283,7 +1286,7 @@ export function ConsumerHubDashboard({
                     readOnly
                     className="mt-0.5 h-3.5 w-3.5 accent-emerald-600"
                   />
-                  <span className="text-[11px] text-ash-800">{item.label}</span>
+                  <span className="text-[11px] text-gray-800 dark:text-gray-200">{item.label}</span>
                 </button>
               ))}
             </div>
@@ -1295,7 +1298,7 @@ export function ConsumerHubDashboard({
           <div data-hub-tour="people" className="space-y-4">
             {persons.length > 0 && (
               <div>
-                <div className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--wfa-accent)' }}>My People</div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-gray-900 dark:text-white">My People</div>
                 <div className="space-y-2">
                   {meCard}
                   {persons.map((p, i) => (
@@ -1332,9 +1335,9 @@ export function ConsumerHubDashboard({
                 </div>
               </div>
             )}
-          <div className="rounded-2xl p-4 bg-white border space-y-2" style={{ borderColor: 'var(--wfa-border)' }}>
-            <div className="text-ash-800 text-sm font-semibold">My People</div>
-            <p className="text-ash-500 text-xs leading-relaxed">
+          <div className="space-y-2 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <div className="text-sm font-semibold text-gray-900 dark:text-white">My People</div>
+            <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400">
               If you are caring for somebody or watching out for your family, add them here. They create their own
               account; you&apos;ll see status and can get alerts for their location. If they already use Wildfire, we
               link right away — otherwise we send an email invite (or a link if email isn&apos;t configured).
@@ -1345,7 +1348,7 @@ export function ConsumerHubDashboard({
                 value={familyEmail}
                 onChange={e => { setFamilyEmail(e.target.value); setFamilyAddErr(null); setFamilyAddOk(null) }}
                 placeholder="name@email.com"
-                className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm"
+                className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500"
               />
               <button
                 type="button"
@@ -1465,11 +1468,11 @@ export function ConsumerHubDashboard({
             className="flex min-h-0 flex-col shrink-0 border-r"
             style={{ width: `${leftPct}%`, minWidth: 180, borderColor: 'var(--wfa-border)', background: 'var(--wfa-panel-l)' }}
           >
-            <div className="px-4 pt-5 pb-3 border-b" style={{ borderColor: 'var(--wfa-border-lite)' }}>
-              <div className="font-display font-bold text-lg" style={{ color: 'var(--wfa-text)' }}>
+            <div className="border-b border-gray-200 px-4 pb-3 pt-5 dark:border-gray-700">
+              <div className="font-display text-lg font-bold text-gray-900 dark:text-white">
                 {showPeopleRail ? 'My People' : 'You'}
               </div>
-              <div className="text-xs mt-1 leading-snug" style={{ color: 'var(--wfa-text-40)' }}>
+              <div className="mt-1 text-xs leading-snug text-gray-600 dark:text-gray-400">
                 {showPeopleRail
                   ? 'If you are caring for somebody or watching out for your family, add them here. Tap a row to center the map.'
                   : 'Address powers nearby alerts'}
@@ -1481,22 +1484,22 @@ export function ConsumerHubDashboard({
                   <button
                     type="button"
                     onClick={() => { setMode('self'); setActivePerson(null) }}
-                    className="w-full text-left rounded-xl px-3 py-2.5 border transition-all"
-                    style={{
-                      borderColor: mode === 'self' ? 'var(--wfa-accent)' : 'var(--wfa-border)',
-                      background: mode === 'self' ? 'var(--wfa-tag-bg)' : 'transparent',
-                    }}
+                    className={cn(
+                      'w-full rounded-xl border px-3 py-2.5 text-left transition-all',
+                      mode === 'self'
+                        ? 'border-amber-600 bg-amber-50/80 dark:border-amber-500 dark:bg-gray-800'
+                        : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
+                    )}
                   >
-                    <div className="text-xs font-semibold" style={{ color: 'var(--wfa-text)' }}>Live location</div>
+                    <div className="text-xs font-semibold text-gray-900 dark:text-white">Live location</div>
                     <div
-                      className="text-[11px] leading-snug line-clamp-2 break-words"
-                      style={{ color: 'var(--wfa-text-40)' }}
+                      className="line-clamp-2 break-words text-[11px] leading-snug text-gray-500 dark:text-gray-400"
                       title={liveAddressLabel}
                     >
                       {liveAddressLabel}
                     </div>
                     {isAwayFromHome && (
-                      <div className="text-[10px] mt-1 font-semibold" style={{ color: 'var(--wfa-accent)' }}>
+                      <div className="mt-1 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
                         Live location differs from home
                       </div>
                     )}
@@ -1507,23 +1510,24 @@ export function ConsumerHubDashboard({
                       <button
                         type="button"
                         onClick={() => setActivePerson(toRolePerson(p))}
-                        className="w-full text-left rounded-xl px-3 py-2.5 border transition-all"
-                        style={{
-                          borderColor: activePerson?.id === p.id ? 'var(--wfa-accent)' : 'var(--wfa-border)',
-                          background: activePerson?.id === p.id ? 'var(--wfa-tag-bg)' : 'transparent',
-                        }}
+                        className={cn(
+                          'w-full rounded-xl border px-3 py-2.5 text-left transition-all',
+                          activePerson?.id === p.id
+                            ? 'border-amber-600 bg-amber-50/80 dark:border-amber-500 dark:bg-gray-800'
+                            : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
+                        )}
                       >
-                        <div className="text-xs font-semibold truncate" style={{ color: 'var(--wfa-text)' }}>{p.name}</div>
-                        <div className="text-[11px] truncate" style={{ color: 'var(--wfa-text-40)' }}>{p.mobilityOther || p.mobility || '—'}</div>
+                        <div className="truncate text-xs font-semibold text-gray-900 dark:text-white">{p.name}</div>
+                        <div className="truncate text-[11px] text-gray-500 dark:text-gray-400">{p.mobilityOther || p.mobility || '—'}</div>
                       </button>
                       {personStatuses[p.id] && (personStatuses[p.id].home || personStatuses[p.id].safety) && (
-                        <div className="text-[10px] px-2 py-1.5 rounded-lg bg-ash-100/80 border border-ash-200 text-ash-800 space-y-0.5">
+                        <div className="space-y-0.5 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-[10px] text-gray-800 dark:border-gray-600 dark:bg-gray-800/60 dark:text-gray-100">
                           {personStatuses[p.id].home && (
                             <div>
                               <span className="font-semibold">Home:</span>{' '}
                               {labelForHomeEvacuationStatus(personStatuses[p.id].home!)}
                               {personStatuses[p.id].homeAt && (
-                                <span className="text-ash-500"> · {new Date(personStatuses[p.id].homeAt!).toLocaleString()}</span>
+                                <span className="text-gray-500 dark:text-gray-400"> · {new Date(personStatuses[p.id].homeAt!).toLocaleString()}</span>
                               )}
                             </div>
                           )}
@@ -1532,7 +1536,7 @@ export function ConsumerHubDashboard({
                               <span className="font-semibold">Safety:</span>{' '}
                               {PERSON_SAFETY_CHECKIN_STATUS_OPTIONS.find(o => o.value === personStatuses[p.id].safety)?.label}
                               {personStatuses[p.id].safetyAt && (
-                                <span className="text-ash-500"> · {new Date(personStatuses[p.id].safetyAt!).toLocaleString()}</span>
+                                <span className="text-gray-500 dark:text-gray-400"> · {new Date(personStatuses[p.id].safetyAt!).toLocaleString()}</span>
                               )}
                             </div>
                           )}
@@ -1547,14 +1551,14 @@ export function ConsumerHubDashboard({
                   >
                     Manage people
                   </Link>
-                  <div className="rounded-xl px-2 py-2 border border-ash-200 bg-white space-y-1.5">
-                    <div className="text-[10px] font-bold uppercase tracking-wide text-ash-600">Add someone</div>
+                  <div className="space-y-1.5 rounded-xl border border-gray-200 bg-white px-2 py-2 dark:border-gray-700 dark:bg-gray-800">
+                    <div className="text-[10px] font-bold uppercase tracking-wide text-gray-600 dark:text-gray-400">Add someone</div>
                     <input
                       type="email"
                       value={familyEmail}
                       onChange={e => { setFamilyEmail(e.target.value); setFamilyAddErr(null); setFamilyAddOk(null) }}
                       placeholder="evacuee@email.com"
-                      className="w-full rounded-lg border border-ash-300 px-2 py-1.5 text-[11px]"
+                      className="w-full rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-[11px] text-gray-900 placeholder:text-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500"
                     />
                     <button
                       type="button"
@@ -1570,18 +1574,22 @@ export function ConsumerHubDashboard({
                 </>
               ) : (
                 <div
-                  className={`rounded-xl p-3 border-2 bg-white ${
-                    missingHomeAddress ? 'border-red-500 bg-red-50/90' : ''
-                  }`}
-                  style={missingHomeAddress ? undefined : { borderColor: 'var(--wfa-border)' }}
+                  className={cn(
+                    'rounded-xl border-2 p-3',
+                    missingHomeAddress
+                      ? 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40'
+                      : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
+                  )}
                 >
-                  <div className="text-xs font-semibold mb-1" style={{ color: 'var(--wfa-text)' }}>{userProfile?.full_name || 'My profile'}</div>
-                  <div className="text-[11px] truncate" style={{ color: 'var(--wfa-text-40)' }}>
+                  <div className="mb-1 text-xs font-semibold text-gray-900 dark:text-white">{userProfile?.full_name || 'My profile'}</div>
+                  <div className="truncate text-[11px] text-gray-500 dark:text-gray-400">
                     {userProfile?.address?.trim() || (
-                      <span className="font-medium text-red-700">Add your home address in Settings — hub and alerts need it</span>
+                      <span className="font-medium text-amber-800 dark:text-amber-200">Add your home address in Settings — hub and alerts need it</span>
                     )}
                   </div>
-                  <Link href="/dashboard/settings?tab=profile" className="text-[11px] font-semibold mt-2 inline-block" style={{ color: 'var(--wfa-accent)' }}>Edit profile →</Link>
+                  <Link href="/dashboard/settings?tab=profile" className="mt-2 inline-block text-[11px] font-semibold text-amber-700 underline underline-offset-2 hover:text-amber-900 dark:text-amber-300 dark:hover:text-amber-100">
+                    Edit profile →
+                  </Link>
                 </div>
               )}
               <div className="group relative rounded-2xl p-3 bg-white border" style={{ borderColor: 'var(--wfa-border)' }}>
@@ -1600,14 +1608,14 @@ export function ConsumerHubDashboard({
                   className="pointer-events-none absolute left-2 right-2 top-full z-40 mt-2 hidden rounded-xl border bg-white p-2 shadow-xl transition-opacity duration-150 md:block md:opacity-0 md:group-hover:pointer-events-auto md:group-hover:opacity-100"
                   style={{ borderColor: 'var(--wfa-border)' }}
                 >
-                  <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-ash-600">Checklist</div>
+                  <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-gray-600 dark:text-gray-400">Checklist</div>
                   <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
                     {GO_BAG_ITEMS.map(item => (
                       <button
                         key={item.id}
                         type="button"
                         onClick={() => toggleGoBagItem(item.id)}
-                        className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-ash-50"
+                        className="flex w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/80"
                       >
                         <input
                           type="checkbox"
@@ -1615,7 +1623,7 @@ export function ConsumerHubDashboard({
                           readOnly
                           className="mt-0.5 h-3.5 w-3.5 accent-emerald-600"
                         />
-                        <span className="text-[11px] text-ash-800">{item.label}</span>
+                        <span className="text-[11px] text-gray-800 dark:text-gray-200">{item.label}</span>
                       </button>
                     ))}
                   </div>

@@ -29,6 +29,9 @@ import {
   wordCount,
   clampToMaxWords,
 } from '@/lib/profile-mobility-options'
+import { cn } from '@/lib/utils'
+import { CHIP_SELECTED, CHIP_UNSELECTED, chipToggleClass } from '@/lib/ui-chip-classes'
+import { settingsInviteRoleOptions } from '@/lib/profile-role-policy'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface ProfileData {
@@ -62,7 +65,6 @@ const ROLE_CONFIG: Record<string, { label: string; icon: React.ElementType; colo
   emergency_responder: { label: 'Emergency Responder', icon: Shield, color: 'text-red-400', activeBorder: 'border-red-500 bg-red-500/10', protected: true },
   data_analyst: { label: 'Data Analyst', icon: BarChart3, color: 'text-blue-400', activeBorder: 'border-blue-500 bg-blue-500/10', protected: true },
 }
-const ALL_ROLES = ['evacuee', 'emergency_responder', 'data_analyst']
 
 function isConsumerRole(r: string) {
   return r === 'evacuee' || r === 'caregiver'
@@ -82,8 +84,8 @@ function Section({ icon: Icon, title, children }: { icon: any; title: string; ch
   return (
     <div className="card p-6">
       <div className="flex items-center gap-2 mb-5">
-        <Icon className="w-4 h-4 text-ember-400" />
-        <h2 className="text-white font-semibold">{title}</h2>
+        <Icon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+        <h2 className="font-semibold text-gray-900 dark:text-white">{title}</h2>
       </div>
       {children}
     </div>
@@ -92,17 +94,33 @@ function Section({ icon: Icon, title, children }: { icon: any; title: string; ch
 function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
   return (
     <div>
-      <label className="block text-ash-300 text-xs font-medium mb-1">{label}</label>
+      <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">{label}</label>
       {children}
-      {hint && <p className="text-ash-600 text-xs mt-1">{hint}</p>}
+      {hint && <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{hint}</p>}
     </div>
   )
 }
 function FInput({ value, onChange, placeholder, type = 'text' }: { value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) {
-  return <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600" />
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-amber-500/60 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500"
+    />
+  )
 }
 function FTextarea({ value, onChange, placeholder, rows = 2 }: { value: string; onChange: (v: string) => void; placeholder?: string; rows?: number }) {
-  return <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={rows} className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600 resize-none" />
+  return (
+    <textarea
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      rows={rows}
+      className="w-full resize-none rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-amber-500/60 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500"
+    />
+  )
 }
 
 type Tab = 'profile' | 'account' | 'preferences'
@@ -408,6 +426,10 @@ function SettingsInner() {
     const existingRoles: string[] = Array.isArray(prof?.roles) && prof.roles.length
       ? prof.roles
       : prof?.role ? [prof.role] : []
+    if (addingRole === 'data_analyst' && !existingRoles.includes('emergency_responder')) {
+      setCodeError('Data analyst access requires an emergency responder account first.')
+      return
+    }
     const updatedRoles = [...new Set([...existingRoles, addingRole])]
     await supabase.from('profiles').update({ role: addingRole, roles: updatedRoles }).eq('id', u.id)
     // Persist active role and claimed roles list to localStorage so the
@@ -441,13 +463,7 @@ function SettingsInner() {
 
   function resetCode() { setAddingRole(null); setCode(''); setCodeVerified(false); setCodeError(''); setOrgName(null); setCodeId(null) }
 
-  const hasConsumer = myRoles.some(isConsumerRole)
-  const otherRoles = ALL_ROLES.filter(r => {
-    if (myRoles.includes(r)) return false
-    if (hasConsumer && isConsumerRole(r)) return false
-    if (!profileHasProtectedRole && (r === 'emergency_responder' || r === 'data_analyst')) return false
-    return true
-  })
+  const otherRoles = settingsInviteRoleOptions({ myRoles, profileHasProtectedRole })
   const profileTabLabel = activeRole === 'data_analyst' ? 'Analyst Profile'
     : activeRole === 'emergency_responder' ? 'Responder Profile'
     : 'Emergency Profile'
@@ -477,21 +493,21 @@ function SettingsInner() {
   return (
     <div className="max-w-3xl mx-auto p-6">
       <div className="flex items-center gap-3 mb-6">
-        <Settings className="w-6 h-6 text-ash-400" />
-        <h1 className="font-display text-2xl font-bold text-white">Settings</h1>
+        <Settings className="h-6 w-6 text-gray-500 dark:text-gray-400" />
+        <h1 className="font-display text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
       </div>
 
       {isOnboarding && (
-        <div className="bg-ember-500/10 border border-ember-500/30 rounded-xl p-5 mb-6 flex items-start justify-between gap-4">
+        <div className="mb-6 flex items-start justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/40">
           <div>
-            <div className="text-ember-400 font-semibold text-sm mb-1">Welcome to WildfireAlert</div>
-            <p className="text-ash-300 text-sm">
-              Add your <strong className="text-ash-200">home address</strong> (required for evacuees) so My Hub and the evacuation map can anchor on your location. You can update other details anytime.
+            <div className="mb-1 text-sm font-semibold text-amber-900 dark:text-amber-100">Welcome to WildfireAlert</div>
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              Add your <strong className="text-amber-950 dark:text-amber-50">home address</strong> (required for evacuees) so My Hub and the evacuation map can anchor on your location. You can update other details anytime.
             </p>
           </div>
           <button
             onClick={() => router.push(dashDest)}
-            className="shrink-0 px-3 py-2 bg-ash-800 border border-ash-700 rounded-lg text-ash-400 hover:text-white text-xs font-medium transition-colors whitespace-nowrap"
+            className="shrink-0 whitespace-nowrap rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
           >
             Skip — I'm in an emergency
           </button>
@@ -499,12 +515,15 @@ function SettingsInner() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-ash-900 rounded-xl p-1 border border-ash-800">
+      <div className="mb-6 flex gap-1 rounded-xl border border-gray-200 bg-gray-100 p-1 dark:border-gray-700 dark:bg-gray-900">
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-              tab === t.id ? 'bg-ash-700 text-white' : 'text-ash-400 hover:text-ash-200'
-            }`}
+            className={cn(
+              'flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all',
+              tab === t.id
+                ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white'
+                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+            )}
           >{t.label}</button>
         ))}
       </div>
@@ -563,11 +582,11 @@ function SettingsInner() {
           <Section icon={Activity} title="Dashboard Defaults">
             <div className="grid sm:grid-cols-2 gap-6">
               <div>
-                <label className="block text-ash-300 text-xs font-medium mb-1">Default region / state filter</label>
+                <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Default region / state filter</label>
                 <select
                   value={analystDefaultRegion}
                   onChange={e => setAnalystDefaultRegion(e.target.value)}
-                  className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60"
+                  className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-amber-500/60 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                 >
                   <option value="all">All states (no filter)</option>
                   {['CA','TX','AZ','NM','OR','WA','MT','CO','ID','NV','UT','WY','OK','FL','AK'].map(s => (
@@ -576,11 +595,11 @@ function SettingsInner() {
                 </select>
               </div>
               <div>
-                <label className="block text-ash-300 text-xs font-medium mb-1">Preferred export format</label>
+                <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Preferred export format</label>
                 <div className="flex gap-2">
                   {(['csv', 'json'] as const).map(fmt => (
                     <button key={fmt} type="button" onClick={() => setAnalystExportFormat(fmt)}
-                      className={`flex-1 py-2.5 rounded-xl text-sm font-medium border transition-all ${analystExportFormat === fmt ? 'bg-ember-500/20 border-ember-500/50 text-ember-300' : 'bg-ash-800 border-ash-700 text-ash-400 hover:border-ash-500 hover:text-ash-200'}`}>
+                      className={chipToggleClass(analystExportFormat === fmt, 'flex-1 rounded-xl py-2.5 text-sm')}>
                       .{fmt.toUpperCase()}
                     </button>
                   ))}
@@ -591,40 +610,40 @@ function SettingsInner() {
             <div className="mt-5 space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-ash-300 text-xs font-medium">SVI vulnerability threshold</label>
-                  <span className="text-white font-mono text-xs">{analystSviThreshold.toFixed(2)}</span>
+                  <label className="text-xs font-medium text-gray-700 dark:text-gray-300">SVI vulnerability threshold</label>
+                  <span className="font-mono text-xs text-gray-900 dark:text-white">{analystSviThreshold.toFixed(2)}</span>
                 </div>
                 <input type="range" min={0.4} max={0.95} step={0.05} value={analystSviThreshold}
                   onChange={e => setAnalystSviThreshold(Number(e.target.value))}
-                  className="w-full accent-ember-500" />
-                <div className="flex justify-between text-ash-600 text-xs mt-1">
+                  className="w-full accent-amber-600 dark:accent-amber-500" />
+                <div className="mt-1 flex justify-between text-xs text-gray-600 dark:text-gray-400">
                   <span>0.40 — Low risk flag</span><span>0.95 — High risk only</span>
                 </div>
-                <p className="text-ash-600 text-xs mt-1">Counties above this SVI score are flagged as high-vulnerability in your reports.</p>
+                <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">Counties above this SVI score are flagged as high-vulnerability in your reports.</p>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-ash-300 text-xs font-medium">Critical delay threshold</label>
-                  <span className="text-white font-mono text-xs">{analystDelayThreshold}h</span>
+                  <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Critical delay threshold</label>
+                  <span className="font-mono text-xs text-gray-900 dark:text-white">{analystDelayThreshold}h</span>
                 </div>
                 <input type="range" min={2} max={48} step={1} value={analystDelayThreshold}
                   onChange={e => setAnalystDelayThreshold(Number(e.target.value))}
-                  className="w-full accent-ember-500" />
-                <div className="flex justify-between text-ash-600 text-xs mt-1">
+                  className="w-full accent-amber-600 dark:accent-amber-500" />
+                <div className="mt-1 flex justify-between text-xs text-gray-600 dark:text-gray-400">
                   <span>2h</span><span>48h</span>
                 </div>
-                <p className="text-ash-600 text-xs mt-1">Delays above this threshold are colored red in charts and flagged in the signal gap analysis.</p>
+                <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">Delays above this threshold are colored red in charts and flagged in the signal gap analysis.</p>
               </div>
             </div>
           </Section>
 
           <Section icon={Bell} title="Data Alerts">
-            <div className={`flex items-start gap-3 p-4 rounded-xl border ${notifPermission === 'granted' ? 'border-signal-safe/30 bg-signal-safe/5' : 'border-ash-700 bg-ash-800/40'}`}>
-              <div className="mt-0.5">{notifPermission === 'granted' ? <Bell className="w-4 h-4 text-signal-safe" /> : <BellOff className="w-4 h-4 text-ash-500" />}</div>
+            <div className={`flex items-start gap-3 rounded-xl border p-4 ${notifPermission === 'granted' ? 'border-signal-safe/30 bg-signal-safe/5' : 'border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800/50'}`}>
+              <div className="mt-0.5">{notifPermission === 'granted' ? <Bell className="h-4 w-4 text-signal-safe" /> : <BellOff className="h-4 w-4 text-gray-500 dark:text-gray-400" />}</div>
               <div className="flex-1">
-                <div className="text-white text-sm font-medium">Dataset update notifications</div>
-                <div className="text-ash-400 text-xs mt-0.5">
+                <div className="text-sm font-medium text-gray-900 dark:text-white">Dataset update notifications</div>
+                <div className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
                   {notifPermission === 'granted' ? 'Enabled — you\'ll be notified when new WiDS incident data is available.' : 'Get notified when new fire incident data is loaded or model anomalies are detected.'}
                 </div>
               </div>
@@ -696,7 +715,7 @@ function SettingsInner() {
 
           {isConsumerRole(activeRole) && (
             <Section icon={Globe} title="Work &amp; Secondary Location">
-              <p className="text-ash-500 text-xs mb-4">
+              <p className="mb-4 text-xs text-gray-600 dark:text-gray-400">
                 Optional — we use this with your live location during weekday hours to anchor alerts when you&apos;re away from home.
               </p>
               {workSaveMsg && (
@@ -752,7 +771,7 @@ function SettingsInner() {
                             setWorkBuildingType((e.target.value || '') as WorkBuildingType | '')
                             setWorkSaveMsg(null)
                           }}
-                          className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60"
+                          className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-amber-500/60 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                         >
                           <option value="">Select…</option>
                           <option value="house">House / Single family home</option>
@@ -890,13 +909,13 @@ function SettingsInner() {
           )}
 
           <Section icon={Activity} title="Mobility & access">
-            <p className="text-ash-500 text-xs mb-4">
+            <p className="mb-4 text-xs text-gray-600 dark:text-gray-400">
               Same options as signup — helps responders and your My People circle understand support needs during an evacuation.
             </p>
-            <div className="space-y-6 mb-4">
+            <div className="mb-4 space-y-6">
               <div>
-                <div className="text-sm font-medium text-white mb-0.5">Mobility &amp; Movement</div>
-                <p className="text-xs text-ash-500 mb-2">Helps responders reach you first in an emergency</p>
+                <div className="mb-0.5 text-sm font-medium text-gray-900 dark:text-white">Mobility &amp; Movement</div>
+                <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">Helps responders reach you first in an emergency</p>
                 <div className="flex flex-wrap gap-2">
                   {MOBILITY_MOVEMENT_OPTIONS.map(opt => {
                     const on = profile.mobility_needs.includes(opt)
@@ -905,7 +924,7 @@ function SettingsInner() {
                         key={opt}
                         type="button"
                         onClick={() => toggleMobilityChip('mobility_needs', opt)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all text-left ${on ? 'bg-ember-500/20 border-ember-500/50 text-ember-300' : 'bg-ash-800 border-ash-700 text-ash-400 hover:border-ash-500 hover:text-ash-200'}`}
+                        className={chipToggleClass(on, 'rounded-full px-3 py-1.5 text-xs text-left')}
                       >
                         {on ? '✓ ' : ''}{opt}
                       </button>
@@ -914,8 +933,8 @@ function SettingsInner() {
                 </div>
               </div>
               <div>
-                <div className="text-sm font-medium text-white mb-0.5">Disabilities</div>
-                <p className="text-xs text-ash-500 mb-2">Helps responders communicate and assist you</p>
+                <div className="mb-0.5 text-sm font-medium text-gray-900 dark:text-white">Disabilities</div>
+                <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">Helps responders communicate and assist you</p>
                 <div className="flex flex-wrap gap-2">
                   {DISABILITY_OPTIONS.map(opt => {
                     const on = profile.disability_needs.includes(opt)
@@ -924,7 +943,7 @@ function SettingsInner() {
                         key={opt}
                         type="button"
                         onClick={() => toggleMobilityChip('disability_needs', opt)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all text-left ${on ? 'bg-ember-500/20 border-ember-500/50 text-ember-300' : 'bg-ash-800 border-ash-700 text-ash-400 hover:border-ash-500 hover:text-ash-200'}`}
+                        className={chipToggleClass(on, 'rounded-full px-3 py-1.5 text-xs text-left')}
                       >
                         {on ? '✓ ' : ''}{opt}
                       </button>
@@ -938,15 +957,15 @@ function SettingsInner() {
                       onChange={v => { update('disability_other', clampToMaxWords(v, MAX_OTHER_WORDS)); setSaved(false) }}
                       placeholder="Describe briefly"
                     />
-                    <p className={`mt-1 text-xs ${wordCount(profile.disability_other) >= MAX_OTHER_WORDS ? 'text-red-400' : 'text-ash-500'}`}>
+                    <p className={`mt-1 text-xs ${wordCount(profile.disability_other) >= MAX_OTHER_WORDS ? 'text-red-400' : 'text-gray-600 dark:text-gray-400'}`}>
                       {wordCount(profile.disability_other)} / {MAX_OTHER_WORDS} words
                     </p>
                   </div>
                 )}
               </div>
               <div>
-                <div className="text-sm font-medium text-white mb-0.5">Medical conditions &amp; equipment</div>
-                <p className="text-xs text-ash-500 mb-2">Helps responders prioritize life-critical needs</p>
+                <div className="mb-0.5 text-sm font-medium text-gray-900 dark:text-white">Medical conditions &amp; equipment</div>
+                <p className="mb-2 text-xs text-gray-600 dark:text-gray-400">Helps responders prioritize life-critical needs</p>
                 <div className="flex flex-wrap gap-2">
                   {MEDICAL_OPTIONS.map(opt => {
                     const on = profile.medical_needs.includes(opt)
@@ -955,7 +974,7 @@ function SettingsInner() {
                         key={opt}
                         type="button"
                         onClick={() => toggleMobilityChip('medical_needs', opt)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all text-left ${on ? 'bg-ember-500/20 border-ember-500/50 text-ember-300' : 'bg-ash-800 border-ash-700 text-ash-400 hover:border-ash-500 hover:text-ash-200'}`}
+                        className={chipToggleClass(on, 'rounded-full px-3 py-1.5 text-xs text-left')}
                       >
                         {on ? '✓ ' : ''}{opt}
                       </button>
@@ -969,34 +988,34 @@ function SettingsInner() {
                       onChange={v => { update('medical_other', clampToMaxWords(v, MAX_OTHER_WORDS)); setSaved(false) }}
                       placeholder="Describe briefly"
                     />
-                    <p className={`mt-1 text-xs ${wordCount(profile.medical_other) >= MAX_OTHER_WORDS ? 'text-red-400' : 'text-ash-500'}`}>
+                    <p className={`mt-1 text-xs ${wordCount(profile.medical_other) >= MAX_OTHER_WORDS ? 'text-red-400' : 'text-gray-600 dark:text-gray-400'}`}>
                       {wordCount(profile.medical_other)} / {MAX_OTHER_WORDS} words
                     </p>
                   </div>
                 )}
               </div>
             </div>
-            <p className="mt-4 rounded-xl border border-ash-700/80 bg-ash-900/40 p-3 text-xs leading-relaxed text-ash-400">
+            <p className="mt-4 rounded-xl border border-gray-200 bg-gray-100 p-3 text-xs leading-relaxed text-gray-700 dark:border-gray-700 dark:bg-gray-800/60 dark:text-gray-300">
               🔒 Your health information is encrypted and only shared with emergency responders during active incidents in your area. You control what you share and can remove it anytime in Settings.
             </p>
           </Section>
 
           <Section icon={Heart} title="My People">
-            <p className="text-ash-500 text-xs mb-4">
+            <p className="mb-4 text-xs text-gray-600 dark:text-gray-400">
               If you are caring for somebody or watching out for your family, add them here — evacuation addresses, check-in pings, and emergency details are managed from My Hub.
             </p>
-            <div className="space-y-2 mb-4">
+            <div className="mb-4 space-y-2">
               {monitoredPersons.length === 0 ? (
-                <div className="text-ash-600 text-sm text-center py-4 border border-dashed border-ash-700 rounded-xl">
+                <div className="rounded-xl border border-dashed border-gray-300 py-4 text-center text-sm text-gray-600 dark:border-gray-600 dark:text-gray-400">
                   No persons added yet
                 </div>
               ) : (
                 monitoredPersons.map(p => (
-                  <div key={p.id} className="bg-ash-800/60 rounded-xl px-4 py-3 border border-ash-700 flex items-center gap-3">
-                    <User className="w-4 h-4 text-ash-500 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-white text-sm font-medium truncate">{p.name}</div>
-                      <div className="text-ash-500 text-xs">{p.relationship}{p.mobility && p.mobility !== 'Mobile Adult' ? ` · ${p.mobility}` : ''}</div>
+                  <div key={p.id} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/80">
+                    <User className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium text-gray-900 dark:text-white">{p.name}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">{p.relationship}{p.mobility && p.mobility !== 'Mobile Adult' ? ` · ${p.mobility}` : ''}</div>
                     </div>
                   </div>
                 ))
@@ -1005,7 +1024,7 @@ function SettingsInner() {
             {isConsumerRole(activeRole) && (
               <Link
                 href="/dashboard/home/persons"
-                className="flex items-center gap-2 text-sm text-ash-400 hover:text-white border border-dashed border-ash-700 hover:border-ash-500 rounded-xl px-4 py-3 w-full justify-center transition-colors"
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-900 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 dark:hover:text-white"
               >
                 <Plus className="w-4 h-4" /> Manage My People
               </Link>
@@ -1013,11 +1032,11 @@ function SettingsInner() {
           </Section>
 
           <Section icon={Brain} title="Cognitive & Behavioral Needs">
-            <p className="text-ash-500 text-xs mb-4">Helps first responders understand how to communicate and provide support during an evacuation. This information is included in the Emergency Card.</p>
+            <p className="mb-4 text-xs text-gray-600 dark:text-gray-400">Helps first responders understand how to communicate and provide support during an evacuation. This information is included in the Emergency Card.</p>
 
             <div className="mb-5">
-              <label className="block text-ash-300 text-xs font-medium mb-1">Cognitive conditions</label>
-              <p className="text-ash-600 text-xs mb-3">Select all that apply — affects how instructions should be delivered and what challenges may arise.</p>
+              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Cognitive conditions</label>
+              <p className="mb-3 text-xs text-gray-600 dark:text-gray-400">Select all that apply — affects how instructions should be delivered and what challenges may arise.</p>
               <div className="flex flex-wrap gap-2">
                 {[
                   'Dementia (early stage)', 'Dementia (moderate/advanced)', "Alzheimer's disease",
@@ -1027,7 +1046,7 @@ function SettingsInner() {
                   const active = profile.communication_needs.includes(cond)
                   return (
                     <button key={cond} type="button" onClick={() => toggleNeed(cond)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${active ? 'bg-ember-500/20 border-ember-500/50 text-ember-300' : 'bg-ash-800 border-ash-700 text-ash-400 hover:border-ash-500 hover:text-ash-200'}`}>
+                      className={chipToggleClass(active, 'rounded-full px-3 py-1.5 text-xs')}>
                       {active ? '✓ ' : ''}{cond}
                     </button>
                   )
@@ -1036,8 +1055,8 @@ function SettingsInner() {
             </div>
 
             <div className="mb-5">
-              <label className="block text-ash-300 text-xs font-medium mb-1">Behavioral & mental health considerations</label>
-              <p className="text-ash-600 text-xs mb-3">Conditions that may affect how someone responds to emergency instructions or unfamiliar environments.</p>
+              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Behavioral & mental health considerations</label>
+              <p className="mb-3 text-xs text-gray-600 dark:text-gray-400">Conditions that may affect how someone responds to emergency instructions or unfamiliar environments.</p>
               <div className="flex flex-wrap gap-2">
                 {[
                   'Autism spectrum disorder', 'Sensory sensitivities (ASD)', 'PTSD / trauma response',
@@ -1048,7 +1067,7 @@ function SettingsInner() {
                   const active = profile.communication_needs.includes(cond)
                   return (
                     <button key={cond} type="button" onClick={() => toggleNeed(cond)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${active ? 'bg-ember-500/20 border-ember-500/50 text-ember-300' : 'bg-ash-800 border-ash-700 text-ash-400 hover:border-ash-500 hover:text-ash-200'}`}>
+                      className={chipToggleClass(active, 'rounded-full px-3 py-1.5 text-xs')}>
                       {active ? '✓ ' : ''}{cond}
                     </button>
                   )
@@ -1063,21 +1082,21 @@ function SettingsInner() {
 
           <Section icon={ShieldAlert} title="For Emergency Responders">
             <div className="mb-5">
-              <label className="block text-ash-300 text-xs font-medium mb-1">Communication needs</label>
-              <p className="text-ash-600 text-xs mb-3">Helps responders communicate effectively at your door and at shelters.</p>
+              <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">Communication needs</label>
+              <p className="mb-3 text-xs text-gray-600 dark:text-gray-400">Helps responders communicate effectively at your door and at shelters.</p>
               <div className="flex flex-wrap gap-2">
                 {['Non-verbal household member','Deaf / Hard of hearing','Uses sign language (ASL)','Blind / Low vision','Spanish-speaking only','Limited English proficiency','Mixed-language household','Uses AAC device','Prefers written communication','Needs interpreter on-site'].map(need => {
                   const active = profile.communication_needs.includes(need)
                   return (
                     <button key={need} type="button" onClick={() => toggleNeed(need)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${active ? 'bg-ember-500/20 border-ember-500/50 text-ember-300' : 'bg-ash-800 border-ash-700 text-ash-400 hover:border-ash-500 hover:text-ash-200'}`}>
+                      className={chipToggleClass(active, 'rounded-full px-3 py-1.5 text-xs')}>
                       {active ? '✓ ' : ''}{need}
                     </button>
                   )
                 })}
               </div>
             </div>
-            <div className="border-t border-ash-800 my-4" />
+            <div className="my-4 border-t border-gray-200 dark:border-gray-700" />
             <div className="grid sm:grid-cols-2 gap-4">
               <Field label="Emergency contact name"><FInput value={profile.emergency_contact_name} onChange={v => update('emergency_contact_name', v)} placeholder="Contact name" /></Field>
               <Field label="Emergency contact phone"><FInput value={profile.emergency_contact_phone} onChange={v => update('emergency_contact_phone', v)} placeholder="+1 (555) 000-0000" type="tel" /></Field>
@@ -1085,10 +1104,10 @@ function SettingsInner() {
           </Section>
 
           <Section icon={FileText} title="Emergency Card">
-            <p className="text-ash-500 text-xs mb-4">Your printable emergency card for first responders and shelter staff — medications, pets, contacts, and evacuation route.</p>
+            <p className="mb-4 text-xs text-gray-600 dark:text-gray-400">Your printable emergency card for first responders and shelter staff — medications, pets, contacts, and evacuation route.</p>
             <a
               href="/dashboard/home/emergency-card"
-              className="flex items-center gap-2 text-sm text-ash-400 hover:text-white border border-dashed border-ash-700 hover:border-ash-500 rounded-xl px-4 py-3 w-full justify-center transition-colors"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-600 transition-colors hover:border-gray-400 hover:text-gray-900 dark:border-gray-600 dark:text-gray-400 dark:hover:border-gray-500 dark:hover:text-white"
             >
               <FileText className="w-4 h-4" /> Open Emergency Card
             </a>
@@ -1096,11 +1115,11 @@ function SettingsInner() {
 
           <Section icon={Bell} title="Fire Alerts">
             <div className="space-y-4">
-              <div className={`flex items-start gap-3 p-4 rounded-xl border ${notifPermission === 'granted' ? 'border-signal-safe/30 bg-signal-safe/5' : 'border-ash-700 bg-ash-800/40'}`}>
-                <div className="mt-0.5">{notifPermission === 'granted' ? <Bell className="w-4 h-4 text-signal-safe" /> : <BellOff className="w-4 h-4 text-ash-500" />}</div>
+              <div className={`flex items-start gap-3 rounded-xl border p-4 ${notifPermission === 'granted' ? 'border-signal-safe/30 bg-signal-safe/5' : 'border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800/50'}`}>
+                <div className="mt-0.5">{notifPermission === 'granted' ? <Bell className="h-4 w-4 text-signal-safe" /> : <BellOff className="h-4 w-4 text-gray-500 dark:text-gray-400" />}</div>
                 <div className="flex-1">
-                  <div className="text-white text-sm font-medium">Browser notifications</div>
-                  <div className="text-ash-400 text-xs mt-0.5">
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">Browser notifications</div>
+                  <div className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
                     {notifPermission === 'granted' ? "Enabled — you'll receive alerts when nearby fires change status." : notifPermission === 'denied' ? 'Blocked in browser settings.' : 'Get notified when fires near you change status.'}
                   </div>
                 </div>
@@ -1132,34 +1151,42 @@ function SettingsInner() {
       {tab === 'account' && (
         <div className="space-y-5">
           <section className="card p-6">
-            <div className="flex items-center gap-2 mb-4"><User className="w-4 h-4 text-ember-400" /><h2 className="font-semibold text-white">Account</h2></div>
+            <div className="mb-4 flex items-center gap-2">
+              <User className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <h2 className="font-semibold text-gray-900 dark:text-white">Account</h2>
+            </div>
             <div className="space-y-3">
-              <div className="py-2 border-b border-ash-800">
-                <div className="text-sm text-ash-300 font-medium">{profile.full_name || '—'}</div>
-                <div className="text-xs text-ash-500">{email}</div>
+              <div className="border-b border-gray-200 py-2 dark:border-gray-700">
+                <div className="text-sm font-medium text-gray-800 dark:text-gray-200">{profile.full_name || '—'}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">{email}</div>
               </div>
-              <button onClick={() => setTab('profile')} className="flex items-center gap-2 text-ash-400 hover:text-white transition-colors text-sm py-1">
-                <User className="w-4 h-4" />{' '}
+              <button onClick={() => setTab('profile')} className="flex items-center gap-2 py-1 text-sm text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
+                <User className="h-4 w-4" />{' '}
                 {activeRole === 'emergency_responder' ? 'Edit responder profile' : 'Edit emergency profile'}
               </button>
-              <button className="flex items-center gap-2 text-ash-400 hover:text-white transition-colors text-sm py-1">
+              <button className="flex items-center gap-2 py-1 text-sm text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
                 <Key className="w-4 h-4" /> Change password (email login only)
               </button>
             </div>
           </section>
 
           <section className="card p-6">
-            <div className="flex items-center gap-2 mb-1"><Shield className="w-4 h-4 text-ember-400" /><h2 className="font-semibold text-white">Roles & dashboards</h2></div>
-            <p className="text-ash-500 text-sm mb-4">Switch your active dashboard or add a new role with an access code.</p>
-            {!myRoles.includes('evacuee') && (
-              <div className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">
-                <div className="text-emerald-200 text-sm font-medium mb-2">
-                  Emergency responders can add evacuee mode without an access code.
+            <div className="mb-1 flex items-center gap-2">
+              <Shield className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <h2 className="font-semibold text-gray-900 dark:text-white">Roles & dashboards</h2>
+            </div>
+            <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+              Your signup choice is household (evacuee) or emergency responder — those are not interchangeable with an invite code. If you are a responder, you can add <strong className="font-semibold text-gray-800 dark:text-gray-200">Data Analyst</strong> access with an analyst invite code, and open the household hub using the button below when needed.
+            </p>
+            {myRoles.includes('emergency_responder') && !myRoles.includes('evacuee') && (
+              <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+                <div className="mb-2 text-sm font-medium text-emerald-900 dark:text-emerald-100">
+                  You have the Emergency Responder dashboard. You can also open the household (Evacuee) experience without an invite code.
                 </div>
                 <button
                   type="button"
                   onClick={claimEvacueeWithoutCode}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-600/20 border border-emerald-500/40 text-emerald-100 hover:bg-emerald-600/30 transition-colors text-xs font-semibold"
+                  className="rounded-lg border border-emerald-600/40 bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-900 transition-colors hover:bg-emerald-200 dark:border-emerald-500/40 dark:bg-emerald-600/20 dark:text-emerald-100 dark:hover:bg-emerald-600/30"
                 >
                   Add / switch to Evacuee
                 </button>
@@ -1169,21 +1196,21 @@ function SettingsInner() {
               {myRoles.filter(r => ROLE_CONFIG[r]).map(role => {
                 const cfg = ROLE_CONFIG[role]; const Icon = cfg.icon; const isActive = role === activeRole
                 return (
-                  <div key={role} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${isActive ? cfg.activeBorder : 'border-ash-800 bg-ash-900'}`}>
-                    <Icon className={`w-5 h-5 shrink-0 ${cfg.color}`} />
-                    <div className="flex-1 min-w-0">
+                  <div key={role} className={`flex items-center gap-3 rounded-xl border p-3 transition-all ${isActive ? cfg.activeBorder : 'border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800'}`}>
+                    <Icon className={`h-5 w-5 shrink-0 ${cfg.color}`} />
+                    <div className="min-w-0 flex-1">
                       <div className={`text-sm font-semibold ${cfg.color}`}>{cfg.label}</div>
-                      {isActive && <div className="text-ash-500 text-xs">Active dashboard</div>}
+                      {isActive && <div className="text-xs text-gray-600 dark:text-gray-400">Active dashboard</div>}
                     </div>
                     {isActive ? (
-                      <span className="text-xs text-ash-500 px-2 py-1 rounded-lg bg-ash-800 border border-ash-700">Current</span>
+                      <span className="rounded-lg border border-gray-300 bg-gray-200 px-2 py-1 text-xs text-gray-800 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">Current</span>
                     ) : (role === 'emergency_responder' || role === 'data_analyst') ? (
                       <button onClick={() => switchActive(role)} disabled={savingRole === role}
-                        className="text-xs px-3 py-1.5 rounded-lg bg-ember-500/20 border border-ember-500/40 text-ember-400 hover:bg-ember-500/30 transition-colors disabled:opacity-40">
+                        className="rounded-lg border border-amber-500/40 bg-amber-50 px-3 py-1.5 text-xs text-amber-900 transition-colors hover:bg-amber-100 disabled:opacity-40 dark:border-ember-500/40 dark:bg-ember-500/20 dark:text-ember-300 dark:hover:bg-ember-500/30">
                         {savingRole === role ? '…' : 'Switch to this'}
                       </button>
                     ) : (
-                      <span className="text-xs text-ash-600 px-2 py-1">—</span>
+                      <span className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400">—</span>
                     )}
                   </div>
                 )
@@ -1192,17 +1219,17 @@ function SettingsInner() {
 
             {otherRoles.length > 0 && !addingRole && (
               <div className="space-y-2">
-                <p className="text-ash-600 text-xs font-medium uppercase tracking-wider mb-2">Request access</p>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wider text-gray-600 dark:text-gray-400">Request access</p>
                 {otherRoles.filter(r => ROLE_CONFIG[r]).map(role => {
                   const cfg = ROLE_CONFIG[role]; const Icon = cfg.icon
                   return (
                     <button key={role} onClick={() => { setAddingRole(role); setCode(''); setCodeVerified(false); setCodeError('') }}
-                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-ash-800 bg-ash-900 hover:bg-ash-800 hover:border-ash-700 transition-all text-left">
-                      <Icon className={`w-4 h-4 ${cfg.color} opacity-60 shrink-0`} />
-                      <div className="flex-1"><div className="text-ash-300 text-sm font-medium">{cfg.label}</div>
-                        <div className="flex items-center gap-1 mt-0.5"><Lock className="w-3 h-3 text-ash-600" /><span className="text-ash-600 text-xs">Requires access code</span></div>
+                      className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-left transition-all hover:border-gray-300 hover:bg-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600 dark:hover:bg-gray-700">
+                      <Icon className={`h-4 w-4 shrink-0 opacity-60 ${cfg.color}`} />
+                      <div className="flex-1"><div className="text-sm font-medium text-gray-800 dark:text-gray-200">{cfg.label}</div>
+                        <div className="mt-0.5 flex items-center gap-1"><Lock className="h-3 w-3 text-gray-600 dark:text-gray-400" /><span className="text-xs text-gray-600 dark:text-gray-400">Requires access code</span></div>
                       </div>
-                      <Plus className="w-4 h-4 text-ash-600 shrink-0" />
+                      <Plus className="h-4 w-4 shrink-0 text-gray-600 dark:text-gray-400" />
                     </button>
                   )
                 })}
@@ -1210,17 +1237,17 @@ function SettingsInner() {
             )}
 
             {addingRole && ROLE_CONFIG[addingRole] && (
-              <div className="border border-ash-700 rounded-xl p-4 bg-ash-900/50 mt-2">
-                <div className="flex items-center justify-between mb-3">
+              <div className="mt-2 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/80">
+                <div className="mb-3 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    {(() => { const Icon = ROLE_CONFIG[addingRole].icon; return <Icon className={`w-4 h-4 ${ROLE_CONFIG[addingRole].color}`} /> })()}
+                    {(() => { const Icon = ROLE_CONFIG[addingRole].icon; return <Icon className={`h-4 w-4 ${ROLE_CONFIG[addingRole].color}`} /> })()}
                     <span className={`text-sm font-semibold ${ROLE_CONFIG[addingRole].color}`}>{ROLE_CONFIG[addingRole].label}</span>
                   </div>
-                  <button onClick={resetCode} className="text-ash-600 hover:text-ash-400 text-xs">Cancel</button>
+                  <button onClick={resetCode} className="text-xs text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200">Cancel</button>
                 </div>
                 {!codeVerified ? (
                   <>
-                    <label className="block text-ash-400 text-xs mb-1.5">Access code</label>
+                    <label className="mb-1.5 block text-xs text-gray-600 dark:text-gray-400">Access code</label>
                     <div className="flex gap-2 mb-2">
                       <input type="text" className="input flex-1 font-mono uppercase tracking-wider text-sm"
                         placeholder={addingRole === 'data_analyst' ? 'DA-XXXX-XXXX' : 'ER-ORG-XXXX'}
@@ -1250,51 +1277,54 @@ function SettingsInner() {
 
           {activeRole !== 'emergency_responder' && (
           <section className="card p-6">
-            <div className="flex items-center gap-2 mb-4"><Flame className="w-4 h-4 text-ember-400" /><h2 className="font-semibold text-white">Help & Onboarding</h2></div>
+            <div className="mb-4 flex items-center gap-2">
+              <Flame className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <h2 className="font-semibold text-gray-900 dark:text-white">Help & Onboarding</h2>
+            </div>
             <div className="space-y-3">
-              <p className="text-ash-500 text-xs">Replay the dashboard tour, or re-run the setup wizard to update your address and mobility info.</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400">Replay the dashboard tour, or re-run the setup wizard to update your address and mobility info.</p>
               <button
                 onClick={() => {
                   if (typeof window !== 'undefined') localStorage.removeItem('wfa_tour_done_v1')
                   router.push('/dashboard/home')
                 }}
-                className="flex items-center gap-2 text-ash-400 hover:text-white transition-colors text-sm py-1"
+                className="flex items-center gap-2 py-1 text-sm text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
               >
-                <Flame className="w-4 h-4 text-ember-400" /> Replay Flameo tour
+                <Flame className="h-4 w-4 text-amber-600 dark:text-amber-400" /> Replay Flameo tour
               </button>
               <button
                 onClick={() => router.push('/auth/onboarding?role=evacuee')}
-                className="flex items-center gap-2 text-ash-400 hover:text-white transition-colors text-sm py-1"
+                className="flex items-center gap-2 py-1 text-sm text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
               >
-                <Settings className="w-4 h-4" /> Re-run setup wizard
+                <Settings className="h-4 w-4" /> Re-run setup wizard
               </button>
             </div>
           </section>
           )}
 
           <section className="card p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <LogOut className="w-4 h-4 text-ember-400" />
-              <h2 className="font-semibold text-white">Account actions</h2>
+            <div className="mb-4 flex items-center gap-2">
+              <LogOut className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <h2 className="font-semibold text-gray-900 dark:text-white">Account actions</h2>
             </div>
             <div className="space-y-3">
               <button onClick={async () => { await supabase.auth.signOut(); router.push('/') }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-ash-800 bg-ash-900 hover:bg-ash-800 transition-all text-left">
-                <LogOut className="w-4 h-4 text-ash-400 shrink-0" />
-                <div><div className="text-sm text-ash-300 font-medium">Sign out</div><div className="text-xs text-ash-600">Sign out of your account on this device</div></div>
+                className="flex w-full items-center gap-3 rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-left transition-all hover:border-gray-300 hover:bg-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600 dark:hover:bg-gray-700">
+                <LogOut className="h-4 w-4 shrink-0 text-gray-600 dark:text-gray-400" />
+                <div><div className="text-sm font-medium text-gray-900 dark:text-white">Sign out</div><div className="text-xs text-gray-600 dark:text-gray-400">Sign out of your account on this device</div></div>
               </button>
               {!deleteConfirm ? (
                 <button onClick={() => setDeleteConfirm(true)}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-signal-danger/20 bg-signal-danger/5 hover:bg-signal-danger/10 transition-all text-left">
                   <Trash2 className="w-4 h-4 text-signal-danger shrink-0" />
-                  <div><div className="text-sm text-signal-danger font-medium">Delete account</div><div className="text-xs text-ash-600">Permanently delete your account and all data</div></div>
+                  <div><div className="text-sm font-medium text-signal-danger">Delete account</div><div className="text-xs text-gray-600 dark:text-gray-400">Permanently delete your account and all data</div></div>
                 </button>
               ) : (
                 <div className="p-4 rounded-xl border border-signal-danger/40 bg-signal-danger/10">
                   <p className="text-signal-danger text-sm font-medium mb-3">Are you sure? This cannot be undone.</p>
                   <div className="flex gap-2">
                     <button onClick={async () => { await supabase.auth.signOut(); router.push('/?deleted=true') }} className="px-4 py-2 rounded-lg bg-signal-danger text-white text-sm font-medium hover:bg-red-600 transition-colors">Yes, delete</button>
-                    <button onClick={() => setDeleteConfirm(false)} className="px-4 py-2 rounded-lg bg-ash-800 text-ash-300 text-sm font-medium hover:bg-ash-700 transition-colors">Cancel</button>
+                    <button onClick={() => setDeleteConfirm(false)} className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-medium text-gray-800 transition-colors hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">Cancel</button>
                   </div>
                 </div>
               )}
@@ -1307,8 +1337,11 @@ function SettingsInner() {
       {tab === 'preferences' && (
         <div className="space-y-5">
           <section className="card p-6">
-            <div className="flex items-center gap-2 mb-1"><Moon className="w-4 h-4 text-ash-400" /><h2 className="font-semibold text-white">Appearance</h2></div>
-            <p className="text-ash-400 text-sm mb-4">Choose how the app looks on your device.</p>
+            <div className="mb-1 flex items-center gap-2">
+              <Moon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+              <h2 className="font-semibold text-gray-900 dark:text-white">Appearance</h2>
+            </div>
+            <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">Choose how the app looks on your device.</p>
             <div className="flex gap-2">
               {([
                 { value: 'light', label: 'Light', Icon: Sun },
@@ -1318,13 +1351,12 @@ function SettingsInner() {
                 <button
                   key={value}
                   onClick={() => applyTheme(value)}
-                  className={`flex-1 flex flex-col items-center gap-1.5 py-3 rounded-xl border text-sm font-medium transition-all ${
-                    theme === value
-                      ? 'bg-forest-900/40 border-forest-600/50 text-forest-400'
-                      : 'border-ash-700 text-ash-400 hover:border-ash-600 hover:bg-ash-800'
-                  }`}
+                  className={cn(
+                    'flex flex-1 flex-col items-center gap-1.5 rounded-xl border py-3 text-sm font-medium transition-all',
+                    theme === value ? CHIP_SELECTED : CHIP_UNSELECTED
+                  )}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="h-4 w-4" />
                   {label}
                 </button>
               ))}
@@ -1333,16 +1365,16 @@ function SettingsInner() {
 
           {activeRole !== 'emergency_responder' && (
           <section className="card p-6">
-            <div className="flex items-center gap-2 mb-1">
-              <Bell className="w-4 h-4 text-amber-400" />
-              <h2 className="font-semibold text-white">Fire Alert Range</h2>
+            <div className="mb-1 flex items-center gap-2">
+              <Bell className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <h2 className="font-semibold text-gray-900 dark:text-white">Fire Alert Range</h2>
             </div>
-            <p className="text-ash-400 text-sm mb-4">
+            <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
               How far out should we monitor for fires near your address?
             </p>
             <div className="space-y-4">
               <div>
-                <div className="text-ash-300 text-xs font-medium mb-2 uppercase tracking-wide">Distance</div>
+                <div className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-600 dark:text-gray-300">Distance</div>
                 <div className="flex flex-wrap gap-2">
                   {ALERT_RADIUS_CHIP_MILES.map(m => {
                     const selected = alertRadiusMiles === m
@@ -1354,11 +1386,10 @@ function SettingsInner() {
                           setAlertRadiusMiles(m)
                           setSaved(false)
                         }}
-                        className={`min-w-[4.5rem] rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all ${
-                          selected
-                            ? 'border-forest-500/60 bg-forest-900/35 text-forest-300 ring-1 ring-forest-500/40'
-                            : 'border-ash-700 bg-ash-800/60 text-ash-300 hover:border-ash-600 hover:bg-ash-800'
-                        }`}
+                        className={cn(
+                          'min-w-[4.5rem] rounded-xl px-3 py-2.5 text-sm font-semibold transition-all',
+                          selected ? CHIP_SELECTED : CHIP_UNSELECTED
+                        )}
                       >
                         {m} mi{selected ? ' ✓' : ''}
                       </button>
@@ -1366,11 +1397,11 @@ function SettingsInner() {
                   })}
                 </div>
               </div>
-              <p className="text-ash-400 text-sm leading-relaxed rounded-xl border border-ash-700/80 bg-ash-900/40 px-3 py-2.5">
+              <p className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm leading-relaxed text-gray-600 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300">
                 💡 We recommend 50 miles to give you the most lead time. Fires can spread quickly — earlier awareness means more time to prepare and evacuate safely.
               </p>
               {alertRadiusMiles < 50 && (
-                <p className="text-amber-400/95 text-sm leading-relaxed rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2.5" role="status">
+                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm leading-relaxed text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100" role="status">
                   Reducing your alert radius means you&apos;ll be notified later. We recommend keeping it at 50 miles for maximum lead time.
                 </p>
               )}
@@ -1379,16 +1410,28 @@ function SettingsInner() {
           )}
 
           <section className="card p-6">
-            <div className="flex items-center gap-2 mb-1"><Globe className="w-4 h-4 text-signal-safe" /><h2 className="font-semibold text-white">Language</h2></div>
-            <p className="text-ash-400 text-sm mb-4">The app will be translated to your selected language.</p>
-            <input type="text" value={langSearch} onChange={e => setLangSearch(e.target.value)} placeholder="Search language…" className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600 mb-3" />
-            <div className="grid grid-cols-2 gap-1.5 max-h-64 overflow-y-auto pr-1">
+            <div className="mb-1 flex items-center gap-2">
+              <Globe className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <h2 className="font-semibold text-gray-900 dark:text-white">Language</h2>
+            </div>
+            <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">The app will be translated to your selected language.</p>
+            <input
+              type="text"
+              value={langSearch}
+              onChange={e => setLangSearch(e.target.value)}
+              placeholder="Search language…"
+              className="mb-3 w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-amber-500/60 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500"
+            />
+            <div className="grid max-h-64 grid-cols-2 gap-1.5 overflow-y-auto pr-1">
               {LANGUAGES.filter(l => !langSearch || l.name.toLowerCase().includes(langSearch.toLowerCase()) || l.native.toLowerCase().includes(langSearch.toLowerCase())).map(l => (
                 <button key={l.code} onClick={() => setLanguage(l.code)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors ${l.code === lang.code ? 'bg-forest-900/40 border border-forest-600/50 text-forest-400' : 'text-ash-300 hover:bg-ash-800 border border-transparent'}`}>
-                  <span className="text-base shrink-0">{l.flag}</span>
-                  <div className="min-w-0"><div className="truncate text-xs font-medium">{l.native}</div>{l.code !== 'en' && <div className="truncate text-ash-500 text-xs">{l.name}</div>}</div>
-                  {l.code === lang.code && <Check className="w-3 h-3 ml-auto shrink-0 text-forest-400" />}
+                  className={chipToggleClass(l.code === lang.code, 'flex items-center gap-2 rounded-lg px-3 py-2 text-left text-sm')}>
+                  <span className="shrink-0 text-base">{l.flag}</span>
+                  <div className="min-w-0">
+                    <div className="truncate text-xs font-medium">{l.native}</div>
+                    {l.code !== 'en' && <div className="truncate text-xs text-gray-500 dark:text-gray-400">{l.name}</div>}
+                  </div>
+                  {l.code === lang.code && <Check className="ml-auto h-3 w-3 shrink-0 text-green-700 dark:text-green-400" />}
                 </button>
               ))}
             </div>
@@ -1397,7 +1440,7 @@ function SettingsInner() {
       )}
 
       {isOnboarding && (
-        <div className="mt-8 pt-6 border-t border-ash-800">
+        <div className="mt-8 border-t border-gray-200 pt-6 dark:border-gray-700">
           <button
             onClick={() => router.push(dashDest)}
             className="w-full py-3 rounded-xl bg-forest-600 hover:bg-forest-700 text-white font-semibold transition-colors"

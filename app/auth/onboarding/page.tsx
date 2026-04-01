@@ -17,6 +17,8 @@ import {
   wordCount,
   clampToMaxWords,
 } from '@/lib/profile-mobility-options'
+import { cn } from '@/lib/utils'
+import { CHIP_SELECTED, CHIP_UNSELECTED } from '@/lib/ui-chip-classes'
 
 const ROLES = [
   {
@@ -67,11 +69,10 @@ const ROLE_DESTINATIONS: Record<string, string> = {
 }
 
 function chipClass(active: boolean) {
-  return `rounded-full px-3 py-1.5 text-sm border transition text-left ${
-    active
-      ? 'bg-ember-500/25 border-ember-500 text-white'
-      : 'border-ash-600 text-ash-300 hover:border-ash-500'
-  }`
+  return cn(
+    'rounded-full border px-3 py-1.5 text-left text-sm transition',
+    active ? CHIP_SELECTED : CHIP_UNSELECTED
+  )
 }
 
 function inp(value: string, onChange: (v: string) => void, placeholder: string, type = 'text') {
@@ -81,13 +82,13 @@ function inp(value: string, onChange: (v: string) => void, placeholder: string, 
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full bg-ash-800 text-white text-base rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
+      className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 placeholder:text-gray-400 focus:border-amber-500/60 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500"
     />
   )
 }
 
 function Label({ children }: { children: React.ReactNode }) {
-  return <label className="mb-1 block text-base font-medium text-ash-300">{children}</label>
+  return <label className="mb-1 block text-base font-medium text-gray-700 dark:text-gray-300">{children}</label>
 }
 
 function OnboardingInner() {
@@ -438,7 +439,7 @@ function OnboardingInner() {
                     <div>
                       <Label>Blood type <span className="text-ash-600 font-normal">(optional)</span></Label>
                       <select value={bloodType} onChange={e => setBloodType(e.target.value)}
-                        className="w-full bg-ash-800 text-white text-base rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60">
+                        className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-amber-500/60 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white">
                         <option value="">Unknown</option>
                         {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(t => <option key={t}>{t}</option>)}
                       </select>
@@ -508,7 +509,9 @@ function OnboardingInner() {
 
             <div className="space-y-6 mb-6">
               <div>
-                <div className="mb-0.5 text-base font-medium text-white">Mobility & Movement</div>
+                <div id="onboarding-mobility-heading" className="mb-0.5 text-base font-medium text-white">
+                  Mobility & Movement
+                </div>
                 <p className="mb-2 text-sm text-ash-500">Helps responders reach you first in an emergency</p>
                 <div className="flex flex-wrap gap-2">
                   {MOBILITY_MOVEMENT_OPTIONS.map(opt => (
@@ -529,7 +532,9 @@ function OnboardingInner() {
               </div>
 
               <div>
-                <div className="mb-0.5 text-base font-medium text-white">Disabilities</div>
+                <div id="onboarding-disability-heading" className="mb-0.5 text-base font-medium text-white">
+                  Disabilities
+                </div>
                 <p className="mb-2 text-sm text-ash-500">Helps responders communicate and assist you</p>
                 <div className="flex flex-wrap gap-2">
                   {DISABILITY_OPTIONS.map(opt => (
@@ -548,8 +553,13 @@ function OnboardingInner() {
                         })
                       }}
                       className={chipClass(disabilityNeeds.includes(opt))}
+                      title={
+                        opt === DISABILITY_OTHER_LABEL
+                          ? 'Add a short description below (max 10 words)'
+                          : undefined
+                      }
                     >
-                      {opt}
+                      {opt === DISABILITY_OTHER_LABEL ? 'Other — add below' : opt}
                     </button>
                   ))}
                 </div>
@@ -558,8 +568,8 @@ function OnboardingInner() {
                     <input
                       value={disabilityOther}
                       onChange={e => setDisabilityOther(clampToMaxWords(e.target.value, MAX_OTHER_WORDS))}
-                      placeholder="Describe briefly"
-                      className="w-full rounded-xl border border-ash-700 bg-ash-800 px-3 py-2.5 text-base text-white placeholder:text-ash-600 focus:border-ember-500/60 focus:outline-none"
+                      placeholder="Other (max 10 words)"
+                      className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 placeholder:text-gray-400 focus:border-amber-500/60 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500"
                       aria-label="Describe other disability"
                     />
                     <p
@@ -572,8 +582,13 @@ function OnboardingInner() {
               </div>
 
               <div>
-                <div className="mb-0.5 text-base font-medium text-white">Medical conditions & equipment</div>
-                <p className="mb-2 text-sm text-ash-500">Helps responders prioritize life-critical needs</p>
+                <div id="onboarding-medical-heading" className="mb-0.5 text-base font-medium text-white">
+                  Medical conditions & equipment
+                </div>
+                <p className="mb-2 text-sm text-ash-500">
+                  Tap options like dialysis or oxygen so responders see them clearly — no need to type those in
+                  &quot;Other&quot; if they&apos;re listed here.
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {MEDICAL_OPTIONS.map(opt => (
                     <button
@@ -591,8 +606,13 @@ function OnboardingInner() {
                         })
                       }}
                       className={chipClass(medicalNeeds.includes(opt))}
+                      title={
+                        opt === MEDICAL_OTHER_LABEL
+                          ? 'Add a short note below (max 10 words)'
+                          : undefined
+                      }
                     >
-                      {opt}
+                      {opt === MEDICAL_OTHER_LABEL ? 'Other medications or conditions — add below' : opt}
                     </button>
                   ))}
                 </div>
@@ -601,8 +621,8 @@ function OnboardingInner() {
                     <input
                       value={medicalOther}
                       onChange={e => setMedicalOther(clampToMaxWords(e.target.value, MAX_OTHER_WORDS))}
-                      placeholder="Describe briefly"
-                      className="w-full rounded-xl border border-ash-700 bg-ash-800 px-3 py-2.5 text-base text-white placeholder:text-ash-600 focus:border-ember-500/60 focus:outline-none"
+                      placeholder="Other medications or conditions (max 10 words)"
+                      className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 placeholder:text-gray-400 focus:border-amber-500/60 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500"
                       aria-label="Describe other medical conditions or medications"
                     />
                     <p
@@ -612,6 +632,17 @@ function OnboardingInner() {
                     </p>
                   </div>
                 )}
+              </div>
+
+              <div
+                className="rounded-lg border border-sky-400/25 bg-sky-500/10 px-3 py-2.5 text-[14px] leading-snug text-sky-100/95 dark:border-sky-500/20 dark:bg-sky-950/40 dark:text-sky-100"
+                role="note"
+              >
+                <span className="mr-1" aria-hidden>
+                  💡
+                </span>
+                You can update and add more health and mobility information anytime after signing up in{' '}
+                <span className="font-semibold text-white dark:text-sky-50">Settings → Preferences</span>.
               </div>
 
               <div>
@@ -629,7 +660,7 @@ function OnboardingInner() {
                 <textarea value={responderNotes} onChange={e => setResponderNotes(e.target.value)}
                   placeholder="e.g. front door code, oxygen on 2nd floor, non-verbal household member, dog may bark"
                   rows={2}
-                  className="w-full bg-ash-800 text-white text-base rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600 resize-none" />
+                  className="w-full resize-none rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 placeholder:text-gray-400 focus:border-amber-500/60 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500" />
               </div>
 
               <label className="flex items-start gap-3 cursor-pointer">
@@ -817,7 +848,7 @@ function OnboardingInner() {
                       onChange={e =>
                         setWorkBuildingType((e.target.value || '') as WorkBuildingType | '')
                       }
-                      className="w-full bg-ash-800 text-white text-base rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60"
+                      className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-amber-500/60 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                     >
                       <option value="">Select…</option>
                       <option value="house">House / Single family home</option>
@@ -840,7 +871,7 @@ function OnboardingInner() {
                         value={workFloor}
                         onChange={e => setWorkFloor(e.target.value)}
                         placeholder="e.g. 6"
-                        className="w-full bg-ash-800 text-white text-base rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
+                        className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 placeholder:text-gray-400 focus:border-amber-500/60 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500"
                       />
                     </div>
                   )}
@@ -858,7 +889,7 @@ function OnboardingInner() {
                             ? `e.g. Wheelchair user on floor ${workFloor}`
                             : 'e.g. Wheelchair user on floor 6'
                         }
-                        className="w-full bg-ash-800 text-white text-base rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
+                        className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 placeholder:text-gray-400 focus:border-amber-500/60 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder:text-gray-500"
                       />
                     </div>
                   )}

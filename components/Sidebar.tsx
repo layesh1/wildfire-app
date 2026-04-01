@@ -177,10 +177,9 @@ function SidebarInner({ user, profile }: Props) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)' }}
+              className="w-8 h-8 rounded-lg flex items-center justify-center border border-white/20 bg-white/10"
             >
-              <Flame className="w-4 h-4" style={{ color: '#d4a574' }} />
+              <Flame className="w-4 h-4 text-amber-300" />
             </motion.div>
           )}
         </AnimatePresence>
@@ -196,7 +195,7 @@ function SidebarInner({ user, profile }: Props) {
             transition={{ duration: 0.15 }}
             className="py-3 border-b border-white/10 overflow-hidden"
           >
-            <div className={cn('flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border', ROLE_COLORS[role])} style={{ background: 'rgba(255,255,255,0.08)' }}>
+            <div className={cn('flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg border bg-white/10', ROLE_COLORS[role])}>
               <RoleIcon className="w-3.5 h-3.5" />
               <span className="font-medium capitalize whitespace-nowrap">{roleBadgeLabel}</span>
             </div>
@@ -224,7 +223,7 @@ function SidebarInner({ user, profile }: Props) {
                 return (
                   <div key={`${idx}-${href}`} className={showHeading ? 'pt-2' : ''}>
                     {showHeading && (
-                      <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-white/35 leading-tight">
+                      <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-white/40 leading-tight">
                         {group}
                       </div>
                     )}
@@ -235,14 +234,13 @@ function SidebarInner({ user, profile }: Props) {
                       data-tour={label === 'Settings' ? 'nav-settings' : undefined}
                       className={cn(
                         'relative w-full flex items-center gap-3 rounded-lg px-2 py-2.5 text-left transition-all duration-150',
-                        active ? 'bg-white/5 font-medium' : 'hover:bg-white/10',
+                        active ? 'bg-white/5 font-medium text-amber-200' : 'text-white/55 hover:bg-white/10',
                         collapsed ? 'justify-center' : ''
                       )}
-                      style={{ color: active ? '#d4a574' : 'rgba(255,255,255,0.55)' }}
                     >
                       {active && (
                         <span
-                          className="pointer-events-none absolute bottom-1 left-0 top-1 w-0.5 rounded-full bg-[#c86432]"
+                          className="pointer-events-none absolute bottom-1 left-0 top-1 w-0.5 rounded-full bg-amber-600"
                           aria-hidden
                         />
                       )}
@@ -284,14 +282,13 @@ function SidebarInner({ user, profile }: Props) {
                 data-tour={label === 'Settings' ? 'nav-settings' : undefined}
                 className={cn(
                   'relative w-full flex items-center gap-3 rounded-lg px-2 py-2.5 text-left transition-all duration-150',
-                  active ? 'bg-white/5 font-medium' : 'hover:bg-white/10',
+                  active ? 'bg-white/5 font-medium text-amber-200' : 'text-white/55 hover:bg-white/10',
                   collapsed ? 'justify-center' : ''
                 )}
-                style={{ color: active ? '#d4a574' : 'rgba(255,255,255,0.55)' }}
               >
                 {active && (
                   <span
-                    className="pointer-events-none absolute bottom-1 left-0 top-1 w-0.5 rounded-full bg-[#c86432]"
+                    className="pointer-events-none absolute bottom-1 left-0 top-1 w-0.5 rounded-full bg-amber-600"
                     aria-hidden
                   />
                 )}
@@ -338,10 +335,9 @@ function SidebarInner({ user, profile }: Props) {
           onClick={handleSignOut}
           title={collapsed ? 'Sign out' : undefined}
           className={cn(
-            'flex items-center gap-2 transition-colors px-2 py-2 rounded-lg hover:bg-white/10 w-full',
+            'flex items-center gap-2 transition-colors px-2 py-2 rounded-lg text-white/40 hover:bg-white/10 hover:text-white/70 w-full',
             collapsed ? 'justify-center' : ''
           )}
-          style={{ color: 'rgba(255,255,255,0.4)' }}
         >
           <LogOut className="w-4 h-4 shrink-0" />
           <AnimatePresence>

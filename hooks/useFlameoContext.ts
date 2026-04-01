@@ -89,8 +89,8 @@ export function useFlameoContext(options?: UseFlameoContextOptions) {
           if (res.status === 401) {
             throw new Error('Sign in required for Flameo context.')
           }
-          const errJson = await res.json().catch(() => ({}))
-          throw new Error(typeof errJson.error === 'string' ? errJson.error : `Request failed (${res.status})`)
+          await res.json().catch(() => ({}))
+          throw new Error('__FLAMEO_DATA_UNAVAILABLE__')
         }
 
         const data = (await res.json()) as FlameoContextApiResponse
@@ -104,7 +104,12 @@ export function useFlameoContext(options?: UseFlameoContextOptions) {
           setContext(null)
           setStatus(null)
           setMessage(undefined)
-          setError(e instanceof Error ? e.message : 'Failed to load Flameo context')
+          const raw = e instanceof Error ? e.message : 'Failed to load Flameo context'
+          setError(
+            raw === '__FLAMEO_DATA_UNAVAILABLE__'
+              ? 'Fire data temporarily unavailable. Your alerts will resume automatically.'
+              : raw
+          )
         }
       } finally {
         if (!cancelled) setLoading(false)

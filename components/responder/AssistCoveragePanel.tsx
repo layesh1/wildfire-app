@@ -1,6 +1,6 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { Shield, AlertTriangle, CheckCircle, XCircle, MapPin, Users, Clock, Search, Radio, Heart, WifiOff, Globe } from 'lucide-react'
+import { useState } from 'react'
+import { Shield, AlertTriangle, CheckCircle, XCircle, MapPin, Users, Search, WifiOff, Globe } from 'lucide-react'
 
 const ALL_COVERAGE_DATA = [
   { region: 'Los Angeles County, CA', status: 'covered', agencies: 12, response_time: 8, population: 10014009, svi: 0.61 },
@@ -41,35 +41,10 @@ const STATUS_CONFIG = {
   gap: { label: 'Critical Gap', color: 'text-signal-danger', badge: 'badge-danger', icon: XCircle },
 }
 
-interface AssistRequest {
-  id: string
-  name: string
-  address: string
-  people: number
-  needs: string
-  urgency: 'high' | 'medium' | 'low'
-  submitted_at: string
-  status: 'pending' | 'responding' | 'resolved'
-}
-
 export default function AssistCoveragePanel({ embedded = false }: { embedded?: boolean }) {
   const [filter, setFilter] = useState<'all' | 'gap' | 'partial'>('all')
   const [search, setSearch] = useState('')
-  const [tab, setTab] = useState<'coverage' | 'requests' | 'access_gaps'>('coverage')
-  const [requests, setRequests] = useState<AssistRequest[]>([])
-
-  useEffect(() => {
-    const stored = localStorage.getItem('wfa_evac_requests')
-    if (stored) {
-      try { setRequests(JSON.parse(stored)) } catch {}
-    }
-  }, [])
-
-  function updateStatus(id: string, status: AssistRequest['status']) {
-    const updated = requests.map(r => r.id === id ? { ...r, status } : r)
-    setRequests(updated)
-    localStorage.setItem('wfa_evac_requests', JSON.stringify(updated))
-  }
+  const [tab, setTab] = useState<'coverage' | 'access_gaps'>('coverage')
 
   const filtered = ALL_COVERAGE_DATA.filter(row => {
     const matchFilter = filter === 'all' || row.status === filter || (filter === 'gap' && row.status === 'partial')
@@ -80,7 +55,6 @@ export default function AssistCoveragePanel({ embedded = false }: { embedded?: b
   const gaps = ALL_COVERAGE_DATA.filter(r => r.status === 'gap').length
   const partial = ALL_COVERAGE_DATA.filter(r => r.status === 'partial').length
   const maxTime = Math.max(...ALL_COVERAGE_DATA.map(r => r.response_time))
-  const pending = requests.filter(r => r.status === 'pending').length
 
   return (
     <div className={embedded ? 'space-y-6' : 'p-8 max-w-5xl mx-auto'}>
@@ -89,17 +63,17 @@ export default function AssistCoveragePanel({ embedded = false }: { embedded?: b
         <div className="flex items-center gap-2 text-signal-warn text-sm font-medium mb-3">
           <Shield className="w-4 h-4" /> AGENCY COVERAGE
         </div>
-        <h1 className="font-display text-3xl font-bold text-white mb-2">Agency Coverage & Assist Requests</h1>
-        <p className="text-ash-400 text-sm">Emergency response coverage across US counties, plus live evacuation assistance requests from residents.</p>
+        <h1 className="font-display text-3xl font-bold text-white mb-2">Agency coverage & access gaps</h1>
+        <p className="text-ash-400 text-sm">Emergency response coverage across US counties, language-barrier counties, and no-internet alert gaps.</p>
       </div>
       )}
       {embedded && (
         <p className="text-ash-500 text-sm">
-          County coverage, assist requests from residents, and access-gap intel — same tools as the standalone Assist page.
+          County coverage and access-gap intel (language barriers, no-internet zones) — same tools as the standalone Coverage page.
         </p>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="card-dark p-5"><div className="font-display text-3xl font-bold text-signal-danger">{gaps}</div><div className="text-ash-400 text-sm mt-1">Critical gaps</div></div>
         <div className="card-dark p-5"><div className="font-display text-3xl font-bold text-signal-warn">{partial}</div><div className="text-ash-400 text-sm mt-1">Partial coverage</div></div>
         <div className="card-dark p-5"><div className="font-display text-3xl font-bold text-ember-400">{maxTime} min</div><div className="text-ash-400 text-sm mt-1">Max response time</div></div>
@@ -108,25 +82,16 @@ export default function AssistCoveragePanel({ embedded = false }: { embedded?: b
           <div className="text-ash-400 text-sm mt-1">Max no-internet county</div>
           <div className="text-ash-600 text-xs mt-0.5">Apache Co, AZ</div>
         </div>
-        <div className={`card-dark p-5 ${pending > 0 ? 'border-signal-danger/30 bg-signal-danger/5' : ''}`}>
-          <div className={`font-display text-3xl font-bold ${pending > 0 ? 'text-signal-danger' : 'text-signal-safe'}`}>{pending}</div>
-          <div className="text-ash-400 text-sm mt-1">Assist requests pending</div>
-        </div>
       </div>
 
       <div className="flex gap-1 mb-5 bg-ash-900 rounded-xl p-1 border border-ash-800 w-fit">
-        <button onClick={() => setTab('coverage')}
+        <button type="button" onClick={() => setTab('coverage')}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${tab === 'coverage' ? 'bg-ash-700 text-white' : 'text-ash-400 hover:text-white'}`}>
-          <Shield className="w-3.5 h-3.5" /> Coverage Map
+          <Shield className="w-3.5 h-3.5" /> Coverage map
         </button>
-        <button onClick={() => setTab('requests')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${tab === 'requests' ? 'bg-ash-700 text-white' : 'text-ash-400 hover:text-white'}`}>
-          <Radio className="w-3.5 h-3.5" /> Assist Requests
-          {pending > 0 && <span className="w-5 h-5 rounded-full bg-signal-danger text-white text-xs flex items-center justify-center font-bold">{pending}</span>}
-        </button>
-        <button onClick={() => setTab('access_gaps')}
+        <button type="button" onClick={() => setTab('access_gaps')}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${tab === 'access_gaps' ? 'bg-ash-700 text-white' : 'text-ash-400 hover:text-white'}`}>
-          <WifiOff className="w-3.5 h-3.5" /> Access Gaps
+          <WifiOff className="w-3.5 h-3.5" /> Access gaps
         </button>
       </div>
 
@@ -199,55 +164,6 @@ export default function AssistCoveragePanel({ embedded = false }: { embedded?: b
             </table>
           </div>
         </>
-      )}
-
-      {tab === 'requests' && (
-        <div className="space-y-3">
-          {requests.length === 0 ? (
-            <div className="card-dark p-12 text-center">
-              <Heart className="w-10 h-10 text-ash-700 mx-auto mb-3" />
-              <div className="text-white font-semibold mb-1">No assist requests yet</div>
-              <div className="text-ash-500 text-sm max-w-sm mx-auto">When caregivers or evacuees submit help requests from their dashboard, they appear here for dispatch.</div>
-            </div>
-          ) : requests.map(req => (
-            <div key={req.id} className={`card-dark p-4 border-l-4 ${req.urgency === 'high' ? 'border-l-signal-danger' : req.urgency === 'medium' ? 'border-l-signal-warn' : 'border-l-signal-safe'}`}>
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className={`text-xs font-bold uppercase ${req.urgency === 'high' ? 'text-signal-danger' : req.urgency === 'medium' ? 'text-signal-warn' : 'text-signal-safe'}`}>{req.urgency} priority</span>
-                    <span className="text-ash-600 text-xs">{new Date(req.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  </div>
-                  <div className="text-white font-semibold text-sm">{req.name}</div>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <MapPin className="w-3 h-3 text-ash-500" />
-                    <span className="text-ash-400 text-xs">{req.address}</span>
-                  </div>
-                  <div className="text-ash-500 text-xs mt-1">{req.people} {req.people === 1 ? 'person' : 'people'}{req.needs ? ` · ${req.needs}` : ''}</div>
-                </div>
-                <div className="flex flex-col gap-1.5 shrink-0">
-                  {req.status === 'pending' && (
-                    <button onClick={() => updateStatus(req.id, 'responding')}
-                      className="px-3 py-1.5 rounded-lg text-xs bg-signal-info/20 border border-signal-info/30 text-signal-info hover:bg-signal-info/30 transition-colors">
-                      Responding
-                    </button>
-                  )}
-                  {req.status === 'responding' && (
-                    <>
-                      <span className="px-2 py-1 rounded text-xs bg-signal-info/20 text-signal-info text-center">En route</span>
-                      <button onClick={() => updateStatus(req.id, 'resolved')}
-                        className="px-3 py-1.5 rounded-lg text-xs bg-signal-safe/20 border border-signal-safe/30 text-signal-safe hover:bg-signal-safe/30 transition-colors">
-                        Resolved
-                      </button>
-                    </>
-                  )}
-                  {req.status === 'resolved' && (
-                    <span className="px-2 py-1 rounded text-xs bg-signal-safe/20 text-signal-safe text-center">Resolved</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
       )}
 
       {tab === 'access_gaps' && (

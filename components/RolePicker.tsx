@@ -101,6 +101,10 @@ export default function RolePicker({ roles, activeRole, name }: Props) {
   const otherRoles = ALL_ROLES.filter(r => {
     if (myRoles.includes(r)) return false
     if (!profileHasProtected && (r === 'emergency_responder' || r === 'data_analyst')) return false
+    // Responders unlock Data Analyst with a code in Settings; household hub uses Settings “Add evacuee” — not here.
+    if (myRoles.includes('emergency_responder') && !myRoles.includes('data_analyst') && (r === 'evacuee' || r === 'caregiver')) {
+      return false
+    }
     return true
   })
 
@@ -168,6 +172,10 @@ export default function RolePicker({ roles, activeRole, name }: Props) {
     const existingRoles: string[] = Array.isArray(prof?.roles) && prof.roles.length
       ? prof.roles
       : prof?.role ? [prof.role] : []
+    if (expandedRole === 'data_analyst' && !existingRoles.includes('emergency_responder')) {
+      setClaimLoading(false)
+      return
+    }
     const updatedRoles = [...new Set([...existingRoles, expandedRole])]
     await supabase.from('profiles').update({ role: expandedRole, roles: updatedRoles }).eq('id', u.id)
     localStorage.setItem(LS_ACTIVE_KEY, expandedRole)
