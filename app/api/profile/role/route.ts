@@ -32,6 +32,20 @@ export async function POST(request: Request) {
     const normalizedExisting = [...new Set(existingRoles.map(normalizeRole))]
     const updatedRoles = [...new Set([...normalizedExisting, role])]
 
+    /** Raw DB roles — do not use normalizeRole (caregiver→evacuee) for protected checks */
+    const isAddingProtectedRole =
+      (role === 'emergency_responder' || role === 'data_analyst') &&
+      !existingRoles.includes(role)
+
+    if (isAddingProtectedRole) {
+      return NextResponse.json(
+        {
+          error: 'Role upgrade requires an invite code. Contact your organization administrator.',
+        },
+        { status: 403 }
+      )
+    }
+
     const { error } = await supabase
       .from('profiles')
       .update({ role, roles: updatedRoles })

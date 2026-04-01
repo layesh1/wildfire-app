@@ -5,6 +5,7 @@ import {
   PieChart, Pie, Legend,
 } from 'recharts'
 import { Radio, Layers, Flame, ShieldAlert } from 'lucide-react'
+import { ANALYST_AXIS_TICK, ANALYST_AXIS_TICK_SM } from '@/lib/analyst-charts'
 
 // Tab 1: Radio Signals
 const RADIO_BY_HOUR = [
@@ -74,7 +75,7 @@ type TabId = typeof TABS[number]['id']
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-ash-900 border border-ash-700 rounded-lg px-3 py-2 text-xs">
+    <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-300">
       <p className="text-white font-medium">{label}</p>
       <p className="text-ember-400">{payload[0]?.value?.toLocaleString()}</p>
     </div>
@@ -85,25 +86,25 @@ export default function FirePatternsPage() {
   const [tab, setTab] = useState<TabId>('radio')
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-8 max-w-6xl mx-auto text-gray-700 dark:text-gray-300">
       <div className="mb-8">
         <div className="flex items-center gap-2 text-amber-400 text-sm font-medium mb-3">
           <Layers className="w-4 h-4" /> FIRE PATTERNS · ANALYST
         </div>
-        <h1 className="font-display text-4xl font-bold text-white mb-3">Fire Pattern Analysis</h1>
-        <p className="text-ash-400 text-lg">
+        <h1 className="font-display text-4xl font-bold text-gray-900 dark:text-white mb-3">Fire Pattern Analysis</h1>
+        <p className="text-gray-600 dark:text-gray-400 text-lg">
           Radio dispatch signals, zone escalation skip rates, fire cause distribution, and protocol inversion detection.
         </p>
       </div>
 
       {/* Tab nav */}
-      <div className="flex gap-1 mb-8 bg-ash-900 rounded-xl p-1 border border-ash-800 w-fit">
+      <div className="flex gap-1 mb-8 bg-gray-200 dark:bg-gray-900 rounded-xl p-1 border border-gray-200 dark:border-gray-800 w-fit">
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => setTab(id)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2
-              ${tab === id ? 'bg-ash-700 text-white' : 'text-ash-400 hover:text-white'}`}
+              ${tab === id ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}
           >
             <Icon className="w-3.5 h-3.5" />
             {label}
@@ -116,27 +117,27 @@ export default function FirePatternsPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { value: '9,157', label: 'Total radio spread rate events', color: 'text-white' },
+              { value: '9,157', label: 'Total radio spread rate events', color: 'text-gray-900 dark:text-white' },
               { value: '21:00', label: 'Peak hour for radio dispatch activity', color: 'text-signal-warn' },
               { value: '100', label: 'Extreme/rapid radio + silent + no evac', color: 'text-signal-danger' },
               { value: '645', label: 'Fires with structure threat logged', color: 'text-ember-400' },
             ].map(s => (
               <div key={s.label} className="card p-5">
                 <div className={`font-display text-3xl font-bold ${s.color}`}>{s.value}</div>
-                <div className="text-ash-400 text-sm mt-1">{s.label}</div>
+                <div className="text-gray-600 dark:text-gray-400 text-sm mt-1">{s.label}</div>
               </div>
             ))}
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
             <div className="card p-6">
-              <h3 className="text-white font-semibold mb-1">Radio Activity by Hour of Day</h3>
-              <p className="text-ash-500 text-xs mb-5">Events logged in dispatch changelog — peak at 9pm</p>
+              <h3 className="text-gray-900 dark:text-white font-semibold mb-1">Radio Activity by Hour of Day</h3>
+              <p className="text-gray-500 dark:text-gray-500 text-xs mb-5">Events logged in dispatch changelog — peak at 9pm</p>
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={RADIO_BY_HOUR}>
-                  <XAxis dataKey="hour" tick={{ fill: '#737068', fontSize: 10 }}
+                  <XAxis dataKey="hour" tick={ANALYST_AXIS_TICK_SM}
                     tickFormatter={h => `${h}:00`} interval={2} />
-                  <YAxis tick={{ fill: '#737068', fontSize: 10 }} />
+                  <YAxis tick={ANALYST_AXIS_TICK_SM} />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="count" radius={[3, 3, 0, 0]}>
                     {RADIO_BY_HOUR.map((d, i) => (
@@ -148,8 +149,8 @@ export default function FirePatternsPage() {
             </div>
 
             <div className="card p-6">
-              <h3 className="text-white font-semibold mb-1">Spread Rate Distribution</h3>
-              <p className="text-ash-500 text-xs mb-5">9,157 radio dispatch spread rate events</p>
+              <h3 className="text-gray-900 dark:text-white font-semibold mb-1">Spread Rate Distribution</h3>
+              <p className="text-gray-500 dark:text-gray-500 text-xs mb-5">9,157 radio dispatch spread rate events</p>
               <ResponsiveContainer width="100%" height={240}>
                 <PieChart>
                   <Pie data={SPREAD_RATE_DIST} dataKey="value" nameKey="name"
@@ -164,8 +165,8 @@ export default function FirePatternsPage() {
           </div>
 
           <div className="card p-5 border-l-4 border-signal-warn">
-            <p className="text-ash-400 text-sm leading-relaxed">
-              <strong className="text-white">Key finding:</strong> Radio traffic peaks between 8pm–1am — overnight hours when most alert systems have lower staffing and residents are asleep.
+            <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+              <strong className="text-gray-900 dark:text-white">Key finding:</strong> Radio traffic peaks between 8pm–1am — overnight hours when most alert systems have lower staffing and residents are asleep.
               1,068 extreme/rapid events (11.7% of all radio reports) occurred during these peak hours.
               The 100 &ldquo;hidden danger&rdquo; fires with extreme radio + silent notification all occurred during this window.
             </p>
@@ -179,34 +180,34 @@ export default function FirePatternsPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { value: '31.4%', label: 'Zones that skipped warnings → straight to orders', color: 'text-signal-danger' },
-              { value: '1,463', label: 'Zones with recorded status changes', color: 'text-white' },
+              { value: '1,463', label: 'Zones with recorded status changes', color: 'text-gray-900 dark:text-white' },
               { value: '413', label: 'Stepped through warnings before orders', color: 'text-signal-safe' },
               { value: '189', label: 'Jumped directly from normal to orders', color: 'text-signal-danger' },
             ].map(s => (
               <div key={s.label} className="card p-5">
                 <div className={`font-display text-3xl font-bold ${s.color}`}>{s.value}</div>
-                <div className="text-ash-400 text-sm mt-1">{s.label}</div>
+                <div className="text-gray-600 dark:text-gray-400 text-sm mt-1">{s.label}</div>
               </div>
             ))}
           </div>
 
           <div className="card p-6">
-            <h3 className="text-white font-semibold mb-1">Zone Escalation Skip Rate by State</h3>
-            <p className="text-ash-500 text-xs mb-5">% of zones that went normal → mandatory order, skipping the warning tier</p>
+            <h3 className="text-gray-900 dark:text-white font-semibold mb-1">Zone Escalation Skip Rate by State</h3>
+            <p className="text-gray-500 dark:text-gray-500 text-xs mb-5">% of zones that went normal → mandatory order, skipping the warning tier</p>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={ZONE_SKIP_BY_STATE} layout="vertical" margin={{ left: 10 }}>
-                <XAxis type="number" tick={{ fill: '#737068', fontSize: 11 }} unit="%" />
-                <YAxis type="category" dataKey="state" tick={{ fill: '#b3b1aa', fontSize: 11 }} width={35} />
+                <XAxis type="number" tick={ANALYST_AXIS_TICK} unit="%" />
+                <YAxis type="category" dataKey="state" tick={ANALYST_AXIS_TICK_SM} width={35} />
                 <Tooltip
                   formatter={(v: any) => `${v}%`}
                   content={({ active, payload }) => {
                     if (!active || !payload?.length) return null
                     const d = payload[0].payload
                     return (
-                      <div className="bg-ash-900 border border-ash-700 rounded-lg px-3 py-2 text-xs">
+                      <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-300">
                         <p className="text-white font-medium">{d.state}</p>
                         <p className="text-signal-danger">{d.skip_rate}% skip rate</p>
-                        <p className="text-ash-400">{d.total_zones} total zones</p>
+                        <p className="text-gray-400">{d.total_zones} total zones</p>
                       </div>
                     )
                   }}
@@ -221,7 +222,7 @@ export default function FirePatternsPage() {
           </div>
 
           <div className="card p-5 border border-signal-danger/20 bg-signal-danger/5">
-            <p className="text-ash-400 text-sm leading-relaxed">
+            <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
               <strong className="text-signal-danger">States with the most rural infrastructure gaps skip warnings most often.</strong> New Mexico and Arizona
               skip warnings at 48.2% and 44.1% respectively — meaning nearly half of all escalations gave residents
               zero advance notice. They went from normal zone status to mandatory evacuation with no warning tier.
@@ -236,22 +237,22 @@ export default function FirePatternsPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { value: '396', label: 'Fires with coded cause data (NIFC perimeters)', color: 'text-white' },
+              { value: '396', label: 'Fires with coded cause data (NIFC perimeters)', color: 'text-gray-900 dark:text-white' },
               { value: '90.2%', label: 'Lightning-caused fires', color: 'text-signal-warn' },
               { value: '9.8%', label: 'Human-caused fires', color: 'text-signal-danger' },
               { value: '0.71', label: 'Avg SVI for arson-caused fires (highest)', color: 'text-signal-danger' },
             ].map(s => (
               <div key={s.label} className="card p-5">
                 <div className={`font-display text-3xl font-bold ${s.color}`}>{s.value}</div>
-                <div className="text-ash-400 text-sm mt-1">{s.label}</div>
+                <div className="text-gray-600 dark:text-gray-400 text-sm mt-1">{s.label}</div>
               </div>
             ))}
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
             <div className="card p-6">
-              <h3 className="text-white font-semibold mb-1">Fire Cause Distribution</h3>
-              <p className="text-ash-500 text-xs mb-5">Source: NIFC perimeter source_extra_data CAUSE codes</p>
+              <h3 className="text-gray-900 dark:text-white font-semibold mb-1">Fire Cause Distribution</h3>
+              <p className="text-gray-500 dark:text-gray-500 text-xs mb-5">Source: NIFC perimeter source_extra_data CAUSE codes</p>
               <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
                   <Pie data={FIRE_CAUSES} dataKey="count" nameKey="cause"
@@ -259,19 +260,19 @@ export default function FirePatternsPage() {
                     label={({ cause, percent }) => percent > 0.03 ? `${(percent * 100).toFixed(0)}%` : ''}>
                     {FIRE_CAUSES.map((d, i) => <Cell key={i} fill={d.color} />)}
                   </Pie>
-                  <Legend formatter={(v) => <span className="text-ash-400 text-xs">{v}</span>} />
+                  <Legend formatter={(v) => <span className="text-gray-600 dark:text-gray-400 text-xs">{v}</span>} />
                   <Tooltip formatter={(v: any) => v.toLocaleString()} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
 
             <div className="card p-6">
-              <h3 className="text-white font-semibold mb-1">Avg SVI Score by Cause Type</h3>
-              <p className="text-ash-500 text-xs mb-5">Human-caused fires (arson, debris) hit more vulnerable areas</p>
+              <h3 className="text-gray-900 dark:text-white font-semibold mb-1">Avg SVI Score by Cause Type</h3>
+              <p className="text-gray-500 dark:text-gray-500 text-xs mb-5">Human-caused fires (arson, debris) hit more vulnerable areas</p>
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={FIRE_CAUSES} layout="vertical" margin={{ left: 20 }}>
-                  <XAxis type="number" domain={[0, 1]} tick={{ fill: '#737068', fontSize: 11 }} />
-                  <YAxis type="category" dataKey="cause" tick={{ fill: '#b3b1aa', fontSize: 10 }} width={130} />
+                  <XAxis type="number" domain={[0, 1]} tick={ANALYST_AXIS_TICK} />
+                  <YAxis type="category" dataKey="cause" tick={ANALYST_AXIS_TICK_SM} width={130} />
                   <Tooltip formatter={(v: any) => v.toFixed(2)} />
                   <Bar dataKey="avg_svi" radius={[0, 4, 4, 0]}>
                     {FIRE_CAUSES.map((d, i) => <Cell key={i} fill={d.color} />)}
@@ -282,11 +283,11 @@ export default function FirePatternsPage() {
           </div>
 
           <div className="card p-5 border-l-4 border-signal-warn">
-            <p className="text-ash-400 text-sm leading-relaxed">
+            <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
               Lightning-caused fires (90.2%) tend to occur in less populated wilderness areas (avg SVI 0.58).
               Human-caused fires — particularly arson (avg SVI 0.71) and debris burning (0.62) — cluster in
               more populated, higher-vulnerability areas. CAUSE codes extracted from NIFC perimeter{' '}
-              <code className="text-ash-500">source_extra_data</code> JSON field (396 of 6,207 perimeters coded).
+              <code className="text-gray-500 dark:text-gray-500">source_extra_data</code> JSON field (396 of 6,207 perimeters coded).
             </p>
           </div>
         </div>
@@ -303,7 +304,7 @@ export default function FirePatternsPage() {
             ].map(s => (
               <div key={s.label} className="card p-5">
                 <div className={`font-display text-3xl font-bold ${s.color}`}>{s.value}</div>
-                <div className="text-ash-400 text-sm mt-1">{s.label}</div>
+                <div className="text-gray-600 dark:text-gray-400 text-sm mt-1">{s.label}</div>
               </div>
             ))}
           </div>
@@ -311,7 +312,7 @@ export default function FirePatternsPage() {
           <div className="card p-5 border border-signal-warn/30 bg-signal-warn/5">
             <div className="flex items-start gap-3">
               <ShieldAlert className="w-5 h-5 text-signal-warn shrink-0 mt-0.5" />
-              <p className="text-ash-300 text-sm leading-relaxed">
+              <p className="text-gray-800 dark:text-gray-300 text-sm leading-relaxed">
                 <strong className="text-signal-warn">Protocol:</strong> The correct sequence is Advisory → Warning → Evacuation Order.
                 A protocol inversion occurs when an order is issued <em>before</em> a warning.
                 This means residents in the &ldquo;warning zone&rdquo; received zero intermediate notice —
@@ -322,24 +323,24 @@ export default function FirePatternsPage() {
           </div>
 
           <div className="card overflow-hidden">
-            <div className="px-5 py-4 border-b border-ash-800">
-              <h3 className="text-white font-semibold text-sm">Top 10 Protocol Inversions by Gap (minutes)</h3>
-              <p className="text-ash-500 text-xs mt-0.5">Time between out-of-order order issuance and belated warning</p>
+            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-800">
+              <h3 className="text-gray-900 dark:text-white font-semibold text-sm">Top 10 Protocol Inversions by Gap (minutes)</h3>
+              <p className="text-gray-500 dark:text-gray-500 text-xs mt-0.5">Time between out-of-order order issuance and belated warning</p>
             </div>
             <table className="w-full">
               <thead>
-                <tr className="border-b border-ash-800 text-left">
-                  <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">Fire</th>
-                  <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">County, State</th>
-                  <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">Order Preceded Warning By</th>
-                  <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">SVI</th>
+                <tr className="border-b border-gray-200 dark:border-gray-800 text-left">
+                  <th className="px-5 py-3 text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">Fire</th>
+                  <th className="px-5 py-3 text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">County, State</th>
+                  <th className="px-5 py-3 text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">Order Preceded Warning By</th>
+                  <th className="px-5 py-3 text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">SVI</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-ash-800">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                 {INVERSIONS.map((inv, i) => (
-                  <tr key={i} className="hover:bg-ash-800/40 transition-colors">
-                    <td className="px-5 py-3.5 text-white font-semibold text-sm">{inv.fire}</td>
-                    <td className="px-5 py-3.5 text-ash-300 text-sm">{inv.county}</td>
+                  <tr key={i} className="hover:bg-gray-100 dark:hover:bg-gray-800/40 transition-colors">
+                    <td className="px-5 py-3.5 text-gray-900 dark:text-white font-semibold text-sm">{inv.fire}</td>
+                    <td className="px-5 py-3.5 text-gray-800 dark:text-gray-300 text-sm">{inv.county}</td>
                     <td className="px-5 py-3.5">
                       <span className={`font-mono font-bold text-sm ${inv.gap_min > 100 ? 'text-signal-danger' : inv.gap_min > 70 ? 'text-signal-warn' : 'text-amber-400'}`}>
                         {inv.gap_min} min
@@ -356,11 +357,11 @@ export default function FirePatternsPage() {
             </table>
           </div>
 
-          <div className="p-4 bg-ash-900/50 border border-ash-800 rounded-lg">
-            <p className="text-ash-500 text-xs">
-              <span className="text-ash-400 font-medium">Methodology:</span> Inversions detected by comparing{' '}
-              <code className="text-ash-400">first_order_at</code> &lt; <code className="text-ash-400">first_warning_at</code>{' '}
-              in <code className="text-ash-400">fire_events_with_svi_and_delays.csv</code> for fires where both timestamps exist (n=653 orders, n=715 warnings).
+          <div className="p-4 bg-gray-100 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-lg">
+            <p className="text-gray-500 dark:text-gray-500 text-xs">
+              <span className="text-gray-600 dark:text-gray-400 font-medium">Methodology:</span> Inversions detected by comparing{' '}
+              <code className="text-gray-600 dark:text-gray-400">first_order_at</code> &lt; <code className="text-gray-600 dark:text-gray-400">first_warning_at</code>{' '}
+              in <code className="text-gray-600 dark:text-gray-400">fire_events_with_svi_and_delays.csv</code> for fires where both timestamps exist (n=653 orders, n=715 warnings).
             </p>
           </div>
         </div>

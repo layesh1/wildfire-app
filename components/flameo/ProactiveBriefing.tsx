@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { X, Map, Bell, CheckCircle, Settings, AlertTriangle } from 'lucide-react'
+import { FlameoFormattedText } from '@/components/flameo/FlameoFormattedText'
 
 export type ProactiveBriefingMode = 'hidden' | 'loading' | 'address' | 'briefing'
 
@@ -82,7 +83,7 @@ export default function ProactiveBriefing({
               )}
               {mode === 'briefing' && briefingText && (
                 <p className="mt-1.5 text-[11px] font-medium leading-relaxed text-slate-800 whitespace-pre-wrap">
-                  {briefingText}
+                  <FlameoFormattedText text={briefingText} />
                 </p>
               )}
               <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -161,7 +162,7 @@ export default function ProactiveBriefing({
 
             {mode === 'briefing' && briefingText && (
               <p className="mt-2 text-lg md:text-xl font-medium leading-relaxed text-slate-800 whitespace-pre-wrap">
-                {briefingText}
+                <FlameoFormattedText text={briefingText} />
               </p>
             )}
 

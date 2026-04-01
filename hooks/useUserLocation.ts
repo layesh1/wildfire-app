@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { distanceMiles } from '@/lib/hub-map-distance'
 import { geocodeAddressClient } from '@/lib/geocoding-client'
+import { getBestGeolocationPosition } from '@/lib/geolocation-accuracy'
 
 const MATCH_RADIUS_MILES = 0.5
 
@@ -75,24 +76,21 @@ export function useUserLocation(options: UseUserLocationOptions) {
     }
   }, [workAddress])
 
-  const requestPosition = useCallback(() => {
+  const requestPosition = useCallback(async () => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       setPermission('unsupported')
       return
     }
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        setLat(pos.coords.latitude)
-        setLng(pos.coords.longitude)
-        setPermission('granted')
-      },
-      () => {
-        setLat(null)
-        setLng(null)
-        setPermission('denied')
-      },
-      { enableHighAccuracy: true, maximumAge: 60_000, timeout: 20_000 }
-    )
+    try {
+      const pos = await getBestGeolocationPosition()
+      setLat(pos.coords.latitude)
+      setLng(pos.coords.longitude)
+      setPermission('granted')
+    } catch {
+      setLat(null)
+      setLng(null)
+      setPermission('denied')
+    }
   }, [])
 
   useEffect(() => {
@@ -101,7 +99,7 @@ export function useUserLocation(options: UseUserLocationOptions) {
       setPermission('unsupported')
       return
     }
-    requestPosition()
+    void requestPosition()
   }, [enabled, requestPosition])
 
   const detected_anchor: DetectedAnchor = useMemo(() => {
@@ -127,7 +125,7 @@ export function useUserLocation(options: UseUserLocationOptions) {
     lng,
     permission,
     detected_anchor,
-    /** Call after user acknowledges location prompt copy (optional). */
+    /** Call after user taps “Locate me”; awaits a higher-accuracy fix when possible. */
     refreshPosition: requestPosition,
   }
 }

@@ -371,7 +371,7 @@ function LoginForm() {
       </div>
 
       {/* Right panel — form */}
-      <div className="flex-1 flex flex-col bg-gray-50">
+      <div className="flex flex-1 flex-col bg-gray-50 wfa-auth-typography">
         <div className="lg:hidden px-6 pt-6">
           <button onClick={() => router.push('/')} className="flex items-center gap-2 text-gray-400 hover:text-gray-700 transition-colors text-sm">
             <ArrowLeft className="w-4 h-4" /> Back
@@ -388,10 +388,10 @@ function LoginForm() {
             {mode === 'login' && (
               <>
                 <h2 className="font-display text-2xl font-bold text-gray-900 mb-1 text-center">Welcome back</h2>
-                <p className="text-gray-500 text-sm mb-6 text-center">Sign in to your dashboard.</p>
+                <p className="mb-6 text-center text-base text-gray-500 dark:text-gray-400">Sign in to your dashboard.</p>
 
                 <button onClick={handleGoogleLogin} disabled={googleLoading}
-                  className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-gray-900 font-medium px-4 py-3 rounded-lg transition-all duration-200 mb-6 disabled:opacity-50 border border-gray-200 shadow-sm">
+                  className="mb-6 flex w-full items-center justify-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 text-base font-medium text-gray-900 shadow-sm transition-all duration-200 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700">
                   {googleLoading ? <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" /> : (
                     <svg className="w-5 h-5" viewBox="0 0 24 24">
                       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -405,7 +405,7 @@ function LoginForm() {
 
                 <div className="relative mb-6">
                   <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
-                  <div className="relative flex justify-center text-xs"><span className="bg-gray-50 px-3 text-gray-400">or use email</span></div>
+                  <div className="relative flex justify-center text-sm"><span className="bg-gray-50 px-3 text-gray-500 dark:bg-gray-800 dark:text-gray-400">or use email</span></div>
                 </div>
 
                 <div className="space-y-4 mb-4">
@@ -431,7 +431,7 @@ function LoginForm() {
                 </div>
 
                 {(error || errorParam) && (
-                  <div className="text-sm px-4 py-3 rounded-lg mb-4 bg-red-50 text-red-600 border border-red-200">
+                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-base text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
                     {error || errorParam}
                   </div>
                 )}
@@ -445,10 +445,10 @@ function LoginForm() {
                   ) : 'Sign in'}
                 </button>
 
-                <p className="text-center text-gray-500 text-sm mt-6">
+                <p className="mt-6 text-center text-base text-gray-500 dark:text-gray-400">
                   Don't have an account?{' '}
                   <button onClick={() => { setMode('signup'); setError(''); setEmailFormatError(''); setEmailTaken(false); setOnboardingStep(0) }}
-                    className="text-forest-600 hover:text-forest-700 transition-colors font-medium">
+                    className="font-medium text-forest-600 transition-colors hover:text-forest-700 dark:text-forest-400 dark:hover:text-forest-300">
                     Sign up free
                   </button>
                 </p>
@@ -461,7 +461,7 @@ function LoginForm() {
                 <h2 className="font-display text-2xl font-bold text-gray-900 mb-6 text-center">Create your account</h2>
 
                 <button onClick={handleGoogleLogin} disabled={googleLoading}
-                  className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 text-gray-900 font-medium px-4 py-3 rounded-lg transition-all duration-200 mb-6 disabled:opacity-50 border border-gray-200 shadow-sm">
+                  className="mb-6 flex w-full items-center justify-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 text-base font-medium text-gray-900 shadow-sm transition-all duration-200 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700">
                   {googleLoading ? <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin" /> : (
                     <svg className="w-5 h-5" viewBox="0 0 24 24">
                       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -475,7 +475,7 @@ function LoginForm() {
 
                 <div className="relative mb-6">
                   <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
-                  <div className="relative flex justify-center text-xs"><span className="bg-gray-50 px-3 text-gray-400">or use email</span></div>
+                  <div className="relative flex justify-center text-sm"><span className="bg-gray-50 px-3 text-gray-500 dark:bg-gray-800 dark:text-gray-400">or use email</span></div>
                 </div>
 
                 <div className="space-y-4 mb-4">
@@ -517,7 +517,7 @@ function LoginForm() {
                 </div>
 
                 {emailTaken && (
-                  <div className="text-sm px-4 py-3 rounded-lg mb-4 bg-amber-50 text-amber-800 border border-amber-200">
+                  <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-base text-amber-950 dark:border-amber-800 dark:bg-amber-950/35 dark:text-amber-100">
                     An account with this email already exists.{' '}
                     <button onClick={() => { setMode('login'); setEmailTaken(false); setError('') }}
                       className="font-semibold underline hover:no-underline">
@@ -527,7 +527,7 @@ function LoginForm() {
                 )}
 
                 {error && (
-                  <div className="text-sm px-4 py-3 rounded-lg mb-4 bg-red-50 text-red-600 border border-red-200">{error}</div>
+                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-base text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">{error}</div>
                 )}
 
                 <button onClick={handleCredentialsNext} disabled={!email || !password}
@@ -554,11 +554,11 @@ function LoginForm() {
                   </button>
                   <div>
                     <h2 className="font-display text-xl font-bold text-gray-900">How you&apos;ll use the app</h2>
-                    <p className="text-gray-400 text-xs">Step 1 of 3</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Step 1 of 3</p>
                   </div>
                 </div>
 
-                <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+                <p className="mb-4 text-base leading-relaxed text-gray-600 dark:text-gray-300">
                   <strong className="text-gray-800">Evacuees</strong> use a real home street address to automate distance alerts, maps, and notifications — and you can add people under My People to watch out for family or others you support.
                 </p>
 
@@ -567,17 +567,17 @@ function LoginForm() {
                     <button key={key} onClick={() => { obSet('role', key); setCodeError('') }}
                       className={`w-full text-left px-4 py-3 rounded-lg border transition-all ${
                         ob.role === key
-                          ? 'border-forest-600 bg-forest-50 ring-1 ring-forest-600'
-                          : 'border-gray-200 bg-white hover:border-gray-300'
+                          ? 'border-forest-600 bg-forest-50 ring-1 ring-forest-600 dark:bg-forest-950/30'
+                          : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:hover:border-gray-500'
                       }`}>
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <div className="font-medium text-gray-900 text-sm">{info.label}</div>
-                          <div className="text-gray-500 text-xs mt-0.5">{info.desc}</div>
+                          <div className="text-lg font-medium text-gray-900 dark:text-gray-100">{info.label}</div>
+                          <div className="mt-0.5 text-base text-gray-500 dark:text-gray-400">{info.desc}</div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0 mt-0.5">
+                        <div className="mt-0.5 flex shrink-0 items-center gap-2">
                           {info.restricted && (
-                            <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full">Invite only</span>
+                            <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">Invite only</span>
                           )}
                           {ob.role === key && <Check className="w-4 h-4 text-forest-600" />}
                         </div>
@@ -591,7 +591,7 @@ function LoginForm() {
                     <label className="label">Invite code</label>
                     <input type="text" className="input font-mono" placeholder="XXXX-XXXX"
                       value={ob.inviteCode} onChange={e => { obSet('inviteCode', e.target.value); setCodeError('') }} />
-                    {codeError && <p className="text-xs text-red-500 mt-1">{codeError}</p>}
+                    {codeError && <p className="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">{codeError}</p>}
                   </div>
                 )}
 
@@ -611,11 +611,11 @@ function LoginForm() {
                   </button>
                   <div>
                     <h2 className="font-display text-xl font-bold text-gray-900">About you</h2>
-                    <p className="text-gray-400 text-xs">Step 2 of 3</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Step 2 of 3</p>
                   </div>
                 </div>
 
-                <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+                <p className="mb-4 text-base leading-relaxed text-gray-600 dark:text-gray-300">
                   {ob.role === 'evacuee' && (
                     <>Your <strong>home street address</strong> anchors maps, Flameo, and alerts for your household — and lets you add people to your dashboard for shared status and notifications.</>
                   )}
@@ -650,7 +650,7 @@ function LoginForm() {
                 </div>
 
                 {error && onboardingStep === 2 && (
-                  <div className="text-sm px-4 py-3 rounded-lg mb-4 bg-red-50 text-red-600 border border-red-200">{error}</div>
+                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-base text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">{error}</div>
                 )}
 
                 <button onClick={handleNext}
@@ -669,11 +669,11 @@ function LoginForm() {
                   </button>
                   <div>
                     <h2 className="font-display text-xl font-bold text-gray-900">Preferences</h2>
-                    <p className="text-gray-400 text-xs">Step 3 of 3</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Step 3 of 3</p>
                   </div>
                 </div>
 
-                <div className="space-y-5 mb-6">
+                <div className="mb-6 space-y-5">
                   {/* Language */}
                   <div>
                     <label className="label">Preferred language</label>
@@ -684,18 +684,18 @@ function LoginForm() {
                         <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
                       </button>
                       {showLangDrop && (
-                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg">
-                          <div className="p-2 border-b border-gray-100">
-                            <input type="text" className="input text-sm py-1.5" placeholder="Search languages..."
+                        <div className="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800">
+                          <div className="border-b border-gray-100 p-2 dark:border-gray-700">
+                            <input type="text" className="input py-2" placeholder="Search languages..."
                               value={langSearch} onChange={e => setLangSearch(e.target.value)} autoFocus />
                           </div>
                           <ul className="max-h-48 overflow-y-auto">
                             {filteredLangs.map(l => (
                               <li key={l.code}
-                                className={`px-3 py-2 text-sm cursor-pointer flex items-center justify-between hover:bg-gray-50 ${l.code === ob.language ? 'text-forest-600 font-medium' : 'text-gray-700'}`}
+                                className={`flex cursor-pointer items-center justify-between px-3 py-2 text-base hover:bg-gray-50 dark:hover:bg-gray-700 ${l.code === ob.language ? 'font-medium text-forest-600 dark:text-forest-400' : 'text-gray-700 dark:text-gray-200'}`}
                                 onMouseDown={() => { obSet('language', l.code); setShowLangDrop(false); setLangSearch('') }}>
                                 <span>{l.name}</span>
-                                <span className="text-gray-400 text-xs">{l.native}</span>
+                                <span className="text-sm text-gray-500 dark:text-gray-400">{l.native}</span>
                               </li>
                             ))}
                           </ul>
@@ -710,10 +710,10 @@ function LoginForm() {
                     <div className="flex flex-wrap gap-2 mt-1">
                       {COMM_OPTIONS.map(opt => (
                         <button key={opt} type="button" onClick={() => toggleComm(opt)}
-                          className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                          className={`rounded-full border px-3 py-1.5 text-sm transition-all ${
                             ob.communicationNeeds.includes(opt)
-                              ? 'border-forest-600 bg-forest-50 text-forest-700'
-                              : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                              ? 'border-forest-600 bg-forest-50 text-forest-800 dark:bg-forest-950/40 dark:text-forest-200'
+                              : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-gray-500'
                           }`}>
                           {opt}
                         </button>
@@ -726,7 +726,7 @@ function LoginForm() {
                       <label className="label">
                         Mobility, access &amp; health <span className="text-gray-400 font-normal">(optional)</span>
                       </label>
-                      <p className="text-xs text-gray-500 mb-2">
+                      <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
                         Helps responders and family understand what might affect evacuation or check-ins.
                       </p>
                       <div className="flex flex-wrap gap-2 mt-1">
@@ -735,10 +735,10 @@ function LoginForm() {
                             key={key}
                             type="button"
                             onClick={() => toggleMobility(key)}
-                            className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                            className={`rounded-full border px-3 py-1.5 text-sm transition-all ${
                               ob.mobilityAccessNeeds.includes(key)
-                                ? 'border-forest-600 bg-forest-50 text-forest-700'
-                                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                                ? 'border-forest-600 bg-forest-50 text-forest-800 dark:bg-forest-950/40 dark:text-forest-200'
+                                : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-gray-500'
                             }`}
                           >
                             {label}
@@ -747,7 +747,7 @@ function LoginForm() {
                       </div>
                       {ob.mobilityAccessNeeds.includes('other') && (
                         <label className="block mt-3">
-                          <span className="label text-sm">Describe your situation</span>
+                          <span className="label">Describe your situation</span>
                           <textarea
                             className="input mt-1 min-h-[88px] resize-y"
                             placeholder="Anything unique we should know (optional)"
@@ -772,7 +772,7 @@ function LoginForm() {
                 </div>
 
                 {error && (
-                  <div className="text-sm px-4 py-3 rounded-lg mb-4 bg-red-50 text-red-600 border border-red-200">{error}</div>
+                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-base text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">{error}</div>
                 )}
 
                 <button onClick={handleNext} disabled={loading}
@@ -794,10 +794,10 @@ function LoginForm() {
                   <Check className="w-8 h-8 text-forest-600" />
                 </div>
                 <h2 className="font-display text-2xl font-bold text-gray-900 mb-2">Check your inbox</h2>
-                <p className="text-gray-500 text-sm mb-6 leading-relaxed">
-                  We sent a confirmation link to <strong className="text-gray-700">{email}</strong>. Click it to activate your account, then come back to sign in.
+                <p className="mb-6 text-base leading-relaxed text-gray-500 dark:text-gray-400">
+                  We sent a confirmation link to <strong className="text-gray-800 dark:text-gray-200">{email}</strong>. Click it to activate your account, then come back to sign in.
                 </p>
-                <p className="text-xs text-gray-400 mb-6">Don't see it? Check your spam folder.</p>
+                <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">Don't see it? Check your spam folder.</p>
                 <button onClick={() => { setMode('login'); setOnboardingStep(0); setError('') }}
                   className="btn-primary w-full">
                   Go to sign in

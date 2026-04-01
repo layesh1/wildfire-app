@@ -2,7 +2,7 @@
 import { Suspense, useEffect, useState, useRef, useMemo, useCallback, Component, type ReactNode } from 'react'
 import { useUserLocation } from '@/hooks/useUserLocation'
 import dynamic from 'next/dynamic'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { useBreakpointMdUp } from '@/hooks/useBreakpointMdUp'
 import { requiresConsumerHomeAddress } from '@/lib/profile-requirements'
 import { alertLevelFromFlameoContext } from '@/lib/hub-alert-level'
@@ -25,6 +25,8 @@ import { useFlameoHubAgentBridge } from '@/components/FlameoHubAgentBridge'
 import ProactiveBriefing from '@/components/flameo/ProactiveBriefing'
 import FlameoAnchorAlert from '@/components/flameo/FlameoAnchorAlert'
 import ShelterRouteCard from '@/components/flameo/ShelterRouteCard'
+import FlameoSituationRoom from '@/components/flameo/FlameoSituationRoom'
+import { FlameoHubTour } from '@/components/hub/FlameoHubTour'
 import { HUMAN_EVAC_SHELTERS } from '@/lib/evac-shelters'
 import { HAZARD_FACILITIES } from '@/lib/hazard-facilities'
 import { distanceMiles } from '@/lib/hub-map-distance'
@@ -39,6 +41,7 @@ import {
 } from '@/lib/checkin-status'
 import { flameoGroundingBadgeText } from '@/lib/flameo-grounding-ui'
 import { geocodeAddressClient } from '@/lib/geocoding-client'
+import { coerceAlertRadiusToChip, DEFAULT_ALERT_RADIUS_MILES } from '@/lib/alert-radius'
 
 const LeafletMap = dynamic(() => import('./map/LeafletMap'), { ssr: false })
 
@@ -249,6 +252,7 @@ export function ConsumerHubDashboard({
   const [briefingText, setBriefingText] = useState<string | null>(null)
 
   const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const bpMd = useBreakpointMdUp()
   const alertsPanelRef = useRef<HTMLDivElement>(null)
@@ -263,7 +267,6 @@ export function ConsumerHubDashboard({
     work_building_type?: string | null
     work_floor_number?: number | null
     mobility_needs?: string[] | null
-    mobility_access_needs?: string[] | null
     role?: string | null
   } | null>(null)
   const [personLocation, setPersonLocation] = useState<[number, number] | null>(null)
@@ -292,8 +295,7 @@ export function ConsumerHubDashboard({
     contextAddress: flameoContextAddress,
     detectedAnchor: isViewingMember ? null : userLocHook.detected_anchor,
   })
-  const [alertRadiusMiles, setAlertRadiusMiles] = useState(25)
-  const [alertsAiEnabled, setAlertsAiEnabled] = useState(false)
+  const [alertRadiusMiles, setAlertRadiusMiles] = useState(DEFAULT_ALERT_RADIUS_MILES)
   const [homeCoords, setHomeCoords] = useState<[number, number] | null>(null)
   const [loading, setLoading] = useState(true)
   const [bagChecked, setBagChecked] = useState<Set<string>>(new Set())
@@ -308,6 +310,7 @@ export function ConsumerHubDashboard({
   const [windData, setWindData] = useState<WindData | null>(null)
   const [personCoords, setPersonCoords] = useState<Record<string, [number, number]>>({})
   const [locatingMap, setLocatingMap] = useState(false)
+  const [mapFlyToNonce, setMapFlyToNonce] = useState(0)
   const [hubUserId, setHubUserId] = useState<string | null>(null)
   const [personStatuses, setPersonStatuses] = useState<
     Record<
@@ -352,13 +355,6 @@ export function ConsumerHubDashboard({
     })
   }, [flameo.context, flameo.status, setFlameoHubAgentPayload])
 
-  useEffect(() => {
-    if (loading) return
-    if (!requiresConsumerHomeAddress(consumerRole)) return
-    if (userProfile == null) return
-    if (userProfile.address?.trim()) return
-    router.replace('/dashboard/settings?tab=profile&needHomeAddress=1')
-  }, [loading, consumerRole, userProfile, router])
 
   function flameoBriefingTodayKey() {
     return new Date().toISOString().slice(0, 10)
@@ -557,7 +553,6 @@ export function ConsumerHubDashboard({
     nifc,
     homeAnchorForAlerts,
     alertRadiusMiles,
-    alertsAiEnabled,
     homeLabelForAi
   )
 
@@ -664,10 +659,14 @@ export function ConsumerHubDashboard({
     } catch { /* ignore */ }
   }
 
-  function locateOnMap() {
+  async function locateOnMap() {
     setLocatingMap(true)
-    userLocHook.refreshPosition()
-    window.setTimeout(() => setLocatingMap(false), 1500)
+    try {
+      await userLocHook.refreshPosition()
+      setMapFlyToNonce(n => n + 1)
+    } finally {
+      setLocatingMap(false)
+    }
   }
 
   const supabase = createClient()
@@ -710,7 +709,7 @@ export function ConsumerHubDashboard({
               const { data: prof } = await supabase
                 .from('profiles')
                 .select(
-                  'full_name, address, alert_radius_miles, alerts_ai_enabled, role, work_address, work_building_type, work_floor_number, mobility_needs, mobility_access_needs'
+                  'full_name, address, alert_radius_miles, role, work_address, work_building_type, work_floor_number, mobility_needs'
                 )
                 .eq('id', user.id)
                 .single()
@@ -724,13 +723,11 @@ export function ConsumerHubDashboard({
                 work_floor_number:
                   typeof pr.work_floor_number === 'number' ? pr.work_floor_number : null,
                 mobility_needs: Array.isArray(pr.mobility_needs) ? (pr.mobility_needs as string[]) : null,
-                mobility_access_needs: Array.isArray(pr.mobility_access_needs)
-                  ? (pr.mobility_access_needs as string[])
-                  : null,
                 role: prof?.role ?? null,
               })
-              if (prof?.alert_radius_miles != null) setAlertRadiusMiles(Number(prof.alert_radius_miles))
-              if (prof?.alerts_ai_enabled != null) setAlertsAiEnabled(!!prof.alerts_ai_enabled)
+              if (prof?.alert_radius_miles != null) {
+                setAlertRadiusMiles(coerceAlertRadiusToChip(Number(prof.alert_radius_miles)))
+              }
               setLoading(false)
               return
             }
@@ -738,7 +735,7 @@ export function ConsumerHubDashboard({
           const { data: prof } = await supabase
             .from('profiles')
             .select(
-              'full_name, address, alert_radius_miles, alerts_ai_enabled, work_address, work_building_type, work_floor_number, mobility_needs, mobility_access_needs, role'
+              'full_name, address, alert_radius_miles, work_address, work_building_type, work_floor_number, mobility_needs, role'
             )
             .eq('id', user.id)
             .single()
@@ -752,13 +749,11 @@ export function ConsumerHubDashboard({
             work_floor_number:
               typeof pr.work_floor_number === 'number' ? pr.work_floor_number : null,
             mobility_needs: Array.isArray(pr.mobility_needs) ? (pr.mobility_needs as string[]) : null,
-            mobility_access_needs: Array.isArray(pr.mobility_access_needs)
-              ? (pr.mobility_access_needs as string[])
-              : null,
             role: typeof pr.role === 'string' ? pr.role : null,
           })
-          if (prof?.alert_radius_miles != null) setAlertRadiusMiles(Number(prof.alert_radius_miles))
-          if (prof?.alerts_ai_enabled != null) setAlertsAiEnabled(!!prof.alerts_ai_enabled)
+          if (prof?.alert_radius_miles != null) {
+            setAlertRadiusMiles(coerceAlertRadiusToChip(Number(prof.alert_radius_miles)))
+          }
         }
       } catch (err) {
         console.error('[Hub] load error:', err)
@@ -1045,8 +1040,19 @@ export function ConsumerHubDashboard({
     userLocHook.lng,
   ])
 
+  const missingHomeAddress =
+    !loading
+    && requiresConsumerHomeAddress(consumerRole)
+    && userProfile != null
+    && !userProfile.address?.trim()
+
   const meCard = (
-    <div className="rounded-xl border bg-white/80 px-3 py-2.5" style={{ borderColor: 'var(--wfa-border)' }}>
+    <div
+      className={`rounded-xl border-2 bg-white/80 px-3 py-2.5 ${
+        missingHomeAddress ? 'border-red-500 bg-red-50/90 dark:bg-red-950/30' : ''
+      }`}
+      style={missingHomeAddress ? undefined : { borderColor: 'var(--wfa-border)' }}
+    >
       <div className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--wfa-accent)' }}>
         Me
       </div>
@@ -1061,7 +1067,9 @@ export function ConsumerHubDashboard({
       <div className="mt-1.5 space-y-1 text-[11px]" style={{ color: 'var(--wfa-text-40)' }}>
         <div>
           <span className="font-medium" style={{ color: 'var(--wfa-text)' }}>Home:</span>{' '}
-          {userProfile?.address?.trim() || 'Not set'}
+          {userProfile?.address?.trim() || (
+            <span className="font-medium text-red-700 dark:text-red-300">Add your address in Settings to unlock hub features</span>
+          )}
         </div>
         <div>
           <span className="font-medium" style={{ color: 'var(--wfa-text)' }}>Work:</span>{' '}
@@ -1074,7 +1082,7 @@ export function ConsumerHubDashboard({
 
   const flameoBriefingProps = {
     mode: proactiveUi,
-    addressMessage: 'Add your address in Settings to get personalized fire alerts.',
+    addressMessage: 'Add your home address in Settings so alerts and distances match where you live.',
     briefingText,
     hasNearbyFires: (flameo.context?.incidents_nearby?.length ?? 0) > 0,
     mapHref,
@@ -1090,12 +1098,51 @@ export function ConsumerHubDashboard({
     && userLocHook.lng != null
   const wheelchairShelterMode =
     (userProfile?.mobility_needs ?? []).some(v => /\b(wheelchair|mobility|device)\b/i.test(String(v)))
+  const hasWheelchairNeed =
+    (userProfile?.mobility_needs ?? []).some(v => /\b(wheelchair|mobility|device)\b/i.test(String(v)))
+
+  const situationRoomPeople = useMemo(() => {
+    const incidents = flameo.context?.incidents_nearby ?? []
+    return persons.map(p => {
+      const status = personStatuses[p.id]
+      const coord = personCoords[p.id]
+      let inDanger = false
+      if (coord && incidents.length > 0) {
+        inDanger = incidents.some(i => distanceMiles(coord, [i.lat, i.lon]) <= alertRadiusMiles)
+      }
+      return {
+        id: p.id,
+        name: p.name,
+        address: p.address,
+        home_evacuation_status: status?.home ?? null,
+        in_danger_zone: inDanger,
+      }
+    })
+  }, [alertRadiusMiles, flameo.context?.incidents_nearby, personCoords, personStatuses, persons])
 
   return (
     <div className="flex min-h-[100dvh] w-full flex-1 flex-col">
       {bpMd === undefined && (
         <div className="flex flex-1 min-h-[50vh] items-center justify-center p-8 text-sm text-gray-500">
           Loading your hub…
+        </div>
+      )}
+
+      {missingHomeAddress && bpMd !== undefined && (
+        <div
+          role="alert"
+          className="mx-4 mt-4 shrink-0 rounded-xl border-2 border-red-500 bg-red-50 px-4 py-3 text-sm text-red-900 shadow-sm dark:border-red-500 dark:bg-red-950/40 dark:text-red-100"
+        >
+          <p className="font-semibold">Add your home address</p>
+          <p className="mt-1 text-red-800/95 dark:text-red-200/95">
+            The hub, fire alerts, and distance-to-fire features need a saved home location. Add it in Settings when you&apos;re ready — we won&apos;t send you away from this page.
+          </p>
+          <Link
+            href="/dashboard/settings?tab=profile"
+            className="mt-2 inline-block text-sm font-semibold text-red-700 underline underline-offset-2 hover:text-red-900 dark:text-red-300 dark:hover:text-red-100"
+          >
+            Open Settings to add address
+          </Link>
         </div>
       )}
 
@@ -1122,13 +1169,14 @@ export function ConsumerHubDashboard({
           <button type="button" onClick={locateOnMap} className="text-[11px] px-2 py-1 rounded-lg border border-blue-200 bg-blue-50">Locate</button>
           <button type="button" onClick={refreshNifcHub} className="text-[11px] px-2 py-1 rounded-lg border border-gray-200">Refresh</button>
         </div>
-        <div className="h-56 rounded-2xl overflow-hidden relative border border-gray-200">
+        <div className="h-56 rounded-2xl overflow-hidden relative border border-gray-200" data-hub-tour="map">
           <MapErrorBoundary mapHref={mapHref}>
             <LeafletMap
               nifc={sortedNifc}
               userLocation={userLocation}
               center={mapAnchor ?? userLocation ?? [37.5, -119.5]}
               flyToUserZoom={7}
+              flyToTrigger={mapFlyToNonce}
               homePosition={homeCoords}
               showHomePin={isAwayFromHome && !!homeCoords}
               shelters={HUMAN_EVAC_SHELTERS}
@@ -1142,7 +1190,7 @@ export function ConsumerHubDashboard({
         </div>
 
         {/* Fire alert card */}
-        <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--wfa-hero-bg)' }}>
+        <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--wfa-hero-bg)' }} data-hub-tour="alerts">
           {loading ? (
             <div className="h-32 animate-pulse" style={{ background: 'rgba(255,255,255,0.05)' }} />
           ) : topFire ? (
@@ -1243,47 +1291,47 @@ export function ConsumerHubDashboard({
         </div>
 
         {/* My People */}
-        {showPeopleRail && persons.length > 0 && (
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--wfa-accent)' }}>My People</div>
-            <div className="space-y-2">
-              {meCard}
-              {persons.map((p, i) => (
-                <div key={p.id}>
-                  <PersonCard person={p} index={i} />
-                  {personStatuses[p.id] && (personStatuses[p.id].home || personStatuses[p.id].safety) && (
-                    <div className="mt-2 rounded-xl px-3 py-2 text-[11px] border bg-white/80" style={{ borderColor: 'var(--wfa-border)' }}>
-                      {personStatuses[p.id].home && (
-                        <div className="text-gray-800">
-                          <span className="font-semibold">Home: </span>
-                          {labelForHomeEvacuationStatus(personStatuses[p.id].home!)}
-                          {personStatuses[p.id].homeAt && (
-                            <span className="text-gray-500 ml-1">
-                              · {new Date(personStatuses[p.id].homeAt!).toLocaleString()}
-                            </span>
+        {showPeopleRail && (
+          <div data-hub-tour="people" className="space-y-4">
+            {persons.length > 0 && (
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--wfa-accent)' }}>My People</div>
+                <div className="space-y-2">
+                  {meCard}
+                  {persons.map((p, i) => (
+                    <div key={p.id}>
+                      <PersonCard person={p} index={i} />
+                      {personStatuses[p.id] && (personStatuses[p.id].home || personStatuses[p.id].safety) && (
+                        <div className="mt-2 rounded-xl px-3 py-2 text-[11px] border bg-white/80" style={{ borderColor: 'var(--wfa-border)' }}>
+                          {personStatuses[p.id].home && (
+                            <div className="text-gray-800">
+                              <span className="font-semibold">Home: </span>
+                              {labelForHomeEvacuationStatus(personStatuses[p.id].home!)}
+                              {personStatuses[p.id].homeAt && (
+                                <span className="text-gray-500 ml-1">
+                                  · {new Date(personStatuses[p.id].homeAt!).toLocaleString()}
+                                </span>
+                              )}
+                            </div>
                           )}
-                        </div>
-                      )}
-                      {personStatuses[p.id].safety && (
-                        <div className="text-gray-800 mt-1">
-                          <span className="font-semibold">Safety: </span>
-                          {PERSON_SAFETY_CHECKIN_STATUS_OPTIONS.find(o => o.value === personStatuses[p.id].safety)?.label}
-                          {personStatuses[p.id].safetyAt && (
-                            <span className="text-gray-500 ml-1">
-                              · {new Date(personStatuses[p.id].safetyAt!).toLocaleString()}
-                            </span>
+                          {personStatuses[p.id].safety && (
+                            <div className="text-gray-800 mt-1">
+                              <span className="font-semibold">Safety: </span>
+                              {PERSON_SAFETY_CHECKIN_STATUS_OPTIONS.find(o => o.value === personStatuses[p.id].safety)?.label}
+                              {personStatuses[p.id].safetyAt && (
+                                <span className="text-gray-500 ml-1">
+                                  · {new Date(personStatuses[p.id].safetyAt!).toLocaleString()}
+                                </span>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
                     </div>
-                  )}
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {showPeopleRail && (
+              </div>
+            )}
           <div className="rounded-2xl p-4 bg-white border space-y-2" style={{ borderColor: 'var(--wfa-border)' }}>
             <div className="text-ash-800 text-sm font-semibold">My People</div>
             <p className="text-ash-500 text-xs leading-relaxed">
@@ -1311,6 +1359,7 @@ export function ConsumerHubDashboard({
             {familyAddErr && <p className="text-xs text-red-600">{familyAddErr}</p>}
             {familyAddOk && <p className="text-xs text-green-700">{familyAddOk}</p>}
           </div>
+          </div>
         )}
 
         {unifiedHub && !isViewingMember && (
@@ -1321,7 +1370,6 @@ export function ConsumerHubDashboard({
             workBuildingType={userProfile?.work_building_type}
             workFloorFromProfile={userProfile?.work_floor_number ?? null}
             mobilityNeeds={userProfile?.mobility_needs ?? null}
-            mobilityAccessNeeds={userProfile?.mobility_access_needs ?? null}
             onSaveFloor={saveWorkFloorToProfile}
           />
         )}
@@ -1413,6 +1461,7 @@ export function ConsumerHubDashboard({
 
           {/* ══ LEFT — My People (family circle) or You ═══════════════════════════════════════════ */}
           <div
+            data-hub-tour="people"
             className="flex min-h-0 flex-col shrink-0 border-r"
             style={{ width: `${leftPct}%`, minWidth: 180, borderColor: 'var(--wfa-border)', background: 'var(--wfa-panel-l)' }}
           >
@@ -1520,10 +1569,19 @@ export function ConsumerHubDashboard({
                   </div>
                 </>
               ) : (
-                <div className="rounded-xl p-3 border bg-white" style={{ borderColor: 'var(--wfa-border)' }}>
+                <div
+                  className={`rounded-xl p-3 border-2 bg-white ${
+                    missingHomeAddress ? 'border-red-500 bg-red-50/90' : ''
+                  }`}
+                  style={missingHomeAddress ? undefined : { borderColor: 'var(--wfa-border)' }}
+                >
                   <div className="text-xs font-semibold mb-1" style={{ color: 'var(--wfa-text)' }}>{userProfile?.full_name || 'My profile'}</div>
-                  <div className="text-[11px] truncate" style={{ color: 'var(--wfa-text-40)' }}>{userProfile?.address || 'Add your address in Settings'}</div>
-                  <Link href="/dashboard/settings" className="text-[11px] font-semibold mt-2 inline-block" style={{ color: 'var(--wfa-accent)' }}>Edit profile →</Link>
+                  <div className="text-[11px] truncate" style={{ color: 'var(--wfa-text-40)' }}>
+                    {userProfile?.address?.trim() || (
+                      <span className="font-medium text-red-700">Add your home address in Settings — hub and alerts need it</span>
+                    )}
+                  </div>
+                  <Link href="/dashboard/settings?tab=profile" className="text-[11px] font-semibold mt-2 inline-block" style={{ color: 'var(--wfa-accent)' }}>Edit profile →</Link>
                 </div>
               )}
               <div className="group relative rounded-2xl p-3 bg-white border" style={{ borderColor: 'var(--wfa-border)' }}>
@@ -1572,7 +1630,7 @@ export function ConsumerHubDashboard({
           </div>
 
           {/* ══ CENTER — evacuation map (hero) ═══════════════════════════════════════ */}
-          <div className="flex-1 flex flex-col overflow-hidden min-w-0" style={{ minWidth: 240 }}>
+          <div data-hub-tour="map" className="flex-1 flex flex-col overflow-hidden min-w-0" style={{ minWidth: 240 }}>
             <div className="shrink-0 px-3 py-2 border-b flex flex-wrap items-center gap-2 justify-between" style={{ borderColor: 'var(--wfa-border)', background: 'var(--wfa-page-bg)' }}>
               <div>
                 <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--wfa-accent)' }}>Evacuation map</div>
@@ -1606,6 +1664,7 @@ export function ConsumerHubDashboard({
                   userLocation={userLocation}
                   center={mapAnchor ?? userLocation ?? [37.5, -119.5]}
                   flyToUserZoom={7}
+                  flyToTrigger={mapFlyToNonce}
                   homePosition={homeCoords}
                   showHomePin={isAwayFromHome && !!homeCoords}
                   shelters={HUMAN_EVAC_SHELTERS}
@@ -1626,6 +1685,7 @@ export function ConsumerHubDashboard({
           {/* ══ RIGHT — My alerts + quick actions ═════════════════════════════════════ */}
           <div
             id="my-alerts-panel"
+            data-hub-tour="alerts"
             ref={alertsPanelRef}
             className="flex min-h-0 min-w-0 flex-col shrink-0 border-l scroll-mt-4"
             style={{ width: `${rightPct}%`, minWidth: 220, borderColor: 'var(--wfa-border)', background: 'var(--wfa-panel-r)' }}
@@ -1634,11 +1694,11 @@ export function ConsumerHubDashboard({
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <Bell className="w-4 h-4 shrink-0" style={{ color: 'var(--wfa-accent)' }} />
-                  <span className="font-display font-bold text-sm truncate" style={{ color: 'var(--wfa-text)' }}>My alerts</span>
+                  <span className="font-display truncate text-lg font-bold" style={{ color: 'var(--wfa-text)' }}>My alerts</span>
                 </div>
-                <Link href="/dashboard/settings" className="text-[10px] font-semibold shrink-0" style={{ color: 'var(--wfa-accent)' }}>Settings</Link>
+                <Link href="/dashboard/settings" className="shrink-0 text-sm font-semibold" style={{ color: 'var(--wfa-accent)' }}>Settings</Link>
               </div>
-              <p className="text-[10px] mt-0.5" style={{ color: 'var(--wfa-text-40)' }}>
+              <p className="mt-0.5 text-xs" style={{ color: 'var(--wfa-text-40)' }}>
                 Fire list uses your saved home; shelters and hazards follow the map view
               </p>
             </div>
@@ -1651,221 +1711,30 @@ export function ConsumerHubDashboard({
                   workBuildingType={userProfile?.work_building_type}
                   workFloorFromProfile={userProfile?.work_floor_number ?? null}
                   mobilityNeeds={userProfile?.mobility_needs ?? null}
-                  mobilityAccessNeeds={userProfile?.mobility_access_needs ?? null}
                   onSaveFloor={saveWorkFloorToProfile}
                 />
               )}
-              <ProactiveBriefing {...flameoBriefingProps} variant="panel" />
-              {shouldShowShelterRoutes && flameo.context?.shelters_ranked && (
-                <ShelterRouteCard
-                  shelters={flameo.context.shelters_ranked}
-                  userLat={userLocHook.lat!}
-                  userLng={userLocHook.lng!}
-                  mapHref="/dashboard/home/map"
-                  wheelchairMode={wheelchairShelterMode}
-                />
-              )}
-              {awayHomeFlameoThreat && (
-                <div className="shrink-0 rounded-xl border-2 border-amber-300/90 bg-gradient-to-br from-white via-orange-50/80 to-amber-50/90 p-3 text-slate-900 shadow-sm">
-                  <div className="flex items-start gap-2.5">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src="/flameo1.png"
-                      alt=""
-                      width={36}
-                      height={36}
-                      className="shrink-0 rounded-lg border border-amber-200 bg-white object-contain shadow-sm"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[10px] font-bold uppercase tracking-widest text-amber-800">Away from home</div>
-                      <p className="mt-1 text-[11px] font-medium leading-snug text-slate-800">
-                        Flameo sees fire activity near your <strong>saved home</strong> while your location shows you elsewhere.
-                      </p>
-                      {nearestHomeThreat && (
-                        <p className="mt-1.5 text-[10px] text-slate-600">
-                          Closest to home: {nearestHomeThreat.name ?? 'Fire'} · {nearestHomeThreat.distance_miles.toFixed(1)} mi
-                        </p>
-                      )}
-                      <Link
-                        href={`${hubBase}?panel=alerts`}
-                        className="mt-2 inline-flex text-[10px] font-bold text-amber-800 hover:text-amber-950"
-                      >
-                        My alerts →
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {proactiveUi === 'hidden' && (
-                <>
-                  {flameo.loading && (
-                    <div
-                      className="h-20 shrink-0 animate-pulse rounded-xl border bg-white/80"
-                      style={{ borderColor: 'var(--wfa-border)' }}
-                      aria-hidden
-                    />
-                  )}
-                  {!flameo.loading && flameo.error && (
-                    <div className="shrink-0 rounded-xl border border-amber-200 bg-amber-50/90 p-3 text-[11px] text-amber-950">
-                      <span className="font-semibold">Flameo: </span>
-                      {flameo.error}
-                    </div>
-                  )}
-                  {!flameo.loading && !flameo.error && flameo.context && (
-                    <div className="shrink-0 rounded-xl border-2 border-amber-300/90 bg-gradient-to-br from-white via-orange-50/80 to-amber-50/90 p-3 text-slate-900 shadow-sm">
-                      <div className="flex items-start gap-2.5">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src="/flameo1.png"
-                          alt=""
-                          width={36}
-                          height={36}
-                          className="shrink-0 rounded-lg border border-amber-200 bg-white object-contain shadow-sm"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[10px] font-bold uppercase tracking-widest text-amber-800">Flameo</div>
-                          <p className="mt-1 text-[11px] font-medium leading-snug text-slate-800">
-                            {flameoGroundingBadgeText(flameo.context, flameo.status)
-                              ?? flameo.message
-                              ?? 'Safety context is active for your home address.'}
-                          </p>
-                          <Link
-                            href={`${hubBase}/ai`}
-                            className="mt-2 inline-flex text-[10px] font-bold text-amber-800 hover:text-amber-950"
-                          >
-                            Ask Flameo →
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-              {loading ? (
-                <div className="h-24 rounded-xl animate-pulse bg-gray-100" />
-              ) : topFire && stageMeta ? (
-                <div className="rounded-xl p-3 border border-orange-200 bg-orange-50/90">
-                  <div className="flex items-start gap-2">
-                    <Flame className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
-                    <div className="min-w-0">
-                      <div className="text-xs font-bold text-orange-950">{topFire.incident_name}</div>
-                      <span className="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: stageMeta.bg, color: stageMeta.text }}>{stage}</span>
-                      <p className="text-[11px] text-orange-900/85 mt-1.5 leading-snug">{stageMeta.action}</p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                !loading && (
-                  <div className="rounded-xl p-3 border bg-emerald-50/50 border-emerald-200">
-                    <div className="text-xs font-semibold text-emerald-900">No headline fire alert</div>
-                    <p className="text-[10px] text-emerald-800/80 mt-0.5">Your area is clear in our feed.</p>
-                  </div>
-                )
-              )}
-              {windData && (
-                <div className="rounded-xl p-2.5 border border-slate-200 bg-white text-[11px]">
-                  <span className="font-semibold text-slate-800">Wind {Math.round(windData.speedMph)} mph</span>
-                  <span className="text-slate-500 ml-2">Spread direction on map</span>
-                </div>
-              )}
-              {aiLoading && (
-                <div className="text-[11px] text-gray-500 animate-pulse">Preparing AI summary…</div>
-              )}
-              {aiError && (
-                <div className="rounded-lg px-2.5 py-2 text-[11px] bg-amber-50 border border-amber-100 text-amber-900">{aiError}</div>
-              )}
-              {aiSummary && (
-                <div className="rounded-xl p-3 border border-violet-200 bg-violet-50/90">
-                  <div className="text-[10px] font-bold uppercase text-violet-800">AI summary</div>
-                  <div className="font-semibold text-sm mt-0.5" style={{ color: 'var(--wfa-text)' }}>{aiSummary.headline}</div>
-                  <ul className="mt-2 space-y-1 text-[11px] text-gray-700 list-disc pl-4">
-                    {aiSummary.bullets.slice(0, 5).map((b, i) => (
-                      <li key={i}>{b}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {homeAnchorForAlerts && proximityItems.length > 0 && (
-                <div>
-                  <div className="text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: 'var(--wfa-text)' }}>
-                    {isViewingMember && activePerson
-                      ? `Fires near ${activePerson.name.split(' ')[0]}'s address`
-                      : 'Fires near home'}
-                  </div>
-                  <div className="space-y-1.5">
-                    {proximityItems.slice(0, 8).map(f => (
-                      <div key={f.id} className="rounded-lg px-2.5 py-1.5 text-[11px] bg-orange-50 border border-orange-100">
-                        <div className="font-medium truncate" style={{ color: 'var(--wfa-text)' }}>{f.fire_name}</div>
-                        <div className="text-gray-500">
-                          {f.distanceKm < 1 ? `${Math.round(f.distanceKm * 1000)} m` : `${f.distanceKm.toFixed(1)} km`} away
-                          {f.containment != null ? ` · ${f.containment}% contained` : ''}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-[10px] text-gray-400 mt-1">Within {alertRadiusMiles} mi (NIFC) · adjust in Settings</p>
-                </div>
-              )}
-              {!!nearestSheltersList.length && (
-                <div>
-                  <div className="text-[11px] font-bold uppercase tracking-wide mb-1.5 flex items-center gap-1" style={{ color: 'var(--wfa-text)' }}>
-                    <Heart className="w-3.5 h-3.5 text-emerald-600" />Nearest shelters
-                  </div>
-                  <div className="space-y-1.5">
-                    {nearestSheltersList.map(s => {
-                      const d = mapAnchor ? distanceMiles(mapAnchor, [s.lat, s.lng]) : null
-                      return (
-                        <div key={s.id} className="rounded-lg px-2.5 py-1.5 text-[11px] bg-emerald-50/50 border border-emerald-100">
-                          <div className="font-medium text-emerald-950">{s.name}</div>
-                          <div className="text-emerald-800/80">{s.county}{d != null ? ` · ${d.toFixed(0)} mi` : ''}</div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-              {!!nearestHazardsList.length && (
-                <div>
-                  <div className="text-[11px] font-bold uppercase tracking-wide mb-1.5 flex items-center gap-1" style={{ color: 'var(--wfa-text)' }}>
-                    <Factory className="w-3.5 h-3.5 text-amber-600" />Hazard sites
-                  </div>
-                  <div className="space-y-1.5">
-                    {nearestHazardsList.map(h => {
-                      const d = mapAnchor ? distanceMiles(mapAnchor, [h.lat, h.lng]) : null
-                      return (
-                        <div key={h.id} className="rounded-lg px-2.5 py-1.5 text-[11px] bg-amber-50/40 border border-amber-100">
-                          <div className="font-medium text-amber-950">{h.name}</div>
-                          <div className="text-amber-900/70">{h.county}, {h.state}{d != null ? ` · ${d.toFixed(0)} mi` : ''}</div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-              {!mapAnchor && (
-                <div className="text-[11px] text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-2">
-                  Add your <strong>home address</strong> in{' '}
-                  <Link href="/dashboard/settings" className="underline font-medium">Settings</Link> to center the map and automate alerts.
-                </div>
-              )}
-              <div className="rounded-xl p-3 border bg-white" style={{ borderColor: 'var(--wfa-border)' }}>
-                <div className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--wfa-text)' }}>Quick actions</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Link href={checkinHref} className="flex flex-col items-center text-center p-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-[11px] font-semibold">
-                    <CheckCircle className="w-4 h-4 text-emerald-600 mb-0.5" />
-                    {isViewingMember ? `Ping ${activePerson!.name.split(' ')[0]}` : 'Check in safe'}
-                  </Link>
-                  <a href="tel:911" className="flex flex-col items-center text-center p-2 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-[11px] font-semibold text-red-800">
-                    <Phone className="w-4 h-4 mb-0.5" />Call 911
-                  </a>
-                </div>
-              </div>
+              <FlameoSituationRoom
+                flameoContext={flameo.context}
+                flameoStatus={flameo.status}
+                flameoBriefing={briefingText}
+                flameoLoading={flameo.loading}
+                flameoError={flameo.error}
+                userLat={userLocHook.lat}
+                userLng={userLocHook.lng}
+                detectedAnchor={userLocHook.detected_anchor ?? 'home'}
+                myPeople={situationRoomPeople}
+                wheelchairMode={hasWheelchairNeed}
+                onAskFlameo={() => router.push(`${hubBase}/ai`)}
+              />
             </div>
           </div>
 
         </div>
       </div>
       )}
+
+      {unifiedHub && pathname === '/dashboard/home' && <FlameoHubTour active />}
     </div>
   )
 }

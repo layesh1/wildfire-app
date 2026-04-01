@@ -100,10 +100,10 @@ const STAT_IMPACT = [
 
 function SeverityBadge({ s }: { s: string }) {
   const map: Record<string, string> = {
-    critical: 'bg-red-100 text-red-700 border-red-200',
-    high:     'bg-amber-100 text-amber-700 border-amber-200',
-    medium:   'bg-yellow-100 text-yellow-700 border-yellow-200',
-    low:      'bg-gray-100 text-gray-600 border-gray-200',
+    critical: 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800',
+    high:     'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+    medium:   'bg-yellow-100 dark:bg-yellow-950/40 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800',
+    low:      'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700',
   }
   return <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold uppercase ${map[s]}`}>{s}</span>
 }
@@ -113,37 +113,37 @@ export default function DataHealthPage() {
   const maxYear = Math.max(...YEAR_DATA.map(d => d.total))
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6 max-w-5xl mx-auto text-gray-700 dark:text-gray-300">
       {/* Header */}
       <div className="mb-6">
-        <div className="flex items-center gap-2 text-blue-600 text-xs font-semibold uppercase tracking-widest mb-2">
+        <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 text-xs font-semibold uppercase tracking-widest mb-2">
           <Database className="w-4 h-4" /> DATA HEALTH · ANALYST
         </div>
-        <h1 className="font-display text-3xl font-bold text-gray-900 mb-2">Data Quality & Accuracy Report</h1>
-        <p className="text-gray-500 text-sm">Verified statistics from <code className="bg-gray-100 px-1 rounded text-xs">fire_events_enriched.csv</code> — 90 columns, computed 2026-03-16 from all 9 raw datasets.</p>
+        <h1 className="font-display text-3xl font-bold text-gray-900 dark:text-white mb-2">Data Quality & Accuracy Report</h1>
+        <p className="text-gray-500 dark:text-gray-400 text-sm">Verified statistics from <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded text-xs text-gray-800 dark:text-gray-300">fire_events_enriched.csv</code> — 90 columns, computed 2026-03-16 from all 9 raw datasets.</p>
       </div>
 
       {/* Top KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {[
-          { value: '62,696', label: 'Raw records', sub: '2021–2025', color: 'text-gray-900' },
+          { value: '62,696', label: 'Raw records', sub: '2021–2025', color: 'text-gray-900 dark:text-white' },
           { value: '11,115', label: 'Prescribed burns excluded', sub: '17.7% of all records', color: 'text-amber-600' },
           { value: '50,664', label: 'True wildfires', sub: 'Basis for all analysis', color: 'text-forest-600' },
           { value: '9', label: 'Raw datasets joined', sub: 'WatchDuty + CDC SVI', color: 'text-blue-600' },
         ].map(s => (
           <div key={s.label} className="card p-5">
             <div className={`font-display text-3xl font-bold ${s.color}`}>{s.value}</div>
-            <div className="text-gray-700 text-sm font-medium mt-1">{s.label}</div>
-            <div className="text-gray-400 text-xs mt-0.5">{s.sub}</div>
+            <div className="text-gray-700 dark:text-gray-300 text-sm font-medium mt-1">{s.label}</div>
+            <div className="text-gray-400 dark:text-gray-500 text-xs mt-0.5">{s.sub}</div>
           </div>
         ))}
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b border-gray-200">
+      <div className="flex gap-1 mb-6 border-b border-gray-200 dark:border-gray-700">
         {(['overview', 'completeness', 'issues', 'impact'] as const).map(t => (
           <button key={t} onClick={() => setActiveTab(t)}
-            className={`px-4 py-2.5 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${activeTab === t ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-900'}`}>
+            className={`px-4 py-2.5 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${activeTab === t ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>
             {t === 'issues' ? `Known Issues (${KNOWN_ISSUES.length})` : t === 'impact' ? 'Prescribed Burn Impact' : t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
@@ -154,18 +154,18 @@ export default function DataHealthPage() {
         <div className="space-y-6">
           <div className="card p-5">
             <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="w-4 h-4 text-gray-400" />
-              <h2 className="text-gray-900 font-semibold text-sm">Data Growth by Year — True Wildfires</h2>
+              <TrendingUp className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+              <h2 className="text-gray-900 dark:text-white font-semibold text-sm">Data Growth by Year — True Wildfires</h2>
             </div>
-            <p className="text-gray-500 text-xs mb-5">
+            <p className="text-gray-500 dark:text-gray-400 text-xs mb-5">
               WatchDuty was a new app in 2021 — only 113 wildfire records that year. Coverage grew dramatically as user base expanded.
               <strong className="text-amber-600"> Do not compare 2021–2022 data to later years.</strong>
             </p>
             <div className="space-y-3">
               {YEAR_DATA.map(row => (
                 <div key={row.year} className="flex items-center gap-3">
-                  <span className="text-gray-600 text-sm font-mono w-10">{row.year}</span>
-                  <div className="flex-1 bg-gray-100 rounded-full h-6 overflow-hidden relative">
+                  <span className="text-gray-600 dark:text-gray-400 text-sm font-mono w-10">{row.year}</span>
+                  <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-full h-6 overflow-hidden relative">
                     <div
                       className={`h-full rounded-full flex items-center justify-end pr-2 transition-all ${row.total < 1000 ? 'bg-amber-400' : 'bg-blue-500'}`}
                       style={{ width: `${Math.max(2, (row.total / maxYear) * 100)}%` }}
@@ -183,8 +183,8 @@ export default function DataHealthPage() {
             </div>
             <div className="mt-4 space-y-2">
               {YEAR_DATA.map(row => (
-                <div key={row.year} className="flex gap-2 text-xs text-gray-400">
-                  <span className="font-mono text-gray-500 shrink-0">{row.year}:</span>
+                <div key={row.year} className="flex gap-2 text-xs text-gray-500 dark:text-gray-400">
+                  <span className="font-mono text-gray-600 dark:text-gray-500 shrink-0">{row.year}:</span>
                   <span>{row.note}</span>
                 </div>
               ))}
@@ -218,12 +218,12 @@ export default function DataHealthPage() {
                 { name: 'fire_perimeters_gis_fireperimeter', rows: '6,206',    used: 'Official NIFC fire boundary polygons + IRWINID' },
                 { name: 'SVI_2022_US_county',               rows: '3,144',     used: '39 columns: SVI sub-themes, race, internet, language, housing' },
               ].map(r => (
-                <div key={r.name} className="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
+                <div key={r.name} className="flex items-center gap-3 py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
                   <div className="flex-1">
-                    <code className="text-xs text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">{r.name}</code>
+                    <code className="text-xs text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 px-1.5 py-0.5 rounded">{r.name}</code>
                   </div>
-                  <span className="text-gray-400 text-xs font-mono w-20 text-right">{r.rows}</span>
-                  <span className="text-gray-500 text-xs w-72 text-right">{r.used}</span>
+                  <span className="text-gray-400 dark:text-gray-500 text-xs font-mono w-20 text-right">{r.rows}</span>
+                  <span className="text-gray-500 dark:text-gray-400 text-xs w-72 text-right">{r.used}</span>
                 </div>
               ))}
             </div>
@@ -236,32 +236,32 @@ export default function DataHealthPage() {
         <div className="card overflow-hidden">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="px-5 py-3 text-left text-gray-500 text-xs uppercase tracking-wider">Field</th>
-                <th className="px-5 py-3 text-left text-gray-500 text-xs uppercase tracking-wider">Source Dataset</th>
-                <th className="px-5 py-3 text-left text-gray-500 text-xs uppercase tracking-wider">Coverage</th>
-                <th className="px-5 py-3 text-left text-gray-500 text-xs uppercase tracking-wider">Status</th>
+              <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                <th className="px-5 py-3 text-left text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Field</th>
+                <th className="px-5 py-3 text-left text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Source Dataset</th>
+                <th className="px-5 py-3 text-left text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Coverage</th>
+                <th className="px-5 py-3 text-left text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
               {FIELD_COMPLETENESS.map(f => {
                 const Icon = f.pct === 100 ? CheckCircle : f.pct > 50 ? AlertTriangle : XCircle
                 const color = f.pct === 100 ? 'text-green-600' : f.pct > 50 ? 'text-amber-500' : 'text-red-500'
                 const barColor = f.pct === 100 ? 'bg-green-500' : f.pct > 50 ? 'bg-amber-400' : 'bg-red-400'
                 return (
-                  <tr key={f.field} className="hover:bg-gray-50 transition-colors">
+                  <tr key={f.field} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors">
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
-                        <code className="text-xs text-gray-700">{f.field}</code>
+                        <code className="text-xs text-gray-700 dark:text-gray-300">{f.field}</code>
                         {f.critical && <span className="text-xs text-red-600 font-medium">critical</span>}
                       </div>
                     </td>
                     <td className="px-5 py-3">
-                      <span className="text-gray-400 text-xs">{f.source}</span>
+                      <span className="text-gray-400 dark:text-gray-500 text-xs">{f.source}</span>
                     </td>
                     <td className="px-5 py-3 w-48">
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-gray-100 rounded-full h-2">
+                        <div className="flex-1 bg-gray-100 dark:bg-gray-800 rounded-full h-2">
                           <div className={`h-2 rounded-full ${barColor}`} style={{ width: `${f.pct}%` }} />
                         </div>
                         <span className={`text-xs font-mono font-bold ${color}`}>{f.pct.toFixed(1)}%</span>
@@ -275,8 +275,8 @@ export default function DataHealthPage() {
               })}
             </tbody>
           </table>
-          <div className="px-5 py-3 bg-gray-50 border-t border-gray-200">
-            <p className="text-gray-500 text-xs">
+          <div className="px-5 py-3 bg-gray-50 dark:bg-gray-800/80 border-t border-gray-200 dark:border-gray-700">
+            <p className="text-gray-500 dark:text-gray-400 text-xs">
               Low coverage on <code>first_order_at</code> (1.3%) is expected — only 1.3% of true wildfires ever received a formal evacuation order.
               Low <code>last_spread_rate</code> (13.6%) reflects that radio-reported spread is only captured for significant fires.
             </p>
@@ -288,15 +288,15 @@ export default function DataHealthPage() {
       {activeTab === 'issues' && (
         <div className="space-y-4">
           {KNOWN_ISSUES.map((issue, i) => (
-            <div key={i} className={`card p-5 border ${issue.severity === 'critical' ? 'border-red-200 bg-red-50' : issue.severity === 'high' ? 'border-amber-200 bg-amber-50' : 'border-gray-200'}`}>
+            <div key={i} className={`card p-5 border ${issue.severity === 'critical' ? 'border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30' : issue.severity === 'high' ? 'border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30' : 'border-gray-200 dark:border-gray-700'}`}>
               <div className="flex items-start gap-3">
                 <div className="mt-0.5"><SeverityBadge s={issue.severity} /></div>
                 <div className="flex-1">
-                  <div className="text-gray-900 font-semibold text-sm mb-1">{issue.title}</div>
-                  <p className="text-gray-600 text-sm leading-relaxed mb-2">{issue.detail}</p>
+                  <div className="text-gray-900 dark:text-white font-semibold text-sm mb-1">{issue.title}</div>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-2">{issue.detail}</p>
                   <div className="flex items-start gap-1.5">
                     <CheckCircle className="w-3.5 h-3.5 text-green-600 mt-0.5 shrink-0" />
-                    <span className="text-green-700 text-xs font-medium">{issue.fix}</span>
+                    <span className="text-green-700 dark:text-green-400 text-xs font-medium">{issue.fix}</span>
                   </div>
                 </div>
               </div>
@@ -308,12 +308,12 @@ export default function DataHealthPage() {
       {/* Tab: Prescribed Burn Impact */}
       {activeTab === 'impact' && (
         <div className="space-y-6">
-          <div className="card p-5 border border-amber-200 bg-amber-50">
+          <div className="card p-5 border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30">
             <div className="flex items-start gap-3">
-              <FlaskConical className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <FlaskConical className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <div>
-                <div className="text-amber-800 font-semibold text-sm mb-1">Why This Matters</div>
-                <p className="text-amber-700 text-sm leading-relaxed">
+                <div className="text-amber-800 dark:text-amber-300 font-semibold text-sm mb-1">Why This Matters</div>
+                <p className="text-amber-700 dark:text-amber-200/90 text-sm leading-relaxed">
                   Prescribed burns are intentionally set fires used for land management. They are NOT emergencies — evacuations are pre-planned and communities are informed in advance.
                   Including them in wildfire analysis inflates "no evacuation order" rates and makes the signal gap problem appear even larger than it actually is.
                   The analysis below shows the corrected figures with and without prescribed burns.
@@ -325,24 +325,24 @@ export default function DataHealthPage() {
           <div className="card overflow-hidden">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="px-5 py-3 text-left text-gray-500 text-xs uppercase tracking-wider">Metric</th>
-                  <th className="px-5 py-3 text-center text-gray-500 text-xs uppercase tracking-wider">All Records (incl. prescribed)</th>
-                  <th className="px-5 py-3 text-center text-gray-500 text-xs uppercase tracking-wider">True Wildfires Only</th>
-                  <th className="px-5 py-3 text-center text-gray-500 text-xs uppercase tracking-wider">Change</th>
+                <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                  <th className="px-5 py-3 text-left text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Metric</th>
+                  <th className="px-5 py-3 text-center text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">All Records (incl. prescribed)</th>
+                  <th className="px-5 py-3 text-center text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">True Wildfires Only</th>
+                  <th className="px-5 py-3 text-center text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider">Change</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {STAT_IMPACT.map((r, i) => (
-                  <tr key={i} className="hover:bg-gray-50">
-                    <td className="px-5 py-4 text-gray-800 text-sm font-medium">{r.metric}</td>
-                    <td className="px-5 py-4 text-center text-gray-500 font-mono text-sm">{r.all}</td>
-                    <td className="px-5 py-4 text-center font-mono text-sm font-bold text-gray-900">{r.wildfire}</td>
+                  <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/60">
+                    <td className="px-5 py-4 text-gray-800 dark:text-gray-200 text-sm font-medium">{r.metric}</td>
+                    <td className="px-5 py-4 text-center text-gray-500 dark:text-gray-400 font-mono text-sm">{r.all}</td>
+                    <td className="px-5 py-4 text-center font-mono text-sm font-bold text-gray-900 dark:text-white">{r.wildfire}</td>
                     <td className="px-5 py-4 text-center">
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                        r.severity === 'critical' ? 'bg-red-100 text-red-700'
-                        : r.severity === 'warn'   ? 'bg-amber-100 text-amber-700'
-                        : 'bg-green-100 text-green-700'
+                        r.severity === 'critical' ? 'bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300'
+                        : r.severity === 'warn'   ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300'
+                        : 'bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300'
                       }`}>{r.change}</span>
                     </td>
                   </tr>
@@ -352,7 +352,7 @@ export default function DataHealthPage() {
           </div>
 
           <div className="card p-5">
-            <h2 className="text-gray-900 font-semibold text-sm mb-3">Recommended Standard for All Analysis</h2>
+            <h2 className="text-gray-900 dark:text-white font-semibold text-sm mb-3">Recommended Standard for All Analysis</h2>
             <div className="space-y-2">
               {[
                 { icon: CheckCircle, text: 'Always filter: is_true_wildfire = 1 (excludes 11,115 prescribed burns)', color: 'text-green-600' },
@@ -364,7 +364,7 @@ export default function DataHealthPage() {
               ].map((item, i) => (
                 <div key={i} className="flex items-start gap-2">
                   <item.icon className={`w-4 h-4 ${item.color} shrink-0 mt-0.5`} />
-                  <span className="text-gray-700 text-sm">{item.text}</span>
+                  <span className="text-gray-700 dark:text-gray-300 text-sm">{item.text}</span>
                 </div>
               ))}
             </div>

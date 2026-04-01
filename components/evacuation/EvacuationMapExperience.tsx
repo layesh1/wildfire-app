@@ -15,6 +15,7 @@ import { HAZARD_FACILITIES } from '@/lib/hazard-facilities'
 import { distanceMiles } from '@/lib/hub-map-distance'
 import { useConsumerAlerts } from '@/hooks/useConsumerAlerts'
 import { geocodeAddressClient } from '@/lib/geocoding-client'
+import { coerceAlertRadiusToChip, DEFAULT_ALERT_RADIUS_MILES } from '@/lib/alert-radius'
 const LeafletMap = dynamic(() => import('@/app/dashboard/caregiver/map/LeafletMap'), { ssr: false })
 
 class MapErrorBoundary extends Component<{ children: ReactNode }, { crashed: boolean }> {
@@ -78,10 +79,10 @@ export default function EvacuationMapExperience({
   const [showFacilities, setShowFacilities] = useState(true)
   const [windData, setWindData] = useState<WindData | null>(null)
   const [locatingMap, setLocatingMap] = useState(false)
+  const [flyToNonce, setFlyToNonce] = useState(0)
   const [drawerOpen, setDrawerOpen] = useState(!mobile)
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [radiusMiles, setRadiusMiles] = useState(25)
-  const [aiEnabled, setAiEnabled] = useState(false)
+  const [radiusMiles, setRadiusMiles] = useState(DEFAULT_ALERT_RADIUS_MILES)
 
   const { mode, activePerson, setMode, setActivePerson } = useRoleContext()
   const isViewingMember = mode === 'member' && activePerson !== null
@@ -210,7 +211,6 @@ export default function EvacuationMapExperience({
     nifc,
     homeAnchorForAlerts,
     radiusMiles,
-    aiEnabled,
     homeLabelForAi
   )
 
@@ -265,27 +265,34 @@ export default function EvacuationMapExperience({
 
   const supabase = createClient()
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        pos => {
-          const lat = pos.coords.latitude
-          const lon = pos.coords.longitude
-          if (Number.isFinite(lat) && Number.isFinite(lon)) setUserLocation([lat, lon])
-        },
-        () => {}
-      )
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { getBestGeolocationPosition } = await import('@/lib/geolocation-accuracy')
+        const pos = await getBestGeolocationPosition()
+        if (cancelled) return
+        const lat = pos.coords.latitude
+        const lon = pos.coords.longitude
+        if (Number.isFinite(lat) && Number.isFinite(lon)) setUserLocation([lat, lon])
+      } catch {
+        /* ignore */
+      }
+    })()
+    return () => {
+      cancelled = true
     }
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       const { data: prof } = await supabase
         .from('profiles')
-        .select('address, alert_radius_miles, alerts_ai_enabled')
+        .select('address, alert_radius_miles')
         .eq('id', user.id)
         .single()
       setUserProfile({ address: prof?.address ?? null })
-      if (prof?.alert_radius_miles != null) setRadiusMiles(Number(prof.alert_radius_miles))
-      if (prof?.alerts_ai_enabled != null) setAiEnabled(!!prof.alerts_ai_enabled)
+      if (prof?.alert_radius_miles != null) {
+        setRadiusMiles(coerceAlertRadiusToChip(Number(prof.alert_radius_miles)))
+      }
       const p = await loadPersons(supabase, user.id)
       setPersons(p as MonitoredPerson[])
       const nifcRes = await fetch('/api/fires/nifc').catch(() => null)
@@ -297,19 +304,22 @@ export default function EvacuationMapExperience({
     load()
   }, [supabase])
 
-  function locateOnMap() {
-    if (!navigator.geolocation) return
+  async function locateOnMap() {
     setLocatingMap(true)
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        const lat = pos.coords.latitude
-        const lon = pos.coords.longitude
-        if (Number.isFinite(lat) && Number.isFinite(lon)) setUserLocation([lat, lon])
-        setLocatingMap(false)
-      },
-      () => setLocatingMap(false),
-      { timeout: 10000 }
-    )
+    try {
+      const { getBestGeolocationPosition } = await import('@/lib/geolocation-accuracy')
+      const pos = await getBestGeolocationPosition()
+      const lat = pos.coords.latitude
+      const lon = pos.coords.longitude
+      if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        setUserLocation([lat, lon])
+        setFlyToNonce(n => n + 1)
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setLocatingMap(false)
+    }
   }
 
   async function refreshNifc() {
@@ -487,6 +497,7 @@ export default function EvacuationMapExperience({
         userLocation={userLocation}
         center={mapAnchor ?? userLocation ?? [37.5, -119.5]}
         flyToUserZoom={7}
+        flyToTrigger={flyToNonce}
         homePosition={homeCoords}
         showHomePin={isAwayFromHome && !!homeCoords}
         shelters={HUMAN_EVAC_SHELTERS}

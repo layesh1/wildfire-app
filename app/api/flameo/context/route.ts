@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { distanceMiles } from '@/lib/hub-map-distance'
 import { HUMAN_EVAC_SHELTERS } from '@/lib/evac-shelters'
+import { HAZARD_FACILITIES } from '@/lib/hazard-facilities'
 import { geocodeAddress } from '@/lib/geocoding'
 import { reverseGeocode } from '@/lib/geocoding'
 import { rankSheltersByProximity } from '@/lib/shelter-ranking'
@@ -66,6 +67,7 @@ function emptyContext(role: FlameoUserRole, radius: number): FlameoContext {
     role,
     anchors: [],
     incidents_nearby: [],
+    hazard_sites_nearby: [],
     shelters_nearby: [],
     shelters_ranked: [],
     weather_summary: null,
@@ -92,7 +94,7 @@ export async function GET(request: NextRequest) {
   const { data: profile } = await supabase
     .from('profiles')
     .select(
-      'address, alert_radius_miles, role, work_address, work_building_type, work_floor_number, work_location_note, mobility_needs'
+      'address, alert_radius_miles, role, work_address, work_building_type, work_floor_number, work_location_note, mobility_needs, health_data_consent, location_sharing_consent, evacuation_status_consent'
     )
     .eq('id', user.id)
     .single()
@@ -118,8 +120,12 @@ export async function GET(request: NextRequest) {
     (profile as { work_location_note?: string | null }).work_location_note ?? null
   const mobilityNeeds =
     (profile as { mobility_needs?: string[] | null }).mobility_needs ?? null
+  const healthDataConsent =
+    (profile as { health_data_consent?: boolean | null }).health_data_consent === true
+  /** Responder RPC `profiles_visible_to_responder()` uses `responder_data_consent` (see migrations); not used by this route. */
   const prefersAccessibleShelter =
-    Array.isArray(mobilityNeeds)
+    healthDataConsent
+    && Array.isArray(mobilityNeeds)
     && mobilityNeeds.some(x => /\b(wheelchair|mobility|device)\b/i.test(String(x)))
 
   let address = (profile?.address || '').trim()
@@ -273,6 +279,19 @@ export async function GET(request: NextRequest) {
     dualForIncidents = false
   }
 
+  const hazard_sites_nearby = HAZARD_FACILITIES
+    .map(h => ({
+      id: h.id,
+      name: h.name,
+      type: h.type,
+      lat: h.lat,
+      lon: h.lng,
+      distance_miles: Math.round(distanceMiles(refA, [h.lat, h.lng]) * 10) / 10,
+      risk_note: h.riskNote,
+    }))
+    .filter(h => h.distance_miles <= alertRadiusMiles)
+    .sort((a, b) => a.distance_miles - b.distance_miles)
+
   // Grounding for shelter-oriented Flameo requests: only vetted human evacuation shelters.
   const shelterOrigin: [number, number] = refB ?? refA
   const shelters_nearby = HUMAN_EVAC_SHELTERS
@@ -400,6 +419,11 @@ export async function GET(request: NextRequest) {
           originLng: shelterOrigin[1],
           shelters: rankedByTravel.slice(0, 6).map(s => ({ name: s.name, lat: s.lat, lng: s.lng })),
           firePerimeter: firePerimeter.length >= 3 ? firePerimeter : undefined,
+          hazardSites: hazard_sites_nearby.map(h => ({
+            lat: h.lat,
+            lng: h.lon,
+            buffer_miles: 0.5,
+          })),
         }),
         cache: 'no-store',
       })
@@ -410,6 +434,7 @@ export async function GET(request: NextRequest) {
           distance_meters: number
           summary: string
           passes_near_fire: boolean
+          passes_near_hazard?: boolean
         }>
       }
       const routeRows = Array.isArray(routeJson.ranked) ? routeJson.ranked : []
@@ -425,6 +450,7 @@ export async function GET(request: NextRequest) {
           distance_miles: Math.round(((r.distance_meters || 0) / 1609.344) * 10) / 10,
           route_summary: r.summary || 'Primary route',
           route_avoids_fire: !r.passes_near_fire,
+          passes_near_hazard: r.passes_near_hazard ?? false,
           accessibility_likely: match?.accessibilityLikely ?? false,
           phone: match?.phone ?? null,
         }
@@ -438,6 +464,7 @@ export async function GET(request: NextRequest) {
         distance_miles: Math.round((s.travelDistanceMeters / 1609.344) * 10) / 10,
         route_summary: 'Primary route',
         route_avoids_fire: true,
+        passes_near_hazard: false,
         accessibility_likely: s.accessibilityLikely,
         phone: s.phone ?? null,
       }))
@@ -455,6 +482,8 @@ export async function GET(request: NextRequest) {
       weather_summary = {
         temp_f: w.temp_f ?? null,
         wind_mph: w.wind_mph ?? null,
+        wind_dir: typeof w.wind_dir === 'string' ? w.wind_dir : null,
+        wind_dir_deg: typeof w.wind_dir_deg === 'number' ? w.wind_dir_deg : null,
         fire_risk: typeof w.fire_risk === 'string' ? w.fire_risk : 'Unknown',
       }
     }
@@ -495,6 +524,7 @@ export async function GET(request: NextRequest) {
     role,
     anchors,
     incidents_nearby,
+    hazard_sites_nearby,
     shelters_nearby,
     shelters_ranked,
     weather_summary,

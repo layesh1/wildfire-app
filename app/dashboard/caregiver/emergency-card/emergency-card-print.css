@@ -1,0 +1,91 @@
+/* Emergency card — print/PDF. Imported by emergency-card page.
+   html.wfa-print-emergency-card is toggled on mount (client). */
+
+@page {
+  size: 4in 6in;
+  margin: 0.35in;
+}
+
+@media print {
+  html.wfa-print-emergency-card .wfa-dashboard-typography > div:first-child {
+    display: none !important;
+  }
+
+  html.wfa-print-emergency-card main {
+    padding-left: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  html.wfa-print-emergency-card main > div:first-child {
+    display: none !important;
+  }
+
+  html.wfa-print-emergency-card div.fixed.z-\[9999\] {
+    display: none !important;
+  }
+
+  html.wfa-print-emergency-card [data-tour="flameo-fab"] {
+    display: none !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  #emergency-card-print {
+    display: block !important;
+    width: 100% !important;
+    max-width: 4in !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: white !important;
+    color: #000 !important;
+    border: 1px solid #000 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  #emergency-card-print * {
+    background: white !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  #emergency-card-print .ec-print-hide {
+    display: none !important;
+  }
+
+  /* Critical section: red left rule (prints if browser honors borders) */
+  #emergency-card-print .ec-critical-print {
+    border-left: 4px solid #b91c1c !important;
+    padding-left: 0.5rem !important;
+    background: white !important;
+  }
+
+  #emergency-card-print .ec-header-print {
+    border-bottom: 1px solid #000 !important;
+    background: white !important;
+  }
+
+  #emergency-card-print .ec-section-divider {
+    border-top: 1px solid #000 !important;
+    background: transparent !important;
+  }
+
+  #emergency-card-print .ec-num-grid > div {
+    border: 1px solid #000 !important;
+    background: white !important;
+  }
+}

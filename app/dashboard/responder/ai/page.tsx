@@ -1,6 +1,8 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import { Send, AlertTriangle, Flame } from 'lucide-react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { ChevronLeft, Send, AlertTriangle, Flame } from 'lucide-react'
 import { FlameoActionChips, type Chip } from '@/components/flameo/FlameoActionChips'
 import { commandIntelActionsToChips, partitionAiActions } from '@/lib/flameo-phase-c-client'
 import { useFlameoContext } from '@/hooks/useFlameoContext'
@@ -59,6 +61,8 @@ const STARTERS = [
 ]
 
 export default function ResponderFlameoAiPage() {
+  const pathname = usePathname()
+  const isMobileAiFullScreen = pathname?.startsWith('/m/') && pathname.includes('/responder/ai')
   const flameo = useFlameoContext({ role: 'emergency_responder' })
   const { setPayload: setFlameoHubAgentPayload } = useFlameoHubAgentBridge()
 
@@ -118,9 +122,19 @@ export default function ResponderFlameoAiPage() {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 w-full md:min-h-[calc(100dvh-5.5rem)]">
-      <div className="px-4 sm:px-8 py-4 sm:py-5 border-b border-gray-200 bg-white flex items-center gap-3 shrink-0">
-        <div className="w-9 h-9 rounded-xl bg-forest-50 border border-forest-200 flex items-center justify-center">
+    <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3 border-b border-gray-200 bg-white px-3 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-8 sm:py-5">
+        {isMobileAiFullScreen && (
+          <Link
+            href="/m/dashboard/responder"
+            className="inline-flex shrink-0 items-center gap-0.5 text-sm font-semibold text-forest-700"
+            aria-label="Back to Command"
+          >
+            <ChevronLeft className="h-5 w-5 shrink-0" />
+            <span className="text-xs sm:text-sm">Command</span>
+          </Link>
+        )}
+        <div className="w-9 h-9 rounded-xl bg-forest-50 border border-forest-200 flex items-center justify-center shrink-0">
           <Flame className="w-5 h-5 text-forest-700" />
         </div>
         <div className="min-w-0 flex-1">

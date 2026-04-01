@@ -57,7 +57,10 @@ function PostLoginRedirect() {
         await supabase.from('profiles').update({ role: intendedRole }).eq('id', user.id)
         router.replace(ROLE_DESTINATIONS[intendedRole] ?? '/dashboard')
       } else if (PROTECTED_ROLES.includes(intendedRole)) {
-        // Needs invite code verification
+        // Needs invite code verification — gate /auth/add-role against cold links
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('wfa_allow_add_role', intendedRole)
+        }
         router.replace(`/auth/add-role?role=${intendedRole}`)
       } else {
         // Open role — add it

@@ -7,6 +7,16 @@ import AddressVerifySave from '@/components/AddressVerifySave'
 import { looksLikeUsStreetAddress } from '@/components/AddressAutocomplete'
 import { type WorkBuildingType, workBuildingNeedsFloor } from '@/lib/profile-work-location'
 import { detectBuildingType } from '@/lib/geocoding'
+import {
+  MOBILITY_MOVEMENT_OPTIONS,
+  DISABILITY_OPTIONS,
+  MEDICAL_OPTIONS,
+  DISABILITY_OTHER_LABEL,
+  MEDICAL_OTHER_LABEL,
+  MAX_OTHER_WORDS,
+  wordCount,
+  clampToMaxWords,
+} from '@/lib/profile-mobility-options'
 
 const ROLES = [
   {
@@ -56,37 +66,8 @@ const ROLE_DESTINATIONS: Record<string, string> = {
   evacuee: '/dashboard/evacuee',
 }
 
-const MOBILITY_MOVEMENT_OPTIONS = [
-  'Uses wheelchair or mobility device',
-  'Uses walker or cane',
-  'Cannot climb stairs',
-  'Cannot walk long distances',
-  'Requires assistance to evacuate',
-  'Bedridden or limited mobility',
-] as const
-
-const DISABILITY_OPTIONS = [
-  'Visual impairment or blind',
-  'Hearing impairment or deaf',
-  'Cognitive or developmental disability',
-  'Mental health condition affecting emergency response',
-  'Other',
-] as const
-
-const MEDICAL_OPTIONS = [
-  'Requires oxygen or ventilator',
-  'Requires dialysis',
-  'Has pacemaker or cardiac device',
-  'Diabetes — insulin dependent',
-  'Severe allergies',
-  'Other medications or conditions',
-] as const
-
-const DISABILITY_OTHER_LABEL = 'Other'
-const MEDICAL_OTHER_LABEL = 'Other medications or conditions'
-
 function chipClass(active: boolean) {
-  return `rounded-full px-3 py-1.5 text-xs border transition text-left ${
+  return `rounded-full px-3 py-1.5 text-sm border transition text-left ${
     active
       ? 'bg-ember-500/25 border-ember-500 text-white'
       : 'border-ash-600 text-ash-300 hover:border-ash-500'
@@ -100,13 +81,13 @@ function inp(value: string, onChange: (v: string) => void, placeholder: string, 
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
+      className="w-full bg-ash-800 text-white text-base rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
     />
   )
 }
 
 function Label({ children }: { children: React.ReactNode }) {
-  return <label className="block text-ash-300 text-xs font-medium mb-1">{children}</label>
+  return <label className="mb-1 block text-base font-medium text-ash-300">{children}</label>
 }
 
 function OnboardingInner() {
@@ -140,7 +121,9 @@ function OnboardingInner() {
   const [medicalOther, setMedicalOther] = useState('')
   const [responderNotes, setResponderNotes] = useState('')
   const [forOthers, setForOthers] = useState(false)
-  const [responderConsent, setResponderConsent] = useState(false)
+  const [locationConsent, setLocationConsent] = useState(false)
+  const [evacuationConsent, setEvacuationConsent] = useState(false)
+  const [healthConsent, setHealthConsent] = useState(false)
   const [consentError, setConsentError] = useState('')
 
   /** Evacuee only — step after preferences (mobility note needs mobility_needs). */
@@ -155,7 +138,7 @@ function OnboardingInner() {
 
   const isConsumerHomeRole = selectedRole === 'caregiver' || selectedRole === 'evacuee'
   const isEvacuee = selectedRole === 'evacuee'
-  const totalSteps = isEvacuee ? 4 : isConsumerHomeRole ? 3 : 2
+  const totalSteps = isEvacuee ? 5 : isConsumerHomeRole ? 4 : 2
   const hasMobilityNeedsForWorkNote = mobilityNeeds.length > 0
 
   useEffect(() => {
@@ -181,8 +164,8 @@ function OnboardingInner() {
         setSaving(false)
         return
       }
-      if (!responderConsent) {
-        setConsentError('Please confirm your consent to continue')
+      if (!locationConsent || !evacuationConsent || !healthConsent) {
+        setConsentError('Please agree to all terms to continue')
         setSaving(false)
         return
       }
@@ -193,10 +176,10 @@ function OnboardingInner() {
       mobilityNeeds.length > 0 ? mobilityNeeds.join(', ') : 'Mobile Adult'
 
     const disabilityOtherTrim = disabilityNeeds.includes(DISABILITY_OTHER_LABEL)
-      ? disabilityOther.trim().slice(0, 100)
+      ? clampToMaxWords(disabilityOther, MAX_OTHER_WORDS).trim()
       : ''
     const medicalOtherTrim = medicalNeeds.includes(MEDICAL_OTHER_LABEL)
-      ? medicalOther.trim().slice(0, 150)
+      ? clampToMaxWords(medicalOther, MAX_OTHER_WORDS).trim()
       : ''
 
     const basePayload: Record<string, unknown> = {
@@ -230,8 +213,13 @@ function OnboardingInner() {
         medical_needs: medicalNeeds.length ? medicalNeeds : null,
         medical_other:
           medicalNeeds.includes(MEDICAL_OTHER_LABEL) && medicalOtherTrim ? medicalOtherTrim : null,
-        responder_data_consent: responderConsent,
-        responder_data_consent_at: responderConsent ? new Date().toISOString() : null,
+        location_sharing_consent: locationConsent,
+        evacuation_status_consent: evacuationConsent,
+        health_data_consent: healthConsent,
+        terms_accepted_at: new Date().toISOString(),
+        responder_data_consent: locationConsent && evacuationConsent,
+        responder_data_consent_at:
+          locationConsent && evacuationConsent ? new Date().toISOString() : null,
       })
       if (selectedRole === 'evacuee') {
         Object.assign(basePayload, {
@@ -313,6 +301,9 @@ function OnboardingInner() {
     }
 
     if (selectedRole === 'emergency_responder' || selectedRole === 'data_analyst') {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('wfa_allow_add_role', selectedRole)
+      }
       router.replace(`/auth/add-role?role=${selectedRole}`)
     } else {
       router.replace(ROLE_DESTINATIONS[selectedRole] ?? '/dashboard')
@@ -321,13 +312,13 @@ function OnboardingInner() {
 
   const roleConfig = ROLES.find(r => r.id === selectedRole)
   const stepLabels = isEvacuee
-    ? ['Your role', 'Your info', 'Preferences', 'Work / secondary']
+    ? ['Your role', 'Your info', 'Preferences', 'Work / secondary', 'Terms']
     : isConsumerHomeRole
-      ? ['Your role', 'Your info', 'Preferences']
+      ? ['Your role', 'Your info', 'Preferences', 'Terms']
       : ['Your role', 'Set up profile']
 
   return (
-    <div className="min-h-screen bg-ash-950 flex items-center justify-center p-4">
+    <div className="flex min-h-screen items-center justify-center bg-ash-950 p-4 wfa-auth-typography">
       <div className="w-full max-w-lg">
         {/* Header */}
         <div className="flex items-center gap-3 mb-8">
@@ -351,7 +342,7 @@ function OnboardingInner() {
                 }`}>
                   {step > s ? <Check className="w-3.5 h-3.5" /> : s}
                 </div>
-                <span className={`text-xs ${step === s ? 'text-white' : 'text-ash-500'}`}>{label}</span>
+                <span className={`text-sm ${step === s ? 'text-white' : 'text-ash-500'}`}>{label}</span>
                 {s < totalSteps && <div className="w-6 h-px bg-ash-800 mx-1" />}
               </div>
             )
@@ -374,11 +365,11 @@ function OnboardingInner() {
                       <Icon className={`w-5 h-5 ${role.color}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className={`font-semibold text-sm mb-0.5 ${isSelected ? 'text-white' : 'text-ash-200'}`}>
+                      <div className={`mb-0.5 text-lg font-semibold ${isSelected ? 'text-white' : 'text-ash-200'}`}>
                         {role.label}
-                        {'protected' in role && role.protected && <span className="ml-2 text-xs text-ash-500 font-normal">(requires access code)</span>}
+                        {'protected' in role && role.protected && <span className="ml-2 text-sm font-normal text-ash-500">(requires access code)</span>}
                       </div>
-                      <div className="text-ash-400 text-xs leading-relaxed">{role.desc}</div>
+                      <div className="text-base leading-relaxed text-ash-400">{role.desc}</div>
                     </div>
                     <div className={`w-4 h-4 rounded-full border-2 shrink-0 mt-1 flex items-center justify-center transition-all ${isSelected ? 'border-white bg-white' : 'border-ash-600'}`}>
                       {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-ash-900" />}
@@ -447,7 +438,7 @@ function OnboardingInner() {
                     <div>
                       <Label>Blood type <span className="text-ash-600 font-normal">(optional)</span></Label>
                       <select value={bloodType} onChange={e => setBloodType(e.target.value)}
-                        className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60">
+                        className="w-full bg-ash-800 text-white text-base rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60">
                         <option value="">Unknown</option>
                         {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(t => <option key={t}>{t}</option>)}
                       </select>
@@ -517,8 +508,8 @@ function OnboardingInner() {
 
             <div className="space-y-6 mb-6">
               <div>
-                <div className="font-medium text-white text-sm mb-0.5">Mobility & Movement</div>
-                <p className="text-ash-500 text-xs mb-2">Helps responders reach you first in an emergency</p>
+                <div className="mb-0.5 text-base font-medium text-white">Mobility & Movement</div>
+                <p className="mb-2 text-sm text-ash-500">Helps responders reach you first in an emergency</p>
                 <div className="flex flex-wrap gap-2">
                   {MOBILITY_MOVEMENT_OPTIONS.map(opt => (
                     <button
@@ -538,8 +529,8 @@ function OnboardingInner() {
               </div>
 
               <div>
-                <div className="font-medium text-white text-sm mb-0.5">Disabilities</div>
-                <p className="text-ash-500 text-xs mb-2">Helps responders communicate and assist you</p>
+                <div className="mb-0.5 text-base font-medium text-white">Disabilities</div>
+                <p className="mb-2 text-sm text-ash-500">Helps responders communicate and assist you</p>
                 <div className="flex flex-wrap gap-2">
                   {DISABILITY_OPTIONS.map(opt => (
                     <button
@@ -563,20 +554,26 @@ function OnboardingInner() {
                   ))}
                 </div>
                 {disabilityNeeds.includes(DISABILITY_OTHER_LABEL) && (
-                  <input
-                    value={disabilityOther}
-                    onChange={e => setDisabilityOther(e.target.value.slice(0, 100))}
-                    placeholder="e.g. severe anxiety, autism"
-                    className="w-full mt-2 bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
-                    maxLength={100}
-                    aria-label="Describe other disability"
-                  />
+                  <div className="mt-2">
+                    <input
+                      value={disabilityOther}
+                      onChange={e => setDisabilityOther(clampToMaxWords(e.target.value, MAX_OTHER_WORDS))}
+                      placeholder="Describe briefly"
+                      className="w-full rounded-xl border border-ash-700 bg-ash-800 px-3 py-2.5 text-base text-white placeholder:text-ash-600 focus:border-ember-500/60 focus:outline-none"
+                      aria-label="Describe other disability"
+                    />
+                    <p
+                      className={`mt-1 text-xs ${wordCount(disabilityOther) >= MAX_OTHER_WORDS ? 'text-red-400' : 'text-ash-500'}`}
+                    >
+                      {wordCount(disabilityOther)} / {MAX_OTHER_WORDS} words
+                    </p>
+                  </div>
                 )}
               </div>
 
               <div>
-                <div className="font-medium text-white text-sm mb-0.5">Medical conditions & equipment</div>
-                <p className="text-ash-500 text-xs mb-2">Helps responders prioritize life-critical needs</p>
+                <div className="mb-0.5 text-base font-medium text-white">Medical conditions & equipment</div>
+                <p className="mb-2 text-sm text-ash-500">Helps responders prioritize life-critical needs</p>
                 <div className="flex flex-wrap gap-2">
                   {MEDICAL_OPTIONS.map(opt => (
                     <button
@@ -600,14 +597,20 @@ function OnboardingInner() {
                   ))}
                 </div>
                 {medicalNeeds.includes(MEDICAL_OTHER_LABEL) && (
-                  <input
-                    value={medicalOther}
-                    onChange={e => setMedicalOther(e.target.value.slice(0, 150))}
-                    placeholder="e.g. takes blood thinners, seizure disorder"
-                    className="w-full mt-2 bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
-                    maxLength={150}
-                    aria-label="Describe other medical conditions or medications"
-                  />
+                  <div className="mt-2">
+                    <input
+                      value={medicalOther}
+                      onChange={e => setMedicalOther(clampToMaxWords(e.target.value, MAX_OTHER_WORDS))}
+                      placeholder="Describe briefly"
+                      className="w-full rounded-xl border border-ash-700 bg-ash-800 px-3 py-2.5 text-base text-white placeholder:text-ash-600 focus:border-ember-500/60 focus:outline-none"
+                      aria-label="Describe other medical conditions or medications"
+                    />
+                    <p
+                      className={`mt-1 text-xs ${wordCount(medicalOther) >= MAX_OTHER_WORDS ? 'text-red-400' : 'text-ash-500'}`}
+                    >
+                      {wordCount(medicalOther)} / {MAX_OTHER_WORDS} words
+                    </p>
+                  </div>
                 )}
               </div>
 
@@ -626,7 +629,7 @@ function OnboardingInner() {
                 <textarea value={responderNotes} onChange={e => setResponderNotes(e.target.value)}
                   placeholder="e.g. front door code, oxygen on 2nd floor, non-verbal household member, dog may bark"
                   rows={2}
-                  className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600 resize-none" />
+                  className="w-full bg-ash-800 text-white text-base rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600 resize-none" />
               </div>
 
               <label className="flex items-start gap-3 cursor-pointer">
@@ -637,59 +640,113 @@ function OnboardingInner() {
                   <div className="text-ash-500 text-xs mt-0.5">Parents, clients, neighbors — you can add them in My Persons after setup.</div>
                 </div>
               </label>
-
-              <div className="rounded-xl border border-ash-700 bg-ash-900/40 p-4">
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={responderConsent}
-                    onChange={e => {
-                      setResponderConsent(e.target.checked)
-                      if (e.target.checked) setConsentError('')
-                    }}
-                    className="mt-1 accent-ember-500 shrink-0"
-                  />
-                  <span className="text-ash-200 text-sm leading-relaxed">
-                    I consent to sharing my profile, address, and any health or mobility information I&apos;ve provided with
-                    emergency responders during an active incident in my area.
-                  </span>
-                </label>
-                {consentError && <p className="text-signal-danger text-sm mt-2">{consentError}</p>}
-              </div>
             </div>
 
             {error && <p className="text-signal-danger text-sm mb-4">{error}</p>}
 
-            {selectedRole === 'evacuee' ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setError('')
-                  if (!responderConsent) {
-                    setConsentError('Please confirm your consent to continue')
-                    return
-                  }
-                  setConsentError('')
-                  setStep(4)
-                }}
-                disabled={saving || !responderConsent}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-forest-700 hover:bg-forest-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition-colors"
-              >
-                Continue <ArrowRight className="w-4 h-4" />
-              </button>
-            ) : (
-              <button
-                onClick={finish}
-                disabled={saving || !responderConsent}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-forest-700 hover:bg-forest-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition-colors"
-              >
-                {saving ? (
-                  <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Setting up…</>
-                ) : (
-                  <>Create account <ArrowRight className="w-4 h-4" /></>
-                )}
-              </button>
+            <button
+              type="button"
+              onClick={() => {
+                setError('')
+                setStep(4)
+              }}
+              disabled={saving}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-forest-700 hover:bg-forest-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold transition-colors"
+            >
+              Continue <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Step 4: Terms & consent (caregiver only) */}
+        {step === 4 && selectedRole === 'caregiver' && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setStep(3)}
+              className="mb-4 flex items-center gap-1.5 text-sm text-ash-400 transition-colors hover:text-white"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
+            <h1 className="font-display mb-1 text-2xl font-bold text-white">Before you continue</h1>
+            <p className="mb-6 text-sm text-ash-400">
+              Please review and agree to the following to use WildfireAlert
+            </p>
+            <p className="mb-4 rounded-xl border border-ash-700/80 bg-ash-900/50 p-4 text-sm leading-relaxed text-ash-300">
+              🔒 Your health information is encrypted and only shared with emergency responders during active incidents in your area. You control what you share and can remove it anytime in Settings.
+            </p>
+            <div className="mb-6 space-y-4">
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1 shrink-0 accent-ember-500"
+                  checked={locationConsent}
+                  onChange={e => {
+                    setLocationConsent(e.target.checked)
+                    if (e.target.checked) setConsentError('')
+                  }}
+                />
+                <span className="text-sm leading-relaxed text-ash-200">
+                  I agree that my home address and general location will be shared with emergency responders in my area during an active wildfire incident.
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1 shrink-0 accent-ember-500"
+                  checked={evacuationConsent}
+                  onChange={e => {
+                    setEvacuationConsent(e.target.checked)
+                    if (e.target.checked) setConsentError('')
+                  }}
+                />
+                <span className="text-sm leading-relaxed text-ash-200">
+                  I agree that my evacuation status will be visible to emergency responders during an active incident.
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1 shrink-0 accent-ember-500"
+                  checked={healthConsent}
+                  onChange={e => {
+                    setHealthConsent(e.target.checked)
+                    if (e.target.checked) setConsentError('')
+                  }}
+                />
+                <span className="text-sm leading-relaxed text-ash-200">
+                  I agree that any health or mobility information I choose to share will be visible to emergency responders to help them assist me safely.
+                </span>
+              </label>
+            </div>
+            {(!locationConsent || !evacuationConsent || !healthConsent) && (
+              <p className="mb-4 text-sm text-signal-danger">Please agree to all terms to continue</p>
             )}
+            {consentError && <p className="mb-4 text-sm text-signal-danger">{consentError}</p>}
+            {error && <p className="mb-4 text-sm text-signal-danger">{error}</p>}
+            <button
+              type="button"
+              onClick={() => {
+                if (!locationConsent || !evacuationConsent || !healthConsent) {
+                  setConsentError('Please agree to all terms to continue')
+                  return
+                }
+                setConsentError('')
+                void finish()
+              }}
+              disabled={saving || !locationConsent || !evacuationConsent || !healthConsent}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-forest-700 py-3 font-semibold text-white transition-colors hover:bg-forest-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> Setting up…
+                </>
+              ) : (
+                <>
+                  Create account <ArrowRight className="h-4 w-4" />
+                </>
+              )}
+            </button>
           </div>
         )}
 
@@ -760,7 +817,7 @@ function OnboardingInner() {
                       onChange={e =>
                         setWorkBuildingType((e.target.value || '') as WorkBuildingType | '')
                       }
-                      className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60"
+                      className="w-full bg-ash-800 text-white text-base rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60"
                     >
                       <option value="">Select…</option>
                       <option value="house">House / Single family home</option>
@@ -783,7 +840,7 @@ function OnboardingInner() {
                         value={workFloor}
                         onChange={e => setWorkFloor(e.target.value)}
                         placeholder="e.g. 6"
-                        className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
+                        className="w-full bg-ash-800 text-white text-base rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
                       />
                     </div>
                   )}
@@ -801,7 +858,7 @@ function OnboardingInner() {
                             ? `e.g. Wheelchair user on floor ${workFloor}`
                             : 'e.g. Wheelchair user on floor 6'
                         }
-                        className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
+                        className="w-full bg-ash-800 text-white text-base rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600"
                       />
                     </div>
                   )}
@@ -813,23 +870,111 @@ function OnboardingInner() {
 
             <button
               type="button"
-              onClick={() => void finish()}
+              onClick={() => setStep(5)}
               disabled={saving}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-forest-700 hover:bg-forest-600 disabled:opacity-50 text-white font-semibold transition-colors"
             >
-              {saving ? (
-                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Setting up…</>
-              ) : (
-                <>Create account <ArrowRight className="w-4 h-4" /></>
-              )}
+              Continue <ArrowRight className="w-4 h-4" />
             </button>
             <button
               type="button"
-              onClick={() => void finish()}
+              onClick={() => setStep(5)}
               disabled={saving}
               className="w-full text-center text-ash-500 hover:text-ash-300 text-sm mt-3 transition-colors py-1"
             >
               Skip — add later in Settings
+            </button>
+          </div>
+        )}
+
+        {/* Step 5: Terms & consent (evacuee only) */}
+        {step === 5 && selectedRole === 'evacuee' && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setStep(4)}
+              className="mb-4 flex items-center gap-1.5 text-sm text-ash-400 transition-colors hover:text-white"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
+            <h1 className="font-display mb-1 text-2xl font-bold text-white">Before you continue</h1>
+            <p className="mb-6 text-sm text-ash-400">
+              Please review and agree to the following to use WildfireAlert
+            </p>
+            <p className="mb-4 rounded-xl border border-ash-700/80 bg-ash-900/50 p-4 text-sm leading-relaxed text-ash-300">
+              🔒 Your health information is encrypted and only shared with emergency responders during active incidents in your area. You control what you share and can remove it anytime in Settings.
+            </p>
+            <div className="mb-6 space-y-4">
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1 shrink-0 accent-ember-500"
+                  checked={locationConsent}
+                  onChange={e => {
+                    setLocationConsent(e.target.checked)
+                    if (e.target.checked) setConsentError('')
+                  }}
+                />
+                <span className="text-sm leading-relaxed text-ash-200">
+                  I agree that my home address and general location will be shared with emergency responders in my area during an active wildfire incident.
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1 shrink-0 accent-ember-500"
+                  checked={evacuationConsent}
+                  onChange={e => {
+                    setEvacuationConsent(e.target.checked)
+                    if (e.target.checked) setConsentError('')
+                  }}
+                />
+                <span className="text-sm leading-relaxed text-ash-200">
+                  I agree that my evacuation status will be visible to emergency responders during an active incident.
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1 shrink-0 accent-ember-500"
+                  checked={healthConsent}
+                  onChange={e => {
+                    setHealthConsent(e.target.checked)
+                    if (e.target.checked) setConsentError('')
+                  }}
+                />
+                <span className="text-sm leading-relaxed text-ash-200">
+                  I agree that any health or mobility information I choose to share will be visible to emergency responders to help them assist me safely.
+                </span>
+              </label>
+            </div>
+            {(!locationConsent || !evacuationConsent || !healthConsent) && (
+              <p className="mb-4 text-sm text-signal-danger">Please agree to all terms to continue</p>
+            )}
+            {consentError && <p className="mb-4 text-sm text-signal-danger">{consentError}</p>}
+            {error && <p className="mb-4 text-sm text-signal-danger">{error}</p>}
+            <button
+              type="button"
+              onClick={() => {
+                if (!locationConsent || !evacuationConsent || !healthConsent) {
+                  setConsentError('Please agree to all terms to continue')
+                  return
+                }
+                setConsentError('')
+                void finish()
+              }}
+              disabled={saving || !locationConsent || !evacuationConsent || !healthConsent}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-forest-700 py-3 font-semibold text-white transition-colors hover:bg-forest-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {saving ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> Setting up…
+                </>
+              ) : (
+                <>
+                  Create account <ArrowRight className="h-4 w-4" />
+                </>
+              )}
             </button>
           </div>
         )}

@@ -65,7 +65,19 @@ export interface FlameoContextFlags {
 export interface FlameoWeatherSummary {
   temp_f: number | null
   wind_mph: number | null
+  wind_dir: string | null
+  wind_dir_deg: number | null
   fire_risk: string
+}
+
+export interface FlameoHazardSite {
+  id: string
+  name: string
+  type: 'nuclear' | 'chemical' | 'lng_energy'
+  lat: number
+  lon: number
+  distance_miles: number
+  risk_note: string
 }
 
 export interface FlameoShelterNearby {
@@ -85,6 +97,7 @@ export interface FlameoShelterRouteRanked {
   distance_miles: number
   route_summary: string
   route_avoids_fire: boolean
+  passes_near_hazard?: boolean
   accessibility_likely?: boolean
   phone?: string | null
 }
@@ -95,6 +108,7 @@ export interface FlameoContext {
   anchors: FlameoAnchor[]
   incidents_nearby: FlameoIncidentNearby[]
   weather_summary: FlameoWeatherSummary | null
+  hazard_sites_nearby: FlameoHazardSite[]
   shelters_nearby?: FlameoShelterNearby[]
   shelters_ranked?: FlameoShelterRouteRanked[]
   flags: FlameoContextFlags

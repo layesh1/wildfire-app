@@ -33,6 +33,11 @@ import {
   type PersonSafetyStatus,
 } from '@/lib/checkin-status'
 import type { FlameoContext } from '@/lib/flameo-context-types'
+import { DEFAULT_ALERT_RADIUS_MILES } from '@/lib/alert-radius'
+import ShelterAutocomplete from '@/components/ShelterAutocomplete'
+import { looksLikeUsStreetAddress } from '@/components/AddressAutocomplete'
+import { geocodeAddressClient } from '@/lib/geocoding-client'
+import { distanceMiles } from '@/lib/hub-map-distance'
 
 const HOME_ICONS: Record<HomeEvacuationStatus, typeof Home> = {
   not_evacuated: Home,
@@ -79,6 +84,10 @@ type Subject = 'self' | string
 function nearestIncidentMiles(ctx: FlameoContext | null): number | null {
   if (!ctx?.incidents_nearby?.length) return null
   return Math.min(...ctx.incidents_nearby.map(i => i.distance_miles))
+}
+
+function normalizeAddressLine(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
 function FlameoAutomatedAreaPanel({
@@ -138,7 +147,7 @@ function FlameoAutomatedAreaPanel({
   const incidents = context.incidents_nearby ?? []
   const n = incidents.length
   const nearest = nearestIncidentMiles(context)
-  const radius = context.alert_radius_miles ?? 25
+  const radius = context.alert_radius_miles ?? DEFAULT_ALERT_RADIUS_MILES
   const wx = context.weather_summary
   const feedsNote =
     status === 'feeds_partial' || status === 'feeds_unavailable'
@@ -264,6 +273,8 @@ export function SafetyCheckIn({
   const [safetySelected, setSafetySelected] = useState<PersonSafetyStatus | null>(null)
   const [shelterName, setShelterName] = useState('')
   const [locationNote, setLocationNote] = useState('')
+  const [userHomeAddress, setUserHomeAddress] = useState('')
+  const [shelterFieldError, setShelterFieldError] = useState<string | null>(null)
   const [safetySaving, setSafetySaving] = useState(false)
   const [safetySaved, setSafetySaved] = useState(false)
   const [safetyUpdatedAt, setSafetyUpdatedAt] = useState<string | null>(null)
@@ -300,7 +311,7 @@ export function SafetyCheckIn({
       const { data: prof } = await supabase
         .from('profiles')
         .select(
-          'home_evacuation_status, home_status_updated_at, person_safety_status, safety_shelter_name, safety_location_note, safety_status_updated_at'
+          'home_evacuation_status, home_status_updated_at, person_safety_status, safety_shelter_name, safety_location_note, safety_status_updated_at, address'
         )
         .eq('id', userId)
         .maybeSingle()
@@ -345,6 +356,7 @@ export function SafetyCheckIn({
       setShelterName(sh)
       setLocationNote(ln)
       setSafetyUpdatedAt(su)
+      setUserHomeAddress(typeof p?.address === 'string' ? p.address : '')
       return
     }
 
@@ -441,6 +453,33 @@ export function SafetyCheckIn({
 
   async function saveSafetySelf() {
     if (!safetySelected || !userId) return
+    setShelterFieldError(null)
+    if (safetySelected === 'at_shelter') {
+      const raw = shelterName.trim()
+      if (raw) {
+        const home = userHomeAddress.trim()
+        if (home && normalizeAddressLine(raw) === normalizeAddressLine(home)) {
+          setShelterFieldError(
+            'That matches your saved home address. If you’re safe at another location, choose “Safe elsewhere” and enter the address there — not under “At a shelter.”'
+          )
+          return
+        }
+        if (looksLikeUsStreetAddress(raw) && home) {
+          try {
+            const gShelter = await geocodeAddressClient(raw)
+            const gHome = await geocodeAddressClient(home)
+            if (distanceMiles([gShelter.lat, gShelter.lng], [gHome.lat, gHome.lng]) < 0.12) {
+              setShelterFieldError(
+                'That location looks like your home, not a shelter. Use “Safe elsewhere” and enter this address there.'
+              )
+              return
+            }
+          } catch {
+            /* geocode failed — allow save */
+          }
+        }
+      }
+    }
     setSafetySaving(true)
     setSafetySaved(false)
     try {
@@ -690,7 +729,10 @@ export function SafetyCheckIn({
                       <button
                         key={opt.value}
                         type="button"
-                        onClick={() => setSafetySelected(opt.value)}
+                        onClick={() => {
+                          setShelterFieldError(null)
+                          setSafetySelected(opt.value)
+                        }}
                         className={`min-h-[5rem] rounded-xl border-2 p-3.5 text-left transition-all sm:p-4 ${
                           active ? 'border-amber-500 bg-amber-50' : 'border-gray-200 bg-gray-50/80'
                         }`}
@@ -713,13 +755,20 @@ export function SafetyCheckIn({
                 {safetySelected === 'at_shelter' && (
                   <label className="mt-3 block text-xs font-medium text-gray-600">
                     Which shelter?
-                    <input
-                      type="text"
+                    <ShelterAutocomplete
+                      variant="light"
                       value={shelterName}
-                      onChange={e => setShelterName(e.target.value)}
-                      placeholder="e.g. Red Cross — Pasadena High"
-                      className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm"
+                      onChange={v => {
+                        setShelterName(v)
+                        setShelterFieldError(null)
+                      }}
+                      placeholder="e.g. Cabarrus County Fairgrounds"
                     />
+                    {shelterFieldError && (
+                      <p className="mt-2 text-xs text-red-600" role="alert">
+                        {shelterFieldError}
+                      </p>
+                    )}
                   </label>
                 )}
                 {safetySelected === 'safe_elsewhere' && (
@@ -1019,7 +1068,10 @@ export function SafetyCheckIn({
                     <button
                       key={value}
                       type="button"
-                      onClick={() => setSafetySelected(value)}
+                      onClick={() => {
+                        setShelterFieldError(null)
+                        setSafetySelected(value)
+                      }}
                       className={`min-h-[5.5rem] rounded-xl border p-4 text-left transition-all ${
                         safetySelected === value
                           ? activeClass
@@ -1044,13 +1096,20 @@ export function SafetyCheckIn({
               {safetySelected === 'at_shelter' && (
                 <label className="mt-4 block text-sm font-medium text-ash-300">
                   Which shelter?
-                  <input
-                    type="text"
+                  <ShelterAutocomplete
+                    variant="dark"
                     value={shelterName}
-                    onChange={e => setShelterName(e.target.value)}
-                    placeholder="e.g. Red Cross — Pasadena High"
-                    className="mt-1.5 w-full rounded-xl border border-ash-700 bg-ash-900 px-4 py-3 text-sm text-white placeholder-ash-600 transition-colors focus:border-ash-500 focus:outline-none"
+                    onChange={v => {
+                      setShelterName(v)
+                      setShelterFieldError(null)
+                    }}
+                    placeholder="e.g. Cabarrus County Fairgrounds"
                   />
+                  {shelterFieldError && (
+                    <p className="mt-2 text-xs text-red-400" role="alert">
+                      {shelterFieldError}
+                    </p>
+                  )}
                 </label>
               )}
               {safetySelected === 'safe_elsewhere' && (

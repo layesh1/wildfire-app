@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { AlertTriangle, TrendingUp, Clock, MapPin, ChevronRight, Search, Table2, Map, Download, Code, ShieldAlert, Radio } from 'lucide-react'
+import { ANALYST_AXIS_TICK, ANALYST_AXIS_TICK_SM } from '@/lib/analyst-charts'
 import { createClient } from '@/lib/supabase'
 
 const KEY_FINDINGS = [
@@ -246,9 +247,9 @@ export default function SignalGapPage() {
 
   const SortBtn = ({ col, label }: { col: SortCol; label: string }) => (
     <button onClick={() => toggleSort(col)}
-      className={`flex items-center gap-1 text-xs font-medium uppercase tracking-wider ${sortCol === col ? 'text-white' : 'text-ash-400 hover:text-ash-200'}`}>
+      className={`flex items-center gap-1 text-xs font-medium uppercase tracking-wider ${sortCol === col ? 'text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:text-gray-200'}`}>
       {label}
-      {sortCol === col && <span className="text-ash-500">{sortAsc ? '↑' : '↓'}</span>}
+      {sortCol === col && <span className="text-gray-500 dark:text-gray-500">{sortAsc ? '↑' : '↓'}</span>}
     </button>
   )
 
@@ -256,12 +257,12 @@ export default function SignalGapPage() {
     if (!active || !payload?.length) return null
     const row = payload[0]?.payload
     return (
-      <div className="bg-ash-900 border border-ash-700 rounded-lg px-3 py-2 text-xs shadow-lg">
+      <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs shadow-lg text-gray-300">
         <p className="text-white font-semibold mb-1">{label}</p>
         <p style={{ color: '#ff6a20' }}>{row?.median_delay_hours?.toFixed(1)}h median delay</p>
-        <p className="text-ash-400">{row?.fire_count?.toLocaleString()} fires</p>
-        <p className="text-ash-400">Avg SVI: {row?.avg_svi?.toFixed(2)}</p>
-        <p className="text-ash-500 mt-1 italic">Click bar for details</p>
+        <p className="text-gray-600 dark:text-gray-400">{row?.fire_count?.toLocaleString()} fires</p>
+        <p className="text-gray-600 dark:text-gray-400">Avg SVI: {row?.avg_svi?.toFixed(2)}</p>
+        <p className="text-gray-500 dark:text-gray-500 mt-1 italic">Click bar for details</p>
       </div>
     )
   }
@@ -270,24 +271,24 @@ export default function SignalGapPage() {
     if (!active || !payload?.length) return null
     const d = payload[0]?.payload
     return (
-      <div className="bg-ash-900 border border-ash-700 rounded-lg px-3 py-2 text-xs shadow-lg">
+      <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs shadow-lg text-gray-300">
         <p className="text-white font-semibold">{d.tier} ({d.range})</p>
         <p style={{ color: d.fill }}>{d.order_rate}% received an order</p>
-        <p className="text-ash-400">{d.fire_count.toLocaleString()} fires in tier</p>
-        <p className="text-ash-500 mt-1">When orders do occur: ~1.1h across all tiers</p>
+        <p className="text-gray-600 dark:text-gray-400">{d.fire_count.toLocaleString()} fires in tier</p>
+        <p className="text-gray-500 dark:text-gray-500 mt-1">When orders do occur: ~1.1h across all tiers</p>
       </div>
     )
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-8 max-w-7xl mx-auto text-gray-700 dark:text-gray-300">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-2 text-ember-400 text-sm font-medium mb-3">
           <AlertTriangle className="w-4 h-4" /> RESEARCH FINDING
         </div>
-        <h1 className="font-display text-4xl font-bold text-white mb-3">Signal Gap Analysis</h1>
-        <p className="text-ash-400 text-lg max-w-2xl">
+        <h1 className="font-display text-4xl font-bold text-gray-900 dark:text-white mb-3">Signal Gap Analysis</h1>
+        <p className="text-gray-600 dark:text-gray-400 text-lg max-w-2xl">
           62,696 total records (11,115 prescribed burns excluded). Among 50,664 true wildfires: 33,423 had external signals, yet 99.3% never received a formal evacuation order — a systemic failure in wildfire emergency response.
         </p>
       </div>
@@ -300,8 +301,8 @@ export default function SignalGapPage() {
             <div key={f.label} className="card p-5">
               <Icon className={`w-5 h-5 ${f.color} mb-3`} />
               <div className={`font-display text-3xl font-bold ${f.color} mb-1`}>{f.value}</div>
-              <div className="text-white text-sm font-medium">{f.label}</div>
-              <div className="text-ash-500 text-xs mt-1">{f.sub}</div>
+              <div className="text-gray-900 dark:text-white text-sm font-medium">{f.label}</div>
+              <div className="text-gray-500 dark:text-gray-500 text-xs mt-1">{f.sub}</div>
             </div>
           )
         })}
@@ -314,8 +315,8 @@ export default function SignalGapPage() {
           <AlertTriangle className="w-5 h-5 text-ember-400 mt-0.5 shrink-0" />
           <div>
             <p className="text-ember-400 text-sm font-semibold mb-1">Prescribed Burns Excluded</p>
-            <p className="text-ash-400 text-xs leading-relaxed">
-              <strong className="text-white">11,115 prescribed burns (17.7%)</strong> removed from signal gap analysis. These intentional fires have no evacuation orders by design. True wildfire signal gap: <strong className="text-ember-300">99.3%</strong> — was 99.74% with prescribed burns included.
+            <p className="text-gray-600 dark:text-gray-400 text-xs leading-relaxed">
+              <strong className="text-gray-900 dark:text-white">11,115 prescribed burns (17.7%)</strong> removed from signal gap analysis. These intentional fires have no evacuation orders by design. True wildfire signal gap: <strong className="text-ember-300">99.3%</strong> — was 99.74% with prescribed burns included.
             </p>
           </div>
         </div>
@@ -324,8 +325,8 @@ export default function SignalGapPage() {
           <Radio className="w-5 h-5 text-signal-danger mt-0.5 shrink-0" />
           <div>
             <p className="text-signal-danger text-sm font-semibold mb-1">Single-Channel Vulnerability</p>
-            <p className="text-ash-400 text-xs leading-relaxed">
-              <strong className="text-white">99.7% of monitored fires have only ONE external signal source.</strong> If that source fails, there is zero backup detection. Further: <strong className="text-signal-warn">100% of signal channels are regional dispatch</strong> — there is no AlertWest AI or NIFC satellite detection in the dataset. Communities without active dispatch coverage have no signal path at all.
+            <p className="text-gray-600 dark:text-gray-400 text-xs leading-relaxed">
+              <strong className="text-gray-900 dark:text-white">99.7% of monitored fires have only ONE external signal source.</strong> If that source fails, there is zero backup detection. Further: <strong className="text-signal-warn">100% of signal channels are regional dispatch</strong> — there is no AlertWest AI or NIFC satellite detection in the dataset. Communities without active dispatch coverage have no signal path at all.
             </p>
           </div>
         </div>
@@ -335,26 +336,26 @@ export default function SignalGapPage() {
       <div className="mb-6 card p-5">
         <div className="flex items-center gap-2 mb-4">
           <Radio className="w-4 h-4 text-signal-info" />
-          <span className="text-white text-sm font-semibold">Signal Source Analysis</span>
-          <span className="ml-auto text-ash-600 text-xs">geo_events_externalgeoevent.csv · 1.5M rows</span>
+          <span className="text-gray-900 dark:text-white text-sm font-semibold">Signal Source Analysis</span>
+          <span className="ml-auto text-gray-600 dark:text-gray-400 text-xs">geo_events_externalgeoevent.csv · 1.5M rows</span>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           {[
             { label: 'Regional Dispatch', value: '99.9%', sub: '33,389 of 33,423 fires', color: 'text-signal-warn', desc: 'incidents-* channels (human-reported)' },
             { label: 'NIFC Extra', value: '0.4%', sub: '117 fires', color: 'text-signal-info', desc: 'bots-extra channels (federal)' },
-            { label: 'AlertWest AI', value: '0%', sub: '0 fires in dataset', color: 'text-ash-500', desc: 'No AI detection signals present' },
-            { label: 'NIFC Satellite', value: '0%', sub: '0 fires in dataset', color: 'text-ash-500', desc: 'No NIFC bot signals present' },
+            { label: 'AlertWest AI', value: '0%', sub: '0 fires in dataset', color: 'text-gray-500 dark:text-gray-500', desc: 'No AI detection signals present' },
+            { label: 'NIFC Satellite', value: '0%', sub: '0 fires in dataset', color: 'text-gray-500 dark:text-gray-500', desc: 'No NIFC bot signals present' },
           ].map(s => (
-            <div key={s.label} className="bg-ash-800/50 border border-ash-700 rounded-lg p-3">
+            <div key={s.label} className="bg-gray-100 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
               <div className={`font-display text-2xl font-bold ${s.color}`}>{s.value}</div>
-              <div className="text-white text-xs font-medium mt-0.5">{s.label}</div>
-              <div className="text-ash-500 text-xs mt-1 leading-tight">{s.sub}</div>
-              <div className="text-ash-600 text-xs mt-1 italic leading-tight">{s.desc}</div>
+              <div className="text-gray-900 dark:text-white text-xs font-medium mt-0.5">{s.label}</div>
+              <div className="text-gray-500 dark:text-gray-500 text-xs mt-1 leading-tight">{s.sub}</div>
+              <div className="text-gray-600 dark:text-gray-400 text-xs mt-1 italic leading-tight">{s.desc}</div>
             </div>
           ))}
         </div>
         <div className="p-3 rounded-lg bg-signal-warn/5 border border-signal-warn/20">
-          <p className="text-ash-400 text-xs leading-relaxed">
+          <p className="text-gray-600 dark:text-gray-400 text-xs leading-relaxed">
             <strong className="text-signal-warn">Critical finding:</strong> The WatchDuty external signal system is 100% reliant on human-operated regional dispatch channels. There is no automated satellite or AI detection redundancy. Gaps in dispatch coverage — common in rural and high-SVI counties — create complete signal blackouts with no backup detection path.
           </p>
         </div>
@@ -365,8 +366,8 @@ export default function SignalGapPage() {
         <ShieldAlert className="w-5 h-5 text-signal-danger mt-0.5 shrink-0" />
         <div>
           <p className="text-signal-danger text-sm font-semibold mb-1">258 Protocol Inversions Detected</p>
-          <p className="text-ash-400 text-xs leading-relaxed">
-            In 258 fire incidents, evacuation <strong className="text-white">orders were issued before warnings</strong> — skipping the standard advisory→warning→order escalation. This bypasses the early-warning window that vulnerable populations rely on most. The 10 most extreme cases are shown in the Overview tab.
+          <p className="text-gray-600 dark:text-gray-400 text-xs leading-relaxed">
+            In 258 fire incidents, evacuation <strong className="text-gray-900 dark:text-white">orders were issued before warnings</strong> — skipping the standard advisory→warning→order escalation. This bypasses the early-warning window that vulnerable populations rely on most. The 10 most extreme cases are shown in the Overview tab.
           </p>
         </div>
       </div>
@@ -377,25 +378,25 @@ export default function SignalGapPage() {
           <Clock className="w-4 h-4 text-signal-info" />
           <span className="text-signal-info text-sm font-semibold">Response Window</span>
         </div>
-        <p className="text-ash-300 text-sm leading-relaxed">
-          When a responder acts: <strong className="text-white">median 1.1h from fire start to order</strong> (n=653 true wildfires that received orders).
-          When signals are available first: <strong className="text-white">4.1h lead time before order</strong> (n=242 fires with signal→order linkage).
+        <p className="text-gray-800 dark:text-gray-300 text-sm leading-relaxed">
+          When a responder acts: <strong className="text-gray-900 dark:text-white">median 1.1h from fire start to order</strong> (n=653 true wildfires that received orders).
+          When signals are available first: <strong className="text-gray-900 dark:text-white">4.1h lead time before order</strong> (n=242 fires with signal→order linkage).
           This means responders have a <strong className="text-signal-info">~4 hour window</strong> from first external signal detection to act — time that is currently unused in 99.3% of cases.
         </p>
-        <p className="text-ash-500 text-xs mt-2">
-          Additionally: <strong className="text-ash-300">5,394 fires</strong> started as silent notifications and were later upgraded to normal — near-miss detection events the system almost missed entirely.
+        <p className="text-gray-500 dark:text-gray-500 text-xs mt-2">
+          Additionally: <strong className="text-gray-800 dark:text-gray-300">5,394 fires</strong> started as silent notifications and were later upgraded to normal — near-miss detection events the system almost missed entirely.
         </p>
       </div>
 
       {/* View mode tabs */}
-      <div className="flex gap-1 mb-6 bg-ash-900 rounded-xl p-1 border border-ash-800 w-fit">
+      <div className="flex gap-1 mb-6 bg-gray-200 dark:bg-gray-900 rounded-xl p-1 border border-gray-200 dark:border-gray-800 w-fit">
         {([
           { id: 'overview' as ViewMode, label: 'Overview Charts', icon: TrendingUp },
           { id: 'all-states' as ViewMode, label: 'All States', icon: Table2 },
           { id: 'counties' as ViewMode, label: 'County View', icon: Map },
         ]).map(({ id, label, icon: Icon }) => (
           <button key={id} onClick={() => setViewMode(id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === id ? 'bg-ash-700 text-white' : 'text-ash-400 hover:text-ash-200'}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${viewMode === id ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:text-gray-200'}`}>
             <Icon className="w-3.5 h-3.5" />{label}
           </button>
         ))}
@@ -408,20 +409,20 @@ export default function SignalGapPage() {
             {/* State bar chart */}
             <div className="card p-6">
               <div className="flex items-start justify-between gap-2 mb-1">
-                <h3 className="font-display text-lg font-bold text-white">Signal Lead Time by State (Top 15)</h3>
+                <h3 className="font-display text-lg font-bold text-gray-900 dark:text-white">Signal Lead Time by State (Top 15)</h3>
                 <button
                   onClick={() => exportSignalGapCsv(gapData)}
                   disabled={!gapData.length}
-                  className="flex items-center gap-1.5 text-xs text-ash-400 hover:text-white border border-ash-700 hover:border-ash-500 rounded-lg px-2.5 py-1.5 transition-colors shrink-0 disabled:opacity-40"
+                  className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500 rounded-lg px-2.5 py-1.5 transition-colors shrink-0 disabled:opacity-40"
                 >
                   <Download className="w-3.5 h-3.5" />
                   Export CSV
                 </button>
               </div>
-              <p className="text-ash-500 text-xs mb-1">Median hours from first external signal to first evacuation order, by state · Click a bar for detail · Switch to &quot;All States&quot; for full list</p>
+              <p className="text-gray-500 dark:text-gray-500 text-xs mb-1">Median hours from first external signal to first evacuation order, by state · Click a bar for detail · Switch to &quot;All States&quot; for full list</p>
               <div className="flex gap-3 mb-4">
                 {[['#ef4444','> 20h'],['#f59e0b','10–20h'],['#22c55e','< 10h']].map(([c, l]) => (
-                  <span key={l} className="text-xs flex items-center gap-1 text-ash-400">
+                  <span key={l} className="text-xs flex items-center gap-1 text-gray-600 dark:text-gray-400">
                     <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: c }} /> {l}
                   </span>
                 ))}
@@ -441,14 +442,14 @@ export default function SignalGapPage() {
                       }
                     }}
                     style={{ cursor: 'pointer' }}>
-                    <XAxis type="number" tick={{ fill: '#737068', fontSize: 11 }} unit="h" />
-                    <YAxis type="category" dataKey="state" tick={{ fill: '#b3b1aa', fontSize: 11 }} width={32} />
+                    <XAxis type="number" tick={ANALYST_AXIS_TICK} unit="h" />
+                    <YAxis type="category" dataKey="state" tick={ANALYST_AXIS_TICK_SM} width={32} />
                     <Tooltip content={<StateTooltip />} />
                     <Bar dataKey="median_delay_hours" radius={[0, 4, 4, 0]}>
                       {gapData.map((row, i) => (
                         <Cell key={i} fill={barColor(row)}
                           opacity={selectedState && selectedState.state !== row.state ? 0.4 : 0.85}
-                          stroke={selectedState?.state === row.state ? '#ffffff' : 'none'}
+                          stroke={selectedState?.state === row.state ? '#6b7280' : 'none'}
                           strokeWidth={1.5} />
                       ))}
                     </Bar>
@@ -459,12 +460,12 @@ export default function SignalGapPage() {
 
             {/* SVI tier comparison */}
             <div className="card p-6">
-              <h3 className="font-display text-lg font-bold text-white mb-1">Order Rate by Vulnerability Level</h3>
-              <p className="text-ash-500 text-xs mb-6">% of fires that received a formal evacuation order, by SVI tier. SVI predicts <strong className="text-signal-danger">whether</strong> orders are issued — not how long they take.</p>
+              <h3 className="font-display text-lg font-bold text-gray-900 dark:text-white mb-1">Order Rate by Vulnerability Level</h3>
+              <p className="text-gray-500 dark:text-gray-500 text-xs mb-6">% of fires that received a formal evacuation order, by SVI tier. SVI predicts <strong className="text-signal-danger">whether</strong> orders are issued — not how long they take.</p>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={SVI_TIER_DATA} barSize={48}>
-                  <XAxis dataKey="tier" tick={{ fill: '#b3b1aa', fontSize: 11 }} />
-                  <YAxis tick={{ fill: '#737068', fontSize: 11 }} unit="%" domain={[0, 3.5]} />
+                  <XAxis dataKey="tier" tick={ANALYST_AXIS_TICK_SM} />
+                  <YAxis tick={ANALYST_AXIS_TICK} unit="%" domain={[0, 3.5]} />
                   <Tooltip content={<TierTooltip />} />
                   <Bar dataKey="order_rate" radius={[4, 4, 0, 0]}>
                     {SVI_TIER_DATA.map((d, i) => <Cell key={i} fill={d.fill} opacity={0.85} />)}
@@ -475,12 +476,12 @@ export default function SignalGapPage() {
                 {SVI_TIER_DATA.map(d => (
                   <div key={d.tier} className="text-center">
                     <div className="font-display text-xl font-bold" style={{ color: d.fill }}>{d.order_rate}%</div>
-                    <div className="text-ash-400 text-xs">{d.tier}</div>
-                    <div className="text-ash-600 text-xs">{d.range}</div>
+                    <div className="text-gray-600 dark:text-gray-400 text-xs">{d.tier}</div>
+                    <div className="text-gray-600 dark:text-gray-400 text-xs">{d.range}</div>
                   </div>
                 ))}
               </div>
-              <p className="text-ash-500 text-xs mt-4 border-t border-ash-800 pt-3">
+              <p className="text-gray-500 dark:text-gray-500 text-xs mt-4 border-t border-gray-200 dark:border-gray-800 pt-3">
                 High-SVI communities are significantly less likely to receive a formal evacuation order at all. When orders do occur, timing is ~1.1h across all SVI tiers. Overall order rate: 1.3% (653 of 50,664 true wildfires).
               </p>
             </div>
@@ -488,35 +489,35 @@ export default function SignalGapPage() {
 
           {/* State detail panel */}
           {selectedState && (
-            <div className="card p-5 mb-6 border border-ash-600">
+            <div className="card p-5 mb-6 border border-gray-300 dark:border-gray-600">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="font-display text-2xl font-bold text-white">{selectedState.state}</div>
-                  <ChevronRight className="w-4 h-4 text-ash-600" />
-                  <span className="text-ash-400 text-sm">{selectedState.region} · State Detail</span>
+                  <div className="font-display text-2xl font-bold text-gray-900 dark:text-white">{selectedState.state}</div>
+                  <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  <span className="text-gray-600 dark:text-gray-400 text-sm">{selectedState.region} · State Detail</span>
                 </div>
-                <button onClick={() => setSelectedState(null)} className="text-ash-600 hover:text-ash-400 text-xs">close ✕</button>
+                <button onClick={() => setSelectedState(null)} className="text-gray-600 dark:text-gray-400 hover:text-gray-600 dark:text-gray-400 text-xs">close ✕</button>
               </div>
               <div className="grid grid-cols-3 gap-4 mb-3">
                 <div className="card p-3">
-                  <div className="text-ash-500 text-xs mb-1">Median Delay</div>
+                  <div className="text-gray-500 dark:text-gray-500 text-xs mb-1">Median Delay</div>
                   <div className={`font-display text-2xl font-bold ${selectedState.median_delay_hours > 20 ? 'text-signal-danger' : selectedState.median_delay_hours > 10 ? 'text-signal-warn' : 'text-signal-safe'}`}>
                     {selectedState.median_delay_hours}h
                   </div>
                 </div>
                 <div className="card p-3">
-                  <div className="text-ash-500 text-xs mb-1">Fire Incidents</div>
-                  <div className="font-display text-2xl font-bold text-white">{selectedState.fire_count.toLocaleString()}</div>
+                  <div className="text-gray-500 dark:text-gray-500 text-xs mb-1">Fire Incidents</div>
+                  <div className="font-display text-2xl font-bold text-gray-900 dark:text-white">{selectedState.fire_count.toLocaleString()}</div>
                 </div>
                 <div className="card p-3">
-                  <div className="text-ash-500 text-xs mb-1">Avg SVI</div>
+                  <div className="text-gray-500 dark:text-gray-500 text-xs mb-1">Avg SVI</div>
                   <div className={`font-display text-2xl font-bold ${selectedState.avg_svi > 0.7 ? 'text-signal-danger' : selectedState.avg_svi > 0.6 ? 'text-signal-warn' : 'text-signal-safe'}`}>
                     {selectedState.avg_svi.toFixed(2)}
                   </div>
                 </div>
               </div>
               {STATE_CONTEXT[selectedState.state] && (
-                <p className="text-ash-400 text-sm leading-relaxed">{STATE_CONTEXT[selectedState.state]}</p>
+                <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">{STATE_CONTEXT[selectedState.state]}</p>
               )}
               <button onClick={() => { setViewMode('counties'); setCountySearch(selectedState.state) }}
                 className="mt-3 text-signal-info text-xs hover:underline flex items-center gap-1">
@@ -529,31 +530,31 @@ export default function SignalGapPage() {
           <div className="card p-6 mb-6">
             <div className="flex items-center gap-2 mb-4">
               <ShieldAlert className="w-4 h-4 text-signal-danger" />
-              <h3 className="font-display text-lg font-bold text-white">Top 10 Protocol Inversions</h3>
-              <span className="ml-auto text-xs text-ash-500">Order issued before warning · gap in minutes</span>
+              <h3 className="font-display text-lg font-bold text-gray-900 dark:text-white">Top 10 Protocol Inversions</h3>
+              <span className="ml-auto text-xs text-gray-500 dark:text-gray-500">Order issued before warning · gap in minutes</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-ash-800 text-left">
-                    <th className="pb-2 text-ash-400 text-xs font-medium uppercase tracking-wider pr-4">Fire</th>
-                    <th className="pb-2 text-ash-400 text-xs font-medium uppercase tracking-wider pr-4">State</th>
-                    <th className="pb-2 text-ash-400 text-xs font-medium uppercase tracking-wider pr-4">County</th>
-                    <th className="pb-2 text-ash-400 text-xs font-medium uppercase tracking-wider pr-4">Inversion Gap</th>
-                    <th className="pb-2 text-ash-400 text-xs font-medium uppercase tracking-wider pr-4">Max Acres</th>
-                    <th className="pb-2 text-ash-400 text-xs font-medium uppercase tracking-wider">SVI</th>
+                  <tr className="border-b border-gray-200 dark:border-gray-800 text-left">
+                    <th className="pb-2 text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wider pr-4">Fire</th>
+                    <th className="pb-2 text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wider pr-4">State</th>
+                    <th className="pb-2 text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wider pr-4">County</th>
+                    <th className="pb-2 text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wider pr-4">Inversion Gap</th>
+                    <th className="pb-2 text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wider pr-4">Max Acres</th>
+                    <th className="pb-2 text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">SVI</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-ash-800/50">
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-800/50">
                   {PROTOCOL_INVERSIONS.map((row, i) => (
-                    <tr key={i} className="hover:bg-ash-800/30 transition-colors">
-                      <td className="py-2.5 text-white text-sm font-medium pr-4">{row.fire}</td>
-                      <td className="py-2.5 text-ash-300 text-sm font-mono pr-4">{row.state}</td>
-                      <td className="py-2.5 text-ash-400 text-sm pr-4">{row.county}</td>
+                    <tr key={i} className="hover:bg-gray-100 dark:hover:bg-gray-800/30 transition-colors">
+                      <td className="py-2.5 text-gray-900 dark:text-white text-sm font-medium pr-4">{row.fire}</td>
+                      <td className="py-2.5 text-gray-800 dark:text-gray-300 text-sm font-mono pr-4">{row.state}</td>
+                      <td className="py-2.5 text-gray-600 dark:text-gray-400 text-sm pr-4">{row.county}</td>
                       <td className="py-2.5 pr-4">
                         <span className="text-signal-danger font-mono text-sm font-bold">−{row.gap_min} min</span>
                       </td>
-                      <td className="py-2.5 text-ash-300 text-sm pr-4">{row.max_acres.toLocaleString()} ac</td>
+                      <td className="py-2.5 text-gray-800 dark:text-gray-300 text-sm pr-4">{row.max_acres.toLocaleString()} ac</td>
                       <td className="py-2.5">
                         <span className={`font-mono text-sm font-bold ${row.svi > 0.7 ? 'text-signal-danger' : row.svi > 0.6 ? 'text-signal-warn' : 'text-signal-safe'}`}>
                           {row.svi.toFixed(2)}
@@ -564,15 +565,15 @@ export default function SignalGapPage() {
                 </tbody>
               </table>
             </div>
-            <p className="text-ash-600 text-xs mt-3">
+            <p className="text-gray-600 dark:text-gray-400 text-xs mt-3">
               Negative gap = order timestamp precedes warning timestamp · Source: fire_events_with_svi_and_delays.csv
             </p>
           </div>
 
           {/* Methodology */}
           <div className="card p-6 border-l-4 border-ember-500">
-            <h4 className="text-white font-semibold mb-2">Data &amp; Methodology</h4>
-            <p className="text-ash-400 text-sm leading-relaxed">
+            <h4 className="text-gray-900 dark:text-white font-semibold mb-2">Data &amp; Methodology</h4>
+            <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
               Analysis based on 62,696 total records (2021–2025) from the WatchDuty/WiDS dataset, with 11,115 prescribed burns (17.7%) excluded to yield 50,664 true wildfire incidents. Cross-referenced with CDC Social Vulnerability Index scores at the county level. Signal gap = time between first external signal detection and issuance of formal evacuation order. Of 33,423 true wildfire geo_event_ids with external signals, 33,181 (99.3%) had no linked evacuation action. Signal→order lead time: 4.1h median (n=242). Extreme spread true wildfires: 256 total, 169 (66.0%) received no evacuation action.
             </p>
           </div>
@@ -584,40 +585,40 @@ export default function SignalGapPage() {
         <div>
           <div className="flex flex-wrap gap-3 mb-4 items-center">
             <div className="relative flex-1 min-w-48">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ash-500" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 dark:text-gray-500" />
               <input type="text" value={stateSearch} onChange={e => setStateSearch(e.target.value)}
                 placeholder="Filter by state code…"
-                className="w-full bg-ash-800 border border-ash-700 rounded-lg pl-9 pr-3 py-2 text-white text-sm focus:outline-none focus:border-signal-info/60 placeholder:text-ash-600" />
+                className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg pl-9 pr-3 py-2 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-signal-info/60 placeholder:text-gray-600 dark:text-gray-400" />
             </div>
             <div className="flex gap-1.5 flex-wrap">
               {regions.map(r => (
                 <button key={r} onClick={() => setRegionFilter(r)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${regionFilter === r ? 'bg-ash-700 border-ash-600 text-white' : 'border-ash-800 text-ash-400 hover:text-white hover:border-ash-700'}`}>
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${regionFilter === r ? 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white shadow-sm' : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-gray-600'}`}>
                   {r}
                 </button>
               ))}
             </div>
-            <span className="text-ash-500 text-xs ml-auto">{filteredStates.length} states</span>
+            <span className="text-gray-500 dark:text-gray-500 text-xs ml-auto">{filteredStates.length} states</span>
           </div>
 
           <div className="card overflow-hidden">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-ash-800 text-left">
+                <tr className="border-b border-gray-200 dark:border-gray-800 text-left">
                   <th className="px-5 py-3"><SortBtn col="name" label="State" /></th>
                   <th className="px-5 py-3"><SortBtn col="delay" label="Median Delay" /></th>
                   <th className="px-5 py-3"><SortBtn col="svi" label="Avg SVI" /></th>
                   <th className="px-5 py-3"><SortBtn col="fires" label="Fire Count" /></th>
-                  <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">Region</th>
-                  <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">Gap Level</th>
+                  <th className="px-5 py-3 text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">Region</th>
+                  <th className="px-5 py-3 text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">Gap Level</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-ash-800">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                 {filteredStates.map(row => (
                   <tr key={row.state}
                     onClick={() => setSelectedState(prev => prev?.state === row.state ? null : row)}
-                    className={`hover:bg-ash-800/40 transition-colors cursor-pointer ${selectedState?.state === row.state ? 'bg-ash-800/60' : ''}`}>
-                    <td className="px-5 py-3 text-white font-semibold">{row.state}</td>
+                    className={`hover:bg-gray-100 dark:hover:bg-gray-800/40 transition-colors cursor-pointer ${selectedState?.state === row.state ? 'bg-gray-200 dark:bg-gray-800/80' : ''}`}>
+                    <td className="px-5 py-3 text-gray-900 dark:text-white font-semibold">{row.state}</td>
                     <td className="px-5 py-3">
                       <span className={`font-mono text-sm font-bold ${row.median_delay_hours > 20 ? 'text-signal-danger' : row.median_delay_hours > 10 ? 'text-signal-warn' : 'text-signal-safe'}`}>
                         {row.median_delay_hours}h
@@ -628,8 +629,8 @@ export default function SignalGapPage() {
                         {row.avg_svi.toFixed(2)}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-ash-300 text-sm">{row.fire_count.toLocaleString()}</td>
-                    <td className="px-5 py-3 text-ash-400 text-xs">{row.region}</td>
+                    <td className="px-5 py-3 text-gray-800 dark:text-gray-300 text-sm">{row.fire_count.toLocaleString()}</td>
+                    <td className="px-5 py-3 text-gray-600 dark:text-gray-400 text-xs">{row.region}</td>
                     <td className="px-5 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full border ${row.median_delay_hours > 20 ? 'text-signal-danger border-signal-danger/30 bg-signal-danger/10' : row.median_delay_hours > 10 ? 'text-signal-warn border-signal-warn/30 bg-signal-warn/10' : 'text-signal-safe border-signal-safe/30 bg-signal-safe/10'}`}>
                         {row.median_delay_hours > 20 ? 'Critical' : row.median_delay_hours > 10 ? 'Elevated' : 'Normal'}
@@ -642,14 +643,14 @@ export default function SignalGapPage() {
           </div>
 
           {selectedState && (
-            <div className="card p-4 mt-4 border border-ash-600">
+            <div className="card p-4 mt-4 border border-gray-300 dark:border-gray-600">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-white font-semibold">{selectedState.state} — {selectedState.region}</span>
-                <button onClick={() => setSelectedState(null)} className="text-ash-600 text-xs hover:text-ash-400">close ✕</button>
+                <span className="text-gray-900 dark:text-white font-semibold">{selectedState.state} — {selectedState.region}</span>
+                <button onClick={() => setSelectedState(null)} className="text-gray-600 dark:text-gray-400 text-xs hover:text-gray-600 dark:text-gray-400">close ✕</button>
               </div>
               {STATE_CONTEXT[selectedState.state]
-                ? <p className="text-ash-400 text-sm">{STATE_CONTEXT[selectedState.state]}</p>
-                : <p className="text-ash-500 text-sm">Median delay: {selectedState.median_delay_hours}h · {selectedState.fire_count.toLocaleString()} fires · SVI {selectedState.avg_svi.toFixed(2)}</p>
+                ? <p className="text-gray-600 dark:text-gray-400 text-sm">{STATE_CONTEXT[selectedState.state]}</p>
+                : <p className="text-gray-500 dark:text-gray-500 text-sm">Median delay: {selectedState.median_delay_hours}h · {selectedState.fire_count.toLocaleString()} fires · SVI {selectedState.avg_svi.toFixed(2)}</p>
               }
               <button onClick={() => { setViewMode('counties'); setCountySearch(selectedState.state) }}
                 className="mt-2 text-signal-info text-xs hover:underline flex items-center gap-1">
@@ -665,36 +666,36 @@ export default function SignalGapPage() {
         <div>
           <div className="flex gap-3 mb-4 items-center">
             <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ash-500" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 dark:text-gray-500" />
               <input type="text" value={countySearch} onChange={e => setCountySearch(e.target.value)}
                 placeholder="Search county or state…"
-                className="w-full bg-ash-800 border border-ash-700 rounded-lg pl-9 pr-3 py-2 text-white text-sm focus:outline-none focus:border-signal-info/60 placeholder:text-ash-600" />
+                className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg pl-9 pr-3 py-2 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-signal-info/60 placeholder:text-gray-600 dark:text-gray-400" />
             </div>
             {countySearch && (
-              <button onClick={() => setCountySearch('')} className="text-ash-500 hover:text-ash-300 text-xs">clear</button>
+              <button onClick={() => setCountySearch('')} className="text-gray-500 dark:text-gray-500 hover:text-gray-800 dark:text-gray-300 text-xs">clear</button>
             )}
-            <span className="text-ash-500 text-xs ml-auto">{filteredCounties.length} counties</span>
+            <span className="text-gray-500 dark:text-gray-500 text-xs ml-auto">{filteredCounties.length} counties</span>
           </div>
 
           <div className="card overflow-hidden">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-ash-800 text-left">
+                <tr className="border-b border-gray-200 dark:border-gray-800 text-left">
                   <th className="px-5 py-3"><SortBtn col="name" label="County" /></th>
-                  <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">State</th>
+                  <th className="px-5 py-3 text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">State</th>
                   <th className="px-5 py-3"><SortBtn col="delay" label="Median Delay" /></th>
                   <th className="px-5 py-3"><SortBtn col="svi" label="SVI Score" /></th>
                   <th className="px-5 py-3"><SortBtn col="fires" label="Fire Count" /></th>
-                  <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">Gap bar</th>
+                  <th className="px-5 py-3 text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">Gap bar</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-ash-800">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                 {filteredCounties.map((row, i) => {
                   const barW = Math.min(100, Math.round((row.delay / 55) * 100))
                   const barC = row.svi > 0.7 ? '#ef4444' : row.svi > 0.6 ? '#f59e0b' : '#22c55e'
                   return (
-                    <tr key={i} className="hover:bg-ash-800/40 transition-colors">
-                      <td className="px-5 py-3 text-white font-medium text-sm">{row.county}</td>
+                    <tr key={i} className="hover:bg-gray-100 dark:hover:bg-gray-800/40 transition-colors">
+                      <td className="px-5 py-3 text-gray-900 dark:text-white font-medium text-sm">{row.county}</td>
                       <td className="px-5 py-3">
                         <button onClick={() => setCountySearch(row.state)}
                           className="text-signal-info text-xs hover:underline font-mono">{row.state}</button>
@@ -709,9 +710,9 @@ export default function SignalGapPage() {
                           {row.svi.toFixed(2)}
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-ash-300 text-sm">{row.fires}</td>
+                      <td className="px-5 py-3 text-gray-800 dark:text-gray-300 text-sm">{row.fires}</td>
                       <td className="px-5 py-3">
-                        <div className="w-24 h-2 bg-ash-800 rounded-full overflow-hidden">
+                        <div className="w-24 h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
                           <div className="h-full rounded-full" style={{ width: `${barW}%`, background: barC, opacity: 0.8 }} />
                         </div>
                       </td>
@@ -721,7 +722,7 @@ export default function SignalGapPage() {
               </tbody>
             </table>
           </div>
-          <p className="text-ash-600 text-xs mt-3">
+          <p className="text-gray-600 dark:text-gray-400 text-xs mt-3">
             {COUNTY_DATA.length} counties from WiDS dataset · SVI from CDC Social Vulnerability Index · Color = SVI tier
           </p>
         </div>
@@ -739,17 +740,17 @@ function ApiReference() {
     <div className="card overflow-hidden mt-6">
       <button
         onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-ash-800/30 transition-colors"
+        className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-gray-100 dark:hover:bg-gray-800/30 transition-colors"
       >
         <div className="flex items-center gap-2">
           <Code className="w-4 h-4 text-signal-info" />
-          <span className="font-semibold text-white text-sm">Data Sources &amp; API Reference</span>
+          <span className="font-semibold text-gray-900 dark:text-white text-sm">Data Sources &amp; API Reference</span>
         </div>
-        <ChevronRight className={`w-4 h-4 text-ash-500 transition-transform ${open ? 'rotate-90' : ''}`} />
+        <ChevronRight className={`w-4 h-4 text-gray-500 dark:text-gray-500 transition-transform ${open ? 'rotate-90' : ''}`} />
       </button>
       {open && (
-        <div className="px-6 pb-6 space-y-5 text-sm border-t border-ash-800 pt-4">
-          <p className="text-ash-400">
+        <div className="px-6 pb-6 space-y-5 text-sm border-t border-gray-200 dark:border-gray-800 pt-4">
+          <p className="text-gray-600 dark:text-gray-400">
             This dashboard synthesizes data from four primary sources. Below are the APIs, schemas, and usage notes for replication or integration.
           </p>
           <div className="grid md:grid-cols-2 gap-4">
@@ -783,26 +784,26 @@ function ApiReference() {
                 note: 'Free, public. JSON-LD format. Proxied via /api/fires/redflags.'
               },
             ].map(src => (
-              <div key={src.name} className="bg-ash-800/40 border border-ash-700 rounded-xl p-4">
-                <div className="font-semibold text-white text-xs mb-1">{src.name}</div>
-                <p className="text-ash-400 text-xs mb-2">{src.desc}</p>
-                <div className="bg-ash-900 rounded-lg px-3 py-2 font-mono text-xs text-signal-info break-all mb-2">{src.endpoint}</div>
-                <div className="text-ash-500 text-xs"><span className="text-ash-400">Fields:</span> {src.fields}</div>
-                <div className="text-ash-600 text-xs mt-1 italic">{src.note}</div>
+              <div key={src.name} className="bg-gray-100 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+                <div className="font-semibold text-gray-900 dark:text-white text-xs mb-1">{src.name}</div>
+                <p className="text-gray-600 dark:text-gray-400 text-xs mb-2">{src.desc}</p>
+                <div className="bg-gray-100 dark:bg-gray-900 rounded-lg px-3 py-2 font-mono text-xs text-signal-info break-all mb-2">{src.endpoint}</div>
+                <div className="text-gray-500 dark:text-gray-500 text-xs"><span className="text-gray-600 dark:text-gray-400">Fields:</span> {src.fields}</div>
+                <div className="text-gray-600 dark:text-gray-400 text-xs mt-1 italic">{src.note}</div>
               </div>
             ))}
           </div>
-          <div className="bg-ash-800/40 border border-ash-700 rounded-xl p-4">
-            <div className="font-semibold text-white text-xs mb-2">Methodology Notes</div>
-            <ul className="text-ash-400 text-xs space-y-1.5 list-disc list-inside">
-              <li><strong className="text-ash-300">Prescribed burns excluded</strong>: 11,115 records (17.7%) with geo_event_type = prescribed burn removed; true wildfire n = 50,664</li>
-              <li><strong className="text-ash-300">Signal gap</strong> = time between first satellite/sensor detection and first official evacuation order (hours_to_order)</li>
-              <li><strong className="text-ash-300">Signal lead time</strong> = hours from first_external_signal to first_order_at; median 4.1h (n=242 fires with both timestamps)</li>
-              <li><strong className="text-ash-300">Silent fire</strong> = notification_type = &ldquo;silent&rdquo; in Watch Duty API (no push alert issued to residents); 34,021 of 50,664 true wildfires (67.2%)</li>
-              <li><strong className="text-ash-300">Silent→normal upgrades</strong>: 5,394 fires reclassified from silent to normal — near-miss detection events</li>
-              <li><strong className="text-ash-300">SVI equity finding</strong> = SVI predicts order rate (whether an order is issued), NOT delay hours. When orders do occur, all SVI tiers show ~1.1h median. High-SVI counties (SVI &gt; 0.7) order rate: ~0.7% vs. low-SVI (&lt; 0.55): ~2.4%.</li>
-              <li><strong className="text-ash-300">Extreme spread</strong> = last_spread_rate = &ldquo;extreme&rdquo; in WiDS dataset; 256 true wildfire incidents, 169 (66.0%) with no evac action</li>
-              <li><strong className="text-ash-300">Protocol inversion</strong> = first_order_at timestamp precedes first_warning_at (258 incidents)</li>
+          <div className="bg-gray-100 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+            <div className="font-semibold text-gray-900 dark:text-white text-xs mb-2">Methodology Notes</div>
+            <ul className="text-gray-600 dark:text-gray-400 text-xs space-y-1.5 list-disc list-inside">
+              <li><strong className="text-gray-800 dark:text-gray-300">Prescribed burns excluded</strong>: 11,115 records (17.7%) with geo_event_type = prescribed burn removed; true wildfire n = 50,664</li>
+              <li><strong className="text-gray-800 dark:text-gray-300">Signal gap</strong> = time between first satellite/sensor detection and first official evacuation order (hours_to_order)</li>
+              <li><strong className="text-gray-800 dark:text-gray-300">Signal lead time</strong> = hours from first_external_signal to first_order_at; median 4.1h (n=242 fires with both timestamps)</li>
+              <li><strong className="text-gray-800 dark:text-gray-300">Silent fire</strong> = notification_type = &ldquo;silent&rdquo; in Watch Duty API (no push alert issued to residents); 34,021 of 50,664 true wildfires (67.2%)</li>
+              <li><strong className="text-gray-800 dark:text-gray-300">Silent→normal upgrades</strong>: 5,394 fires reclassified from silent to normal — near-miss detection events</li>
+              <li><strong className="text-gray-800 dark:text-gray-300">SVI equity finding</strong> = SVI predicts order rate (whether an order is issued), NOT delay hours. When orders do occur, all SVI tiers show ~1.1h median. High-SVI counties (SVI &gt; 0.7) order rate: ~0.7% vs. low-SVI (&lt; 0.55): ~2.4%.</li>
+              <li><strong className="text-gray-800 dark:text-gray-300">Extreme spread</strong> = last_spread_rate = &ldquo;extreme&rdquo; in WiDS dataset; 256 true wildfire incidents, 169 (66.0%) with no evac action</li>
+              <li><strong className="text-gray-800 dark:text-gray-300">Protocol inversion</strong> = first_order_at timestamp precedes first_warning_at (258 incidents)</li>
               <li>State signal-gap chart shows median hours from first external signal to first order, for fires where both timestamps exist — reflects where alert infrastructure gaps are largest, not a direct function of SVI alone</li>
             </ul>
           </div>

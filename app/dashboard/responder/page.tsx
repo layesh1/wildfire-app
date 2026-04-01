@@ -1,10 +1,13 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { Shield, Flame, AlertTriangle, Activity, Clock, ChevronRight, Wind, Droplets, Users, Truck, Radio, Map, Building2, Brain, Factory, CheckCircle, MapPin, Phone, RefreshCw } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Shield, Flame, AlertTriangle, Activity, Clock, ChevronRight, Wind, Droplets, Truck, Map, Building2, Brain, Factory, CheckCircle, MapPin, Phone, RefreshCw, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/supabase'
 import type { EvacueePin } from '@/components/EvacueeStatusMap'
+import type { HouseholdPin } from '@/lib/responder-household'
+import type { FlameoContext } from '@/lib/flameo-context-types'
+import FlameoCommandRoom from '@/components/flameo/FlameoCommandRoom'
 import { HAZARD_FACILITIES } from '@/lib/hazard-facilities'
 import { useResponderStationAnchor } from '@/hooks/useResponderStationAnchor'
 import { useFlameoContext } from '@/hooks/useFlameoContext'
@@ -12,48 +15,157 @@ import { useFlameoHubAgentBridge } from '@/components/FlameoHubAgentBridge'
 
 const EvacueeStatusMap = dynamic(() => import('@/components/EvacueeStatusMap'), { ssr: false })
 
-// Demo pins for Concord / Cabarrus County, NC — realistic addresses
-const DEMO_PINS: EvacueePin[] = [
-  { id: 'd1',  name: 'Linda Johnson',    address: '4231 Moss Creek Dr NW, Concord, NC', lat: 35.4312, lon: -80.6021, status: 'unknown',    phone: '(704) 555-0142', special_needs: 'Wheelchair user — needs transport' },
-  { id: 'd2',  name: 'Marcus Williams',  address: '7809 Lyles Ln NW, Concord, NC',      lat: 35.4401, lon: -80.5874, status: 'evacuated',   phone: '(704) 555-0189' },
-  { id: 'd3',  name: 'Sandra Okafor',    address: '2108 Pitts School Rd NW, Concord',   lat: 35.4188, lon: -80.6110, status: 'sheltering',  phone: '(704) 555-0231', special_needs: 'Oxygen-dependent' },
-  { id: 'd4',  name: 'David Chen',       address: '5543 Poplar Tent Rd, Concord, NC',   lat: 35.4520, lon: -80.5720, status: 'evacuated',   phone: '(704) 555-0374' },
-  { id: 'd5',  name: 'Rosa Martinez',    address: '818 Cabarrus Ave W, Concord, NC',    lat: 35.4071, lon: -80.5941, status: 'evacuated',   phone: '(704) 555-0456' },
-  { id: 'd6',  name: 'James Harrington', address: '1342 Branchview Dr NE, Concord',     lat: 35.4250, lon: -80.5580, status: 'unknown',    phone: '(704) 555-0521', special_needs: 'Elderly, lives alone' },
-  { id: 'd7',  name: 'Priya Patel',      address: '3901 Gateway Ln NW, Concord, NC',    lat: 35.4480, lon: -80.6050, status: 'evacuated',   phone: '(704) 555-0612' },
-  { id: 'd8',  name: 'Tyrone Jackson',   address: '629 Union Cemetery Rd, Concord',     lat: 35.3980, lon: -80.5800, status: 'returning',   phone: '(704) 555-0733' },
-  { id: 'd9',  name: 'Carol Simmons',    address: '4412 Flowes Store Rd, Concord',      lat: 35.4600, lon: -80.6210, status: 'unknown',    phone: '(704) 555-0844', special_needs: 'Dialysis 3x/week' },
-  { id: 'd10', name: 'Brian Kowalski',   address: '2745 Davidson Hwy, Concord, NC',     lat: 35.4330, lon: -80.5490, status: 'evacuated',   phone: '(704) 555-0915' },
-  { id: 'd11', name: 'Fatima Al-Hassan', address: '1103 Winecoff School Rd, Concord',   lat: 35.4140, lon: -80.6320, status: 'evacuated',   phone: '(704) 555-1022' },
-  { id: 'd12', name: 'George Patterson', address: '5881 Odell School Rd, Concord, NC',  lat: 35.4650, lon: -80.5630, status: 'sheltering',  phone: '(704) 555-1198', special_needs: 'Hearing impaired' },
-  { id: 'd13', name: 'Ana Gutierrez',    address: '3200 Rocky River Rd, Concord, NC',   lat: 35.3850, lon: -80.5670, status: 'evacuated',   phone: '(704) 555-1244' },
-  { id: 'd14', name: 'Earl Thompson',    address: '777 Kannapolis Pkwy, Concord, NC',   lat: 35.4750, lon: -80.5980, status: 'unknown',    phone: '(704) 555-1367', special_needs: 'Bedridden — EMS required' },
-  { id: 'd15', name: 'Mei-Ling Wu',      address: '9012 Poplar Tent Rd, Concord, NC',   lat: 35.4820, lon: -80.5540, status: 'evacuated',   phone: '(704) 555-1481' },
-  { id: 'd16', name: 'Jerome Davis',     address: '455 Bethel Church Rd, Concord',      lat: 35.4020, lon: -80.6080, status: 'evacuated',   phone: '(704) 555-1555' },
-  { id: 'd17', name: 'Helen Murphy',     address: '2314 Cabarrus Ave E, Concord, NC',   lat: 35.4090, lon: -80.5610, status: 'returning',   phone: '(704) 555-1629' },
-  { id: 'd18', name: 'Darius Freeman',   address: '6670 Zion Church Rd, Concord, NC',   lat: 35.4400, lon: -80.6350, status: 'unknown',    phone: '(704) 555-1772', special_needs: 'Non-English speaking (French)' },
-  { id: 'd19', name: 'Lucia Fernandez',  address: '321 Main St S, Kannapolis, NC',      lat: 35.4887, lon: -80.6208, status: 'evacuated',   phone: '(704) 555-1845' },
-  { id: 'd20', name: 'Walter Grant',     address: '1848 Harris Rd, Harrisburg, NC',     lat: 35.3260, lon: -80.6530, status: 'evacuated',   phone: '(704) 555-1901' },
-  { id: 'd21', name: 'Nkechi Obi',       address: '4102 Derita Rd, Concord, NC',        lat: 35.3720, lon: -80.6010, status: 'sheltering',  phone: '(704) 555-2033' },
-  { id: 'd22', name: 'Robert Singh',     address: '7231 Pitts School Rd, Concord',      lat: 35.4560, lon: -80.6270, status: 'unknown',    phone: '(704) 555-2114', special_needs: 'Insulin-dependent diabetic' },
-  { id: 'd23', name: 'Karen Nguyen',     address: '5543 Caldwell Rd, Harrisburg, NC',   lat: 35.3340, lon: -80.6420, status: 'evacuated',   phone: '(704) 555-2256' },
+/** Demo households — HouseholdPin shape for map + COMMAND (Concord / Cabarrus County, NC). */
+const DEMO_HOUSEHOLDS: HouseholdPin[] = [
+  {
+    id: 'demo-hh-moss',
+    address: '4231 Moss Creek Dr NW, Concord, NC',
+    lat: 35.408,
+    lng: -80.579,
+    total_people: 3,
+    evacuated: 1,
+    not_evacuated: 1,
+    needs_help: 1,
+    priority: 'CRITICAL',
+    mobility_flags: ['Uses wheelchair or mobility device', 'Requires assistance to evacuate'],
+    medical_flags: ['Requires oxygen or ventilator'],
+    members: [
+      {
+        id: 'demo-hh-moss-1',
+        name: 'Linda Johnson',
+        home_evacuation_status: 'cannot_evacuate',
+        home_status_updated_at: '2026-03-31T15:02:00.000Z',
+        mobility_needs: ['Uses wheelchair or mobility device'],
+        medical_needs: ['Requires oxygen or ventilator'],
+        disability_other: null,
+        medical_other: null,
+        phone: '(704) 555-0142',
+        work_address: null,
+      },
+      {
+        id: 'demo-hh-moss-2',
+        name: 'Robert Johnson',
+        home_evacuation_status: 'evacuated',
+        home_status_updated_at: '2026-03-31T12:00:00.000Z',
+        mobility_needs: [],
+        medical_needs: [],
+        disability_other: null,
+        medical_other: null,
+        phone: null,
+        work_address: null,
+      },
+      {
+        id: 'demo-hh-moss-3',
+        name: 'Maria Johnson',
+        home_evacuation_status: 'not_evacuated',
+        home_status_updated_at: '2026-03-31T14:30:00.000Z',
+        mobility_needs: [],
+        medical_needs: [],
+        disability_other: null,
+        medical_other: null,
+        phone: null,
+        work_address: null,
+      },
+    ],
+  },
+  {
+    id: 'demo-hh-branch',
+    address: '1342 Branchview Dr NE, Concord, NC',
+    lat: 35.415,
+    lng: -80.561,
+    total_people: 1,
+    evacuated: 0,
+    not_evacuated: 1,
+    needs_help: 0,
+    priority: 'MONITOR',
+    mobility_flags: ['Cannot walk long distances'],
+    medical_flags: [],
+    members: [
+      {
+        id: 'demo-hh-branch-1',
+        name: 'James Harrington',
+        home_evacuation_status: 'not_evacuated',
+        home_status_updated_at: '2026-03-31T14:45:00.000Z',
+        mobility_needs: ['Cannot walk long distances'],
+        medical_needs: [],
+        disability_other: null,
+        medical_other: 'Lives alone, elderly',
+        phone: '(704) 555-0521',
+        work_address: null,
+      },
+    ],
+  },
+  {
+    id: 'demo-hh-flowes',
+    address: '4412 Flowes Store Rd, Concord, NC',
+    lat: 35.392,
+    lng: -80.587,
+    total_people: 2,
+    evacuated: 0,
+    not_evacuated: 1,
+    needs_help: 1,
+    priority: 'CRITICAL',
+    mobility_flags: [],
+    medical_flags: ['Requires dialysis'],
+    members: [
+      {
+        id: 'demo-hh-flowes-1',
+        name: 'Carol Simmons',
+        home_evacuation_status: 'cannot_evacuate',
+        home_status_updated_at: '2026-03-31T15:10:00.000Z',
+        mobility_needs: [],
+        medical_needs: ['Requires dialysis'],
+        disability_other: null,
+        medical_other: null,
+        phone: '(704) 555-0844',
+        work_address: null,
+      },
+      {
+        id: 'demo-hh-flowes-2',
+        name: 'David Simmons',
+        home_evacuation_status: 'not_evacuated',
+        home_status_updated_at: '2026-03-31T13:00:00.000Z',
+        mobility_needs: [],
+        medical_needs: [],
+        disability_other: null,
+        medical_other: null,
+        phone: null,
+        work_address: null,
+      },
+    ],
+  },
+  {
+    id: 'demo-hh-kannapolis',
+    address: '777 Kannapolis Pkwy, Concord, NC',
+    lat: 35.401,
+    lng: -80.572,
+    total_people: 1,
+    evacuated: 0,
+    not_evacuated: 0,
+    needs_help: 1,
+    priority: 'CRITICAL',
+    mobility_flags: ['Bedridden or limited mobility', 'Requires assistance to evacuate'],
+    medical_flags: [],
+    members: [
+      {
+        id: 'demo-hh-kannapolis-1',
+        name: 'Earl Thompson',
+        home_evacuation_status: 'cannot_evacuate',
+        home_status_updated_at: '2026-03-31T15:08:00.000Z',
+        mobility_needs: ['Bedridden or limited mobility', 'Requires assistance to evacuate'],
+        medical_needs: [],
+        disability_other: null,
+        medical_other: 'EMS required',
+        phone: '(704) 555-1367',
+        work_address: null,
+      },
+    ],
+  },
 ]
 
-// NFDRS standardized risk levels (National Fire Danger Rating System)
-const NFDRS = [
-  { level: 'Low', color: 'bg-green-500', text: 'text-green-400', border: 'border-green-500/30', desc: 'Fires not likely' },
-  { level: 'Moderate', color: 'bg-blue-500', text: 'text-blue-400', border: 'border-blue-500/30', desc: 'Some fires possible' },
-  { level: 'High', color: 'bg-yellow-400', text: 'text-yellow-400', border: 'border-yellow-400/30', desc: 'Fires start easily' },
-  { level: 'Very High', color: 'bg-orange-500', text: 'text-orange-400', border: 'border-orange-500/30', desc: 'Rapid spread expected' },
-  { level: 'Extreme', color: 'bg-red-500', text: 'text-red-400', border: 'border-red-500/30', desc: 'Extreme spread, mass ignition' },
-]
+const DEMO_HOUSEHOLDS_TAGGED: HouseholdPin[] = DEMO_HOUSEHOLDS.map(h => ({ ...h, is_demo: true }))
 
-const MUTUAL_AID = [
-  { agency: 'NC State Forestry', type: 'Air support + ground crews', status: 'available', eta: '45 min' },
-  { agency: 'Johnston County FD', type: 'Engine + crew (3)', status: 'available', eta: '20 min' },
-  { agency: 'Wake County Emergency', type: 'EMS + command unit', status: 'deployed', eta: 'On scene' },
-  { agency: 'FEMA Region 4', type: 'Type I Incident Management', status: 'pending', eta: '6–12 hr' },
-]
+const EMPTY_EVACUEE_PINS: EvacueePin[] = []
 
 const STAFFING = [
   { shift: 'A-Shift (On duty)', crew: ['Lt. Morris (OIC)', 'FF Garcia (Driver/Pump)', 'FF Patel (EMS)', 'FF Kim (S&R)'], truck: 'Engine 1 + Rescue 1' },
@@ -111,6 +223,30 @@ const COMMAND_QUICK_LINKS = [
 ] as const
 
 // ─── Helper: format ISO date ──────────────────────────────────────────────────
+
+type ResponderVisibleProfile = {
+  id: string
+  full_name: string | null
+  address: string | null
+  phone: string | null
+  mobility_needs: string[] | null
+  medical_needs: string[] | null
+  disability_other: string | null
+  medical_other: string | null
+  communication_needs: unknown
+  special_notes: string | null
+}
+
+function communicationNeedStrings(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+  return raw.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+}
+
+function truncateResponderNote(s: string, max: number): string {
+  const t = s.trim()
+  if (t.length <= max) return t
+  return `${t.slice(0, max)}…`
+}
 
 function fmtDate(iso: string): string {
   if (!iso) return '—'
@@ -256,33 +392,63 @@ function SituationReportHeader() {
 
 // ─── Sub-component: Red Flag Warnings ────────────────────────────────────────
 
-function RedFlagSection({ mapCenter }: { mapCenter: [number, number] }) {
-  const [pins, setPins] = useState<EvacueePin[]>([])
+function RedFlagSection({
+  mapCenter,
+  flameoContext,
+}: {
+  mapCenter: [number, number]
+  flameoContext: FlameoContext | null
+}) {
+  const [householdPins, setHouseholdPins] = useState<HouseholdPin[]>([])
+  const [mapDemoMode, setMapDemoMode] = useState(true)
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [redFlagCount, setRedFlagCount] = useState<number | null>(null)
   const [showFacilities, setShowFacilities] = useState(false)
-  const supabase = createClient()
+  const [responderProfiles, setResponderProfiles] = useState<ResponderVisibleProfile[]>([])
+  const [commandBriefingKey, setCommandBriefingKey] = useState(0)
+  const [mapFocus, setMapFocus] = useState<{ lat: number; lng: number; nonce: number } | null>(null)
+  const supabase = useMemo(() => createClient(), [])
+
+  const loadEvacMap = useCallback(async () => {
+    try {
+      const res = await fetch('/api/responder/evacuees')
+      if (!res.ok) {
+        setHouseholdPins(DEMO_HOUSEHOLDS_TAGGED)
+        setMapDemoMode(true)
+        return
+      }
+      const json = (await res.json()) as { profiles?: unknown; householdPins?: HouseholdPin[] } | unknown[]
+      if (Array.isArray(json)) {
+        setHouseholdPins(DEMO_HOUSEHOLDS_TAGGED)
+        setMapDemoMode(true)
+        return
+      }
+      const hp = Array.isArray(json.householdPins) ? json.householdPins : []
+      if (hp.length > 0) {
+        setHouseholdPins(hp)
+        setMapDemoMode(false)
+      } else {
+        setHouseholdPins(DEMO_HOUSEHOLDS_TAGGED)
+        setMapDemoMode(true)
+      }
+    } catch {
+      setHouseholdPins(DEMO_HOUSEHOLDS_TAGGED)
+      setMapDemoMode(true)
+    } finally {
+      setCommandBriefingKey(k => k + 1)
+    }
+  }, [])
 
   async function loadData() {
     setLoading(true)
-    try {
-      // Try to pull real check-in data from Supabase and augment with demo pins
-      const { data: records } = await supabase
-        .from('evacuee_records')
-        .select('id, status, location_name, user_id, profiles(full_name, phone)')
-        .order('updated_at', { ascending: false })
-        .limit(100)
+    await loadEvacMap()
 
-      if (records && records.length > 0) {
-        // Real records don't have lat/lon, so we layer them over demo map as a count
-        // For demo, still show demo pins but update counts
-        setPins(DEMO_PINS)
-      } else {
-        setPins(DEMO_PINS)
-      }
+    try {
+      const { data: vis } = await supabase.rpc('profiles_visible_to_responder')
+      setResponderProfiles(Array.isArray(vis) ? (vis as ResponderVisibleProfile[]) : [])
     } catch {
-      setPins(DEMO_PINS)
+      setResponderProfiles([])
     }
 
     // Also fetch red flag warnings count
@@ -302,14 +468,36 @@ function RedFlagSection({ mapCenter }: { mapCenter: [number, number] }) {
 
   useEffect(() => { loadData() }, []) // eslint-disable-line
 
-  const byStatus = {
-    evacuated:  pins.filter(p => p.status === 'evacuated').length,
-    sheltering: pins.filter(p => p.status === 'sheltering').length,
-    returning:  pins.filter(p => p.status === 'returning').length,
-    unknown:    pins.filter(p => p.status === 'unknown').length,
-  }
+  useEffect(() => {
+    const channel = supabase
+      .channel('responder-profiles-home-status')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'profiles' },
+        (payload: { old?: Record<string, unknown>; new?: Record<string, unknown> }) => {
+          const prev = payload.old?.home_evacuation_status
+          const next = payload.new?.home_evacuation_status
+          if (prev !== undefined && next !== undefined && prev === next) return
+          void loadEvacMap()
+        }
+      )
+      .subscribe()
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [supabase, loadEvacMap])
 
-  const needHelp = pins.filter(p => p.status === 'unknown' && p.special_needs)
+  const byHome = useMemo(() => {
+    let evacuated = 0
+    let not_evacuated = 0
+    let cannot_evacuate = 0
+    for (const h of householdPins) {
+      evacuated += h.evacuated
+      not_evacuated += h.not_evacuated
+      cannot_evacuate += h.needs_help
+    }
+    return { evacuated, not_evacuated, cannot_evacuate }
+  }, [householdPins])
 
   return (
     <div className="flex flex-col h-[calc(100dvh-7.5rem)] min-h-[70dvh] bg-ash-900 wfa-responder-map-surface rounded-xl overflow-hidden border border-ash-800">
@@ -321,22 +509,22 @@ function RedFlagSection({ mapCenter }: { mapCenter: [number, number] }) {
           <span className="text-ash-600 text-xs ml-1 hidden sm:inline">· API map layer concept</span>
         </div>
 
-        {/* Status counts */}
+        {/* Status counts (home evacuation model) */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 sm:ml-2">
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-signal-safe/10 border border-signal-safe/20">
             <CheckCircle className="w-3 h-3 text-signal-safe" />
-            <span className="text-signal-safe text-xs font-bold">{byStatus.evacuated}</span>
-            <span className="text-ash-500 text-xs">safe</span>
+            <span className="text-signal-safe text-xs font-bold">{byHome.evacuated}</span>
+            <span className="text-ash-500 text-xs">evacuated</span>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-signal-danger/10 border border-signal-danger/20">
-            <AlertTriangle className="w-3 h-3 text-signal-danger" />
-            <span className="text-signal-danger text-xs font-bold">{byStatus.unknown}</span>
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-ash-800 border border-ash-600">
+            <MapPin className="w-3 h-3 text-ash-400" />
+            <span className="text-ash-300 text-xs font-bold">{byHome.not_evacuated}</span>
             <span className="text-ash-500 text-xs">not evacuated</span>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-signal-warn/10 border border-signal-warn/20">
-            <Users className="w-3 h-3 text-signal-warn" />
-            <span className="text-signal-warn text-xs font-bold">{byStatus.sheltering}</span>
-            <span className="text-ash-500 text-xs">sheltering</span>
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-signal-danger/10 border border-signal-danger/30">
+            <AlertTriangle className="w-3 h-3 text-signal-danger" />
+            <span className="text-signal-danger text-xs font-bold">{byHome.cannot_evacuate}</span>
+            <span className="text-ash-500 text-xs">cannot evacuate</span>
           </div>
         </div>
 
@@ -371,138 +559,108 @@ function RedFlagSection({ mapCenter }: { mapCenter: [number, number] }) {
         </div>
       </div>
 
-      {/* Main content: map + priority sidebar */}
+      {/* Main content: map + COMMAND panel */}
       <div className="flex flex-1 min-h-0 min-w-0 flex-col lg:flex-row gap-0">
-        {/* Map — takes most of the space */}
-        <div className="flex-1 min-h-[220px] min-w-0 lg:min-h-0">
-          {loading ? (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-8 h-8 border-2 border-signal-info/30 border-t-signal-info rounded-full animate-spin mx-auto mb-3" />
-                <div className="text-ash-500 text-sm">Loading evacuation data…</div>
-              </div>
+        {loading ? (
+          <div className="flex-1 flex items-center justify-center min-h-[220px] lg:min-h-0">
+            <div className="text-center">
+              <div className="w-8 h-8 border-2 border-signal-info/30 border-t-signal-info rounded-full animate-spin mx-auto mb-3" />
+              <div className="text-ash-500 text-sm">Loading evacuation data…</div>
             </div>
-          ) : (
+          </div>
+        ) : (
+          <>
+        <div className="flex-1 min-h-[220px] min-w-0 lg:min-h-0">
             <EvacueeStatusMap
-              pins={pins}
+              pins={EMPTY_EVACUEE_PINS}
+              householdPins={householdPins}
               center={mapCenter}
               zoom={12}
               facilities={HAZARD_FACILITIES}
               showFacilities={showFacilities}
+              demoMode={mapDemoMode}
+              mapFocusRequest={mapFocus}
+              onResponderStatusUpdated={() => { void loadEvacMap() }}
             />
-          )}
         </div>
 
-        {/* Priority sidebar — households that need help */}
-        <div className="w-full max-h-[45vh] lg:max-h-none lg:w-[26rem] shrink-0 border-t lg:border-t-0 lg:border-l border-ash-800 bg-ash-900 flex flex-col overflow-hidden">
-          <div className="px-4 py-3 border-b border-ash-800">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-signal-danger" />
-              <span className="text-white text-sm font-semibold">Priority — Needs Help</span>
-              <span className="ml-auto w-5 h-5 rounded-full bg-signal-danger text-white text-xs flex items-center justify-center font-bold">
-                {needHelp.length}
-              </span>
-            </div>
-            <p className="text-ash-500 text-xs mt-1">Not evacuated · Special needs flagged</p>
-          </div>
-
-          <div className="flex-1 overflow-y-auto">
-            {needHelp.length === 0 ? (
-              <div className="p-6 text-center">
-                <CheckCircle className="w-8 h-8 text-signal-safe mx-auto mb-2" />
-                <div className="text-ash-400 text-sm">All high-priority households accounted for</div>
+        <div className="w-full max-h-[45vh] lg:max-h-none lg:w-[26rem] shrink-0 flex flex-col overflow-hidden bg-ash-900">
+          <FlameoCommandRoom
+            householdPins={householdPins}
+            mapCenter={mapCenter}
+            fireContext={flameoContext}
+            demoMode={mapDemoMode}
+            briefingRefreshKey={commandBriefingKey}
+            onViewOnMap={(lat, lng) => setMapFocus({ lat, lng, nonce: Date.now() })}
+          />
+          <div className="flex-1 overflow-y-auto border-t border-ash-800">
+            <div className="px-4 py-3">
+              <div className="flex items-center gap-2 mb-2">
+                <MessageCircle className="w-3.5 h-3.5 text-signal-info shrink-0" />
+                <span className="text-white text-xs font-semibold">Opt-in households — communication & health</span>
               </div>
-            ) : (
-              <div className="divide-y divide-ash-800">
-                {needHelp.map(pin => (
-                  <div key={pin.id} className="px-4 py-3">
-                    <div className="flex items-start gap-2">
-                      <div className="w-2 h-2 rounded-full bg-signal-danger mt-1.5 shrink-0 animate-pulse" />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-white text-sm font-semibold truncate">{pin.name}</div>
-                        <div className="flex items-center gap-1 text-ash-500 text-xs mt-0.5">
-                          <MapPin className="w-3 h-3 shrink-0" />
-                          <span className="truncate">{pin.address}</span>
-                        </div>
-                        {pin.special_needs && (
-                          <div className="mt-1.5 text-xs text-signal-warn font-medium bg-signal-warn/10 border border-signal-warn/20 rounded px-2 py-0.5">
-                            {pin.special_needs}
+              <p className="text-ash-500 text-[10px] leading-snug mb-2">
+                Evacuees who consented to responder visibility in Settings. Cognitive, communication, and medical flags from their profile appear here — not on the demo map pins above.
+              </p>
+              {responderProfiles.length === 0 ? (
+                <p className="text-ash-600 text-xs">No households have opted in yet.</p>
+              ) : (
+                <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
+                  {responderProfiles.map(row => {
+                    const comm = communicationNeedStrings(row.communication_needs)
+                    const mob = row.mobility_needs?.filter(Boolean) ?? []
+                    const med = row.medical_needs?.filter(Boolean) ?? []
+                    return (
+                      <div key={row.id} className="rounded-lg border border-ash-800 bg-ash-800/40 p-2.5 text-[11px]">
+                        <div className="text-white font-semibold truncate">{row.full_name || 'Unknown'}</div>
+                        {row.address && (
+                          <div className="flex items-start gap-1 text-ash-500 mt-0.5">
+                            <MapPin className="w-3 h-3 shrink-0 mt-0.5" />
+                            <span className="break-words">{row.address}</span>
                           </div>
                         )}
-                        {pin.phone && (
-                          <div className="flex items-center gap-1 text-ash-400 text-xs mt-1.5">
+                        {mob.length > 0 && (
+                          <div className="text-ash-300 mt-1.5">
+                            <span className="text-ash-500">Mobility:</span> {mob.join(' · ')}
+                          </div>
+                        )}
+                        {med.length > 0 && (
+                          <div className="text-ash-300 mt-1">
+                            <span className="text-ash-500">Medical:</span> {med.join(' · ')}
+                          </div>
+                        )}
+                        {(row.disability_other || row.medical_other) && (
+                          <div className="text-ash-400 mt-1 text-[10px]">
+                            {[row.disability_other, row.medical_other].filter(Boolean).join(' · ')}
+                          </div>
+                        )}
+                        {comm.length > 0 && (
+                          <div className="text-signal-info mt-1.5">
+                            <span className="text-ash-500">Communication & cognitive:</span> {comm.join(' · ')}
+                          </div>
+                        )}
+                        {row.special_notes && (
+                          <div className="text-ash-300 mt-1.5 text-[10px] leading-relaxed border-t border-ash-700/80 pt-1.5">
+                            <span className="text-ash-500 text-[9px] uppercase tracking-wide">Responder guidance</span>
+                            <div className="mt-0.5">{truncateResponderNote(row.special_notes, 320)}</div>
+                          </div>
+                        )}
+                        {row.phone && (
+                          <div className="flex items-center gap-1 text-ash-500 text-[10px] mt-1.5">
                             <Phone className="w-3 h-3" />
-                            {pin.phone}
+                            {row.phone}
                           </div>
                         )}
                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Non-special-needs not-evacuated */}
-            {byStatus.unknown - needHelp.length > 0 && (
-              <div className="px-4 py-3 border-t border-ash-800">
-                <div className="text-ash-500 text-xs font-medium uppercase tracking-wider mb-2">Also not evacuated</div>
-                <div className="divide-y divide-ash-800/50">
-                  {pins.filter(p => p.status === 'unknown' && !p.special_needs).map(pin => (
-                    <div key={pin.id} className="py-2.5">
-                      <div className="text-ash-300 text-sm font-medium">{pin.name}</div>
-                      <div className="flex items-center gap-1 text-ash-600 text-xs mt-0.5">
-                        <MapPin className="w-3 h-3" />
-                        <span className="truncate">{pin.address}</span>
-                      </div>
-                      {pin.phone && (
-                        <div className="flex items-center gap-1 text-ash-500 text-xs mt-1">
-                          <Phone className="w-3 h-3" />
-                          {pin.phone}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
-              </div>
-            )}
-          </div>
-
-          <div className="px-4 py-3 border-t border-ash-800 shrink-0 space-y-3">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Flame className="w-3.5 h-3.5 text-ember-400" />
-                <span className="text-white text-xs font-semibold">NFDRS Fire Danger Scale</span>
-              </div>
-              <div className="space-y-1.5">
-                {NFDRS.map(n => (
-                  <div key={n.level} className={`flex items-center gap-2 px-2 py-1.5 rounded border ${n.border} bg-ash-800`}>
-                    <div className={`w-2.5 h-2.5 rounded-full ${n.color} shrink-0`} />
-                    <span className={`text-[11px] font-semibold w-16 shrink-0 ${n.text}`}>{n.level}</span>
-                    <span className="text-ash-500 text-[10px]">{n.desc}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Radio className="w-3.5 h-3.5 text-signal-info" />
-                <span className="text-white text-xs font-semibold">Mutual Aid & FEMA</span>
-              </div>
-              <div className="space-y-1.5">
-                {MUTUAL_AID.map((a, i) => (
-                  <div key={i} className="flex items-start gap-2 px-2 py-1.5 rounded border border-ash-800 bg-ash-800">
-                    <div className={`w-2 h-2 rounded-full mt-1 shrink-0 ${a.status === 'available' ? 'bg-signal-safe' : a.status === 'deployed' ? 'bg-signal-info' : 'bg-signal-warn'}`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[11px] text-white font-medium truncate">{a.agency}</div>
-                      <div className="text-[10px] text-ash-500 truncate">{a.type}</div>
-                    </div>
-                    <div className="text-[10px] font-mono text-ash-400 shrink-0">{a.eta}</div>
-                  </div>
-                ))}
-              </div>
+              )}
             </div>
           </div>
         </div>
+          </>
+        )}
       </div>
     </div>
   )
@@ -695,7 +853,7 @@ export default function ResponderDashboard() {
           </Link>
         </div>
       </div>
-      <RedFlagSection mapCenter={center} />
+      <RedFlagSection mapCenter={center} flameoContext={flameoAgent.context} />
     </div>
   )
 }

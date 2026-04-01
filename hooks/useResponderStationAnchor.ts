@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import { geocodeAddressClient } from '@/lib/geocoding-client'
+import { getBestGeolocationPosition } from '@/lib/geolocation-accuracy'
 
 const DEFAULT_CENTER: [number, number] = [38.5, -115]
 
@@ -51,8 +52,9 @@ export function useResponderStationAnchor() {
         }
       }
       if (typeof navigator !== 'undefined' && navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          async pos => {
+        ;(async () => {
+          try {
+            const pos = await getBestGeolocationPosition()
             if (cancelled) return
             const lat = pos.coords.latitude
             const lon = pos.coords.longitude
@@ -65,15 +67,13 @@ export function useResponderStationAnchor() {
             } catch { /* ignore */ }
             applyFromCoords(lat, lon, locStr, label)
             setGeoReady(true)
-          },
-          () => {
+          } catch {
             if (!cancelled) {
               applyFromCoords(DEFAULT_CENTER[0], DEFAULT_CENTER[1], 'Nevada, US', 'Default view')
               setGeoReady(true)
             }
-          },
-          { timeout: 10000, maximumAge: 300000 }
-        )
+          }
+        })()
       } else {
         if (!cancelled) {
           applyFromCoords(DEFAULT_CENTER[0], DEFAULT_CENTER[1], 'Nevada, US', 'Default view')

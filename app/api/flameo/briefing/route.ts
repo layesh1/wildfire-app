@@ -9,6 +9,7 @@ import {
   templatedLlmFailureBriefing,
   templatedReadyWithoutLlm,
 } from '@/lib/flameo-briefing'
+import { stripMarkdownHeadingMarkers } from '@/lib/flameo-briefing-format'
 
 const client = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -24,7 +25,13 @@ Shelters listed are human emergency evacuation shelters only. Do not recommend a
 
 When context.location_anchor.anchor is "work" and the building is an office or apartment, prioritize stairwell evacuation (never elevators). If mobility notes suggest a wheelchair or mobility device, mention asking building security for stair-assisted evacuation help.
 
-Based ONLY on this data, generate a concise proactive briefing (3-5 sentences max). When both anchors exist, briefly acknowledge home vs current location when relevant to the incidents. Do not invent fire names, distances, or locations not in the data. If data is insufficient, say so explicitly.`
+Based ONLY on this data, generate a concise proactive briefing (3-5 sentences max). When both anchors exist, briefly acknowledge home vs current location when relevant to the incidents. Do not invent fire names, distances, or locations not in the data. If data is insufficient, say so explicitly.
+
+Output plain sentences only: do not use markdown (no ** asterisks, no # headings, no hashtags). Do not add regional or city marketing labels unless the same wording appears verbatim in the JSON (e.g. an incident or shelter name). Prefer neutral phrasing such as "near your saved home" or "relative to your location" instead of naming a metro area.`
+
+function finalizeBriefing(s: string): string {
+  return stripMarkdownHeadingMarkers(s.trim())
+}
 
 function isFlameoContext(x: unknown): x is FlameoContext {
   if (!x || typeof x !== 'object') return false
@@ -70,7 +77,7 @@ export async function POST(request: NextRequest) {
     if (status !== 'ready') {
       const briefing = briefingForNonReadyStatus(status, message)
       const res: FlameoBriefingApiResponse = {
-        briefing: briefing || 'Fire safety information is limited right now.',
+        briefing: finalizeBriefing(briefing || 'Fire safety information is limited right now.'),
         grounded: true,
         fallback: false,
       }
@@ -80,9 +87,10 @@ export async function POST(request: NextRequest) {
     // status === 'ready'
     if (!context.flags?.has_confirmed_threat || context.incidents_nearby.length === 0) {
       const res: FlameoBriefingApiResponse = {
-        briefing:
+        briefing: finalizeBriefing(
           message ??
-          'No confirmed incidents to brief within your alert radius. Check back after the next data refresh.',
+            'No confirmed incidents to brief within your alert radius. Check back after the next data refresh.'
+        ),
         grounded: true,
         fallback: false,
       }
@@ -91,7 +99,7 @@ export async function POST(request: NextRequest) {
 
     if (!client || !process.env.ANTHROPIC_API_KEY) {
       const res: FlameoBriefingApiResponse = {
-        briefing: templatedReadyWithoutLlm(context),
+        briefing: finalizeBriefing(templatedReadyWithoutLlm(context)),
         grounded: true,
         fallback: true,
       }
@@ -127,7 +135,7 @@ export async function POST(request: NextRequest) {
       }
       logger.info('flameo briefing ok', { route: 'flameo/briefing', durationMs: Date.now() - start, userId: user.id })
       const res: FlameoBriefingApiResponse = {
-        briefing: text,
+        briefing: finalizeBriefing(text),
         grounded: true,
         fallback: false,
       }
@@ -139,7 +147,7 @@ export async function POST(request: NextRequest) {
         userId: user.id,
       })
       const res: FlameoBriefingApiResponse = {
-        briefing: templatedLlmFailureBriefing(context),
+        briefing: finalizeBriefing(templatedLlmFailureBriefing(context)),
         grounded: true,
         fallback: true,
       }

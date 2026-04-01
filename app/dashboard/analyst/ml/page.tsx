@@ -50,13 +50,13 @@ function FireShapeViz({ spread, windSpeed }: { spread: number; windSpeed: number
 
   return (
     <div className="card p-4">
-      <div className="text-white text-sm font-semibold mb-1 flex items-center gap-2">
+      <div className="text-gray-900 dark:text-white text-sm font-semibold mb-1 flex items-center gap-2">
         <span className="text-ember-400">◎</span> Fire Growth Shape — Technical View
       </div>
-      <p className="text-ash-500 text-xs mb-3">
+      <p className="text-gray-500 dark:text-gray-500 text-xs mb-3">
         Van Wagner (1969) ellipse · Wind → right · L/W = {LW.toFixed(1)}:1 · Origin = ignition
       </p>
-      <svg width="100%" viewBox={`0 0 ${SVG_W} ${SVG_H}`} style={{ background: '#0d1117', borderRadius: 8 }}>
+      <svg width="100%" viewBox={`0 0 ${SVG_W} ${SVG_H}`} className="rounded-lg bg-gray-100 dark:bg-gray-950">
         <defs>
           <marker id="arr-a" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
             <polygon points="0 0, 6 2, 0 4" fill="#00BFFF" />
@@ -89,7 +89,7 @@ function FireShapeViz({ spread, windSpeed }: { spread: number; windSpeed: number
           </g>
         ))}
       </svg>
-      <p className="text-ash-600 text-xs mt-2">
+      <p className="text-gray-600 dark:text-gray-400 text-xs mt-2">
         Perimeter at each time step · 24h projected area: {spread.toLocaleString()} ac
       </p>
     </div>
@@ -169,21 +169,21 @@ export default function AnalystMLPage() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="p-8 max-w-4xl mx-auto text-gray-700 dark:text-gray-300">
       <div className="mb-8">
         <div className="flex items-center gap-2 text-signal-info text-sm font-medium mb-3">
           <Brain className="w-4 h-4" /> ML PREDICTOR · ANALYST
         </div>
-        <h1 className="font-display text-3xl font-bold text-white mb-2">ML Spread Predictor</h1>
-        <p className="text-ash-400 text-sm">Model trained on 50,664 true wildfire incidents (prescribed burns excluded). Predicts spread, evacuation probability, and estimated signal gap.</p>
+        <h1 className="font-display text-3xl font-bold text-gray-900 dark:text-white mb-2">ML Spread Predictor</h1>
+        <p className="text-gray-600 dark:text-gray-400 text-sm">Model trained on 50,664 true wildfire incidents (prescribed burns excluded). Predicts spread, evacuation probability, and estimated signal gap.</p>
       </div>
 
       {/* Location auto-fill */}
       <div className="card p-4 mb-6">
         <div className="flex items-center gap-2 mb-2">
           <MapPin className="w-4 h-4 text-signal-info" />
-          <span className="text-white text-sm font-medium">Auto-fill conditions from location</span>
-          <span className="text-ash-600 text-xs ml-auto">Weather via Open-Meteo · SVI from WiDS dataset</span>
+          <span className="text-gray-900 dark:text-white text-sm font-medium">Auto-fill conditions from location</span>
+          <span className="text-gray-600 dark:text-gray-400 text-xs ml-auto">Weather via Open-Meteo · SVI from WiDS dataset</span>
         </div>
         <div className="flex gap-2">
           <input
@@ -192,7 +192,7 @@ export default function AnalystMLPage() {
             onChange={e => { setLocation(e.target.value); setLocationError(null) }}
             onKeyDown={e => e.key === 'Enter' && fetchLocation()}
             placeholder="City, county, or zip — e.g. Paradise, CA"
-            className="flex-1 bg-ash-800 border border-ash-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-signal-info/60 placeholder:text-ash-600"
+            className="flex-1 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-signal-info/60 placeholder:text-gray-600 dark:text-gray-400"
           />
           <button onClick={fetchLocation} disabled={locationLoading}
             className="px-4 py-2 rounded-lg text-sm bg-signal-info/20 border border-signal-info/30 text-signal-info hover:bg-signal-info/30 transition-colors disabled:opacity-50 flex items-center gap-1.5">
@@ -210,7 +210,7 @@ export default function AnalystMLPage() {
 
       {/* Fire Mode toggle */}
       <div className="card p-4 mb-6">
-        <div className="text-white text-sm font-medium mb-3">Fire Mode</div>
+        <div className="text-gray-900 dark:text-white text-sm font-medium mb-3">Fire Mode</div>
         <div className="grid grid-cols-2 gap-2">
           {(['scenario', 'active'] as const).map(mode => (
             <button key={mode} onClick={() => { setFireMode(mode); setResult(null) }}
@@ -219,7 +219,7 @@ export default function AnalystMLPage() {
                   ? mode === 'active'
                     ? 'bg-signal-danger/10 border-signal-danger/40 text-signal-danger'
                     : 'bg-signal-info/10 border-signal-info/40 text-signal-info'
-                  : 'border-ash-700 text-ash-400 hover:text-white hover:border-ash-600'
+                  : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-400 dark:hover:border-gray-500'
               }`}>
               <div className="font-semibold">{mode === 'scenario' ? 'Scenario Planning' : 'Active Fire'}</div>
               <div className="text-xs mt-0.5 opacity-75">
@@ -229,11 +229,11 @@ export default function AnalystMLPage() {
           ))}
         </div>
         {fireMode === 'active' && (
-          <div className="mt-4 grid grid-cols-2 gap-4 pt-4 border-t border-ash-800">
+          <div className="mt-4 grid grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-800">
             <div>
               <div className="flex justify-between mb-1.5">
-                <span className="text-ash-300 text-sm">Current Burned Acres</span>
-                <span className="text-white font-mono text-sm">{currentAcres.toLocaleString()} ac</span>
+                <span className="text-gray-800 dark:text-gray-300 text-sm">Current Burned Acres</span>
+                <span className="text-gray-900 dark:text-white font-mono text-sm">{currentAcres.toLocaleString()} ac</span>
               </div>
               <input type="range" min={10} max={100000} step={10} value={currentAcres}
                 onChange={e => { setCurrentAcres(Number(e.target.value)); setResult(null) }}
@@ -241,14 +241,14 @@ export default function AnalystMLPage() {
             </div>
             <div>
               <div className="flex justify-between mb-1.5">
-                <span className="text-ash-300 text-sm">Containment</span>
-                <span className="text-white font-mono text-sm">{containmentPct}%</span>
+                <span className="text-gray-800 dark:text-gray-300 text-sm">Containment</span>
+                <span className="text-gray-900 dark:text-white font-mono text-sm">{containmentPct}%</span>
               </div>
               <input type="range" min={0} max={100} step={1} value={containmentPct}
                 onChange={e => { setContainmentPct(Number(e.target.value)); setResult(null) }}
                 className="w-full accent-signal-safe" />
             </div>
-            <p className="col-span-2 text-ash-500 text-xs">
+            <p className="col-span-2 text-gray-500 dark:text-gray-500 text-xs">
               At {containmentPct}% containment — projected additional spread reduced by {containmentPct}%. Current burn perimeter shown on map.
             </p>
           </div>
@@ -257,7 +257,7 @@ export default function AnalystMLPage() {
 
       <div className="grid md:grid-cols-2 gap-6">
         <div className="card p-6 space-y-5">
-          <h2 className="text-white font-semibold flex items-center gap-2"><BarChart3 className="w-4 h-4 text-ash-400" /> Feature Inputs</h2>
+          <h2 className="text-gray-900 dark:text-white font-semibold flex items-center gap-2"><BarChart3 className="w-4 h-4 text-gray-600 dark:text-gray-400" /> Feature Inputs</h2>
           {[
             { label: 'Wind Speed', icon: Wind, value: windSpeed, set: setWindSpeed, min: 0, max: 80, unit: 'mph' },
             { label: 'Relative Humidity', icon: Droplets, value: humidity, set: setHumidity, min: 0, max: 100, unit: '%' },
@@ -266,8 +266,8 @@ export default function AnalystMLPage() {
           ].map(({ label, icon: Icon, value, set, min, max, unit, step }) => (
             <div key={label}>
               <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-2"><Icon className="w-3.5 h-3.5 text-ash-500" /><span className="text-ash-300 text-sm">{label}</span></div>
-                <span className="text-white font-mono text-sm">{step === 0.01 ? Number(value).toFixed(2) : value}{unit}</span>
+                <div className="flex items-center gap-2"><Icon className="w-3.5 h-3.5 text-gray-500 dark:text-gray-500" /><span className="text-gray-800 dark:text-gray-300 text-sm">{label}</span></div>
+                <span className="text-gray-900 dark:text-white font-mono text-sm">{step === 0.01 ? Number(value).toFixed(2) : value}{unit}</span>
               </div>
               <input type="range" min={min} max={max} step={step ?? 1} value={value}
                 onChange={e => { set(Number(e.target.value)); setResult(null) }}
@@ -279,15 +279,15 @@ export default function AnalystMLPage() {
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-2">
-                <Flame className="w-3.5 h-3.5 text-ash-500" />
-                <span className="text-ash-300 text-sm">Acreage Growth Rate</span>
+                <Flame className="w-3.5 h-3.5 text-gray-500 dark:text-gray-500" />
+                <span className="text-gray-800 dark:text-gray-300 text-sm">Acreage Growth Rate</span>
               </div>
-              <span className="text-white font-mono text-sm">{acreageGrowth}×</span>
+              <span className="text-gray-900 dark:text-white font-mono text-sm">{acreageGrowth}×</span>
             </div>
             <input type="range" min={1} max={500} step={1} value={acreageGrowth}
               onChange={e => { setAcreageGrowth(Number(e.target.value)); setResult(null) }}
               className="w-full accent-orange-500" />
-            <p className="text-ash-600 text-xs mt-1">Observed growth multiplier vs. baseline (from acreage update logs)</p>
+            <p className="text-gray-600 dark:text-gray-400 text-xs mt-1">Observed growth multiplier vs. baseline (from acreage update logs)</p>
           </div>
 
           {/* Exclude Prescribed Burns */}
@@ -295,12 +295,12 @@ export default function AnalystMLPage() {
             <div className="relative">
               <input type="checkbox" checked={excludePrescribed} onChange={e => { setExcludePrescribed(e.target.checked); setResult(null) }}
                 className="sr-only" />
-              <div className={`w-10 h-5 rounded-full transition-colors ${excludePrescribed ? 'bg-signal-info' : 'bg-ash-700'}`} />
+              <div className={`w-10 h-5 rounded-full transition-colors ${excludePrescribed ? 'bg-signal-info' : 'bg-gray-300 dark:bg-gray-600'}`} />
               <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${excludePrescribed ? 'translate-x-5' : ''}`} />
             </div>
             <div>
-              <span className="text-ash-300 text-sm group-hover:text-white transition-colors">Exclude prescribed burns</span>
-              <p className="text-ash-600 text-xs">Remove NIFC CAUSE=2 (prescribed fire) from risk calculation</p>
+              <span className="text-gray-800 dark:text-gray-300 text-sm group-hover:text-gray-900 dark:group-hover:text-white transition-colors">Exclude prescribed burns</span>
+              <p className="text-gray-600 dark:text-gray-400 text-xs">Remove NIFC CAUSE=2 (prescribed fire) from risk calculation</p>
             </div>
           </label>
 
@@ -317,16 +317,16 @@ export default function AnalystMLPage() {
                   { label: 'Fire risk score', value: `${(result.risk * 100).toFixed(1)}%`, color: result.risk > 0.75 ? 'text-signal-danger' : result.risk > 0.5 ? 'text-signal-warn' : 'text-signal-safe' },
                   { label: fireMode === 'active' ? 'Projected additional spread' : 'Projected spread (24h)', value: `${result.spread.toLocaleString()} ac`, color: 'text-signal-warn' },
                   { label: 'Evacuation probability', value: `${(result.evac_prob * 100).toFixed(0)}%`, color: result.evac_prob > 0.7 ? 'text-signal-danger' : 'text-signal-warn' },
-                  { label: 'Est. signal gap', value: `${result.signal_gap_pred}h`, color: result.signal_gap_pred > 12 ? 'text-signal-danger' : 'text-ash-300' },
+                  { label: 'Est. signal gap', value: `${result.signal_gap_pred}h`, color: result.signal_gap_pred > 12 ? 'text-signal-danger' : 'text-gray-800 dark:text-gray-300' },
                 ].map(s => (
                   <div key={s.label} className="card p-4">
-                    <div className="text-ash-500 text-xs mb-1">{s.label}</div>
+                    <div className="text-gray-500 dark:text-gray-500 text-xs mb-1">{s.label}</div>
                     <div className={`font-display text-2xl font-bold ${s.color}`}>{s.value}</div>
                   </div>
                 ))}
               </div>
               <div className="card p-4">
-                <div className="text-ash-400 text-xs font-medium mb-3">Feature importance (this run)</div>
+                <div className="text-gray-600 dark:text-gray-400 text-xs font-medium mb-3">Feature importance (this run)</div>
                 {[
                   { label: 'Wind speed', weight: windSpeed / 80 },
                   { label: 'Humidity (inverse)', weight: 1 - humidity / 100 },
@@ -335,15 +335,15 @@ export default function AnalystMLPage() {
                   { label: 'Acreage growth rate', weight: Math.min(acreageGrowth / 500, 1) },
                 ].map(f => (
                   <div key={f.label} className="flex items-center gap-3 mb-2">
-                    <span className="text-ash-400 text-xs w-36 shrink-0">{f.label}</span>
-                    <div className="flex-1 h-2 bg-ash-800 rounded-full overflow-hidden">
+                    <span className="text-gray-600 dark:text-gray-400 text-xs w-36 shrink-0">{f.label}</span>
+                    <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
                       <div className="h-full bg-blue-500 rounded-full" style={{ width: `${f.weight * 100}%` }} />
                     </div>
-                    <span className="text-ash-400 text-xs w-10 text-right">{(f.weight * 100).toFixed(0)}%</span>
+                    <span className="text-gray-600 dark:text-gray-400 text-xs w-10 text-right">{(f.weight * 100).toFixed(0)}%</span>
                   </div>
                 ))}
                 {excludePrescribed && (
-                  <p className="text-ash-600 text-xs mt-2 pt-2 border-t border-ash-800">
+                  <p className="text-gray-600 dark:text-gray-400 text-xs mt-2 pt-2 border-t border-gray-200 dark:border-gray-800">
                     Prescribed burn exclusion applied — risk reduced by ~5%
                   </p>
                 )}
@@ -351,8 +351,8 @@ export default function AnalystMLPage() {
             </>
           ) : (
             <div className="card p-10 flex flex-col items-center justify-center text-center">
-              <Brain className="w-10 h-10 text-ash-700 mb-3" />
-              <div className="text-ash-500 text-sm">Set feature inputs and run the model</div>
+              <Brain className="w-10 h-10 text-gray-400 dark:text-gray-600 mb-3" />
+              <div className="text-gray-500 dark:text-gray-500 text-sm">Set feature inputs and run the model</div>
             </div>
           )}
         </div>
@@ -367,10 +367,10 @@ export default function AnalystMLPage() {
 
           {lat != null && lon != null && (
             <div className="mt-4 card p-4">
-              <div className="text-white text-sm font-semibold mb-1 flex items-center gap-2">
+              <div className="text-gray-900 dark:text-white text-sm font-semibold mb-1 flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-ember-400" /> Fire Growth on Map
               </div>
-              <p className="text-ash-500 text-xs mb-3">
+              <p className="text-gray-500 dark:text-gray-500 text-xs mb-3">
                 Predicted perimeters overlaid on real map — shows buildings and roads that may be affected. Wind from {windDirDeg}°.
               </p>
               <FireSpreadMap
@@ -381,7 +381,7 @@ export default function AnalystMLPage() {
                 windDirDeg={windDirDeg}
                 currentAcres={fireMode === 'active' ? currentAcres : undefined}
               />
-              <p className="text-ash-600 text-xs mt-2">
+              <p className="text-gray-600 dark:text-gray-400 text-xs mt-2">
                 {fireMode === 'active'
                   ? 'Dashed orange = current burn perimeter · Yellow→Red = projected additional growth at 1h/3h/6h/12h/24h'
                   : 'Yellow = 1h · Orange = 3h/6h · Red = 12h/24h perimeter · Click ellipses for info'}
@@ -394,7 +394,7 @@ export default function AnalystMLPage() {
       {/* SVI context */}
       {result && (
         <div className={`mt-4 card p-4 border-l-4 ${svi >= 0.75 ? 'border-signal-danger' : svi >= 0.5 ? 'border-signal-warn' : 'border-signal-safe'}`}>
-          <p className="text-ash-400 text-xs">
+          <p className="text-gray-600 dark:text-gray-400 text-xs">
             <span className={`font-semibold ${svi >= 0.75 ? 'text-signal-danger' : svi >= 0.5 ? 'text-signal-warn' : 'text-signal-safe'}`}>
               County SVI = {svi.toFixed(2)} ({svi >= 0.75 ? 'High' : svi >= 0.5 ? 'Moderate' : 'Low'} vulnerability)
             </span>

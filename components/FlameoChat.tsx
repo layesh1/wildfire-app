@@ -12,6 +12,7 @@ import { commandIntelActionsToChips, flameoActionsToChips, partitionAiActions } 
 import type { FlameoContext, FlameoContextStatus, FlameoAiRole } from '@/lib/flameo-context-types'
 import { flameoGroundingBadgeText } from '@/lib/flameo-grounding-ui'
 import { useFlameoHubAgentBridge } from '@/components/FlameoHubAgentBridge'
+import { isFlameoDashboardAiFullScreenPath } from '@/lib/flameo-ai-fullscreen-routes'
 
 // ── Smoke particle ────────────────────────────────────────────────────────────
 const FIRE_COLORS = [
@@ -181,6 +182,15 @@ export default function FlameoChat({
 
   useEffect(() => { setMounted(true) }, [])
 
+  useEffect(() => {
+    function onOpenFromHub() {
+      setOpen(true)
+      setShowIntro(false)
+    }
+    window.addEventListener('wfa-flameo-open', onOpenFromHub)
+    return () => window.removeEventListener('wfa-flameo-open', onOpenFromHub)
+  }, [])
+
   // Briefing + chat entry live in My Hub / My alerts — skip floating "Meet Flameo" on consumer hubs
   useEffect(() => {
     setShowIntro(false)
@@ -261,6 +271,8 @@ export default function FlameoChat({
   }
 
   if (!mounted) return null
+
+  if (isFlameoDashboardAiFullScreenPath(pathname)) return null
 
   return createPortal(
     <>

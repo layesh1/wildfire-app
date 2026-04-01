@@ -12,6 +12,11 @@ export interface NifcFire {
   acres: number | null
   containment: number | null
   source: 'nifc_perimeter' | 'nifc_incident'
+  /**
+   * When from perimeter service: GeoJSON-style rings for map polygons (each ring is [lat, lng][]).
+   * Outer ring first; additional rings may be holes (islands).
+   */
+  perimeter_rings?: [number, number][][]
 }
 
 function ringCentroid(rings: number[][][]): { x: number; y: number } | null {
@@ -20,6 +25,12 @@ function ringCentroid(rings: number[][][]): { x: number; y: number } | null {
   const x = ring.reduce((s, p) => s + p[0], 0) / ring.length
   const y = ring.reduce((s, p) => s + p[1], 0) / ring.length
   return { x, y }
+}
+
+/** Esri rings use [x, y] = [lon, lat] in WGS84 for this layer. */
+function ringsToLatLngPaths(rings: number[][][]): [number, number][][] {
+  if (!rings?.length) return []
+  return rings.map(ring => ring.map(([x, y]) => [y, x] as [number, number]))
 }
 
 async function fetchPerimeters(): Promise<NifcFire[]> {
@@ -31,7 +42,9 @@ async function fetchPerimeters(): Promise<NifcFire[]> {
   return json.features
     .filter((f: any) => f.attributes && f.geometry?.rings)
     .map((f: any) => {
-      const c = ringCentroid(f.geometry.rings)
+      const ringsRaw = f.geometry.rings as number[][][]
+      const c = ringCentroid(ringsRaw)
+      const perimeter_rings = ringsToLatLngPaths(ringsRaw)
       return {
         id: `nifc-p-${f.attributes.OBJECTID ?? Math.random()}`,
         latitude: c?.y ?? null,
@@ -40,6 +53,7 @@ async function fetchPerimeters(): Promise<NifcFire[]> {
         acres: f.attributes.GISAcres ?? f.attributes.Acres ?? null,
         containment: f.attributes.PercentContained ?? null,
         source: 'nifc_perimeter' as const,
+        perimeter_rings: perimeter_rings.length ? perimeter_rings : undefined,
       }
     })
     .filter((f: NifcFire) => f.latitude && f.longitude)

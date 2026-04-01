@@ -254,6 +254,8 @@ export default function PersonsPage() {
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [inviteOk, setInviteOk] = useState<string | null>(null)
   const [inviteLoading, setInviteLoading] = useState(false)
+  const [inviteConfirmOpen, setInviteConfirmOpen] = useState(false)
+  const [confirmInviteEmail, setConfirmInviteEmail] = useState<string | null>(null)
   const [pendingInvites, setPendingInvites] = useState<
     Array<{ id: string; email: string; createdAt: string }>
   >([])
@@ -424,7 +426,50 @@ export default function PersonsPage() {
     return () => clearInterval(interval)
   }, [])
 
-  const sendInvite = useCallback(async () => {
+  const sendInviteToEmail = useCallback(
+    async (email: string) => {
+      setInviteLoading(true)
+      setInviteError(null)
+      setInviteOk(null)
+      try {
+        const res = await fetch('/api/family/send-invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          const msg = String(data?.error || '').toLowerCase()
+          if (msg.includes('already') && msg.includes('my people')) {
+            setInviteError('This person is already in your My People list')
+          } else if (msg.includes('valid email')) {
+            setInviteError('Please enter a valid email address')
+          } else {
+            setInviteError('Something went wrong. Try again.')
+          }
+          return
+        }
+        setInviteOk(`Invite sent to ${email}`)
+        setInviteEmail('')
+        try {
+          const supabase = createClient()
+          const { data: { user } } = await supabase.auth.getUser()
+          if (user) {
+            await supabase.from('profiles').update({ my_people_consent_shown: true }).eq('id', user.id)
+          }
+        } catch {
+          /* non-fatal */
+        }
+      } catch {
+        setInviteError('Something went wrong. Try again.')
+      } finally {
+        setInviteLoading(false)
+      }
+    },
+    []
+  )
+
+  const openInviteConfirm = useCallback(() => {
     const email = inviteEmail.trim().toLowerCase()
     const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email)
     if (!validEmail) {
@@ -437,59 +482,32 @@ export default function PersonsPage() {
       setInviteOk(null)
       return
     }
-
-    setInviteLoading(true)
     setInviteError(null)
-    setInviteOk(null)
-    try {
-      const res = await fetch('/api/family/send-invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        const msg = String(data?.error || '').toLowerCase()
-        if (msg.includes('already') && msg.includes('my people')) {
-          setInviteError('This person is already in your My People list')
-        } else if (msg.includes('valid email')) {
-          setInviteError('Please enter a valid email address')
-        } else {
-          setInviteError('Something went wrong. Try again.')
-        }
-        return
-      }
-      setInviteOk(`Invite sent to ${email}`)
-      setInviteEmail('')
-    } catch {
-      setInviteError('Something went wrong. Try again.')
-    } finally {
-      setInviteLoading(false)
-    }
+    setConfirmInviteEmail(email)
+    setInviteConfirmOpen(true)
   }, [inviteEmail, persons])
 
-  const resendInvite = useCallback(async (email: string) => {
+  const sendInvite = useCallback(() => {
+    openInviteConfirm()
+  }, [openInviteConfirm])
+
+  const resendInvite = useCallback((email: string) => {
+    setConfirmInviteEmail(email)
+    setInviteConfirmOpen(true)
+  }, [])
+
+  const confirmInviteSend = useCallback(async () => {
+    const email = confirmInviteEmail
+    if (!email) return
+    setInviteConfirmOpen(false)
     setPendingActionEmail(email)
-    setInviteError(null)
-    setInviteOk(null)
     try {
-      const res = await fetch('/api/family/send-invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setInviteError(typeof data?.error === 'string' ? data.error : 'Something went wrong. Try again.')
-        return
-      }
-      setInviteOk(`Invite sent to ${email}`)
-    } catch {
-      setInviteError('Something went wrong. Try again.')
+      await sendInviteToEmail(email)
     } finally {
       setPendingActionEmail(null)
+      setConfirmInviteEmail(null)
     }
-  }, [])
+  }, [confirmInviteEmail, sendInviteToEmail])
 
   const cancelInvite = useCallback(async (id: string) => {
     setPendingActionEmail(id)
@@ -647,6 +665,55 @@ export default function PersonsPage() {
           <span className="ml-auto text-ash-600 text-xs">
             {total} {total === 1 ? 'person' : 'people'} tracked
           </span>
+        </div>
+      )}
+
+      {inviteConfirmOpen && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="invite-confirm-title"
+        >
+          <div className="max-w-md rounded-xl border border-ash-700 bg-ash-950 p-6 shadow-xl">
+            <h2 id="invite-confirm-title" className="font-display text-lg font-bold text-white">
+              Heads up before you invite
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-ash-300">
+              When{' '}
+              <span className="font-medium text-ash-100">
+                {confirmInviteEmail || 'this person'}
+              </span>{' '}
+              joins your My People, they will be able to see:
+            </p>
+            <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-ash-400">
+              <li>Your safety status and evacuation updates</li>
+              <li>Your general location during an active incident</li>
+            </ul>
+            <p className="mt-3 text-sm text-ash-400">
+              You will be able to see the same about them. Emergency responders can see location and evacuation status of all connected users.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setInviteConfirmOpen(false)
+                  setConfirmInviteEmail(null)
+                }}
+                className="rounded-lg border border-ash-600 px-4 py-2 text-sm text-ash-300 hover:bg-ash-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmInviteSend()}
+                disabled={inviteLoading}
+                className="rounded-lg bg-ember-600 px-4 py-2 text-sm font-semibold text-white hover:bg-ember-500 disabled:opacity-50"
+              >
+                {inviteLoading ? 'Sending…' : 'Send Invite — I understand'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

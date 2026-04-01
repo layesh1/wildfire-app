@@ -3,18 +3,18 @@ import { useEffect, useMemo, useState } from 'react'
 import { firesWithinRadius } from '@/lib/hub-nearby'
 import type { NifcFire } from '@/app/dashboard/caregiver/map/LeafletMap'
 import { isAlertsAiDeploymentEnabled } from '@/lib/alerts-ai-feature'
+import { DEFAULT_ALERT_RADIUS_MILES } from '@/lib/alert-radius'
 import { milesToKm, type AiAlertSummary, type NifcProximityItem } from '@/lib/consumer-alerts'
 
 export function useConsumerAlerts(
   nifc: NifcFire[],
   mapAnchor: [number, number] | null,
   radiusMiles: number,
-  aiEnabled: boolean,
   /** Label for AI summary (e.g. "Your home" vs "Your map anchor"). */
   anchorLabelForAi = 'Your map anchor'
 ) {
   const proximityItems: NifcProximityItem[] = useMemo(() => {
-    const km = milesToKm(radiusMiles || 25)
+    const km = milesToKm(radiusMiles > 0 ? radiusMiles : DEFAULT_ALERT_RADIUS_MILES)
     return firesWithinRadius(nifc, mapAnchor, km) as NifcProximityItem[]
   }, [nifc, mapAnchor, radiusMiles])
 
@@ -24,7 +24,7 @@ export function useConsumerAlerts(
 
   useEffect(() => {
     const deployOk = isAlertsAiDeploymentEnabled()
-    if (!deployOk || !aiEnabled || proximityItems.length === 0) {
+    if (!deployOk || proximityItems.length === 0) {
       setAiSummary(null)
       setAiError(null)
       setAiLoading(false)
@@ -65,7 +65,7 @@ export function useConsumerAlerts(
       .finally(() => setAiLoading(false))
 
     return () => ac.abort()
-  }, [aiEnabled, proximityItems, anchorLabelForAi])
+  }, [proximityItems, anchorLabelForAi])
 
   return { proximityItems, aiSummary, aiLoading, aiError }
 }

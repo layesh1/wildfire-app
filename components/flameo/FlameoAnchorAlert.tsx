@@ -4,14 +4,9 @@ import { useState } from 'react'
 import type { FlameoContext, FlameoContextStatus } from '@/lib/flameo-context-types'
 import type { DetectedAnchor } from '@/hooks/useUserLocation'
 
-function hasWheelchairMobility(
-  mobilityNeeds: string[] | null | undefined,
-  mobilityAccess: string[] | null | undefined
-): boolean {
+function hasWheelchairMobility(mobilityNeeds: string[] | null | undefined): boolean {
   const mn = mobilityNeeds ?? []
-  if (mn.some(s => /wheelchair|mobility device/i.test(s))) return true
-  const ma = mobilityAccess ?? []
-  return ma.includes('wheelchair_user')
+  return mn.some(s => /wheelchair|mobility device|walker|cane/i.test(String(s)))
 }
 
 export default function FlameoAnchorAlert({
@@ -21,7 +16,6 @@ export default function FlameoAnchorAlert({
   workBuildingType,
   workFloorFromProfile,
   mobilityNeeds,
-  mobilityAccessNeeds,
   onSaveFloor,
 }: {
   status: FlameoContextStatus | null
@@ -30,7 +24,6 @@ export default function FlameoAnchorAlert({
   workBuildingType: string | null | undefined
   workFloorFromProfile: number | null | undefined
   mobilityNeeds: string[] | null | undefined
-  mobilityAccessNeeds: string[] | null | undefined
   onSaveFloor: (floor: number) => Promise<void>
 }) {
   const [floorInput, setFloorInput] = useState('')
@@ -48,7 +41,7 @@ export default function FlameoAnchorAlert({
     workFloorFromProfile != null && Number.isFinite(Number(workFloorFromProfile))
   const floorForCopy = confirmedFloor ?? (floorSaved ? Number(workFloorFromProfile) : null)
 
-  const wheelchair = hasWheelchairMobility(mobilityNeeds, mobilityAccessNeeds)
+  const wheelchair = hasWheelchairMobility(mobilityNeeds)
 
   if (!active) return null
 

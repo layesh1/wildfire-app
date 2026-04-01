@@ -38,15 +38,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data: prof } = await supabase
-      .from('profiles')
-      .select('alerts_ai_enabled')
-      .eq('id', user.id)
-      .single()
-    if (prof?.alerts_ai_enabled !== true) {
-      return NextResponse.json({ error: 'AI summaries disabled' }, { status: 403 })
-    }
-
     const body = await request.json()
     const incidents = Array.isArray(body?.incidents) ? body.incidents as IncidentInput[] : []
     const anchorLabel = typeof body?.anchorLabel === 'string' ? body.anchorLabel.slice(0, 120) : 'Your location'

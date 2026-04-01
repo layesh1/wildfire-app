@@ -84,6 +84,15 @@ export type LegacySingleCheckinStatus =
   | 'need_help'
   | HomeEvacuationStatus
 
+/** Resolve home evacuation for map pins / lists when `home_evacuation_status` is set on demo or API rows. */
+export function resolvePinHomeEvacuationStatus(pin: {
+  status?: string | null
+  home_evacuation_status?: HomeEvacuationStatus | null
+}): HomeEvacuationStatus {
+  if (pin.home_evacuation_status) return pin.home_evacuation_status
+  return mapLegacyCheckinToDual(pin.status).home
+}
+
 export function mapLegacyCheckinToDual(
   legacy: string | null | undefined
 ): { home: HomeEvacuationStatus; safety: PersonSafetyStatus | null } {

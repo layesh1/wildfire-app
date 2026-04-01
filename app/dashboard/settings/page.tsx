@@ -5,13 +5,13 @@ import Link from 'next/link'
 import {
   Shield, Heart, BarChart3, Lock, Check, ShieldCheck, Globe,
   Settings, Plus, User, Bell, BellOff, Moon, Sun, Monitor, LogOut,
-  Trash2, Key, AlertTriangle, Save, CheckCircle, PawPrint, ShieldAlert,
-  Activity, Radio, FileText, Brain, Flame
+  Trash2, Key, Save, CheckCircle, PawPrint, ShieldAlert,
+  Activity, FileText, Brain, Flame
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/components/LanguageProvider'
 import { LANGUAGES } from '@/lib/languages'
-import { isAlertsAiDeploymentEnabled } from '@/lib/alerts-ai-feature'
+import { ALERT_RADIUS_CHIP_MILES, coerceAlertRadiusToChip, DEFAULT_ALERT_RADIUS_MILES } from '@/lib/alert-radius'
 import { requiresConsumerHomeAddress } from '@/lib/profile-requirements'
 import AddressVerifySave from '@/components/AddressVerifySave'
 import {
@@ -19,6 +19,16 @@ import {
   workBuildingNeedsFloor,
 } from '@/lib/profile-work-location'
 import { detectBuildingType } from '@/lib/geocoding'
+import {
+  MOBILITY_MOVEMENT_OPTIONS,
+  DISABILITY_OPTIONS,
+  MEDICAL_OPTIONS,
+  DISABILITY_OTHER_LABEL,
+  MEDICAL_OTHER_LABEL,
+  MAX_OTHER_WORDS,
+  wordCount,
+  clampToMaxWords,
+} from '@/lib/profile-mobility-options'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface ProfileData {
@@ -27,24 +37,23 @@ interface ProfileData {
   special_notes: string
   emergency_contact_name: string; emergency_contact_phone: string
   language_preference: string; communication_needs: string[]; household_languages: string
-  mobility_access_needs: string[]
-  mobility_access_other: string
+  mobility_needs: string[]
+  disability_needs: string[]
+  disability_other: string
+  medical_needs: string[]
+  medical_other: string
 }
 const DEFAULT: ProfileData = {
   full_name: '', phone: '', address: '', notification_email: '', notification_phone: '',
   notify_browser: false, special_notes: '',
   emergency_contact_name: '', emergency_contact_phone: '',
   language_preference: 'en', communication_needs: [], household_languages: '',
-  mobility_access_needs: [],
-  mobility_access_other: '',
+  mobility_needs: [],
+  disability_needs: [],
+  disability_other: '',
+  medical_needs: [],
+  medical_other: '',
 }
-
-const MOBILITY_ACCESS_OPTIONS: { key: string; label: string }[] = [
-  { key: 'wheelchair_user', label: 'Wheelchair user' },
-  { key: 'disabilities', label: 'Disabilities' },
-  { key: 'medical_conditions', label: 'Medical conditions or equipment' },
-  { key: 'other', label: 'Other' },
-]
 
 // ── Role config ────────────────────────────────────────────────────────────
 const ROLE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; activeBorder: string; protected: boolean }> = {
@@ -112,8 +121,7 @@ function SettingsInner() {
 
   const [tab, setTab] = useState<Tab>('profile')
   const [profile, setProfile] = useState<ProfileData>(DEFAULT)
-  const [alertsAiEnabled, setAlertsAiEnabled] = useState(false)
-  const [alertRadiusMiles, setAlertRadiusMiles] = useState(25)
+  const [alertRadiusMiles, setAlertRadiusMiles] = useState(DEFAULT_ALERT_RADIUS_MILES)
   const [monitoredPersons, setMonitoredPersons] = useState<{ id: string; name: string; relationship: string; mobility: string; notes: string }[]>([])
   const [addressDraft, setAddressDraft] = useState('')
   const [workAddressDraft, setWorkAddressDraft] = useState('')
@@ -147,6 +155,8 @@ function SettingsInner() {
   const [codeError, setCodeError] = useState('')
   const [orgName, setOrgName] = useState<string | null>(null)
   const [codeId, setCodeId] = useState<string | null>(null)
+  /** From DB only — used to hide responder/analyst “Request access” for consumer-only accounts */
+  const [profileHasProtectedRole, setProfileHasProtectedRole] = useState(false)
 
   // Prefs
   const [theme, setThemeState] = useState<Theme>('dark')
@@ -215,10 +225,16 @@ function SettingsInner() {
           emergency_contact_phone: p.emergency_contact_phone || '',
           language_preference: p.language_preference || 'en',
           communication_needs: p.communication_needs || [], household_languages: p.household_languages || '',
-          mobility_access_needs: Array.isArray(p.mobility_access_needs) ? p.mobility_access_needs : [],
-          mobility_access_other: p.mobility_access_other || '',
+          mobility_needs: Array.isArray(p.mobility_needs) ? p.mobility_needs : [],
+          disability_needs: Array.isArray(p.disability_needs) ? p.disability_needs : [],
+          disability_other: typeof p.disability_other === 'string' ? p.disability_other : '',
+          medical_needs: Array.isArray(p.medical_needs) ? p.medical_needs : [],
+          medical_other: typeof p.medical_other === 'string' ? p.medical_other : '',
         })
         const dbRolesRaw: string[] = Array.isArray(p.roles) && p.roles.length ? p.roles : p.role ? [p.role] : ['evacuee']
+        setProfileHasProtectedRole(
+          dbRolesRaw.some(r => r === 'emergency_responder' || r === 'data_analyst')
+        )
         const dbRoles = [...new Set(dbRolesRaw.map(normalizeDashboardRole))]
         // Merge with localStorage so claimed roles show as unlocked even if DB hasn't persisted them
         const localRole = localStorage.getItem('wfa_active_role')
@@ -227,8 +243,9 @@ function SettingsInner() {
         if (localRole) localClaimed.push(normalizeDashboardRole(localRole))
         const roles = [...new Set([...dbRoles, ...localClaimed.map(normalizeDashboardRole)])]
         setMyRoles(roles)
-        if (p.alerts_ai_enabled != null) setAlertsAiEnabled(!!p.alerts_ai_enabled)
-        if (p.alert_radius_miles != null) setAlertRadiusMiles(Number(p.alert_radius_miles))
+        if (p.alert_radius_miles != null) {
+          setAlertRadiusMiles(coerceAlertRadiusToChip(Number(p.alert_radius_miles)))
+        }
         // Only use DB role if nothing better is available
         if (!searchParams.get('role') && !localStorage.getItem('wfa_active_role')) {
           setActiveRole(normalizeDashboardRole(p.role || 'evacuee'))
@@ -254,13 +271,22 @@ function SettingsInner() {
     })); setSaved(false)
   }
 
-  function toggleMobility(key: string) {
-    setProfile(p => ({
-      ...p,
-      mobility_access_needs: p.mobility_access_needs.includes(key)
-        ? p.mobility_access_needs.filter(k => k !== key)
-        : [...p.mobility_access_needs, key],
-    }))
+  function toggleMobilityChip(
+    list: 'mobility_needs' | 'disability_needs' | 'medical_needs',
+    value: string
+  ) {
+    setProfile(p => {
+      const arr = p[list]
+      const on = arr.includes(value)
+      const next = on ? arr.filter(x => x !== value) : [...arr, value]
+      if (list === 'disability_needs' && value === DISABILITY_OTHER_LABEL && on) {
+        return { ...p, disability_needs: next, disability_other: '' }
+      }
+      if (list === 'medical_needs' && value === MEDICAL_OTHER_LABEL && on) {
+        return { ...p, medical_needs: next, medical_other: '' }
+      }
+      return { ...p, [list]: next }
+    })
     setSaved(false)
     setSaveError(null)
   }
@@ -277,7 +303,6 @@ function SettingsInner() {
     const { error } = await supabase.from('profiles').upsert({
       id: user.id,
       ...profile,
-      alerts_ai_enabled: alertsAiEnabled,
       alert_radius_miles: alertRadiusMiles,
     })
     if (error) {
@@ -300,12 +325,14 @@ function SettingsInner() {
             ? [{ name: profile.emergency_contact_name, phone: profile.emergency_contact_phone, relationship: '' }]
             : (existingCard.emergencyContacts || []),
         }))
+        const mobilitySummary =
+          profile.mobility_needs.length > 0 ? profile.mobility_needs.join(', ') : 'Mobile Adult'
         const selfPerson = {
           id: 'self-user',
           name: profile.full_name || 'Me',
           address: profile.address || '',
           relationship: 'Self',
-          mobility: existingCard.mobility || 'Mobile Adult',
+          mobility: mobilitySummary,
           phone: profile.phone || '',
           languages: profile.household_languages
             ? profile.household_languages.split(',').map((l: string) => l.trim()).filter(Boolean)
@@ -375,6 +402,14 @@ function SettingsInner() {
 
   async function claimRole() {
     if (!addingRole || !codeVerified) return
+    const { data: { user: u } } = await supabase.auth.getUser()
+    if (!u) return
+    const { data: prof } = await supabase.from('profiles').select('role, roles').eq('id', u.id).single()
+    const existingRoles: string[] = Array.isArray(prof?.roles) && prof.roles.length
+      ? prof.roles
+      : prof?.role ? [prof.role] : []
+    const updatedRoles = [...new Set([...existingRoles, addingRole])]
+    await supabase.from('profiles').update({ role: addingRole, roles: updatedRoles }).eq('id', u.id)
     // Persist active role and claimed roles list to localStorage so the
     // role shows as unlocked on next visit even if the Supabase update fails
     localStorage.setItem('wfa_active_role', addingRole)
@@ -383,11 +418,7 @@ function SettingsInner() {
       localStorage.setItem('wfa_claimed_roles', JSON.stringify([...new Set([...prev, addingRole])]))
     } catch {}
     setMyRoles(prev => [...new Set([...prev, addingRole])])
-    await fetch('/api/profile/role', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: addingRole }),
-    })
+    setProfileHasProtectedRole(true)
     if (codeId) await fetch('/api/invite/consume', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code_id: codeId }) })
     window.location.href = ROLE_DESTINATIONS[addingRole] ?? '/dashboard'
   }
@@ -414,6 +445,7 @@ function SettingsInner() {
   const otherRoles = ALL_ROLES.filter(r => {
     if (myRoles.includes(r)) return false
     if (hasConsumer && isConsumerRole(r)) return false
+    if (!profileHasProtectedRole && (r === 'emergency_responder' || r === 'data_analyst')) return false
     return true
   })
   const profileTabLabel = activeRole === 'data_analyst' ? 'Analyst Profile'
@@ -490,61 +522,6 @@ function SettingsInner() {
               <Field label="Rank / Title"><FInput value={profile.notification_email} onChange={v => update('notification_email', v)} placeholder="e.g. Deputy Sheriff, Lt., FF/EMT" /></Field>
               <Field label="Shift assignment"><FInput value={profile.notification_phone} onChange={v => update('notification_phone', v)} placeholder="e.g. A-Shift, Day shift" /></Field>
               <Field label="Primary specialization"><FInput value={profile.household_languages} onChange={v => update('household_languages', v)} placeholder="e.g. Driver/Pump, EMS, Search & Rescue" /></Field>
-            </div>
-          </Section>
-
-          <Section icon={Radio} title="Deployment & Mutual Aid">
-            <div className="grid sm:grid-cols-2 gap-4 mb-4">
-              <Field label="Emergency contact (next of kin)" hint="Contacted if you are deployed or incapacitated">
-                <FInput value={profile.emergency_contact_name} onChange={v => update('emergency_contact_name', v)} placeholder="Contact name" />
-              </Field>
-              <Field label="Emergency contact phone">
-                <FInput value={profile.emergency_contact_phone} onChange={v => update('emergency_contact_phone', v)} placeholder="+1 (555) 000-0000" type="tel" />
-              </Field>
-            </div>
-            <Field label="FEMA deployment availability" hint="Are you available for state/federal deployment (e.g. Hurricane Helene roster)?">
-              <div className="flex flex-wrap gap-2 mt-1">
-                {['Available for deployment','On-call only','Not available','Available 72hr notice'].map(opt => {
-                  const active = profile.communication_needs.includes(opt)
-                  return (
-                    <button key={opt} type="button" onClick={() => toggleNeed(opt)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${active ? 'bg-ember-500/20 border-ember-500/50 text-ember-300' : 'bg-ash-800 border-ash-700 text-ash-400 hover:border-ash-500 hover:text-ash-200'}`}>
-                      {active ? '✓ ' : ''}{opt}
-                    </button>
-                  )
-                })}
-              </div>
-            </Field>
-            <div className="mt-4">
-              <Field label="Mutual aid organizations / agreements" hint="e.g. NC Forestry mutual aid, District 5 agreements">
-                <FTextarea value={profile.special_notes} onChange={v => update('special_notes', v)} placeholder="List mutual aid agencies and agreements your station participates in…" rows={2} />
-              </Field>
-            </div>
-          </Section>
-
-          <Section icon={Activity} title="Certifications & Training">
-            <Field label="Active certifications" hint="e.g. Firefighter I/II, EMT-Basic, HazMat Ops, Wildland S-130/S-190">
-              <FTextarea value={profile.household_languages} onChange={v => update('household_languages', v)} placeholder="List your active certifications and training…" rows={2} />
-            </Field>
-          </Section>
-
-          <Section icon={Bell} title="Incident Alerts">
-            <div className="space-y-4">
-              <div className={`flex items-start gap-3 p-4 rounded-xl border ${notifPermission === 'granted' ? 'border-signal-safe/30 bg-signal-safe/5' : 'border-ash-700 bg-ash-800/40'}`}>
-                <div className="mt-0.5">{notifPermission === 'granted' ? <Bell className="w-4 h-4 text-signal-safe" /> : <BellOff className="w-4 h-4 text-ash-500" />}</div>
-                <div className="flex-1">
-                  <div className="text-white text-sm font-medium">Incident notifications</div>
-                  <div className="text-ash-400 text-xs mt-0.5">
-                    {notifPermission === 'granted' ? "Enabled — you'll be notified of new incidents and escalations." : 'Get notified when new incidents are reported or status escalates.'}
-                  </div>
-                </div>
-                {notifPermission !== 'granted' && notifPermission !== 'denied' && (
-                  <button onClick={requestBrowserNotifications} className="shrink-0 px-3 py-1.5 rounded-lg text-xs bg-ember-500/20 border border-ember-500/40 text-ember-400 hover:bg-ember-500/30 transition-colors">Enable</button>
-                )}
-              </div>
-              <Field label="Notification email">
-                <FInput value={profile.notification_email} onChange={v => update('notification_email', v)} placeholder="your@agency.gov" type="email" />
-              </Field>
             </div>
           </Section>
 
@@ -858,11 +835,13 @@ function SettingsInner() {
                       </div>
                     )}
 
-                    {profile.mobility_access_needs.length > 0 && (
+                    {(profile.mobility_needs.length > 0
+                      || profile.disability_needs.length > 0
+                      || profile.medical_needs.length > 0) && (
                       <div>
                         <Field
                           label="Anything responders should know about your situation at this location?"
-                          hint="Optional — shown when you have mobility &amp; access tags above."
+                          hint="Optional — shown when you have mobility or health tags above."
                         >
                           <FInput
                             value={workLocationNote}
@@ -914,31 +893,92 @@ function SettingsInner() {
             <p className="text-ash-500 text-xs mb-4">
               Same options as signup — helps responders and your My People circle understand support needs during an evacuation.
             </p>
-            <div className="flex flex-wrap gap-2 mb-4">
-              {MOBILITY_ACCESS_OPTIONS.map(({ key, label }) => {
-                const on = profile.mobility_access_needs.includes(key)
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => toggleMobility(key)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${on ? 'bg-ember-500/20 border-ember-500/50 text-ember-300' : 'bg-ash-800 border-ash-700 text-ash-400 hover:border-ash-500 hover:text-ash-200'}`}
-                  >
-                    {on ? '✓ ' : ''}{label}
-                  </button>
-                )
-              })}
+            <div className="space-y-6 mb-4">
+              <div>
+                <div className="text-sm font-medium text-white mb-0.5">Mobility &amp; Movement</div>
+                <p className="text-xs text-ash-500 mb-2">Helps responders reach you first in an emergency</p>
+                <div className="flex flex-wrap gap-2">
+                  {MOBILITY_MOVEMENT_OPTIONS.map(opt => {
+                    const on = profile.mobility_needs.includes(opt)
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => toggleMobilityChip('mobility_needs', opt)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all text-left ${on ? 'bg-ember-500/20 border-ember-500/50 text-ember-300' : 'bg-ash-800 border-ash-700 text-ash-400 hover:border-ash-500 hover:text-ash-200'}`}
+                      >
+                        {on ? '✓ ' : ''}{opt}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm font-medium text-white mb-0.5">Disabilities</div>
+                <p className="text-xs text-ash-500 mb-2">Helps responders communicate and assist you</p>
+                <div className="flex flex-wrap gap-2">
+                  {DISABILITY_OPTIONS.map(opt => {
+                    const on = profile.disability_needs.includes(opt)
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => toggleMobilityChip('disability_needs', opt)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all text-left ${on ? 'bg-ember-500/20 border-ember-500/50 text-ember-300' : 'bg-ash-800 border-ash-700 text-ash-400 hover:border-ash-500 hover:text-ash-200'}`}
+                      >
+                        {on ? '✓ ' : ''}{opt}
+                      </button>
+                    )
+                  })}
+                </div>
+                {profile.disability_needs.includes(DISABILITY_OTHER_LABEL) && (
+                  <div className="mt-2">
+                    <FInput
+                      value={profile.disability_other}
+                      onChange={v => { update('disability_other', clampToMaxWords(v, MAX_OTHER_WORDS)); setSaved(false) }}
+                      placeholder="Describe briefly"
+                    />
+                    <p className={`mt-1 text-xs ${wordCount(profile.disability_other) >= MAX_OTHER_WORDS ? 'text-red-400' : 'text-ash-500'}`}>
+                      {wordCount(profile.disability_other)} / {MAX_OTHER_WORDS} words
+                    </p>
+                  </div>
+                )}
+              </div>
+              <div>
+                <div className="text-sm font-medium text-white mb-0.5">Medical conditions &amp; equipment</div>
+                <p className="text-xs text-ash-500 mb-2">Helps responders prioritize life-critical needs</p>
+                <div className="flex flex-wrap gap-2">
+                  {MEDICAL_OPTIONS.map(opt => {
+                    const on = profile.medical_needs.includes(opt)
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => toggleMobilityChip('medical_needs', opt)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all text-left ${on ? 'bg-ember-500/20 border-ember-500/50 text-ember-300' : 'bg-ash-800 border-ash-700 text-ash-400 hover:border-ash-500 hover:text-ash-200'}`}
+                      >
+                        {on ? '✓ ' : ''}{opt}
+                      </button>
+                    )
+                  })}
+                </div>
+                {profile.medical_needs.includes(MEDICAL_OTHER_LABEL) && (
+                  <div className="mt-2">
+                    <FInput
+                      value={profile.medical_other}
+                      onChange={v => { update('medical_other', clampToMaxWords(v, MAX_OTHER_WORDS)); setSaved(false) }}
+                      placeholder="Describe briefly"
+                    />
+                    <p className={`mt-1 text-xs ${wordCount(profile.medical_other) >= MAX_OTHER_WORDS ? 'text-red-400' : 'text-ash-500'}`}>
+                      {wordCount(profile.medical_other)} / {MAX_OTHER_WORDS} words
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
-            {profile.mobility_access_needs.includes('other') && (
-              <Field label="Other (describe)" hint="Shown when you select Other above.">
-                <FTextarea
-                  value={profile.mobility_access_other}
-                  onChange={v => { update('mobility_access_other', v); setSaved(false) }}
-                  placeholder="Describe other mobility, access, or medical context…"
-                  rows={3}
-                />
-              </Field>
-            )}
+            <p className="mt-4 rounded-xl border border-ash-700/80 bg-ash-900/40 p-3 text-xs leading-relaxed text-ash-400">
+              🔒 Your health information is encrypted and only shared with emergency responders during active incidents in your area. You control what you share and can remove it anytime in Settings.
+            </p>
           </Section>
 
           <Section icon={Heart} title="My People">
@@ -1099,7 +1139,8 @@ function SettingsInner() {
                 <div className="text-xs text-ash-500">{email}</div>
               </div>
               <button onClick={() => setTab('profile')} className="flex items-center gap-2 text-ash-400 hover:text-white transition-colors text-sm py-1">
-                <User className="w-4 h-4" /> Edit emergency profile
+                <User className="w-4 h-4" />{' '}
+                {activeRole === 'emergency_responder' ? 'Edit responder profile' : 'Edit emergency profile'}
               </button>
               <button className="flex items-center gap-2 text-ash-400 hover:text-white transition-colors text-sm py-1">
                 <Key className="w-4 h-4" /> Change password (email login only)
@@ -1207,6 +1248,7 @@ function SettingsInner() {
             )}
           </section>
 
+          {activeRole !== 'emergency_responder' && (
           <section className="card p-6">
             <div className="flex items-center gap-2 mb-4"><Flame className="w-4 h-4 text-ember-400" /><h2 className="font-semibold text-white">Help & Onboarding</h2></div>
             <div className="space-y-3">
@@ -1228,9 +1270,13 @@ function SettingsInner() {
               </button>
             </div>
           </section>
+          )}
 
-          <section className="card p-6 border-signal-danger/20">
-            <div className="flex items-center gap-2 mb-4"><AlertTriangle className="w-4 h-4 text-signal-danger" /><h2 className="font-semibold text-signal-danger">Danger zone</h2></div>
+          <section className="card p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <LogOut className="w-4 h-4 text-ember-400" />
+              <h2 className="font-semibold text-white">Account actions</h2>
+            </div>
             <div className="space-y-3">
               <button onClick={async () => { await supabase.auth.signOut(); router.push('/') }}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-ash-800 bg-ash-900 hover:bg-ash-800 transition-all text-left">
@@ -1285,62 +1331,52 @@ function SettingsInner() {
             </div>
           </section>
 
+          {activeRole !== 'emergency_responder' && (
           <section className="card p-6">
             <div className="flex items-center gap-2 mb-1">
               <Bell className="w-4 h-4 text-amber-400" />
-              <h2 className="font-semibold text-white">Wildfire alerts</h2>
+              <h2 className="font-semibold text-white">Fire Alert Range</h2>
             </div>
             <p className="text-ash-400 text-sm mb-4">
-              Control how far out we look for NIFC incidents on My Hub and the evacuation map, and optional AI summaries (bounded to data we already fetched).
+              How far out should we monitor for fires near your address?
             </p>
             <div className="space-y-4">
-              <Field label="Alert radius (miles)">
-                <select
-                  value={alertRadiusMiles}
-                  onChange={e => {
-                    setAlertRadiusMiles(Number(e.target.value))
-                    setSaved(false)
-                  }}
-                  className="w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border border-ash-700 focus:outline-none focus:border-ember-500/60"
-                >
-                  {[10, 25, 50, 100, 200].map(m => (
-                    <option key={m} value={m}>
-                      {m} mi
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <label
-                className={`flex items-start gap-3 ${isAlertsAiDeploymentEnabled() ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={alertsAiEnabled}
-                  disabled={!isAlertsAiDeploymentEnabled()}
-                  onChange={e => {
-                    if (!isAlertsAiDeploymentEnabled()) return
-                    setAlertsAiEnabled(e.target.checked)
-                    setSaved(false)
-                  }}
-                  className="mt-1 rounded border-ash-600"
-                />
-                <div>
-                  <div className="text-ash-200 text-sm font-medium">Enable AI summaries for nearby fires</div>
-                  <p className="text-ash-500 text-xs mt-0.5">
-                    Uses Anthropic to interpret nearby incidents only — never invents new fires. Requires{' '}
-                    <code className="text-ash-400">ANTHROPIC_API_KEY</code> on the server and deploy flag{' '}
-                    <code className="text-ash-400">NEXT_PUBLIC_ALERTS_AI=1</code>.
-                  </p>
-                  {!isAlertsAiDeploymentEnabled() && (
-                    <p className="text-amber-400/90 text-xs mt-2">
-                      This deployment does not have AI summaries enabled. Add{' '}
-                      <code className="text-ash-300">NEXT_PUBLIC_ALERTS_AI=1</code> to your environment and rebuild.
-                    </p>
-                  )}
+              <div>
+                <div className="text-ash-300 text-xs font-medium mb-2 uppercase tracking-wide">Distance</div>
+                <div className="flex flex-wrap gap-2">
+                  {ALERT_RADIUS_CHIP_MILES.map(m => {
+                    const selected = alertRadiusMiles === m
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => {
+                          setAlertRadiusMiles(m)
+                          setSaved(false)
+                        }}
+                        className={`min-w-[4.5rem] rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all ${
+                          selected
+                            ? 'border-forest-500/60 bg-forest-900/35 text-forest-300 ring-1 ring-forest-500/40'
+                            : 'border-ash-700 bg-ash-800/60 text-ash-300 hover:border-ash-600 hover:bg-ash-800'
+                        }`}
+                      >
+                        {m} mi{selected ? ' ✓' : ''}
+                      </button>
+                    )
+                  })}
                 </div>
-              </label>
+              </div>
+              <p className="text-ash-400 text-sm leading-relaxed rounded-xl border border-ash-700/80 bg-ash-900/40 px-3 py-2.5">
+                💡 We recommend 50 miles to give you the most lead time. Fires can spread quickly — earlier awareness means more time to prepare and evacuate safely.
+              </p>
+              {alertRadiusMiles < 50 && (
+                <p className="text-amber-400/95 text-sm leading-relaxed rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2.5" role="status">
+                  Reducing your alert radius means you&apos;ll be notified later. We recommend keeping it at 50 miles for maximum lead time.
+                </p>
+              )}
             </div>
           </section>
+          )}
 
           <section className="card p-6">
             <div className="flex items-center gap-2 mb-1"><Globe className="w-4 h-4 text-signal-safe" /><h2 className="font-semibold text-white">Language</h2></div>

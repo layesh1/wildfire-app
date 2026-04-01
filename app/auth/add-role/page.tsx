@@ -36,8 +36,40 @@ function AddRoleForm() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (role && !roleInfo) router.replace('/dashboard')
-  }, [role, roleInfo])
+    if (role && !roleInfo) {
+      router.replace('/dashboard')
+      return
+    }
+    if (!role || !roleInfo) return
+
+    let cancelled = false
+    async function gate() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (cancelled) return
+      if (!user) {
+        router.replace('/auth/login')
+        return
+      }
+      const { data: profile } = await supabase.from('profiles').select('role, roles').eq('id', user.id).single()
+      if (cancelled) return
+      const existing: string[] = Array.isArray(profile?.roles) && profile.roles.length
+        ? profile.roles
+        : profile?.role ? [profile.role] : []
+      if (existing.includes(role)) {
+        router.replace(ROLE_DESTINATIONS[role] ?? '/dashboard')
+        return
+      }
+      const gateOk = typeof window !== 'undefined' && sessionStorage.getItem('wfa_allow_add_role') === role
+      if (!gateOk) {
+        router.replace('/dashboard/home')
+      }
+    }
+    gate()
+    return () => {
+      cancelled = true
+    }
+  }, [role, roleInfo, router])
 
   if (!role || !roleInfo) return (
     <main className="min-h-screen bg-ash-950 flex items-center justify-center">
@@ -92,6 +124,9 @@ function AddRoleForm() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code_id: data.code_id }),
         })
+        try {
+          sessionStorage.removeItem('wfa_allow_add_role')
+        } catch { /* ignore */ }
       }
       setSaving(false)
     }

@@ -36,15 +36,15 @@ const FIREBENCH_SCENARIOS = [
 
 export default function SimulationStudioPage() {
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-8 max-w-7xl mx-auto text-gray-700 dark:text-gray-300">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-2 text-ember-400 text-sm font-medium mb-3">
           <FlaskConical className="w-4 h-4" />
           DATA ANALYST · SIMULATION STUDIO
         </div>
-        <h1 className="font-display text-4xl font-bold text-white mb-3">Fire Simulation Studio</h1>
-        <p className="text-ash-400 max-w-2xl">
+        <h1 className="font-display text-4xl font-bold text-gray-900 dark:text-white mb-3">Fire Simulation Studio</h1>
+        <p className="text-gray-600 dark:text-gray-400 max-w-2xl">
           Powered by physics calibrated against Google Research&apos;s FireBench dataset — the largest high-fidelity
           wildfire simulation dataset, generated using TPU-scale computational fluid dynamics.
         </p>
@@ -57,8 +57,8 @@ export default function SimulationStudioPage() {
             <BookOpen className="w-5 h-5 text-ember-400" />
           </div>
           <div className="flex-1">
-            <h2 className="text-white font-semibold mb-2">About FireBench</h2>
-            <p className="text-ash-400 text-sm leading-relaxed mb-3">
+            <h2 className="text-gray-900 dark:text-white font-semibold mb-2">About FireBench</h2>
+            <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed mb-3">
               FireBench (Google Research, 2023) is a large-scale high-fidelity wildfire simulation dataset
               published in the <em>International Journal of Wildland Fire</em>. Each simulation covers a range of
               environmental conditions — wind speed (8–20 m/s), slope angle (0–30°), and vegetation profiles —
@@ -74,8 +74,8 @@ export default function SimulationStudioPage() {
                 <ExternalLink className="w-3.5 h-3.5" />
                 FireBench GitHub
               </a>
-              <span className="text-ash-700">·</span>
-              <span className="text-ash-500 text-xs">Simulations: 3 benchmark scenarios shown below</span>
+              <span className="text-gray-400 dark:text-gray-600">·</span>
+              <span className="text-gray-500 dark:text-gray-500 text-xs">Simulations: 3 benchmark scenarios shown below</span>
             </div>
           </div>
         </div>
@@ -87,8 +87,8 @@ export default function SimulationStudioPage() {
           <Zap className="w-4 h-4 text-signal-danger" />
           <span className="text-signal-danger font-semibold text-sm">Critical nonlinearity discovered in FireBench data</span>
         </div>
-        <p className="text-ash-300 text-sm">
-          When wind speed exceeds 12 m/s AND slope exceeds 15°, fire spread becomes <strong className="text-white">nonlinear</strong>.
+        <p className="text-gray-800 dark:text-gray-300 text-sm">
+          When wind speed exceeds 12 m/s AND slope exceeds 15°, fire spread becomes <strong className="text-gray-900 dark:text-white">nonlinear</strong>.
           The simplified Van Wagner model (used by most operational tools) underestimates spread by up to 40% in these conditions.
           FireBench simulations capture turbulent multiphase flow that traditional models miss — this is the gap this simulator visualizes.
         </p>
@@ -100,9 +100,9 @@ export default function SimulationStudioPage() {
           <div key={sc.label}>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-2 h-2 rounded-full" style={{ background: sc.color }} />
-              <span className="text-white font-semibold text-sm">{sc.label} Scenario</span>
+              <span className="text-gray-900 dark:text-white font-semibold text-sm">{sc.label} Scenario</span>
             </div>
-            <p className="text-ash-500 text-xs mb-3 leading-relaxed">{sc.description}</p>
+            <p className="text-gray-500 dark:text-gray-500 text-xs mb-3 leading-relaxed">{sc.description}</p>
             <AnimatedFireSpread
               windMps={sc.windMps}
               slopeDeg={sc.slopeDeg}
@@ -110,7 +110,7 @@ export default function SimulationStudioPage() {
               title={`${sc.label} — ${sc.windMps}m/s / ${sc.slopeDeg}°`}
               compact
             />
-            <div className="mt-3 rounded-lg border px-3 py-2 text-xs text-ash-400 leading-relaxed"
+            <div className="mt-3 rounded-lg border px-3 py-2 text-xs text-gray-600 dark:text-gray-400 leading-relaxed"
               style={{ borderColor: sc.color + '40', background: sc.color + '08' }}>
               <span style={{ color: sc.color }} className="font-semibold">Finding: </span>
               {sc.finding}
@@ -120,10 +120,10 @@ export default function SimulationStudioPage() {
       </div>
 
       {/* Methodology note */}
-      <div className="card p-5 text-xs text-ash-500 leading-relaxed">
+      <div className="card p-5 text-xs text-gray-500 dark:text-gray-500 leading-relaxed">
         <div className="flex items-center gap-2 mb-2">
-          <Flame className="w-3.5 h-3.5 text-ash-400" />
-          <span className="text-ash-400 font-medium uppercase tracking-wider text-[10px]">Methodology</span>
+          <Flame className="w-3.5 h-3.5 text-gray-600 dark:text-gray-400" />
+          <span className="text-gray-600 dark:text-gray-400 font-medium uppercase tracking-wider text-[10px]">Methodology</span>
         </div>
         Spread geometry uses the Van Wagner (1969) empirical fire spread model, calibrated against FireBench benchmark
         scenarios. The length/width ellipse ratio is derived from wind speed (LW = 1 + 0.0012 × v²). Rate of spread

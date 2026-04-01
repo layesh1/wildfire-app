@@ -188,26 +188,28 @@ export default function AnalystMapPage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-6 max-w-6xl mx-auto text-gray-700 dark:text-gray-300">
       <div className="mb-6">
         <div className="flex items-center gap-2 text-signal-info text-sm font-medium mb-3">
           <Map className="w-4 h-4" /> FIRE MAP · ANALYST
         </div>
-        <h1 className="font-display text-3xl font-bold text-white mb-2">Fire Incident Map</h1>
-        <p className="text-ash-400 text-sm">
+        <h1 className="font-display text-3xl font-bold text-gray-900 dark:text-white mb-2">Fire Incident Map</h1>
+        <p className="text-gray-600 dark:text-gray-400 text-sm">
           Live active fires via NIFC EGP (public) · WiDS 2025 dataset (62,696 records · 50,664 true wildfires) with SVI overlay · Click markers for details.
         </p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-5 border-b border-ash-800">
+      <div className="flex gap-1 mb-5 border-b border-gray-200 dark:border-gray-800">
         {([
           { key: 'live', label: 'Live Active Fires', sub: 'NIFC real-time', color: 'text-signal-danger' },
           { key: 'wids', label: 'WiDS Dataset', sub: '50,664 true wildfires', color: 'text-signal-info' },
         ] as const).map(t => (
           <button key={t.key} onClick={() => { setTab(t.key); setSelected(null) }}
             className={`px-5 py-3 text-sm font-medium border-b-2 transition-all -mb-px ${
-              tab === t.key ? 'border-ember-500 text-white' : 'border-transparent text-ash-400 hover:text-white hover:border-ash-600'
+              tab === t.key
+                ? 'border-ember-500 text-gray-900 dark:text-white'
+                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-400 dark:hover:border-gray-500'
             }`}>
             {t.label}
             <span className={`ml-2 text-xs ${t.color} opacity-75`}>{t.sub}</span>
@@ -217,19 +219,19 @@ export default function AnalystMapPage() {
 
       {/* Filter bar */}
       <div className="flex flex-wrap gap-2 mb-4 items-center">
-        <Filter className="w-3.5 h-3.5 text-ash-500 shrink-0" />
+        <Filter className="w-3.5 h-3.5 text-gray-500 dark:text-gray-500 shrink-0" />
         {tab === 'live' ? (
           <>
             <select value={liveStateFilter} onChange={e => { setLiveStateFilter(e.target.value); setSelected(null) }}
-              className="bg-ash-800 border border-ash-700 rounded-lg px-3 py-1.5 text-xs text-ash-300 focus:outline-none">
+              className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-900 dark:text-gray-300 focus:outline-none">
               {liveStates.map(s => <option key={s}>{s}</option>)}
             </select>
             <button onClick={() => void fetchLive()} disabled={liveLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-ash-800 border border-ash-700 text-ash-400 hover:text-white transition-colors disabled:opacity-50">
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors disabled:opacity-50">
               <RefreshCw className={`w-3 h-3 ${liveLoading ? 'animate-spin' : ''}`} />
               Refresh
             </button>
-            <div className="ml-auto flex items-center gap-2 text-xs text-ash-600">
+            <div className="ml-auto flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
               <span className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-signal-safe animate-pulse inline-block" />
                 Live · auto-refreshes every 5 min
@@ -242,20 +244,20 @@ export default function AnalystMapPage() {
         ) : (
           <>
             <select value={wStateFilter} onChange={e => { setWStateFilter(e.target.value); setSelected(null) }}
-              className="bg-ash-800 border border-ash-700 rounded-lg px-3 py-1.5 text-xs text-ash-300 focus:outline-none">
+              className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-900 dark:text-gray-300 focus:outline-none">
               {STATES.map(s => <option key={s}>{s}</option>)}
             </select>
             <select value={wSpreadFilter} onChange={e => { setWSpreadFilter(e.target.value); setSelected(null) }}
-              className="bg-ash-800 border border-ash-700 rounded-lg px-3 py-1.5 text-xs text-ash-300 focus:outline-none">
+              className="bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-xs text-gray-900 dark:text-gray-300 focus:outline-none">
               {SPREAD_RATES.map(s => <option key={s}>{s === 'All' ? 'All spread rates' : s}</option>)}
             </select>
             {(['all', 'no_order', 'high_svi'] as const).map(f => (
               <button key={f} onClick={() => { setWOrderFilter(f); setSelected(null) }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${wOrderFilter === f ? 'bg-ash-700 border-ash-600 text-white' : 'border-ash-800 text-ash-400 hover:text-white hover:border-ash-700'}`}>
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${wOrderFilter === f ? 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white shadow-sm' : 'border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:border-gray-300 dark:hover:border-gray-600'}`}>
                 {f === 'all' ? 'All' : f === 'no_order' ? 'No evac order' : 'High SVI (≥0.7)'}
               </button>
             ))}
-            <span className="ml-auto text-xs text-ash-600">{filteredWids.length} of {WIDS_FIRES.length} incidents shown</span>
+            <span className="ml-auto text-xs text-gray-600 dark:text-gray-400">{filteredWids.length} of {WIDS_FIRES.length} incidents shown</span>
           </>
         )}
       </div>
@@ -278,7 +280,7 @@ export default function AnalystMapPage() {
             {stats.map(s => (
               <div key={s.l} className="card p-4">
                 <div className={`font-display text-2xl font-bold ${s.c}`}>{s.v}</div>
-                <div className="text-ash-400 text-xs mt-1">{s.l}</div>
+                <div className="text-gray-600 dark:text-gray-400 text-xs mt-1">{s.l}</div>
               </div>
             ))}
           </div>
@@ -291,15 +293,15 @@ export default function AnalystMapPage() {
           {tab === 'live' && liveLoading && liveFires.length === 0 && (
             <div className="card flex items-center justify-center" style={{ height: 460 }}>
               <div className="text-center">
-                <Loader2 className="w-8 h-8 text-ash-600 animate-spin mx-auto mb-3" />
-                <div className="text-ash-500 text-sm">Fetching live fire data from NIFC…</div>
+                <Loader2 className="w-8 h-8 text-gray-600 dark:text-gray-400 animate-spin mx-auto mb-3" />
+                <div className="text-gray-500 dark:text-gray-500 text-sm">Fetching live fire data from NIFC…</div>
               </div>
             </div>
           )}
           {tab === 'live' && !liveLoading && liveError && liveFires.length === 0 && (
             <div className="card flex flex-col items-center justify-center gap-3" style={{ height: 460 }}>
               <AlertTriangle className="w-8 h-8 text-signal-warn" />
-              <p className="text-ash-400 text-sm text-center max-w-xs">{liveError}</p>
+              <p className="text-gray-600 dark:text-gray-400 text-sm text-center max-w-xs">{liveError}</p>
               <button onClick={() => void fetchLive()} className="btn-secondary text-xs px-4 py-2">Retry</button>
             </div>
           )}
@@ -312,7 +314,7 @@ export default function AnalystMapPage() {
             />
           )}
           {/* Legend */}
-          <div className="flex gap-4 mt-2 items-center text-xs text-ash-500">
+          <div className="flex gap-4 mt-2 items-center text-xs text-gray-500 dark:text-gray-500">
             {tab === 'live' ? (
               <>
                 <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: '#ef4444' }} /> &lt;10% contained</span>
@@ -333,22 +335,22 @@ export default function AnalystMapPage() {
         {/* Sidebar */}
         <div className="space-y-3">
           {selected ? (
-            <div className="card p-4 border border-ash-600">
+            <div className="card p-4 border border-gray-300 dark:border-gray-600">
               <div className="flex items-start gap-2 mb-3">
                 <Flame className="w-4 h-4 text-ember-400 shrink-0 mt-0.5" />
                 <div>
-                  <div className="text-white font-semibold text-sm">{selected.name}</div>
-                  <div className="text-ash-500 text-xs">{selected.county} Co., {selected.state}</div>
+                  <div className="text-gray-900 dark:text-white font-semibold text-sm">{selected.name}</div>
+                  <div className="text-gray-500 dark:text-gray-500 text-xs">{selected.county} Co., {selected.state}</div>
                 </div>
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-ash-400">Acres</span>
-                  <span className="text-white font-mono">{selected.acres > 0 ? selected.acres.toLocaleString() : 'TBD'}</span>
+                  <span className="text-gray-600 dark:text-gray-400">Acres</span>
+                  <span className="text-gray-900 dark:text-white font-mono">{selected.acres > 0 ? selected.acres.toLocaleString() : 'TBD'}</span>
                 </div>
                 {selected.is_live && selected.contained_pct != null && (
                   <div className="flex justify-between">
-                    <span className="text-ash-400">Containment</span>
+                    <span className="text-gray-600 dark:text-gray-400">Containment</span>
                     <span className={`font-mono font-bold ${selected.contained_pct >= 50 ? 'text-signal-safe' : selected.contained_pct >= 10 ? 'text-signal-warn' : 'text-signal-danger'}`}>
                       {selected.contained_pct}%
                     </span>
@@ -356,13 +358,13 @@ export default function AnalystMapPage() {
                 )}
                 {selected.is_live && selected.cause && selected.cause !== 'Unknown' && (
                   <div className="flex justify-between">
-                    <span className="text-ash-400">Cause</span>
-                    <span className="text-ash-300">{selected.cause}</span>
+                    <span className="text-gray-600 dark:text-gray-400">Cause</span>
+                    <span className="text-gray-800 dark:text-gray-300">{selected.cause}</span>
                   </div>
                 )}
                 {!selected.is_live && selected.svi != null && (
                   <div className="flex justify-between">
-                    <span className="text-ash-400">SVI Score</span>
+                    <span className="text-gray-600 dark:text-gray-400">SVI Score</span>
                     <span className={`font-mono font-bold ${selected.svi >= 0.7 ? 'text-signal-danger' : selected.svi >= 0.6 ? 'text-signal-warn' : 'text-signal-safe'}`}>
                       {selected.svi.toFixed(2)}
                     </span>
@@ -370,31 +372,31 @@ export default function AnalystMapPage() {
                 )}
                 {!selected.is_live && (
                   <div className="flex justify-between">
-                    <span className="text-ash-400">Evac Order</span>
+                    <span className="text-gray-600 dark:text-gray-400">Evac Order</span>
                     <span className={selected.has_order ? 'text-signal-safe' : 'text-signal-danger'}>{selected.has_order ? 'Yes' : 'No'}</span>
                   </div>
                 )}
                 {selected.gap_hours != null && (
                   <div className="flex justify-between">
-                    <span className="text-ash-400">Signal Gap</span>
+                    <span className="text-gray-600 dark:text-gray-400">Signal Gap</span>
                     <span className={`font-mono ${selected.gap_hours > 12 ? 'text-signal-danger' : 'text-signal-warn'}`}>{selected.gap_hours}h</span>
                   </div>
                 )}
                 {selected.spread_rate && (
                   <div className="flex justify-between">
-                    <span className="text-ash-400">Spread Rate</span>
-                    <span className={`capitalize ${selected.spread_rate === 'extreme' ? 'text-signal-danger' : selected.spread_rate === 'rapid' ? 'text-signal-warn' : 'text-ash-300'}`}>{selected.spread_rate}</span>
+                    <span className="text-gray-600 dark:text-gray-400">Spread Rate</span>
+                    <span className={`capitalize ${selected.spread_rate === 'extreme' ? 'text-signal-danger' : selected.spread_rate === 'rapid' ? 'text-signal-warn' : 'text-gray-800 dark:text-gray-300'}`}>{selected.spread_rate}</span>
                   </div>
                 )}
                 {selected.updated && (
                   <div className="flex justify-between">
-                    <span className="text-ash-400">Updated</span>
-                    <span className="text-ash-500 text-xs">{new Date(selected.updated).toLocaleString()}</span>
+                    <span className="text-gray-600 dark:text-gray-400">Updated</span>
+                    <span className="text-gray-500 dark:text-gray-500 text-xs">{new Date(selected.updated).toLocaleString()}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span className="text-ash-400">Coords</span>
-                  <span className="text-ash-400 text-xs font-mono">{selected.lat.toFixed(3)}, {selected.lng.toFixed(3)}</span>
+                  <span className="text-gray-600 dark:text-gray-400">Coords</span>
+                  <span className="text-gray-600 dark:text-gray-400 text-xs font-mono">{selected.lat.toFixed(3)}, {selected.lng.toFixed(3)}</span>
                 </div>
               </div>
               {!selected.is_live && !selected.has_order && (selected.svi ?? 0) >= 0.7 && (
@@ -407,18 +409,18 @@ export default function AnalystMapPage() {
                   <AlertTriangle className="w-3 h-3" /> Less than 10% contained
                 </div>
               )}
-              <button onClick={() => setSelected(null)} className="mt-3 text-ash-600 hover:text-ash-400 text-xs">clear ✕</button>
+              <button onClick={() => setSelected(null)} className="mt-3 text-gray-600 dark:text-gray-400 hover:text-gray-600 dark:text-gray-400 text-xs">clear ✕</button>
             </div>
           ) : (
             <div className="card p-4 text-center">
-              <Map className="w-8 h-8 text-ash-700 mx-auto mb-2" />
-              <div className="text-ash-500 text-xs">Click a marker to see details</div>
+              <Map className="w-8 h-8 text-gray-400 dark:text-gray-600 mx-auto mb-2" />
+              <div className="text-gray-500 dark:text-gray-500 text-xs">Click a marker to see details</div>
             </div>
           )}
 
           {/* Incident list */}
           <div className="card p-4">
-            <div className="text-ash-400 text-xs font-medium mb-3">
+            <div className="text-gray-600 dark:text-gray-400 text-xs font-medium mb-3">
               {tab === 'live' ? `Active Fires (${filteredLive.length})` : `Sample Incidents (${filteredWids.length} of ${WIDS_FIRES.length})`}
             </div>
             <div className="space-y-1 max-h-52 overflow-y-auto">
@@ -430,16 +432,16 @@ export default function AnalystMapPage() {
                     : !fire.has_order ? '#ef4444' : (fire.svi ?? 0) >= 0.7 ? '#f59e0b' : '#22c55e'
                   return (
                     <button key={fire.id} onClick={() => setSelected(fire === selected ? null : fire)}
-                      className={`w-full text-left px-2.5 py-2 rounded-lg transition-colors text-xs ${selected?.id === fire.id ? 'bg-ash-700' : 'hover:bg-ash-800'}`}>
+                      className={`w-full text-left px-2.5 py-2 rounded-lg transition-colors text-xs ${selected?.id === fire.id ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-                        <span className="text-white truncate">{fire.name}</span>
-                        <span className="text-ash-500 ml-auto shrink-0 font-mono">
+                        <span className="text-gray-900 dark:text-white truncate">{fire.name}</span>
+                        <span className="text-gray-500 dark:text-gray-500 ml-auto shrink-0 font-mono">
                           {fire.acres >= 1000 ? `${(fire.acres / 1000).toFixed(0)}k` : fire.acres > 0 ? String(fire.acres) : '?'} ac
                         </span>
                       </div>
                       {fire.is_live && (
-                        <div className="ml-4 text-ash-600 text-xs">{fire.state}{fire.county ? ` · ${fire.county}` : ''} · {fire.contained_pct ?? 0}% contained</div>
+                        <div className="ml-4 text-gray-600 dark:text-gray-400 text-xs">{fire.state}{fire.county ? ` · ${fire.county}` : ''} · {fire.contained_pct ?? 0}% contained</div>
                       )}
                     </button>
                   )
@@ -449,7 +451,7 @@ export default function AnalystMapPage() {
 
           {/* External resources */}
           <div className="card p-4">
-            <div className="text-ash-400 text-xs font-medium mb-3">External Resources</div>
+            <div className="text-gray-600 dark:text-gray-400 text-xs font-medium mb-3">External Resources</div>
             <div className="space-y-2">
               {[
                 { label: 'NIFC Active Fire Map', url: 'https://www.nifc.gov/fire-information/maps', badge: 'Live' },
@@ -459,10 +461,10 @@ export default function AnalystMapPage() {
                 { label: 'AirNow Fire & Smoke', url: 'https://fire.airnow.gov', badge: 'AQI' },
               ].map(r => (
                 <a key={r.label} href={r.url} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 text-xs text-ash-400 hover:text-signal-info transition-colors group">
+                  className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 hover:text-signal-info transition-colors group">
                   <ExternalLink className="w-3 h-3 shrink-0" />
                   <span className="flex-1">{r.label}</span>
-                  <span className={`px-1.5 py-0.5 rounded text-xs ${r.badge === 'Live' ? 'bg-signal-danger/20 text-signal-danger' : 'bg-ash-800 text-ash-500'}`}>{r.badge}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-xs ${r.badge === 'Live' ? 'bg-signal-danger/20 text-signal-danger' : 'bg-gray-200 dark:bg-gray-800 text-gray-500 dark:text-gray-500'}`}>{r.badge}</span>
                 </a>
               ))}
             </div>
@@ -472,7 +474,7 @@ export default function AnalystMapPage() {
 
       {tab === 'wids' && (
         <div className="card p-4 mt-4 border border-signal-info/20 bg-signal-info/5">
-          <p className="text-ash-400 text-xs leading-relaxed">
+          <p className="text-gray-600 dark:text-gray-400 text-xs leading-relaxed">
             <span className="text-signal-info font-medium">WiDS Dataset:</span>{' '}
             {WIDS_STATS.total.toLocaleString()} total incidents (2021–2025) across 17 states ·{' '}
             {WIDS_STATS.silent.toLocaleString()} (67.2%) silent with no public channel ·{' '}
@@ -483,7 +485,7 @@ export default function AnalystMapPage() {
       )}
       {tab === 'live' && lastFetchedAt && !liveLoading && liveFires.length > 0 && (
         <div className="card p-4 mt-4 border border-signal-danger/20 bg-signal-danger/5">
-          <p className="text-ash-400 text-xs">
+          <p className="text-gray-600 dark:text-gray-400 text-xs">
             <span className="text-signal-danger font-medium">Live data:</span>{' '}
             {liveFires.length} active incidents · Source: NIFC EGP public view · Excludes 100% contained fires · Updates every 5 min
           </p>

@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { User, Loader, Sparkles } from 'lucide-react'
+import { ChevronLeft, User, Loader, Sparkles } from 'lucide-react'
 import { AIChatInput } from '@/components/ui/ai-chat-input'
 import { motion } from 'framer-motion'
 import { FlameoActionChips, type Chip } from '@/components/flameo/FlameoActionChips'
@@ -78,6 +79,10 @@ const STARTER_PROMPTS = [
 export function FlameoAskPage({ variant }: { variant: FlameoNavConsumer }) {
   const pathname = usePathname()
   const navBase = pathname?.startsWith('/m/') ? 'mobile' : 'desktop'
+  const isMobileEvacHubAi =
+    pathname === '/m/dashboard/home/ai' || pathname === '/m/dashboard/evacuee/ai'
+  const mobileBackHref =
+    pathname === '/m/dashboard/evacuee/ai' ? '/m/dashboard/evacuee' : '/m/dashboard/home'
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -140,8 +145,19 @@ export function FlameoAskPage({ variant }: { variant: FlameoNavConsumer }) {
   const roleLabel = variant === 'evacuee' ? 'EVACUEE · FLAMEO AI' : 'CAREGIVER · FLAMEO AI'
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 w-full md:min-h-[calc(100dvh-5.5rem)]">
-      <div className="shrink-0 px-4 sm:px-8 pt-6 sm:pt-8 pb-4 sm:pb-5 border-b border-gray-200 bg-white">
+    <div className="flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
+      {isMobileEvacHubAi && (
+        <div className="flex shrink-0 items-center gap-2 border-b border-gray-200 bg-white px-3 py-2.5 pt-[max(0.625rem,env(safe-area-inset-top))]">
+          <Link
+            href={mobileBackHref}
+            className="inline-flex items-center gap-0.5 text-sm font-semibold text-forest-700"
+          >
+            <ChevronLeft className="h-5 w-5 shrink-0" />
+            Hub
+          </Link>
+        </div>
+      )}
+      <div className="shrink-0 px-4 sm:px-8 pt-4 sm:pt-6 pb-4 sm:pb-5 border-b border-gray-200 bg-white">
         <div className="flex items-center gap-2 text-forest-600 text-xs sm:text-sm font-medium mb-2">
           <img src="/flameo1.png" alt="Flameo" className="w-4 h-4 object-contain" />
           {roleLabel}

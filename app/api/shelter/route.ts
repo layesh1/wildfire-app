@@ -11,6 +11,7 @@ type RouteRow = {
   polyline: string
   summary: string
   passes_near_fire: boolean
+  passes_near_hazard: boolean
 }
 
 const ROUTES_ENDPOINT = 'https://routes.googleapis.com/directions/v2:computeRoutes'
@@ -92,32 +93,67 @@ async function computeRoute(
   key: string,
   origin: LatLng,
   destination: LatLng,
-  firePerimeter?: LatLng[]
+  firePerimeter?: LatLng[],
+  hazardSites?: Array<{ lat: number; lng: number; buffer_miles: number }>
 ): Promise<{ durationSeconds: number; distanceMeters: number; polyline: string; summary: string }> {
   const body: Record<string, unknown> = {
-    origin: { location: { latLng: origin } },
-    destination: { location: { latLng: destination } },
+    origin: {
+      location: {
+        latLng: {
+          latitude: origin.lat,
+          longitude: origin.lng,
+        },
+      },
+    },
+    destination: {
+      location: {
+        latLng: {
+          latitude: destination.lat,
+          longitude: destination.lng,
+        },
+      },
+    },
     travelMode: 'DRIVE',
     routingPreference: 'TRAFFIC_AWARE',
     polylineQuality: 'HIGH_QUALITY',
   }
+  const avoidRegions: Array<{ encodedPolyline: string }> = []
   if (firePerimeter && firePerimeter.length >= 3) {
+    avoidRegions.push({ encodedPolyline: encodePolyline(firePerimeter) })
+  }
+  if (Array.isArray(hazardSites)) {
+    for (const hazard of hazardSites) {
+      if (
+        !Number.isFinite(hazard?.lat)
+        || !Number.isFinite(hazard?.lng)
+        || !Number.isFinite(hazard?.buffer_miles)
+        || hazard.buffer_miles <= 0
+      ) {
+        continue
+      }
+      const bufferDeg = hazard.buffer_miles / 69
+      const corners: LatLng[] = [
+        { lat: hazard.lat + bufferDeg, lng: hazard.lng - bufferDeg },
+        { lat: hazard.lat + bufferDeg, lng: hazard.lng + bufferDeg },
+        { lat: hazard.lat - bufferDeg, lng: hazard.lng + bufferDeg },
+        { lat: hazard.lat - bufferDeg, lng: hazard.lng - bufferDeg },
+        { lat: hazard.lat + bufferDeg, lng: hazard.lng - bufferDeg },
+      ]
+      avoidRegions.push({ encodedPolyline: encodePolyline(corners) })
+    }
+  }
+  if (avoidRegions.length > 0) {
     body.routeModifiers = {
-      // Keep request aligned with the requested feature; if this is unsupported for the
-      // current project/API config, fallback request below is used.
-      avoidAreas: [
-        {
-          polygon: {
-            encodedPolyline: encodePolyline(firePerimeter),
-          },
-        },
-      ],
+      avoidAreas: {
+        regions: avoidRegions,
+      },
     }
   }
   const fieldMask = [
     'routes.duration',
     'routes.distanceMeters',
     'routes.polyline.encodedPolyline',
+    'routes.legs.steps.polyline',
     'routes.description',
   ].join(',')
   const tryRequest = async (payload: Record<string, unknown>) => {
@@ -172,12 +208,28 @@ function passesNearFireCenter(polyline: string, fireCenter: LatLng | null): bool
   return false
 }
 
+function passesNearHazardSites(
+  polyline: string,
+  hazardSites?: Array<{ lat: number; lng: number; buffer_miles: number }>
+): boolean {
+  if (!polyline || !Array.isArray(hazardSites) || hazardSites.length === 0) return false
+  const pts = decodePolyline(polyline)
+  for (const p of pts) {
+    for (const h of hazardSites) {
+      if (!Number.isFinite(h?.lat) || !Number.isFinite(h?.lng)) continue
+      if (distanceMiles([p.lat, p.lng], [h.lat, h.lng]) <= 1) return true
+    }
+  }
+  return false
+}
+
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as {
     originLat?: number
     originLng?: number
     shelters?: ShelterInput[]
     firePerimeter?: LatLng[]
+    hazardSites?: Array<{ lat: number; lng: number; buffer_miles: number }>
   }
   const originLat = body.originLat
   const originLng = body.originLng
@@ -198,13 +250,29 @@ export async function POST(request: NextRequest) {
     Array.isArray(body.firePerimeter)
       ? body.firePerimeter.filter(p => Number.isFinite(p?.lat) && Number.isFinite(p?.lng))
       : undefined
+  const hazardSites =
+    Array.isArray(body.hazardSites)
+      ? body.hazardSites.filter(
+          h =>
+            Number.isFinite(h?.lat)
+            && Number.isFinite(h?.lng)
+            && Number.isFinite(h?.buffer_miles)
+            && (h?.buffer_miles ?? 0) > 0
+        )
+      : undefined
   const fireCenter = toFireCenter(firePerimeter)
 
   const out: RouteRow[] = []
   for (const shelter of shelters) {
     if (!Number.isFinite(shelter?.lat) || !Number.isFinite(shelter?.lng)) continue
     try {
-      const route = await computeRoute(key, origin, { lat: shelter.lat, lng: shelter.lng }, firePerimeter)
+      const route = await computeRoute(
+        key,
+        origin,
+        { lat: shelter.lat, lng: shelter.lng },
+        firePerimeter,
+        hazardSites
+      )
       out.push({
         shelter,
         duration_seconds: route.durationSeconds,
@@ -212,6 +280,7 @@ export async function POST(request: NextRequest) {
         polyline: route.polyline,
         summary: route.summary,
         passes_near_fire: passesNearFireCenter(route.polyline, fireCenter),
+        passes_near_hazard: passesNearHazardSites(route.polyline, hazardSites),
       })
     } catch {
       // Skip invalid route candidates.
@@ -219,7 +288,14 @@ export async function POST(request: NextRequest) {
   }
 
   out.sort((a, b) => {
-    if (a.passes_near_fire !== b.passes_near_fire) return a.passes_near_fire ? 1 : -1
+    const aSafe = !a.passes_near_fire && !a.passes_near_hazard
+    const bSafe = !b.passes_near_fire && !b.passes_near_hazard
+    if (aSafe !== bSafe) return aSafe ? -1 : 1
+
+    const aFireOnlySafe = !a.passes_near_fire
+    const bFireOnlySafe = !b.passes_near_fire
+    if (aFireOnlySafe !== bFireOnlySafe) return aFireOnlySafe ? -1 : 1
+
     return a.duration_seconds - b.duration_seconds
   })
 

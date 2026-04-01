@@ -1,6 +1,7 @@
 'use client'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { Flame, AlertTriangle, Shield } from 'lucide-react'
+import { Flame, AlertTriangle } from 'lucide-react'
+import { ANALYST_AXIS_TICK, ANALYST_AXIS_TICK_SM } from '@/lib/analyst-charts'
 
 const HIDDEN_DANGER_FIRES = [
   { name: 'Hawley Fire', county: 'Navajo County', state: 'AZ', svi: 0.98, radio_spread: 'extreme', max_acres: 4821 },
@@ -33,15 +34,15 @@ export default function HiddenDangerPage() {
   const totalAcres = HIDDEN_DANGER_FIRES.reduce((s, f) => s + f.max_acres, 0)
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-8 max-w-6xl mx-auto text-gray-700 dark:text-gray-300">
       <div className="mb-8">
         <div className="flex items-center gap-2 text-signal-danger text-sm font-medium mb-3">
           <Flame className="w-4 h-4" /> HIDDEN DANGER · ANALYST
         </div>
-        <h1 className="font-display text-4xl font-bold text-white mb-3">
+        <h1 className="font-display text-4xl font-bold text-gray-900 dark:text-white mb-3">
           Silent Fires With Extreme Spread
         </h1>
-        <p className="text-ash-400 text-lg max-w-3xl">
+        <p className="text-gray-600 dark:text-gray-400 text-lg max-w-3xl">
           100 fires classified as &ldquo;silent&rdquo; (no official notification) where radio traffic explicitly
           reported extreme or rapid spread — yet received <strong className="text-signal-danger">zero evacuation action</strong>.
         </p>
@@ -57,30 +58,30 @@ export default function HiddenDangerPage() {
         ].map(s => (
           <div key={s.label} className="card p-5">
             <div className={`font-display text-3xl font-bold ${s.color}`}>{s.value}</div>
-            <div className="text-ash-400 text-sm mt-1">{s.label}</div>
+            <div className="text-gray-600 dark:text-gray-400 text-sm mt-1">{s.label}</div>
           </div>
         ))}
       </div>
 
       {/* SVI bar chart */}
       <div className="card p-6 mb-6">
-        <h2 className="text-white font-semibold mb-1">SVI Score by Fire (Top 20)</h2>
-        <p className="text-ash-500 text-xs mb-5">All fires had radio-reported extreme/rapid spread AND zero evacuation action. Red = SVI &gt;0.9, amber = &gt;0.8</p>
+        <h2 className="text-gray-900 dark:text-white font-semibold mb-1">SVI Score by Fire (Top 20)</h2>
+        <p className="text-gray-500 dark:text-gray-500 text-xs mb-5">All fires had radio-reported extreme/rapid spread AND zero evacuation action. Red = SVI &gt;0.9, amber = &gt;0.8</p>
         <ResponsiveContainer width="100%" height={320}>
           <BarChart data={HIDDEN_DANGER_FIRES} layout="vertical" margin={{ left: 120 }}>
-            <XAxis type="number" domain={[0.7, 1]} tick={{ fill: '#737068', fontSize: 11 }} />
-            <YAxis type="category" dataKey="name" tick={{ fill: '#b3b1aa', fontSize: 10 }} width={120} />
+            <XAxis type="number" domain={[0.7, 1]} tick={ANALYST_AXIS_TICK} />
+            <YAxis type="category" dataKey="name" tick={ANALYST_AXIS_TICK_SM} width={120} />
             <Tooltip
               content={({ active, payload }) => {
                 if (!active || !payload?.length) return null
                 const d = payload[0].payload
                 return (
-                  <div className="bg-ash-900 border border-ash-700 rounded-lg px-3 py-2 text-xs">
+                  <div className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs">
                     <p className="text-white font-medium">{d.name}</p>
-                    <p className="text-ash-400">{d.county}, {d.state}</p>
+                    <p className="text-gray-400">{d.county}, {d.state}</p>
                     <p className="text-signal-danger">SVI: {d.svi.toFixed(2)}</p>
                     <p className="text-signal-warn">Radio: {d.radio_spread}</p>
-                    <p className="text-ash-400">{d.max_acres.toLocaleString()} max acres</p>
+                    <p className="text-gray-400">{d.max_acres.toLocaleString()} max acres</p>
                   </div>
                 )
               }}
@@ -98,20 +99,23 @@ export default function HiddenDangerPage() {
       <div className="card overflow-hidden mb-6">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-ash-800 text-left">
-              <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">Fire Name</th>
-              <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">County, State</th>
-              <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">SVI</th>
-              <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">Radio Spread</th>
-              <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">Max Acres</th>
-              <th className="px-5 py-3 text-ash-400 text-xs font-medium uppercase tracking-wider">Evac Action</th>
+            <tr className="border-b border-gray-200 dark:border-gray-800 text-left bg-gray-100 dark:bg-gray-800">
+              <th className="px-5 py-3 text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">Fire Name</th>
+              <th className="px-5 py-3 text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">County, State</th>
+              <th className="px-5 py-3 text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">SVI</th>
+              <th className="px-5 py-3 text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">Radio Spread</th>
+              <th className="px-5 py-3 text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">Max Acres</th>
+              <th className="px-5 py-3 text-gray-600 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">Evac Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-ash-800">
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
             {HIDDEN_DANGER_FIRES.map((fire, i) => (
-              <tr key={i} className="hover:bg-ash-800/40 transition-colors">
-                <td className="px-5 py-3.5 text-white font-semibold text-sm">{fire.name}</td>
-                <td className="px-5 py-3.5 text-ash-300 text-sm">{fire.county}, {fire.state}</td>
+              <tr
+                key={i}
+                className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors odd:bg-white even:bg-gray-50 dark:odd:bg-gray-900 dark:even:bg-gray-800/80"
+              >
+                <td className="px-5 py-3.5 text-gray-900 dark:text-white font-semibold text-sm">{fire.name}</td>
+                <td className="px-5 py-3.5 text-gray-800 dark:text-gray-300 text-sm">{fire.county}, {fire.state}</td>
                 <td className="px-5 py-3.5">
                   <span className={`font-mono font-bold text-sm ${fire.svi >= 0.9 ? 'text-signal-danger' : fire.svi >= 0.8 ? 'text-signal-warn' : 'text-amber-400'}`}>
                     {fire.svi.toFixed(2)}
@@ -122,9 +126,9 @@ export default function HiddenDangerPage() {
                     {fire.radio_spread}
                   </span>
                 </td>
-                <td className="px-5 py-3.5 text-ash-300 text-sm font-mono">{fire.max_acres.toLocaleString()}</td>
+                <td className="px-5 py-3.5 text-gray-800 dark:text-gray-300 text-sm font-mono">{fire.max_acres.toLocaleString()}</td>
                 <td className="px-5 py-3.5">
-                  <span className="text-xs px-2 py-0.5 rounded bg-ash-800 text-ash-500">None</span>
+                  <span className="text-xs px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400">None</span>
                 </td>
               </tr>
             ))}
@@ -138,7 +142,7 @@ export default function HiddenDangerPage() {
           <AlertTriangle className="w-5 h-5 text-signal-danger shrink-0 mt-0.5" />
           <div>
             <div className="text-signal-danger font-semibold mb-2">Systemic Alerting Failure</div>
-            <p className="text-ash-400 text-sm leading-relaxed">
+            <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
               These 100 fires represent the clearest equity signal in the dataset: radio dispatchers explicitly
               flagged extreme or rapid spread conditions, yet the official notification system never escalated
               to formal evacuation alerts. Communities with SVI &gt; 0.8 were disproportionately affected —
@@ -149,11 +153,11 @@ export default function HiddenDangerPage() {
         </div>
       </div>
 
-      <div className="mt-4 p-4 bg-ash-900/50 border border-ash-800 rounded-lg">
-        <p className="text-ash-500 text-xs">
-          <span className="text-ash-400 font-medium">Methodology:</span> Fires identified by cross-referencing{' '}
-          <code className="text-ash-400">geo_events_geoeventchangelog.radio_traffic_indicates_rate_of_spread</code> (9,157 events)
-          with <code className="text-ash-400">notification_type = &apos;silent&apos;</code> and <code className="text-ash-400">evacuation_occurred = 0</code>.
+      <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-800 rounded-lg">
+        <p className="text-gray-500 dark:text-gray-500 text-xs">
+          <span className="text-gray-700 dark:text-gray-400 font-medium">Methodology:</span> Fires identified by cross-referencing{' '}
+          <code className="text-gray-700 dark:text-gray-400">geo_events_geoeventchangelog.radio_traffic_indicates_rate_of_spread</code> (9,157 events)
+          with <code className="text-gray-700 dark:text-gray-400">notification_type = &apos;silent&apos;</code> and <code className="text-gray-700 dark:text-gray-400">evacuation_occurred = 0</code>.
           Source: WiDS 2025 WatchDuty dataset.
         </p>
       </div>

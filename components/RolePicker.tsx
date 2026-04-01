@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { Flame, Shield, Heart, Home, BarChart3, ChevronRight, Plus, Lock, Loader2, CheckCircle, X } from 'lucide-react'
+import { createClient } from '@/lib/supabase'
 
 const ALL_ROLES = ['caregiver', 'evacuee', 'emergency_responder', 'data_analyst'] as const
 
@@ -96,7 +97,12 @@ export default function RolePicker({ roles, activeRole, name }: Props) {
     }
   }, []) // eslint-disable-line
 
-  const otherRoles = ALL_ROLES.filter(r => !myRoles.includes(r))
+  const profileHasProtected = roles.some(r => r === 'emergency_responder' || r === 'data_analyst')
+  const otherRoles = ALL_ROLES.filter(r => {
+    if (myRoles.includes(r)) return false
+    if (!profileHasProtected && (r === 'emergency_responder' || r === 'data_analyst')) return false
+    return true
+  })
 
   async function selectRole(role: string, href: string) {
     const updated = [...new Set([...myRoles, role])]
@@ -152,6 +158,18 @@ export default function RolePicker({ roles, activeRole, name }: Props) {
   async function claimRole() {
     if (!expandedRole || !codeVerified) return
     setClaimLoading(true)
+    const supabase = createClient()
+    const { data: { user: u } } = await supabase.auth.getUser()
+    if (!u) {
+      setClaimLoading(false)
+      return
+    }
+    const { data: prof } = await supabase.from('profiles').select('role, roles').eq('id', u.id).single()
+    const existingRoles: string[] = Array.isArray(prof?.roles) && prof.roles.length
+      ? prof.roles
+      : prof?.role ? [prof.role] : []
+    const updatedRoles = [...new Set([...existingRoles, expandedRole])]
+    await supabase.from('profiles').update({ role: expandedRole, roles: updatedRoles }).eq('id', u.id)
     localStorage.setItem(LS_ACTIVE_KEY, expandedRole)
     try {
       const prev: string[] = JSON.parse(localStorage.getItem('wfa_claimed_roles') || '[]')
@@ -160,11 +178,6 @@ export default function RolePicker({ roles, activeRole, name }: Props) {
       const prevRoles: string[] = JSON.parse(localStorage.getItem(LS_ROLES_KEY) || '[]')
       localStorage.setItem(LS_ROLES_KEY, JSON.stringify([...new Set([...prevRoles, expandedRole])]))
     } catch {}
-    await fetch('/api/profile/role', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: expandedRole }),
-    }).catch(() => {})
     if (codeId) {
       await fetch('/api/invite/consume', {
         method: 'POST',

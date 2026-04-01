@@ -27,10 +27,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <FlameoHubAgentProvider>
         <UserSessionGuard />
         <PushSetup />
-        <Sidebar user={user} profile={profile} />
-        <MainWrapper>
-          {children}
-        </MainWrapper>
+        <div className="flex min-h-[100dvh] min-w-0 flex-1 flex-row items-stretch wfa-dashboard-typography">
+          <Sidebar user={user} profile={profile} />
+          <MainWrapper>
+            {children}
+          </MainWrapper>
+        </div>
         <FlameoChat />
         {/* Honeypot: invisible to users, visible to crawlers/scanners */}
         <a href="/api/honeypot" aria-hidden="true" tabIndex={-1} style={{ display: 'none' }} />

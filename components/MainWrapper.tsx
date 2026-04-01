@@ -1,6 +1,8 @@
 'use client'
 import { usePathname } from 'next/navigation'
 import RoleContextBar from '@/components/RoleContextBar'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
+import { isFlameoDashboardAiFullScreenPath } from '@/lib/flameo-ai-fullscreen-routes'
 
 // Pages where text-white should become dark green in light mode.
 // Consumer hub and subpages use unified styling (canonical /dashboard/home).
@@ -36,19 +38,33 @@ export default function MainWrapper({ children }: { children: React.ReactNode })
     pathname?.startsWith('/dashboard/home') ||
     pathname?.startsWith('/m/dashboard/home')
   const isContentPage = CONTENT_PAGES.some(p => pathname?.startsWith(p)) || isResponderSection
+  const flameoAiFullScreen = isFlameoDashboardAiFullScreenPath(pathname)
   const showContextBar =
+    !flameoAiFullScreen &&
     !isEvacueeHub &&
     (pathname?.startsWith('/dashboard/caregiver') ||
       pathname?.startsWith('/m/dashboard/caregiver') ||
       isContentPage)
+  const showLanguageStrip = !showContextBar && !flameoAiFullScreen
 
   return (
     <main
-      className={`relative flex min-h-0 min-w-0 w-full flex-1 flex-col lg:pl-16${isContentPage ? ' wfa-content-page' : ''}`}
+      className={`relative flex min-h-0 min-w-0 w-full flex-1 flex-col lg:pl-16${isContentPage ? ' wfa-content-page' : ''}${
+        flameoAiFullScreen ? ' max-h-[100dvh] min-h-0 overflow-hidden' : ''
+      }`}
     >
       {showContextBar && <RoleContextBar />}
+      {showLanguageStrip && (
+        <div className="flex items-center justify-end border-b border-gray-200 bg-white/90 px-3 py-2 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-950/80">
+          <LanguageSwitcher />
+        </div>
+      )}
       {/* No overflow-y on this shell so the row in ThemeWrapper can grow with tall pages; sidebar stretches via items-stretch + min-h-full */}
-      <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-x-hidden">
+      <div
+        className={`flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-x-hidden${
+          flameoAiFullScreen ? ' min-h-0 overflow-hidden' : ''
+        }`}
+      >
         {children}
       </div>
     </main>

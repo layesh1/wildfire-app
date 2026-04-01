@@ -1,156 +1,262 @@
 'use client'
+
 import { useEffect, useState } from 'react'
-import { BarChart3, AlertTriangle, Clock, TrendingUp, Database, ArrowRight, Flame, Activity, MapPin, ShieldAlert, FlaskConical } from 'lucide-react'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase'
+import {
+  BarChart3,
+  Brain,
+  Thermometer,
+  Activity,
+  AlertTriangle,
+  Flame,
+  Scale,
+  BarChart2,
+  Map,
+  TrendingUp,
+  Database,
+  ArrowRight,
+  RefreshCw,
+} from 'lucide-react'
+
+type HubFeature = {
+  title: string
+  description: string
+  href: string
+  icon: typeof Brain
+}
+
+type HubCategory = {
+  id: string
+  heading: string
+  features: HubFeature[]
+}
+
+const CATEGORIES: HubCategory[] = [
+  {
+    id: 'prediction',
+    heading: '🔥 Fire Prediction & Behavior',
+    features: [
+      {
+        title: 'ML Predictor',
+        description:
+          'Machine learning model predicting fire spread and impact based on terrain and weather',
+        href: '/dashboard/analyst/ml',
+        icon: Brain,
+      },
+      {
+        title: 'Fire Weather',
+        description:
+          'Real-time fire weather indices: FWI, wind, humidity, and red flag conditions',
+        href: '/dashboard/analyst/fire-weather',
+        icon: Thermometer,
+      },
+      {
+        title: 'Fire Patterns',
+        description: 'Historical fire pattern analysis by region, season, and terrain type',
+        href: '/dashboard/analyst/fire-patterns',
+        icon: Activity,
+      },
+    ],
+  },
+  {
+    id: 'evacuation',
+    heading: '🚨 Evacuation & Alert Analysis',
+    features: [
+      {
+        title: 'Signal Gap Analysis',
+        description: 'Identify communities with delayed or missing evacuation alerts',
+        href: '/dashboard/analyst/signal-gap',
+        icon: AlertTriangle,
+      },
+      {
+        title: 'Hidden Danger',
+        description: 'Undetected or underreported fire risk zones based on infrastructure gaps',
+        href: '/dashboard/analyst/hidden-danger',
+        icon: Flame,
+      },
+    ],
+  },
+  {
+    id: 'equity',
+    heading: '📊 Impact & Equity',
+    features: [
+      {
+        title: 'Equity Metrics',
+        description: 'Measure disparate wildfire impact across demographic and socioeconomic groups',
+        href: '/dashboard/analyst/equity',
+        icon: Scale,
+      },
+      {
+        title: 'NRI Analysis',
+        description: 'FEMA National Risk Index scores by county — vulnerability and resilience mapping',
+        href: '/dashboard/analyst/nri',
+        icon: BarChart2,
+      },
+    ],
+  },
+  {
+    id: 'geo',
+    heading: '🗺️ Geospatial & Density',
+    features: [
+      {
+        title: 'Live Fire Map',
+        description: 'Real-time active fire locations with perimeter overlays and spread vectors',
+        href: '/dashboard/analyst/map',
+        icon: Map,
+      },
+      {
+        title: 'Fire Density',
+        description: 'Heatmap of fire frequency and intensity by geographic area over time',
+        href: '/dashboard/analyst/fire-density',
+        icon: BarChart3,
+      },
+    ],
+  },
+  {
+    id: 'trends',
+    heading: '📈 Trends & Data Quality',
+    features: [
+      {
+        title: 'Trends',
+        description: 'Long-term wildfire trend analysis: frequency, size, seasonality, and climate',
+        href: '/dashboard/analyst/trends',
+        icon: TrendingUp,
+      },
+      {
+        title: 'Data Health',
+        description: 'Monitor data pipeline quality, completeness, and freshness across all sources',
+        href: '/dashboard/analyst/data-health',
+        icon: Database,
+      },
+    ],
+  },
+]
 
 export default function AnalystDashboard() {
-  const [stats, setStats] = useState({
-    totalFires: 50664,
-    withSignals: 33423,
-    withOrders: 653,
-    gapRate: 99.3,
-  })
+  const [activeFiresCount, setActiveFiresCount] = useState<number | null>(null)
+  const [statsUpdatedAt, setStatsUpdatedAt] = useState<Date | null>(null)
+  const [headerUpdatedAt, setHeaderUpdatedAt] = useState<Date | null>(null)
 
-  const SECTIONS = [
+  useEffect(() => {
+    setHeaderUpdatedAt(new Date())
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/active-fires')
+        const data = await res.json()
+        const n = Array.isArray(data?.fires) ? data.fires.length : null
+        if (!cancelled && n != null && n > 0) {
+          setActiveFiresCount(n)
+          setStatsUpdatedAt(new Date())
+        }
+      } catch {
+        /* hide stat */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const quickStats: { label: string; value: string; show: boolean }[] = [
+    { label: 'Active fires monitored', value: String(activeFiresCount), show: activeFiresCount != null && activeFiresCount > 0 },
     {
-      title: 'Signal Gap Analysis',
-      desc: '99.3% of true wildfires with external signals never received a formal order. SVI predicts whether orders happen, not how long they take.',
-      href: '/dashboard/analyst/signal-gap',
-      icon: AlertTriangle,
-      color: 'text-signal-danger',
-      stat: '99.3% gap rate',
+      label: 'Counties covered',
+      value: '3,144',
+      show: true,
     },
-    {
-      title: 'Data Health',
-      desc: 'Prescribed burn filtering, field completeness, known issues, and stat corrections. Start here before any analysis.',
-      href: '/dashboard/analyst/data-health',
-      icon: ShieldAlert,
-      color: 'text-amber-400',
-      stat: '17.7% prescribed burns',
-    },
-    {
-      title: 'Equity Metrics',
-      desc: 'CDC SVI cross-analysis: which communities are being left behind.',
-      href: '/dashboard/analyst/equity',
-      icon: TrendingUp,
-      color: 'text-signal-info',
-      stat: 'High-SVI counties',
-    },
-    {
-      title: 'ML Fire Predictor',
-      desc: 'XGBoost/Random Forest spread predictions with confidence scores.',
-      href: '/dashboard/analyst/ml',
-      icon: BarChart3,
-      color: 'text-amber-400',
-      stat: 'XGBoost + RF',
-    },
-    {
-      title: 'Live Fire Map',
-      desc: 'NASA FIRMS integration with evacuation zone overlays.',
-      href: '/dashboard/analyst/map',
-      icon: Database,
-      color: 'text-signal-safe',
-      stat: 'Real-time FIRMS',
-    },
-    {
-      title: 'Hidden Danger',
-      desc: '100 silent fires with extreme radio spread that received zero evacuation action — strongest equity signal in dataset.',
-      href: '/dashboard/analyst/hidden-danger',
-      icon: Flame,
-      color: 'text-signal-danger',
-      stat: '100 silent+extreme',
-    },
-    {
-      title: 'Fire Patterns',
-      desc: 'Radio dispatch signals, zone escalation skip rates, fire cause analysis, and protocol inversion detection.',
-      href: '/dashboard/analyst/fire-patterns',
-      icon: Activity,
-      color: 'text-amber-400',
-      stat: '4 pattern analyses',
-    },
-    {
-      title: 'Fire Density',
-      desc: 'Fires per square mile by state. Identifies compound risk: high density + high SVI = most underserved.',
-      href: '/dashboard/analyst/fire-density',
-      icon: MapPin,
-      color: 'text-signal-info',
-      stat: '111 fires/1000sqmi CA',
-    },
-    {
-      title: 'Fire Simulation Studio',
-      desc: 'FireBench-calibrated animated fire spread simulations. Compare calm, moderate, and extreme scenarios from Google Research CFD dataset.',
-      href: '/dashboard/analyst/simulation',
-      icon: FlaskConical,
-      color: 'text-ember-400',
-      stat: 'FireBench · Google Research',
-    },
+    { label: 'Data sources', value: '9', show: true },
   ]
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
-      <div className="mb-10">
-        <div className="flex items-center gap-2 text-forest-600 text-sm font-medium mb-3">
-          <BarChart3 className="w-4 h-4" />
-          DATA ANALYST DASHBOARD
+    <div className="p-6 md:p-8 max-w-6xl mx-auto text-gray-700 dark:text-gray-300">
+      <header className="mb-8">
+        <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2">
+              WildfireAlert Data Intelligence Platform
+            </p>
+            <h1 className="font-display text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
+              Research &amp; Analytics
+            </h1>
+          </div>
+          {headerUpdatedAt && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5 shrink-0">
+              <RefreshCw className="w-3.5 h-3.5 opacity-70" aria-hidden />
+              Hub updated {headerUpdatedAt.toLocaleString()}
+            </p>
+          )}
         </div>
-        <h1 className="font-display text-4xl font-bold text-gray-900 mb-3">
-          Research Overview
-        </h1>
-        <p className="text-gray-500 text-lg">
-          WiDS Datathon 2026 · WatchDuty Dataset · 60,000+ Wildfire Incidents
-        </p>
-      </div>
 
-      {/* Core stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-        <div className="card p-5">
-          <div className="stat-value">50,664</div>
-          <div className="stat-label">True wildfire incidents</div>
-          <div className="text-gray-400 text-xs mt-0.5">62,696 total; 11,115 prescribed burns excluded</div>
+        <div className="flex flex-wrap gap-3">
+          {quickStats
+            .filter(s => s.show)
+            .map(s => (
+              <div
+                key={s.label}
+                className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/80 px-4 py-3 min-w-[10rem]"
+              >
+                <div className="text-lg font-bold tabular-nums text-gray-900 dark:text-white">{s.value}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{s.label}</div>
+                {s.label === 'Active fires monitored' && statsUpdatedAt && (
+                  <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+                    NIFC snapshot {statsUpdatedAt.toLocaleTimeString()}
+                  </div>
+                )}
+              </div>
+            ))}
         </div>
-        <div className="card p-5">
-          <div className="stat-value text-forest-600">33,423</div>
-          <div className="stat-label">Fires with signals</div>
-          <div className="text-gray-400 text-xs mt-0.5">External detection</div>
-        </div>
-        <div className="card p-5">
-          <div className="stat-value text-signal-danger">653</div>
-          <div className="stat-label">With formal orders</div>
-          <div className="text-gray-400 text-xs mt-0.5">Of 33,423 signaled (99.3% gap)</div>
-        </div>
-        <div className="card p-5">
-          <div className="stat-value text-signal-warn">4.1h</div>
-          <div className="stat-label">Signal lead time</div>
-          <div className="text-gray-400 text-xs mt-0.5">Median: signal → order (n=242)</div>
-        </div>
-      </div>
+      </header>
 
-      {/* Section cards */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {SECTIONS.map(({ title, desc, href, icon: Icon, color, stat }) => (
-          <Link
-            key={href}
-            href={href}
-            className="card p-6 hover:bg-gray-50 transition-all duration-200 hover:scale-[1.01] group"
-          >
-            <div className="flex items-start justify-between mb-4">
-              <Icon className={`w-6 h-6 ${color}`} />
-              <span className="text-gray-400 text-xs font-mono">{stat}</span>
+      <div className="space-y-10">
+        {CATEGORIES.map(cat => (
+          <section key={cat.id} aria-labelledby={`cat-${cat.id}`}>
+            <h2
+              id={`cat-${cat.id}`}
+              className="text-sm font-semibold text-gray-900 dark:text-white mb-4 tracking-tight"
+            >
+              {cat.heading}
+            </h2>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {cat.features.map(f => {
+                const Icon = f.icon
+                return (
+                  <Link
+                    key={f.href}
+                    href={f.href}
+                    className="group rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm transition-all hover:border-forest-600/40 dark:hover:border-amber-600/35 hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-800/90"
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-900/80 text-gray-800 dark:text-amber-200/90 border border-gray-200 dark:border-gray-600">
+                        <Icon className="w-5 h-5" aria-hidden />
+                      </span>
+                      <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-forest-600 dark:group-hover:text-amber-400 transition-colors shrink-0 mt-1" />
+                    </div>
+                    <h3 className="font-display text-lg font-bold text-gray-900 dark:text-white mb-2">
+                      {f.title}
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 leading-snug line-clamp-2">
+                      {f.description}
+                    </p>
+                  </Link>
+                )
+              })}
             </div>
-            <h3 className="font-display text-xl font-bold text-gray-900 mb-2">{title}</h3>
-            <p className="text-gray-500 text-sm mb-4 leading-relaxed">{desc}</p>
-            <div className="flex items-center gap-2 text-gray-400 group-hover:text-forest-600 transition-colors text-sm">
-              Open analysis <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </Link>
+          </section>
         ))}
       </div>
 
-      {/* Data note */}
-      <div className="mt-8 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-        <p className="text-gray-500 text-xs">
-          <span className="text-gray-600 font-medium">Note:</span> The fire_events table contains a known duplicate upload issue (124,696 rows → deduplicated to 62,696 unique incidents). Of those, 11,115 are prescribed burns (17.7%) and 917 are location records — true wildfire count is 50,664. All analyses filter to <code className="text-gray-600">is_true_wildfire=1</code>.
+      <div className="mt-10 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 p-4">
+        <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
+          <span className="font-medium text-gray-800 dark:text-gray-200">Note:</span> Analyses use the enriched WatchDuty-derived dataset
+          (50,664 true wildfires after excluding prescribed burns and non-fire location records). See{' '}
+          <Link href="/dashboard/analyst/data-health" className="text-forest-700 dark:text-amber-400 underline underline-offset-2">
+            Data Health
+          </Link>{' '}
+          for methodology.
         </p>
       </div>
     </div>

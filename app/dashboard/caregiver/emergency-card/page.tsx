@@ -1,9 +1,14 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
-import { FileText, Share2, Download, Phone, AlertTriangle, Heart, Shield, Plus, X, Droplets, User } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { FileText, Share2, Download, Phone, Heart, Plus, X, Droplets, User } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { LANGUAGES } from '@/lib/languages'
 import AddressAutocomplete from '@/components/AddressAutocomplete'
+import './emergency-card-print.css'
+
+function dash(s: string) {
+  return s.trim() ? s.trim() : '—'
+}
 
 const MOBILITY_OPTIONS = ['Mobile Adult', 'Elderly', 'Elderly (needs driver)', 'Disabled', 'Wheelchair', 'No Vehicle', 'Medical Equipment', 'Other']
 
@@ -49,7 +54,6 @@ function persistCard(key: string, profile: CardProfile) {
 }
 
 export default function EmergencyCardPage() {
-  const cardRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
 
   const [activeKey, setActiveKey] = useState('self')
@@ -60,6 +64,11 @@ export default function EmergencyCardPage() {
   const [profile, setProfile] = useState<CardProfile>(emptyProfile())
 
   // Load card owners list and initial profile
+  useEffect(() => {
+    document.documentElement.classList.add('wfa-print-emergency-card')
+    return () => document.documentElement.classList.remove('wfa-print-emergency-card')
+  }, [])
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem('wfa_emergency_card_owners')
@@ -149,31 +158,7 @@ export default function EmergencyCardPage() {
   }
 
   function savePdf() {
-    const card = cardRef.current
-    if (!card) return
-    const win = window.open('', '_blank', 'width=820,height=1000')
-    if (!win) return
-    win.document.write(`<!DOCTYPE html>
-<html><head>
-  <meta charset="utf-8">
-  <title>Wildfire Emergency Card</title>
-  <script src="https://cdn.tailwindcss.com"><\/script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
-    body { font-family: 'DM Sans', system-ui, sans-serif; padding: 2rem; background: white; }
-    @media print { body { padding: 0.5rem; } }
-    .signal-danger { color: #dc2626; }
-    .bg-signal-danger\\/10 { background-color: rgba(220,38,38,0.1); }
-    .border-signal-danger\\/40 { border-color: rgba(220,38,38,0.4); }
-    .text-signal-warn { color: #d97706; }
-    .bg-signal-warn\\/10 { background-color: rgba(217,119,6,0.1); }
-    .border-signal-warn\\/40 { border-color: rgba(217,119,6,0.4); }
-  </style>
-</head><body>
-  ${card.outerHTML}
-  <script>window.onload = () => { window.print(); }<\/script>
-</body></html>`)
-    win.document.close()
+    window.print()
   }
 
   function shareCard() {
@@ -211,8 +196,15 @@ export default function EmergencyCardPage() {
   const hasCriticalNeeds = profile.medications || profile.medicalEquipment || (profile.mobility !== 'Mobile Adult')
   const activeLabel = activeKey === 'self' ? 'My Card' : (cardOwners.find(o => o.key === activeKey)?.label ?? 'Card')
 
+  const dateStr = new Date().toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+
   return (
     <div className="p-6 max-w-2xl mx-auto">
+      <div className="no-print mb-8">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-2 text-forest-600 text-sm font-medium mb-3">
@@ -313,7 +305,7 @@ export default function EmergencyCardPage() {
       </div>
 
       {/* Edit form */}
-      <div className="space-y-4 no-print mb-8">
+      <div className="space-y-4 mb-8">
         {/* Identity */}
         <div className="card p-5">
           <h2 className="text-gray-700 font-semibold text-sm mb-3 flex items-center gap-2">
@@ -452,132 +444,125 @@ export default function EmergencyCardPage() {
         </div>
 
       </div>
+      </div>
 
-      {/* Printable / shareable card */}
-      <div ref={cardRef} id="emergency-card" className="print-card rounded-xl border-2 border-gray-300 bg-white overflow-hidden">
-        {/* Header */}
-        <div className="bg-red-50 border-b-2 border-red-200 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-red-100 border border-red-200 flex items-center justify-center">
-              <Shield className="w-5 h-5 text-red-600" />
+      {/* Printable card — same DOM for screen preview + browser print/PDF */}
+      <div
+        id="emergency-card-print"
+        className="mx-auto w-full max-w-[4in] overflow-hidden rounded-xl border border-slate-600 bg-slate-900 text-slate-100 shadow-xl print:max-w-none print:rounded-none print:border-black print:bg-white print:text-black print:shadow-none"
+      >
+        <header className="ec-header-print flex items-start justify-between gap-3 border-b border-slate-700 px-4 py-3 print:border-black">
+          <div className="min-w-0">
+            <p className="font-semibold uppercase tracking-[0.12em] text-slate-100 text-xs sm:text-sm print:text-black">
+              🔥 Wildfire Emergency Card
+            </p>
+            <p className="text-[11px] text-slate-400 print:text-black">minutesmatter.app</p>
+            <p className="mt-1 text-[11px] text-amber-400/90 print:text-black print:font-normal">
+              Show this to any shelter or responder
+            </p>
+          </div>
+          <div className="shrink-0 text-right font-mono text-[10px] text-slate-500 print:text-black">
+            {dateStr}
+          </div>
+        </header>
+
+        <div className="space-y-0 px-4 py-3 text-sm text-slate-200 print:text-black">
+          <div className="grid grid-cols-2 gap-4 border-b border-slate-700 pb-3 print:border-black">
+            <div>
+              <p className="text-[0.65rem] font-bold uppercase tracking-widest text-slate-500 print:text-black">Name</p>
+              <p className="mt-0.5 font-semibold text-base text-white print:text-black">{dash(profile.name)}</p>
             </div>
             <div>
-              <div className="font-bold text-gray-900 text-base uppercase tracking-wide">Wildfire Emergency Card</div>
-              <div className="text-red-600/70 text-xs">minutesmatter.app · Show this to any shelter or responder</div>
+              <p className="text-[0.65rem] font-bold uppercase tracking-widest text-slate-500 print:text-black">Phone</p>
+              <p className="mt-0.5 font-mono font-semibold text-base text-white print:text-black">{dash(profile.phone)}</p>
             </div>
           </div>
-          <div className="text-right text-xs text-gray-400">
-            <div>Updated</div>
-            <div className="font-mono">{new Date().toLocaleDateString()}</div>
-          </div>
-        </div>
 
-        <div className="p-5 space-y-4">
-          {/* Identity row */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <div className="text-gray-400 text-xs uppercase tracking-wider mb-0.5">Name</div>
-              <div className="text-gray-900 font-bold text-lg">{profile.name || '______________________'}</div>
-            </div>
-            <div>
-              <div className="text-gray-400 text-xs uppercase tracking-wider mb-0.5">Phone</div>
-              <div className="text-gray-900 font-bold text-lg font-mono">{profile.phone || '______________________'}</div>
-            </div>
-            <div className="col-span-2">
-              <div className="text-gray-400 text-xs uppercase tracking-wider mb-0.5">Home Address</div>
-              <div className="text-gray-900 font-semibold">{profile.address || '______________________________________'}</div>
-            </div>
-            {(profile.bloodType || profile.languages || profile.allergies || profile.mobility !== 'Mobile Adult') && (
-              <div className="col-span-2 flex flex-wrap gap-2">
-                {profile.mobility !== 'Mobile Adult' && (
-                  <span className="bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold px-2 py-1 rounded-lg">
-                    Mobility: {mobilityLabel}
-                  </span>
-                )}
-                {profile.bloodType && (
-                  <span className="bg-red-50 border border-red-200 text-red-700 text-xs font-bold px-2 py-1 rounded-lg">
-                    Blood: {profile.bloodType}
-                  </span>
-                )}
-                {profile.languages && (
-                  <span className="bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium px-2 py-1 rounded-lg">
-                    Speaks: {profile.languages}
-                  </span>
-                )}
-                {profile.allergies && (
-                  <span className="bg-signal-warn/10 border border-signal-warn/40 text-signal-warn text-xs font-bold px-2 py-1 rounded-lg">
-                    ALLERGY: {profile.allergies}
-                  </span>
-                )}
-              </div>
-            )}
+          <div className="border-b border-slate-700 py-3 print:border-black">
+            <p className="text-[0.65rem] font-bold uppercase tracking-widest text-slate-500 print:text-black">Home address</p>
+            <p className="mt-1 whitespace-pre-wrap font-medium leading-snug text-white print:text-black">{dash(profile.address)}</p>
           </div>
 
-          {/* Critical needs banner */}
-          {hasCriticalNeeds && (
-            <div className="bg-signal-danger/10 border-2 border-signal-danger/40 rounded-lg p-3">
-              <div className="text-signal-danger font-bold text-xs uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                <AlertTriangle className="w-3.5 h-3.5" /> Critical Needs — Read Before Placing
-              </div>
-              <div className="space-y-1 text-sm">
-                {profile.mobility !== 'Mobile Adult' && (
-                  <div><span className="font-semibold text-gray-700">Mobility:</span> <span className="text-gray-600">{mobilityLabel}</span></div>
-                )}
-                {profile.medications && (
-                  <div><span className="font-semibold text-gray-700">Medications:</span> <span className="text-gray-600">{profile.medications}</span></div>
-                )}
-                {profile.medicalEquipment && (
-                  <div><span className="font-semibold text-gray-700">Equipment:</span> <span className="text-gray-600 font-medium">{profile.medicalEquipment}</span></div>
-                )}
-              </div>
+          <div className="border-b border-slate-700 py-3 print:border-black">
+            <p className="text-[0.65rem] font-bold uppercase tracking-widest text-slate-500 print:text-black">Blood &amp; languages</p>
+            <p className="mt-1 text-slate-300 print:text-black">
+              <span className="font-semibold text-slate-100 print:text-black">Blood: </span>
+              {dash(profile.bloodType)}
+              <span className="font-semibold text-slate-100 print:text-black"> · Languages: </span>
+              {dash(profile.languages)}
+            </p>
+          </div>
+
+          <div className="ec-critical-print border-l-4 border-amber-500 py-3 pl-3 print:border-red-700">
+            <p className="text-[0.65rem] font-bold uppercase tracking-widest text-amber-400 print:text-black">
+              ⚠ Critical needs
+            </p>
+            <div className="mt-2 space-y-1.5 text-[13px] leading-snug">
+              <p>
+                <span className="font-semibold text-slate-100 print:text-black">Mobility: </span>
+                <span className="text-slate-300 print:text-black">{dash(mobilityLabel)}</span>
+              </p>
+              <p>
+                <span className="font-semibold text-slate-100 print:text-black">Medications: </span>
+                <span className="text-slate-300 print:text-black">{dash(profile.medications)}</span>
+              </p>
+              <p>
+                <span className="font-semibold text-slate-100 print:text-black">Equipment: </span>
+                <span className="text-slate-300 print:text-black">{dash(profile.medicalEquipment)}</span>
+              </p>
+              <p>
+                <span className="font-semibold text-slate-100 print:text-black">Allergies: </span>
+                <span className="text-slate-300 print:text-black">{dash(profile.allergies)}</span>
+              </p>
             </div>
-          )}
+          </div>
 
-          <div className="border-t border-gray-100" />
-
-          {/* Emergency contacts */}
-          <div>
-            <div className="text-gray-400 text-xs uppercase tracking-wider mb-2">Emergency Contacts</div>
-            <div className="grid grid-cols-1 gap-1.5">
-              {profile.emergencyContacts.filter(c => c.name || c.phone).length > 0
-                ? profile.emergencyContacts.filter(c => c.name || c.phone).map((c, i) => (
-                    <div key={i} className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
-                      <Phone className="w-3 h-3 text-gray-400 shrink-0" />
-                      <span className="text-gray-900 font-semibold text-sm">{c.name}</span>
-                      {c.relationship && <span className="text-gray-400 text-xs">({c.relationship})</span>}
-                      <span className="ml-auto text-gray-900 font-mono text-sm">{c.phone}</span>
+          <div className="ec-section-divider border-b border-slate-700 py-3 print:border-black">
+            <p className="text-[0.65rem] font-bold uppercase tracking-widest text-slate-500 print:text-black">Emergency contacts</p>
+            <div className="mt-2 space-y-2">
+              {profile.emergencyContacts.filter(c => c.name?.trim() || c.phone?.trim()).length === 0 ? (
+                <p className="text-slate-400 print:text-black">No contacts added yet</p>
+              ) : (
+                profile.emergencyContacts
+                  .filter(c => c.name?.trim() || c.phone?.trim())
+                  .map((c, i) => (
+                    <div
+                      key={i}
+                      className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 border border-slate-600 rounded-lg px-2.5 py-1.5 text-[13px] print:border-black"
+                    >
+                      <span className="font-semibold text-white print:text-black">{dash(c.name)}</span>
+                      {c.relationship?.trim() ? (
+                        <span className="text-slate-500 text-xs print:text-black">({c.relationship})</span>
+                      ) : null}
+                      <span className="ml-auto font-mono font-medium text-slate-200 print:text-black">{dash(c.phone)}</span>
                     </div>
                   ))
-                : <div className="text-gray-400 text-sm">No contacts added yet</div>
-              }
+              )}
             </div>
           </div>
 
-          <div className="border-t border-gray-100" />
-
-          {/* Emergency numbers */}
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="flex justify-between bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
-              <span className="text-gray-500">Emergency</span>
-              <span className="text-gray-900 font-mono font-bold">911</span>
+          <div className="ec-num-grid grid grid-cols-2 gap-2 pt-3 text-[11px] leading-tight">
+            <div className="flex items-center justify-between gap-2 rounded border border-slate-600 px-2.5 py-2 print:border-black">
+              <span className="text-slate-500 print:text-black">Emergency</span>
+              <span className="font-mono font-bold text-white print:text-black">911</span>
             </div>
-            <div className="flex justify-between bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
-              <span className="text-gray-500">FEMA Helpline</span>
-              <span className="text-gray-900 font-mono font-bold">1-800-621-3362</span>
+            <div className="flex items-center justify-between gap-2 rounded border border-slate-600 px-2.5 py-2 print:border-black">
+              <span className="text-slate-500 print:text-black">FEMA</span>
+              <span className="text-right font-mono font-bold text-white print:text-black">1-800-621-3362</span>
             </div>
-            <div className="flex justify-between bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
-              <span className="text-gray-500">Red Cross</span>
-              <span className="text-gray-900 font-mono font-bold">1-800-733-2767</span>
+            <div className="flex items-center justify-between gap-2 rounded border border-slate-600 px-2.5 py-2 print:border-black">
+              <span className="text-slate-500 print:text-black">Red Cross</span>
+              <span className="text-right font-mono font-bold text-white print:text-black">1-800-733-2767</span>
             </div>
-            <div className="flex justify-between bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
-              <span className="text-gray-500">Crisis Text</span>
-              <span className="text-gray-900 font-mono font-bold">Text HOME→741741</span>
+            <div className="flex items-center justify-between gap-2 rounded border border-slate-600 px-2.5 py-2 print:border-black">
+              <span className="text-slate-500 print:text-black">Crisis Text</span>
+              <span className="text-right font-mono font-bold text-white print:text-black">HOME → 741741</span>
             </div>
           </div>
 
-          <div className="border-t border-gray-100 pt-2 text-gray-300 text-xs text-center">
-            Minutes Matter Emergency Card · minutesmatter.app · Auto-saved to your device
-          </div>
+          <p className="ec-print-hide pt-3 text-center text-[10px] text-slate-600">
+            Minutes Matter · Auto-saved on this device
+          </p>
         </div>
       </div>
     </div>
