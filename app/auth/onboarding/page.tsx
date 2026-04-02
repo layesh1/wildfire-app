@@ -503,7 +503,7 @@ function OnboardingInner() {
                     </Label>
                     <p className="mb-2 text-xs text-ash-500">
                       Same address the Command Hub uses as &quot;station&quot; for maps and routing — not the station join code
-                      firefighters use to sign up (created later under Station &amp; setup; on iOS that code is the only signup path
+                      firefighters use to sign up (created during this signup; on iOS that code is the only signup path
                       for joining your roster).
                     </p>
                     <AddressVerifySave
@@ -550,7 +550,7 @@ function OnboardingInner() {
                     (e.g. STATION-ABC123). When you save your <strong className="text-ash-200">station name</strong> and{' '}
                     <strong className="text-ash-200">command post address</strong> in this flow, we create your station record and{' '}
                     <strong className="text-ash-200">one</strong> iOS join code. <strong className="text-ash-200">Copy it from the Command hub</strong>{' '}
-                    sidebar after you&apos;re in; use <strong className="text-ash-200">Station &amp; setup</strong> to rename your station, see roster, or replace the code if needed. Firefighters use that code on{' '}
+                    sidebar after you&apos;re in; use <strong className="text-ash-200">Station hub</strong> to rename your station, see roster, or replace the code if needed. Firefighters use that code on{' '}
                     <strong className="text-ash-200">Minutes Matter iOS</strong> — the <strong className="text-ash-200">only</strong> signup path for joining your roster.
                   </>
                 ) : (

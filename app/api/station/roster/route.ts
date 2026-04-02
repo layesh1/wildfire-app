@@ -14,7 +14,7 @@ function rosterErrorResponse(raw: string | undefined, status = 500) {
     return NextResponse.json(
       {
         error:
-          'Supabase RLS recursion on stations. Run migrations 20260415_station_rls_recursion_fix_reapply.sql and 20260416_responder_roster_rpc_bypass_rls.sql in the SQL Editor (or apply the full migration chain), then refresh.',
+          'Supabase RLS recursion on stations. Run migration 20260417_stations_select_no_recursion.sql in the SQL Editor (and 20260415/20260416 if not yet applied), then refresh. On the server, set SUPABASE_SERVICE_ROLE_KEY so roster reads bypass RLS.',
         code: 'STATIONS_RLS_RECURSION',
       },
       { status }

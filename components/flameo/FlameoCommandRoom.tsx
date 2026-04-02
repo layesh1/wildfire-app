@@ -320,16 +320,16 @@ export default function FlameoCommandRoom({
           <p className="text-[11px] leading-snug text-red-700 dark:text-red-300">{rosterError}</p>
         ) : !roster?.station ? (
           <p className="text-[11px] leading-snug text-gray-600 dark:text-gray-400">
-            Saving <strong className="font-semibold text-gray-700 dark:text-gray-300">station name + address</strong> during web signup
-            creates your station and <strong className="font-semibold text-gray-700 dark:text-gray-300">one</strong> iOS join code. Refresh
-            in a moment, or open{' '}
+            Your station and <strong className="font-semibold text-gray-700 dark:text-gray-300">one</strong> iOS join code are created during{' '}
+            <strong className="font-semibold text-gray-700 dark:text-gray-300">responder signup</strong> (station name + verified address).
+            Refresh shortly, or open{' '}
             <Link
               href="/dashboard/responder/station"
               className="font-semibold text-amber-800 underline-offset-2 hover:underline dark:text-amber-400"
             >
-              Station &amp; setup
+              Station hub
             </Link>{' '}
-            if setup didn&apos;t finish.
+            for roster and code tools.
           </p>
         ) : (
           <>
@@ -384,7 +384,7 @@ export default function FlameoCommandRoom({
                 href="/dashboard/responder/station"
                 className="font-semibold text-amber-800 underline-offset-2 hover:underline dark:text-amber-400"
               >
-                Station &amp; setup
+                Station hub
               </Link>{' '}
               — edit station name, roster, or replace this code.
             </p>

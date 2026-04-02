@@ -45,9 +45,7 @@ function expiresInLabel(expiresAt: string | null): string {
 export default function ResponderStationPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [creating, setCreating] = useState(false)
   const [regenBusy, setRegenBusy] = useState(false)
-  const [copyOk, setCopyOk] = useState(false)
   const [roster, setRoster] = useState<RosterJson | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -85,7 +83,7 @@ export default function ResponderStationPage() {
     return () => window.removeEventListener('wfa-responder-station-refresh', onRefresh)
   }, [load])
 
-  /** Station name from onboarding / login (profiles.org_name) when no station row yet. */
+  /** Station label from profile (signup) when roster has not loaded a station row yet. */
   useEffect(() => {
     if (loading || roster?.station) return
     let cancelled = false
@@ -106,9 +104,7 @@ export default function ResponderStationPage() {
   }, [loading, roster?.station])
 
   const hasStation = !!roster?.station
-  /** Creator of the station row — undefined when no station yet (do not use for "can create"). */
   const isCommander = roster?.station?.is_commander === true
-  const canCreateStation = !hasStation
 
   const saveStationInfo = async () => {
     if (!isCommander) return
@@ -132,41 +128,6 @@ export default function ResponderStationPage() {
       setError('Save failed')
     } finally {
       setSaving(false)
-    }
-  }
-
-  const createStation = async () => {
-    const name = stationName.trim()
-    if (!name) {
-      setError('Enter a station name first.')
-      return
-    }
-    setCreating(true)
-    setError(null)
-    try {
-      const res = await fetch('/api/station/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          station_name: name,
-        }),
-      })
-      const j = await res.json().catch(() => ({}))
-      if (res.status === 409 && j.station_id) {
-        setError('You already have a station. Refresh the page.')
-        await load()
-        return
-      }
-      if (!res.ok) {
-        setError(typeof j.error === 'string' ? j.error : 'Could not create station')
-        return
-      }
-      await load()
-      window.dispatchEvent(new Event('wfa-responder-station-refresh'))
-    } catch {
-      setError('Could not create station')
-    } finally {
-      setCreating(false)
     }
   }
 
@@ -204,17 +165,16 @@ export default function ResponderStationPage() {
           <Users className="h-7 w-7 text-amber-800 dark:text-amber-300" />
         </div>
         <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight">Station setup</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight">Station hub</h1>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            When you finish web signup you save <strong className="font-semibold text-gray-800 dark:text-gray-200">station name</strong>{' '}
-            and <strong className="font-semibold text-gray-800 dark:text-gray-200">command post address</strong> — that creates your
-            station and <strong className="font-semibold text-gray-800 dark:text-gray-200">one iOS join code</strong> for firefighters.
-            <strong className="font-semibold text-gray-800 dark:text-gray-200"> Copy the code from the Command hub</strong> sidebar
-            (Flameo panel). Use this page to <strong className="font-semibold text-gray-800 dark:text-gray-200">edit the station name</strong>,{' '}
-            see <strong className="font-semibold text-gray-800 dark:text-gray-200">roster</strong>, or replace the code if it expired.{' '}
+            Your <strong className="font-semibold text-gray-800 dark:text-gray-200">station and iOS join code</strong> are created during{' '}
+            <strong className="font-semibold text-gray-800 dark:text-gray-200">responder signup</strong> (station name + verified command post
+            address). Use the{' '}
             <Link href="/dashboard/responder" className="font-semibold text-amber-800 underline-offset-2 hover:underline dark:text-amber-400">
               Command hub
-            </Link>
+            </Link>{' '}
+            Flameo sidebar to copy the join code for field units. Here you can <strong className="font-semibold text-gray-800 dark:text-gray-200">rename the station</strong>,{' '}
+            see the <strong className="font-semibold text-gray-800 dark:text-gray-200">roster</strong>, or <strong className="font-semibold text-gray-800 dark:text-gray-200">replace an expired code</strong>.
           </p>
         </div>
       </div>
@@ -228,7 +188,7 @@ export default function ResponderStationPage() {
       <section className="mb-10 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900/60">
         <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Station name</h2>
         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          Saved during signup (creates the station + code prefix). Update here if your label changes; save syncs the record.
+          Set during signup; save here if the label changes (commanders only once the station record loads).
         </p>
         <div className="mt-4 space-y-3">
           <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400">
@@ -236,7 +196,7 @@ export default function ResponderStationPage() {
             <input
               value={stationName}
               onChange={e => setStationName(e.target.value)}
-              disabled={hasStation && !isCommander}
+              disabled={!hasStation || !isCommander}
               className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-950 disabled:opacity-60"
               placeholder="e.g. Clayton Fire Station 2"
             />
@@ -253,31 +213,20 @@ export default function ResponderStationPage() {
             Save station name
           </button>
         )}
-        {canCreateStation && (
-          <div className="mt-4 space-y-2">
-            <p className="text-xs text-amber-900/90 dark:text-amber-200/90">
-              {error ? (
-                <>
-                  The roster API failed (see the red message above). That often means Supabase RLS needs the station migrations, or{' '}
-                  <code className="rounded bg-amber-100 px-1 dark:bg-amber-950/60">SUPABASE_SERVICE_ROLE_KEY</code> is missing on the
-                  server. Fix that first so you don&apos;t create a second station by mistake.
-                </>
-              ) : (
-                <>
-                  No station record yet — usually it&apos;s created when you save station name + address during signup. Use this if that
-                  step didn&apos;t complete or you&apos;re on an older account.
-                </>
-              )}
+        {!hasStation && (
+          <div className="mt-4 space-y-2 text-sm text-gray-600 dark:text-gray-400">
+            <p>
+              No station record is visible yet. That record (and your join code) are created in{' '}
+              <Link
+                href="/auth/onboarding"
+                className="font-semibold text-amber-800 underline-offset-2 hover:underline dark:text-amber-400"
+              >
+                responder signup
+              </Link>{' '}
+              when you save station name and a verified address. If you already did that, fix the error above — most often{' '}
+              <code className="rounded bg-gray-100 px-1 text-xs dark:bg-gray-800">20260417_stations_select_no_recursion.sql</code> in Supabase
+              and/or <code className="rounded bg-gray-100 px-1 text-xs dark:bg-gray-800">SUPABASE_SERVICE_ROLE_KEY</code> on your app host.
             </p>
-            <button
-              type="button"
-              onClick={() => void createStation()}
-              disabled={creating || !stationName.trim()}
-              className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
-            >
-              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Create station &amp; join code
-            </button>
           </div>
         )}
         {hasStation && !isCommander && (
@@ -293,8 +242,7 @@ export default function ResponderStationPage() {
             iOS join code
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-400">
-            Your <strong className="font-semibold text-gray-800 dark:text-gray-200">single Minutes Matter iOS join code</strong> is shown
-            in the{' '}
+            Your <strong className="font-semibold text-gray-800 dark:text-gray-200">single Minutes Matter iOS join code</strong> is shown in the{' '}
             <Link href="/dashboard/responder" className="font-semibold text-amber-800 underline-offset-2 hover:underline dark:text-amber-400">
               Command hub
             </Link>{' '}
@@ -335,11 +283,11 @@ export default function ResponderStationPage() {
         </h2>
         {!hasStation ? (
           <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-            Complete web signup (station name + address) or use <strong className="font-semibold text-gray-800 dark:text-gray-200">Create station &amp; join code</strong> above — then your roster appears here. Open the{' '}
+            After signup creates your station, the roster lists everyone who joined with your iOS code. Open the{' '}
             <Link href="/dashboard/responder" className="font-semibold text-amber-800 underline-offset-2 hover:underline dark:text-amber-400">
               Command hub
             </Link>{' '}
-            to copy the iOS join code.
+            to copy the code. If this stays empty after signup, resolve the error at the top of this page first.
           </p>
         ) : roster?.members.length === 0 ? (
           <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">No firefighters have joined yet.</p>

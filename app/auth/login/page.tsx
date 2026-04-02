@@ -864,7 +864,7 @@ function LoginForm() {
                     <>
                       Your <strong>station name</strong> and <strong>verified command post address</strong> anchor the Command Hub
                       map, incident radius, and directions. The <strong>organization access code</strong> you entered unlocks the
-                      Command Hub. You&apos;ll create <strong>one station join code</strong> under Station &amp; setup for
+                      Command Hub. Responder signup creates <strong>one station join code</strong>; manage it under Station hub for
                       firefighters to sign up on <strong>Minutes Matter iOS</strong> — the <strong>only</strong> way to join your
                       roster from the app.
                     </>

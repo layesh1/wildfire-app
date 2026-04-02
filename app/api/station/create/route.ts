@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       {
         error: 'already_has_station',
         station_id: existing.id,
-        message: 'You already have a station. Open Station setup to copy or replace the iOS join code.',
+        message: 'You already have a station. Open Station hub to copy or replace the iOS join code.',
       },
       { status: 409 }
     )
