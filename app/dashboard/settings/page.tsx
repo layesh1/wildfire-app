@@ -6,7 +6,7 @@ import {
   Shield, Heart, BarChart3, Lock, Check, ShieldCheck, Globe,
   Settings, Plus, User, Bell, BellOff, Moon, Sun, Monitor, LogOut,
   Trash2, Key, Save, CheckCircle, PawPrint, ShieldAlert,
-  Activity, FileText, Brain, Flame,
+  Activity, FileText, Brain, Flame, MapPin,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/components/LanguageProvider'
@@ -36,6 +36,8 @@ import { settingsInviteRoleOptions } from '@/lib/profile-role-policy'
 // ── Types ──────────────────────────────────────────────────────────────────
 interface ProfileData {
   full_name: string; phone: string; address: string
+  /** Agency / fire station name (emergency responders — command hub label). */
+  org_name: string
   notification_email: string; notification_phone: string; notify_browser: boolean
   special_notes: string
   emergency_contact_name: string; emergency_contact_phone: string
@@ -47,7 +49,7 @@ interface ProfileData {
   medical_other: string
 }
 const DEFAULT: ProfileData = {
-  full_name: '', phone: '', address: '', notification_email: '', notification_phone: '',
+  full_name: '', phone: '', address: '', org_name: '', notification_email: '', notification_phone: '',
   notify_browser: false, special_notes: '',
   emergency_contact_name: '', emergency_contact_phone: '',
   language_preference: 'en', communication_needs: [], household_languages: '',
@@ -182,6 +184,8 @@ function SettingsInner() {
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [clearHealthModal, setClearHealthModal] = useState(false)
   const [clearLocationModal, setClearLocationModal] = useState(false)
+  /** Emergency responder profile: identity vs station / map anchor. */
+  const [erProfileSub, setErProfileSub] = useState<'identity' | 'station'>('identity')
   const [dataActionBusy, setDataActionBusy] = useState(false)
   const [dataActionMessage, setDataActionMessage] = useState<string | null>(null)
 
@@ -195,6 +199,13 @@ function SettingsInner() {
   useEffect(() => {
     const t = searchParams.get('tab')
     if (t === 'profile' || t === 'account' || t === 'preferences') setTab(t)
+  }, [searchParams])
+
+  useEffect(() => {
+    if (searchParams.get('erStation') === '1') {
+      setTab('profile')
+      setErProfileSub('station')
+    }
   }, [searchParams])
 
   useEffect(() => {
@@ -241,6 +252,7 @@ function SettingsInner() {
         setWorkLocationNote(typeof wln === 'string' ? wln : '')
         setProfile({
           full_name: p.full_name || '', phone: p.phone || '', address: addr,
+          org_name: typeof (p as { org_name?: string }).org_name === 'string' ? (p as { org_name: string }).org_name : '',
           notification_email: p.notification_email || '', notification_phone: p.notification_phone || '',
           notify_browser: p.notify_browser || false,
           special_notes: p.special_notes || '', emergency_contact_name: p.emergency_contact_name || '',
@@ -335,41 +347,43 @@ function SettingsInner() {
       }
     } else {
       setSaved(true)
-      // Sync to wfa_emergency_card and My Persons so hub + persons list stay current
-      try {
-        const existingCard = JSON.parse(localStorage.getItem('wfa_emergency_card') || '{}')
-        localStorage.setItem('wfa_emergency_card', JSON.stringify({
-          ...existingCard,
-          name: profile.full_name,
-          phone: profile.phone,
-          address: profile.address,
-          emergencyContacts: profile.emergency_contact_name
-            ? [{ name: profile.emergency_contact_name, phone: profile.emergency_contact_phone, relationship: '' }]
-            : (existingCard.emergencyContacts || []),
-        }))
-        const mobilitySummary =
-          profile.mobility_needs.length > 0 ? profile.mobility_needs.join(', ') : 'Mobile Adult'
-        const selfPerson = {
-          id: 'self-user',
-          name: profile.full_name || 'Me',
-          address: profile.address || '',
-          relationship: 'Self',
-          mobility: mobilitySummary,
-          phone: profile.phone || '',
-          languages: profile.household_languages
-            ? profile.household_languages.split(',').map((l: string) => l.trim()).filter(Boolean)
-            : ['en'],
-          notes: profile.special_notes || '',
-          status: 'unknown',
-          last_confirmed: null,
-          checkin_token: null,
-          ping_sent_at: null,
-          justConfirmed: false,
-        }
-        const existing = JSON.parse(localStorage.getItem('monitored_persons_v2') || '[]')
-        const without = existing.filter((p: { id: string }) => p.id !== 'self-user')
-        localStorage.setItem('monitored_persons_v2', JSON.stringify([selfPerson, ...without]))
-      } catch {}
+      // Evacuee household only — do not treat responder station address as home in emergency card / My People
+      if (isConsumerRole(activeRole)) {
+        try {
+          const existingCard = JSON.parse(localStorage.getItem('wfa_emergency_card') || '{}')
+          localStorage.setItem('wfa_emergency_card', JSON.stringify({
+            ...existingCard,
+            name: profile.full_name,
+            phone: profile.phone,
+            address: profile.address,
+            emergencyContacts: profile.emergency_contact_name
+              ? [{ name: profile.emergency_contact_name, phone: profile.emergency_contact_phone, relationship: '' }]
+              : (existingCard.emergencyContacts || []),
+          }))
+          const mobilitySummary =
+            profile.mobility_needs.length > 0 ? profile.mobility_needs.join(', ') : 'Mobile Adult'
+          const selfPerson = {
+            id: 'self-user',
+            name: profile.full_name || 'Me',
+            address: profile.address || '',
+            relationship: 'Self',
+            mobility: mobilitySummary,
+            phone: profile.phone || '',
+            languages: profile.household_languages
+              ? profile.household_languages.split(',').map((l: string) => l.trim()).filter(Boolean)
+              : ['en'],
+            notes: profile.special_notes || '',
+            status: 'unknown',
+            last_confirmed: null,
+            checkin_token: null,
+            ping_sent_at: null,
+            justConfirmed: false,
+          }
+          const existing = JSON.parse(localStorage.getItem('monitored_persons_v2') || '[]')
+          const without = existing.filter((p: { id: string }) => p.id !== 'self-user')
+          localStorage.setItem('monitored_persons_v2', JSON.stringify([selfPerson, ...without]))
+        } catch {}
+      }
     }
     setSaving(false)
   }
@@ -606,18 +620,138 @@ function SettingsInner() {
       {/* ── PROFILE TAB ── */}
       {tab === 'profile' && activeRole === 'emergency_responder' && (
         <div className="space-y-5">
-          <Section icon={Shield} title="Responder Information">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field label="Full name"><FInput value={profile.full_name} onChange={v => update('full_name', v)} placeholder="Chad Stephenson" /></Field>
-              <Field label="Badge / ID number"><FInput value={profile.phone} onChange={v => update('phone', v)} placeholder="e.g. 4821" /></Field>
-              <Field label="Station / Agency" hint="Your primary station assignment">
-                <FInput value={profile.address} onChange={v => update('address', v)} placeholder="e.g. Clayton Station #1, Johnston County Sheriff" />
-              </Field>
-              <Field label="Rank / Title"><FInput value={profile.notification_email} onChange={v => update('notification_email', v)} placeholder="e.g. Deputy Sheriff, Lt., FF/EMT" /></Field>
-              <Field label="Shift assignment"><FInput value={profile.notification_phone} onChange={v => update('notification_phone', v)} placeholder="e.g. A-Shift, Day shift" /></Field>
-              <Field label="Primary specialization"><FInput value={profile.household_languages} onChange={v => update('household_languages', v)} placeholder="e.g. Driver/Pump, EMS, Search & Rescue" /></Field>
-            </div>
-          </Section>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setErProfileSub('identity')}
+              className={cn(
+                'rounded-xl px-4 py-2.5 text-sm font-semibold transition-all',
+                erProfileSub === 'identity' ? CHIP_SELECTED : CHIP_UNSELECTED
+              )}
+            >
+              Responder details
+            </button>
+            <button
+              type="button"
+              onClick={() => setErProfileSub('station')}
+              className={cn(
+                'rounded-xl px-4 py-2.5 text-sm font-semibold transition-all',
+                erProfileSub === 'station' ? CHIP_SELECTED : CHIP_UNSELECTED
+              )}
+            >
+              Station &amp; command hub
+            </button>
+          </div>
+
+          {erProfileSub === 'identity' && (
+            <Section icon={Shield} title="Responder information">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Field label="Full name"><FInput value={profile.full_name} onChange={v => update('full_name', v)} placeholder="Chad Stephenson" /></Field>
+                <Field label="Badge / ID number"><FInput value={profile.phone} onChange={v => update('phone', v)} placeholder="e.g. 4821" /></Field>
+                <Field label="Rank / Title"><FInput value={profile.notification_email} onChange={v => update('notification_email', v)} placeholder="e.g. Deputy Sheriff, Lt., FF/EMT" /></Field>
+                <Field label="Shift assignment"><FInput value={profile.notification_phone} onChange={v => update('notification_phone', v)} placeholder="e.g. A-Shift, Day shift" /></Field>
+                <Field label="Primary specialization" hint="Operational role or team focus">
+                  <FInput value={profile.household_languages} onChange={v => update('household_languages', v)} placeholder="e.g. Driver/Pump, EMS, Search &amp; Rescue" />
+                </Field>
+              </div>
+            </Section>
+          )}
+
+          {erProfileSub === 'station' && (
+            <>
+              <Section icon={MapPin} title="Station name &amp; map anchor">
+                <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                  The <strong>command hub</strong> centers the map, wildfire radius, and directions on your{' '}
+                  <strong>station street address</strong>. Use a numbered street address (search, then Verify &amp; Save), not just a city or station nickname.
+                </p>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Field
+                    label="Station / agency name"
+                    hint="e.g. Charlotte Fire Station 4, Mecklenburg EMS — shown in your profile and org context"
+                  >
+                    <FInput
+                      value={profile.org_name}
+                      onChange={v => update('org_name', v)}
+                      placeholder="e.g. CFD Station 4"
+                    />
+                  </Field>
+                </div>
+                <div className="mt-5">
+                  <Field
+                    label="Station street address"
+                    hint="Must be a numbered street address — powers the responder map, NIFC radius, and Google Maps directions from station."
+                  >
+                    <AddressVerifySave
+                      id="settings-responder-station-address"
+                      variant="dark"
+                      value={addressDraft}
+                      onChange={v => {
+                        setAddressDraft(v)
+                        setSaved(false)
+                      }}
+                      savedAddress={profile.address}
+                      onVerifiedSave={async (line: string) => {
+                        const { data: { user } } = await supabase.auth.getUser()
+                        if (!user) throw new Error('Not signed in')
+                        const { error } = await supabase.from('profiles').update({ address: line }).eq('id', user.id)
+                        if (error) throw new Error(error.message)
+                        update('address', line)
+                        setAddressDraft(line)
+                        if (isConsumerRole(activeRole)) {
+                          try {
+                            const existingCard = JSON.parse(localStorage.getItem('wfa_emergency_card') || '{}')
+                            localStorage.setItem('wfa_emergency_card', JSON.stringify({ ...existingCard, address: line }))
+                          } catch {
+                            /* ignore */
+                          }
+                        }
+                        try {
+                          window.dispatchEvent(new CustomEvent('wfa-flameo-context-refresh'))
+                        } catch {
+                          /* ignore */
+                        }
+                        setSaved(true)
+                      }}
+                    />
+                  </Field>
+                </div>
+              </Section>
+
+              <section className="card p-6">
+                <div className="mb-1 flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  <h2 className="font-semibold text-gray-900 dark:text-white">Wildfire incident radius (command hub)</h2>
+                </div>
+                <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                  How far from your station should live NIFC incidents appear on the map?
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {ALERT_RADIUS_CHIP_MILES.map(m => {
+                    const selected = alertRadiusMiles === m
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => {
+                          setAlertRadiusMiles(m)
+                          setSaved(false)
+                        }}
+                        className={cn(
+                          'min-w-[4.5rem] rounded-xl px-3 py-2.5 text-sm font-semibold transition-all',
+                          selected ? CHIP_SELECTED : CHIP_UNSELECTED
+                        )}
+                      >
+                        {m} mi{selected ? ' ✓' : ''}
+                      </button>
+                    )
+                  })}
+                </div>
+                <p className="mt-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm leading-relaxed text-gray-600 dark:border-gray-600 dark:bg-gray-800/50 dark:text-gray-300">
+                  Default <strong>50 mi</strong> matches the household hub recommendation. Save profile below to persist radius with your other settings.
+                </p>
+              </section>
+            </>
+          )}
 
           <div className="flex items-center gap-4 pb-8">
             <button onClick={save} disabled={saving}

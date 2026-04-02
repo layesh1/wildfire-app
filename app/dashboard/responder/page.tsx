@@ -6,7 +6,13 @@ import ResponderCommandHubShell from '@/components/responder/ResponderCommandHub
 /** Command hub: evacuation-style map, hazards, shelters, opt-in households, Flameo COMMAND. */
 export default function ResponderDashboardPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-gray-500 text-sm">Loading hub…</div>}>
+    <Suspense
+      fallback={
+        <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-sm text-gray-500">
+          Loading hub…
+        </div>
+      }
+    >
       <ResponderCommandHubShell />
     </Suspense>
   )

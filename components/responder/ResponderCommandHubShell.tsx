@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase'
 import ResponderEvacuationMap from '@/components/responder/ResponderEvacuationMap'
 import ResponderDataConsent from '@/components/responder/ResponderDataConsent'
@@ -63,9 +64,14 @@ export default function ResponderCommandHubShell() {
   const directionsOrigin = stationAddressLine?.trim() || stationLabel?.trim() || null
 
   return (
-    <div className="relative w-full min-w-0 max-w-none mx-auto px-3 py-3 sm:px-4 sm:py-4 md:px-5">
+    <div className="relative flex min-h-0 min-w-0 w-full flex-1 flex-col">
       <ResponderDataConsent open={showConsentGate} onAgreed={() => setConsentOk(true)} />
-      <div className={showConsentGate ? 'pointer-events-none select-none blur-[3px] opacity-40' : ''}>
+      <div
+        className={cn(
+          'flex min-h-0 min-w-0 flex-1 flex-col',
+          showConsentGate && 'pointer-events-none select-none blur-[3px] opacity-40'
+        )}
+      >
         <ResponderEvacuationMap
           mapCenter={center}
           mapZoom={11}

@@ -290,7 +290,10 @@ export default function ResponderEvacuationMap({
   }, [householdPins])
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-7.5rem)] min-h-[70dvh] wfa-responder-map-surface rounded-xl overflow-hidden border border-gray-200 bg-white dark:border-ash-800 dark:bg-ash-900">
+    <div
+      className="flex min-h-0 w-full flex-1 flex-col overflow-hidden"
+      style={{ background: 'var(--wfa-page-bg)' }}
+    >
       <div className="px-3 sm:px-6 py-2.5 sm:py-3 border-b border-gray-200 dark:border-ash-800 flex flex-wrap items-center gap-x-3 gap-y-2 shrink-0 bg-gray-50/90 dark:bg-ash-900">
         <div className="flex flex-col gap-0.5 min-w-0">
           <div className="flex items-center gap-2">
@@ -312,8 +315,8 @@ export default function ResponderEvacuationMap({
               <span>Resolving map anchor (station address or device location)…</span>
             ) : (
               <span>
-                Add your <strong>fire station or base address</strong> under profile settings so the map, incident radius, and directions use the correct origin.{' '}
-                <Link href="/dashboard/settings?tab=profile" className="font-semibold underline underline-offset-2">
+                Add your <strong>fire station or base address</strong> under Settings → Responder Profile → <strong>Station & command hub</strong> so the map, incident radius, and directions use the correct origin.{' '}
+                <Link href="/dashboard/settings?tab=profile&erStation=1" className="font-semibold underline underline-offset-2">
                   Open settings
                 </Link>
               </span>
@@ -410,7 +413,7 @@ export default function ResponderEvacuationMap({
           </div>
         ) : (
           <>
-            <div className="flex-1 min-h-[220px] min-w-0 lg:min-h-0">
+            <div className="flex h-full w-full min-w-0 min-h-[220px] flex-1 flex-col lg:min-h-0">
               <EvacueeStatusMap
                 pins={EMPTY_EVACUEE_PINS}
                 householdPins={householdPins}
