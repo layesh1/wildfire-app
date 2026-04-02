@@ -9,6 +9,7 @@ import { isResponderConsentSatisfied } from '@/lib/responder-data-consent'
 import { useResponderStationAnchor } from '@/hooks/useResponderStationAnchor'
 import { useFlameoContext } from '@/hooks/useFlameoContext'
 import { useFlameoHubAgentBridge } from '@/components/FlameoHubAgentBridge'
+import { useEnsureResponderStationFromProfile } from '@/hooks/useEnsureResponderStationFromProfile'
 
 /**
  * Full command hub: consent gate + evacuation map + Flameo COMMAND + station anchor.
@@ -23,6 +24,8 @@ export default function ResponderCommandHubShell() {
   const flameoAgent = useFlameoContext({ role: 'emergency_responder' })
   const { setPayload: setFlameoHubAgentPayload } = useFlameoHubAgentBridge()
   const { center, stationLabel, geoReady, stationAddressGeocodeFailed } = useResponderStationAnchor()
+
+  useEnsureResponderStationFromProfile()
 
   useEffect(() => {
     setFlameoHubAgentPayload({

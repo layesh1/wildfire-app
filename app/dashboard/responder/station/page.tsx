@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Users, Copy, RefreshCw, Loader2 } from 'lucide-react'
+import { Users, RefreshCw, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase'
 
@@ -77,6 +77,12 @@ export default function ResponderStationPage() {
 
   useEffect(() => {
     void load()
+  }, [load])
+
+  useEffect(() => {
+    const onRefresh = () => void load()
+    window.addEventListener('wfa-responder-station-refresh', onRefresh)
+    return () => window.removeEventListener('wfa-responder-station-refresh', onRefresh)
   }, [load])
 
   /** Station name from onboarding / login (profiles.org_name) when no station row yet. */
@@ -156,6 +162,7 @@ export default function ResponderStationPage() {
         return
       }
       await load()
+      window.dispatchEvent(new Event('wfa-responder-station-refresh'))
     } catch {
       setError('Could not create station')
     } finally {
@@ -174,22 +181,11 @@ export default function ResponderStationPage() {
         return
       }
       await load()
+      window.dispatchEvent(new Event('wfa-responder-station-refresh'))
     } catch {
       setError('Could not generate code')
     } finally {
       setRegenBusy(false)
-    }
-  }
-
-  const copyCode = async () => {
-    const code = roster?.active_invite?.code
-    if (!code || typeof navigator === 'undefined' || !navigator.clipboard) return
-    try {
-      await navigator.clipboard.writeText(code)
-      setCopyOk(true)
-      window.setTimeout(() => setCopyOk(false), 2000)
-    } catch {
-      setError('Could not copy to clipboard')
     }
   }
 
@@ -210,13 +206,14 @@ export default function ResponderStationPage() {
         <div>
           <h1 className="font-display text-2xl font-bold tracking-tight">Station setup</h1>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Signup already saved your <strong className="font-semibold text-gray-800 dark:text-gray-200">station name</strong> and{' '}
-            <strong className="font-semibold text-gray-800 dark:text-gray-200">command post address</strong> for the map. Finishing
-            responder onboarding also creates your <strong className="font-semibold text-gray-800 dark:text-gray-200">station record</strong>{' '}
-            and <strong className="font-semibold text-gray-800 dark:text-gray-200">one Minutes Matter iOS join code</strong> — copy or
-            replace it below, or rename the station.{' '}
+            When you finish web signup you save <strong className="font-semibold text-gray-800 dark:text-gray-200">station name</strong>{' '}
+            and <strong className="font-semibold text-gray-800 dark:text-gray-200">command post address</strong> — that creates your
+            station and <strong className="font-semibold text-gray-800 dark:text-gray-200">one iOS join code</strong> for firefighters.
+            <strong className="font-semibold text-gray-800 dark:text-gray-200"> Copy the code from the Command hub</strong> sidebar
+            (Flameo panel). Use this page to <strong className="font-semibold text-gray-800 dark:text-gray-200">edit the station name</strong>,{' '}
+            see <strong className="font-semibold text-gray-800 dark:text-gray-200">roster</strong>, or replace the code if it expired.{' '}
             <Link href="/dashboard/responder" className="font-semibold text-amber-800 underline-offset-2 hover:underline dark:text-amber-400">
-              Back to command hub
+              Command hub
             </Link>
           </p>
         </div>
@@ -231,7 +228,7 @@ export default function ResponderStationPage() {
       <section className="mb-10 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900/60">
         <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Station name</h2>
         <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          Pulled from your responder signup when empty; editable until you save. It formats the invite code prefix (e.g. STATION-ABC123).
+          Saved during signup (creates the station + code prefix). Update here if your label changes; save syncs the record.
         </p>
         <div className="mt-4 space-y-3">
           <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400">
@@ -259,7 +256,7 @@ export default function ResponderStationPage() {
         {canCreateStation && (
           <div className="mt-4 space-y-2">
             <p className="text-xs text-amber-900/90 dark:text-amber-200/90">
-              No station record found — usually it&apos;s created when you finish responder onboarding. Use this if you skipped that step or it failed.
+              No station record yet — usually it&apos;s created when you save station name + address during signup. Use this if that step didn&apos;t complete or you&apos;re on an older account.
             </p>
             <button
               type="button"
@@ -282,69 +279,42 @@ export default function ResponderStationPage() {
       {isCommander && hasStation && (
         <section className="mb-10 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900/60">
           <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-            Station join code (iOS)
+            iOS join code
           </h2>
-          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-            One code per station. Firefighters enter it in the <strong className="font-semibold text-gray-700 dark:text-gray-300">Minutes Matter</strong> iOS app to join this roster — not the web Command Hub access code.
+          <p className="mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-400">
+            Your <strong className="font-semibold text-gray-800 dark:text-gray-200">single Minutes Matter iOS join code</strong> is shown
+            in the{' '}
+            <Link href="/dashboard/responder" className="font-semibold text-amber-800 underline-offset-2 hover:underline dark:text-amber-400">
+              Command hub
+            </Link>{' '}
+            sidebar (Flameo — Station join code). Firefighters enter it in the iOS app to join this roster.
           </p>
-          {roster?.active_invite ? (
-            <div className="mt-4 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-950/50">
-              <div className="font-mono text-xl font-bold tracking-wider text-gray-900 dark:text-white sm:text-2xl">
-                {roster.active_invite.code}
-              </div>
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{expiresInLabel(roster.active_invite.expires_at)}</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                <span className="font-semibold text-gray-900 dark:text-white">{roster.active_invite.uses_count ?? 0}</span> firefighter
-                {(roster.active_invite.uses_count ?? 0) === 1 ? '' : 's'} joined with this code
-                <span className="text-gray-400"> (limit {roster.active_invite.max_uses ?? 50})</span>
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => void copyCode()}
-                  className={cn(
-                    'inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold dark:border-gray-600',
-                    copyOk ? 'border-emerald-500 text-emerald-700' : ''
-                  )}
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                  {copyOk ? 'Copied' : 'Copy code'}
-                </button>
-              </div>
-              <details className="mt-4 rounded-lg border border-gray-200 bg-white/80 p-3 dark:border-gray-600 dark:bg-gray-900/40">
-                <summary className="cursor-pointer text-xs font-semibold text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100">
-                  Replace join code
-                </summary>
-                <p className="mt-2 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">
-                  Only if this code was leaked or expired. The previous code stops working immediately.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => void regenerateCode()}
-                  disabled={regenBusy}
-                  className="mt-2 inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100 disabled:opacity-50"
-                >
-                  <RefreshCw className={cn('h-3.5 w-3.5', regenBusy && 'animate-spin')} />
-                  Issue new code
-                </button>
-              </details>
-            </div>
-          ) : (
-            <div className="mt-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                No active join code (for example it expired). Issue a new one — it becomes the only code for iOS signup.
-              </p>
-              <button
-                type="button"
-                onClick={() => void regenerateCode()}
-                disabled={regenBusy || !hasStation}
-                className="mt-3 inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100 disabled:opacity-50"
-              >
-                <RefreshCw className={cn('h-3.5 w-3.5', regenBusy && 'animate-spin')} />
-                Issue join code
-              </button>
-            </div>
+          {roster?.active_invite && (
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              {expiresInLabel(roster.active_invite.expires_at)} ·{' '}
+              <span className="font-medium text-gray-700 dark:text-gray-300">{roster.active_invite.uses_count ?? 0}</span> joined
+              (limit {roster.active_invite.max_uses ?? 50})
+            </p>
           )}
+          {!roster?.active_invite && (
+            <p className="mt-2 text-sm text-amber-800 dark:text-amber-200/90">
+              No active code right now — issue one below, then copy it from the Command hub.
+            </p>
+          )}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void regenerateCode()}
+              disabled={regenBusy || !hasStation}
+              className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100 disabled:opacity-50"
+            >
+              <RefreshCw className={cn('h-3.5 w-3.5', regenBusy && 'animate-spin')} />
+              {roster?.active_invite ? 'Replace iOS join code' : 'Issue iOS join code'}
+            </button>
+          </div>
+          <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
+            Replacing revokes the previous code — use only if leaked or expired.
+          </p>
         </section>
       )}
 
@@ -354,9 +324,11 @@ export default function ResponderStationPage() {
         </h2>
         {!hasStation ? (
           <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-            Finish responder onboarding to auto-create your station and iOS code, or use{' '}
-            <strong className="font-semibold text-gray-800 dark:text-gray-200">Create station &amp; join code</strong> above if setup
-            didn&apos;t complete.
+            Complete web signup (station name + address) or use <strong className="font-semibold text-gray-800 dark:text-gray-200">Create station &amp; join code</strong> above — then your roster appears here. Open the{' '}
+            <Link href="/dashboard/responder" className="font-semibold text-amber-800 underline-offset-2 hover:underline dark:text-amber-400">
+              Command hub
+            </Link>{' '}
+            to copy the iOS join code.
           </p>
         ) : roster?.members.length === 0 ? (
           <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">No firefighters have joined yet.</p>

@@ -353,6 +353,24 @@ function LoginForm() {
           }),
         }
         await supabase.from('profiles').upsert({ id: signedUser.id, ...profilePayload })
+
+        if (ob.role === 'emergency_responder' && ob.orgName.trim() && data.session) {
+          try {
+            const res = await fetch('/api/station/create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ station_name: ob.orgName.trim().slice(0, 200) }),
+            })
+            if (res.ok && typeof window !== 'undefined') {
+              window.dispatchEvent(new Event('wfa-responder-station-refresh'))
+            }
+            if (!res.ok && res.status !== 409) {
+              console.warn('[login/signup] station create failed', res.status)
+            }
+          } catch {
+            /* Hub ensures station after email confirm */
+          }
+        }
       }
 
       // If Supabase returns a session before the address is confirmed (misconfiguration or

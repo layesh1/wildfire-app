@@ -283,11 +283,14 @@ function OnboardingInner() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ station_name: sn }),
           })
+          if (res.ok && typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('wfa-responder-station-refresh'))
+          }
           if (!res.ok && res.status !== 409) {
-            console.warn('[onboarding] station auto-create failed', res.status)
+            console.warn('[onboarding] station create after signup failed', res.status)
           }
         } catch {
-          /* User can finish station setup on /dashboard/responder/station */
+          /* Command hub will retry via useEnsureResponderStationFromProfile */
         }
       }
     }
@@ -544,9 +547,11 @@ function OnboardingInner() {
                     <strong className="text-ash-200">organization access code</strong> (from your department) to unlock the{' '}
                     <strong className="text-ash-200">Emergency Responder Command Hub</strong>. That is{' '}
                     <strong className="text-ash-200">not</strong> a <strong className="text-ash-200">station join code</strong>{' '}
-                    (e.g. STATION-ABC123). When you finish this flow we create your station record and <strong className="text-ash-200">one</strong> iOS join code; <strong className="text-ash-200">Station &amp; setup</strong> is where you copy or replace it. Firefighters use that code to <strong className="text-ash-200">sign up</strong> on{' '}
-                    <strong className="text-ash-200">Minutes Matter iOS</strong> — the <strong className="text-ash-200">only</strong>{' '}
-                    signup path for joining your roster.
+                    (e.g. STATION-ABC123). When you save your <strong className="text-ash-200">station name</strong> and{' '}
+                    <strong className="text-ash-200">command post address</strong> in this flow, we create your station record and{' '}
+                    <strong className="text-ash-200">one</strong> iOS join code. <strong className="text-ash-200">Copy it from the Command hub</strong>{' '}
+                    sidebar after you&apos;re in; use <strong className="text-ash-200">Station &amp; setup</strong> to rename your station, see roster, or replace the code if needed. Firefighters use that code on{' '}
+                    <strong className="text-ash-200">Minutes Matter iOS</strong> — the <strong className="text-ash-200">only</strong> signup path for joining your roster.
                   </>
                 ) : (
                   <>You&apos;ll need an access code from your organization on the next step.</>
