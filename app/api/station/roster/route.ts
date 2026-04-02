@@ -3,6 +3,26 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { createServiceRoleClient } from '@/lib/supabase-service-role'
 import { isEmergencyResponder } from '@/lib/responder-evacuees-server'
 
+function isRlsRecursionMessage(msg: string | undefined): boolean {
+  if (!msg) return false
+  return /infinite recursion/i.test(msg) || /policy for relation.*stations/i.test(msg)
+}
+
+function rosterErrorResponse(raw: string | undefined, status = 500) {
+  const msg = raw ?? 'Unknown error'
+  if (isRlsRecursionMessage(msg)) {
+    return NextResponse.json(
+      {
+        error:
+          'Supabase RLS recursion on stations. Run migration 20260415_station_rls_recursion_fix_reapply.sql in the SQL Editor, then refresh.',
+        code: 'STATIONS_RLS_RECURSION',
+      },
+      { status }
+    )
+  }
+  return NextResponse.json({ error: msg }, { status })
+}
+
 export type StationRosterMember = {
   id: string
   firefighter_id: string
@@ -78,10 +98,7 @@ export async function GET() {
     .maybeSingle()
 
   if (stErr || !station) {
-    return NextResponse.json(
-      { error: stErr?.message ?? 'Station not found' },
-      { status: 500 }
-    )
+    return rosterErrorResponse(stErr?.message ?? 'Station not found')
   }
 
   const { data: rows, error: rowsErr } = await db
@@ -90,7 +107,7 @@ export async function GET() {
     .eq('station_id', stationId)
 
   if (rowsErr) {
-    return NextResponse.json({ error: rowsErr.message }, { status: 500 })
+    return rosterErrorResponse(rowsErr.message)
   }
 
   const ffIds = [...new Set((rows ?? []).map(r => r.firefighter_id as string).filter(Boolean))]

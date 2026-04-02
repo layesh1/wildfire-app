@@ -177,13 +177,17 @@ export default function FlameoCommandRoom({
     setRosterError(null)
     try {
       const res = await fetch('/api/station/roster')
+      const j = (await res.json().catch(() => ({}))) as StationRosterSnippet & { error?: string; code?: string }
       if (!res.ok) {
         setRoster(null)
-        setRosterError('Could not load station.')
+        setRosterError(
+          typeof j.error === 'string'
+            ? j.error
+            : 'Could not load station.'
+        )
         return
       }
-      const j = (await res.json()) as StationRosterSnippet
-      setRoster(j)
+      setRoster(j as StationRosterSnippet)
     } catch {
       setRoster(null)
       setRosterError('Could not load station.')
@@ -313,7 +317,7 @@ export default function FlameoCommandRoom({
             Loading…
           </p>
         ) : rosterError && !roster ? (
-          <p className="text-xs text-red-600 dark:text-red-400">{rosterError}</p>
+          <p className="text-[11px] leading-snug text-red-700 dark:text-red-300">{rosterError}</p>
         ) : !roster?.station ? (
           <p className="text-[11px] leading-snug text-gray-600 dark:text-gray-400">
             Saving <strong className="font-semibold text-gray-700 dark:text-gray-300">station name + address</strong> during web signup
