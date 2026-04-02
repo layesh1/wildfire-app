@@ -3,6 +3,7 @@ import type { FirefighterPin } from '@/lib/firefighter-pin'
 import { distanceMiles } from '@/lib/hub-map-distance'
 import type {
   CommandActionRequired,
+  CommandFieldUnitReporting,
   FlameoCommandContext,
   FlameoCommandFireContext,
   FlameoCommandIncidentSummary,
@@ -240,13 +241,27 @@ export function buildPriorityAssignments(
 export function assembleFlameoCommandContext(
   pins: HouseholdPin[],
   fire_context: FlameoCommandFireContext,
-  firefighters: FirefighterPin[] = []
+  firefighters: FirefighterPin[] = [],
+  rosterFieldUnitTotal: number = 0
 ): FlameoCommandContext {
+  const field_units_reporting: CommandFieldUnitReporting[] = firefighters.map(f => ({
+    name: f.name,
+    lat: f.lat,
+    lng: f.lng,
+    status: f.status,
+    current_assignment: f.current_assignment,
+    last_seen_at: f.last_seen_at,
+  }))
+  const reporting = field_units_reporting.length
+  const field_units_without_position_count = Math.max(0, rosterFieldUnitTotal - reporting)
+
   return {
     incident_summary: buildIncidentSummary(pins),
     priority_assignments: buildPriorityAssignments(pins, firefighters),
     fire_context,
     generated_at: new Date().toISOString(),
+    field_units_reporting,
+    field_units_without_position_count,
   }
 }
 
@@ -255,8 +270,23 @@ export function commandBriefingFallback(ctx: FlameoCommandContext): string {
   const x = pa.length
   const y = ctx.incident_summary.needs_help
   const first = pa[0]
-  if (!first) {
-    return `${ctx.incident_summary.total_households} households in zone. No critical queue — maintain patrol pattern.`
+  const ffN = ctx.field_units_reporting?.length ?? 0
+  const ffMissing = ctx.field_units_without_position_count ?? 0
+
+  let dispatch = ''
+  if (ffN > 0) {
+    dispatch = ` ${ffN} field unit(s) reporting position.`
+    if (first?.assigned_to) {
+      dispatch += ` Suggested: send ${first.assigned_to} toward top priority (${first.address}${typeof first.estimated_travel_minutes === 'number' ? `, ~${first.estimated_travel_minutes} min est.` : ''}).`
+    } else if (first) {
+      dispatch += ` Assign nearest available unit to ${first.address}.`
+    }
+  } else if (ffMissing > 0) {
+    dispatch = ` No GPS positions from roster (${ffMissing} on roster not reporting location — have units check in on the app).`
   }
-  return `${x} households need immediate attention. ${y} people cannot self-evacuate. Top priority: ${first.address} — ${first.reason}`
+
+  if (!first) {
+    return `${ctx.incident_summary.total_households} households in zone. No critical queue — maintain patrol pattern.${dispatch}`
+  }
+  return `${x} households need immediate attention. ${y} people cannot self-evacuate. Top priority: ${first.address} — ${first.reason}.${dispatch}`
 }

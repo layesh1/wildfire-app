@@ -92,6 +92,6 @@ export async function GET(request: NextRequest) {
 
   const origin = request.nextUrl.origin
   const fire_context = await fireContextForPoint(origin, refLat, refLng)
-  const ctx = assembleFlameoCommandContext(householdPins, fire_context, [])
+  const ctx = assembleFlameoCommandContext(householdPins, fire_context, [], 0)
   return NextResponse.json(ctx)
 }

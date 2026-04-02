@@ -7,12 +7,15 @@ import { createClient } from '@/lib/supabase'
 import { describeAuthEmailError, getAuthCallbackUrl } from '@/lib/auth-callback-url'
 import { LANGUAGES } from '@/lib/languages'
 import AddressAutocomplete, { looksLikeUsStreetAddress } from '@/components/AddressAutocomplete'
+import AddressVerifySave from '@/components/AddressVerifySave'
 
 // ── Onboarding state ──────────────────────────────────────────────────────────
 interface OnboardingData {
   fullName: string
   phone: string
   address: string
+  /** Responder: station / dept; analyst: institution → profiles.org_name */
+  orgName: string
   role: 'evacuee' | 'emergency_responder' | 'data_analyst'
   inviteCode: string
   language: string
@@ -79,7 +82,7 @@ function LoginForm() {
   // signup onboarding: 0 = credentials, 1–3 = profile/prefs, 4 = terms (evacuee only), 5 = check email
   const [onboardingStep, setOnboardingStep] = useState(0)
   const [ob, setOb] = useState<OnboardingData>({
-    fullName: '', phone: '', address: '',
+    fullName: '', phone: '', address: '', orgName: '',
     role: 'evacuee', inviteCode: '',
     language: 'en',
     emergencyContactName: '', emergencyContactPhone: '',
@@ -104,6 +107,9 @@ function LoginForm() {
   const [loginResendNotice, setLoginResendNotice] = useState('')
   const [resendBusy, setResendBusy] = useState(false)
   const [signupResendMsg, setSignupResendMsg] = useState('')
+  /** Emergency responder signup: verifiable station line (profiles.address) after Verify & Save */
+  const [responderStationDraft, setResponderStationDraft] = useState('')
+  const [verifiedResponderStationLine, setVerifiedResponderStationLine] = useState<string | null>(null)
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -202,12 +208,17 @@ function LoginForm() {
     setOnboardingStep(1)
   }
 
-  /** Step 2 (profile): home address required for family members — powers automation to safety. */
+  /** Step 2 (profile): home address for evacuee; station name + verified base for responder. */
   function profileStepValid() {
     if (!ob.fullName.trim()) return false
     if (ob.role === 'evacuee') {
       const a = ob.address.trim()
       if (a.length < 8 || !looksLikeUsStreetAddress(a)) return false
+    }
+    if (ob.role === 'emergency_responder') {
+      if (!ob.orgName.trim()) return false
+      const line = verifiedResponderStationLine?.trim() || ''
+      if (!line || !looksLikeUsStreetAddress(line)) return false
     }
     return true
   }
@@ -215,7 +226,12 @@ function LoginForm() {
   // Step 1 validation (role + invite code if restricted)
   async function validateStep2(): Promise<boolean> {
     if (!ROLE_INFO[ob.role].restricted) return true
-    if (!ob.inviteCode.trim()) { setCodeError('Enter your invite code.'); return false }
+    if (!ob.inviteCode.trim()) {
+      setCodeError(
+        ob.role === 'emergency_responder' ? 'Enter your organization access code.' : 'Enter your invite code.'
+      )
+      return false
+    }
     setCodeLoading(true)
     setCodeError('')
     try {
@@ -251,7 +267,15 @@ function LoginForm() {
       if (ok) setOnboardingStep(2)
     } else if (onboardingStep === 2) {
       if (!profileStepValid()) {
-        setError('Add a full street address with a number (not a city or county alone) to enable safety automations.')
+        if (ob.role === 'evacuee') {
+          setError('Add a full street address with a number (not a city or county alone) to enable safety automations.')
+        } else if (ob.role === 'emergency_responder') {
+          setError(
+            'Enter your station name and verify & save your station / command post street address (search, pick a suggestion, then Verify & Save).'
+          )
+        } else {
+          setError('Please enter your full name.')
+        }
         return
       }
       setError('')
@@ -300,9 +324,15 @@ function LoginForm() {
         const profilePayload: Record<string, unknown> = {
           full_name: ob.fullName.trim(),
           phone: ob.phone.trim(),
-          address: ob.address.trim(),
+          address:
+            ob.role === 'emergency_responder'
+              ? (verifiedResponderStationLine || '').trim()
+              : ob.address.trim(),
           role: ob.role,
           roles: [ob.role],
+          ...(ob.orgName.trim() && (ob.role === 'emergency_responder' || ob.role === 'data_analyst')
+            ? { org_name: ob.orgName.trim() }
+            : {}),
           language_preference: ob.language,
           communication_needs: ob.communicationNeeds,
           mobility_access_needs: mobilityNeeds,
@@ -767,9 +797,23 @@ function LoginForm() {
 
                 {ROLE_INFO[ob.role].restricted && (
                   <div className="mb-6">
-                    <label className="label">Invite code</label>
-                    <input type="text" className="input font-mono" placeholder="XXXX-XXXX"
-                      value={ob.inviteCode} onChange={e => { obSet('inviteCode', e.target.value); setCodeError('') }} />
+                    <label className="label">
+                      {ob.role === 'emergency_responder' ? 'Organization access code' : 'Invite code'}
+                    </label>
+                    {ob.role === 'emergency_responder' && (
+                      <p className="mb-2 text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                        From your department or admin — unlocks the Emergency Responder role in this app.{' '}
+                        <strong className="text-gray-700 dark:text-gray-300">Not</strong> a station join code like STATION-ABC123;
+                        those are for your crew after you&apos;re set up (Station &amp; setup in the dashboard).
+                      </p>
+                    )}
+                    <input
+                      type="text"
+                      className="input font-mono"
+                      placeholder={ob.role === 'emergency_responder' ? 'ER-ORG-XXXX' : 'XXXX-XXXX'}
+                      value={ob.inviteCode}
+                      onChange={e => { obSet('inviteCode', e.target.value); setCodeError('') }}
+                    />
                     {codeError && <p className="mt-1 text-sm text-red-600 dark:text-red-400" role="alert">{codeError}</p>}
                   </div>
                 )}
@@ -798,8 +842,15 @@ function LoginForm() {
                   {ob.role === 'evacuee' && (
                     <>Your <strong>home street address</strong> anchors maps, Flameo, and alerts for your household — and lets you add people to your dashboard for shared status and notifications.</>
                   )}
-                  {(ob.role === 'emergency_responder' || ob.role === 'data_analyst') && (
-                    <>Optional contact details for your account. No home-address automation on this path.</>
+                  {ob.role === 'emergency_responder' && (
+                    <>
+                      Your <strong>station name</strong> and <strong>verified command post address</strong> anchor the responder
+                      map, incident radius, and directions. This is not the same as the <strong>organization access code</strong>{' '}
+                      you entered earlier, or the <strong>station join codes</strong> you&apos;ll create later for your crew.
+                    </>
+                  )}
+                  {ob.role === 'data_analyst' && (
+                    <>Optional organization name and contact details for your analyst account.</>
                   )}
                 </p>
 
@@ -814,6 +865,56 @@ function LoginForm() {
                     <input type="tel" className="input" placeholder="+1 (555) 000-0000"
                       value={ob.phone} onChange={e => obSet('phone', e.target.value)} />
                   </div>
+                  {ob.role === 'emergency_responder' && (
+                    <>
+                      <div>
+                        <label className="label">
+                          Station / department name <span className="text-red-400">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          className="input"
+                          placeholder="e.g. Clayton Fire Station #1"
+                          value={ob.orgName}
+                          onChange={e => { obSet('orgName', e.target.value); setError('') }}
+                        />
+                      </div>
+                      <div>
+                        <label className="label">
+                          Station / command post address <span className="text-red-400">*</span>
+                        </label>
+                        <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
+                          Search, pick a suggestion, then use Verify &amp; Save — same as the in-app onboarding flow.
+                        </p>
+                        <AddressVerifySave
+                          variant="light"
+                          hint="Fire station, staging area, or command post — numbered street address required."
+                          value={responderStationDraft}
+                          onChange={v => {
+                            setResponderStationDraft(v)
+                            setError('')
+                          }}
+                          savedAddress={verifiedResponderStationLine}
+                          onVerifiedSave={async (line: string) => {
+                            setVerifiedResponderStationLine(line)
+                            setResponderStationDraft(line)
+                          }}
+                        />
+                      </div>
+                    </>
+                  )}
+                  {ob.role === 'data_analyst' && (
+                    <div>
+                      <label className="label">Institution / organization <span className="text-gray-400 font-normal">(optional)</span></label>
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="e.g. Stanford University, USGS"
+                        value={ob.orgName}
+                        onChange={e => obSet('orgName', e.target.value)}
+                      />
+                    </div>
+                  )}
                   {ob.role === 'evacuee' && (
                     <div>
                       <label className="label">Home address <span className="text-red-400">*</span></label>

@@ -25,11 +25,13 @@ RULES:
 - If someone needs EMS, say so explicitly
 - If an area is clear, say so — don't waste resources
 - You can flag that someone needs EMS due to medical equipment. You cannot give medical advice or suggest medical treatments.
+- FIELD UNITS: If field_units_reporting has entries, use priority_assignments[].assigned_to and estimated_travel_minutes to state who should go where first (e.g. "Send [name] to [address] for [EMS/CHECK/etc]."). If field_units_without_position_count > 0, note that some roster members are not sharing location. If field_units_reporting is empty and the roster may still exist, recommend radio or app check-in for positions — do not invent unit locations.
 
 FORMAT your response as:
 1. Situation summary (2 sentences max)
-2. Priority assignments (numbered list)
-3. Resources note if relevant
+2. Priority assignments (numbered list) — include suggested unit / routing when assigned_to is present
+3. Field disposition (which units to route where, or who should check in) when relevant
+4. Resources note if relevant
 
 Output plain sentences only: do not use markdown (no ** asterisks, no # headings).`
 
@@ -50,6 +52,8 @@ function isCommandContext(x: unknown): x is FlameoCommandContext {
     && fire != null
     && typeof fire.fire_risk === 'string'
     && typeof o.generated_at === 'string'
+    && Array.isArray(o.field_units_reporting)
+    && typeof o.field_units_without_position_count === 'number'
   )
 }
 

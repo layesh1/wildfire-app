@@ -101,7 +101,11 @@ function OnboardingInner() {
   /** Set only after successful "Verify & Save" (geocode + profiles.address write). */
   const [verifiedHomeAddress, setVerifiedHomeAddress] = useState<string | null>(null)
   const [notifEmail, setNotifEmail] = useState('')
-  const [agency, setAgency] = useState('')
+  /** Emergency responder: department / station label → profiles.org_name */
+  const [stationOrgName, setStationOrgName] = useState('')
+  const [responderPhone, setResponderPhone] = useState('')
+  const [responderStationDraft, setResponderStationDraft] = useState('')
+  const [verifiedResponderStationAddress, setVerifiedResponderStationAddress] = useState<string | null>(null)
   const [institution, setInstitution] = useState('')
 
   // Step 3 fields (household / evacuee)
@@ -137,10 +141,21 @@ function OnboardingInner() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.replace('/auth/login'); return }
       if (user.user_metadata?.full_name) setFullName(user.user_metadata.full_name)
       setNotifEmail(user.email || '')
+      const { data: p } = await supabase
+        .from('profiles')
+        .select('org_name, phone, address')
+        .eq('id', user.id)
+        .maybeSingle()
+      if (p?.org_name && typeof p.org_name === 'string') setStationOrgName(p.org_name)
+      if (p?.phone && typeof p.phone === 'string') setResponderPhone(p.phone)
+      if (p?.address && typeof p.address === 'string') {
+        setVerifiedResponderStationAddress(p.address)
+        setResponderStationDraft(p.address)
+      }
     })
   }, [])
 
@@ -150,6 +165,22 @@ function OnboardingInner() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setError('Not signed in'); setSaving(false); return }
+
+    if (selectedRole === 'emergency_responder') {
+      if (!stationOrgName.trim()) {
+        setError('Enter your station or department name (e.g. Clayton Fire Station #1).')
+        setSaving(false)
+        return
+      }
+      const stationLine = verifiedResponderStationAddress?.trim() || ''
+      if (!stationLine || !looksLikeUsStreetAddress(stationLine)) {
+        setError(
+          'Verify and save your station / command post address — it anchors the command map, incident radius, and directions.'
+        )
+        setSaving(false)
+        return
+      }
+    }
 
     if (isHouseholdRole) {
       const line = verifiedHomeAddress?.trim() || ''
@@ -229,9 +260,11 @@ function OnboardingInner() {
         })
       }
     } else if (selectedRole === 'emergency_responder') {
-      basePayload.phone = agency || null
+      basePayload.phone = responderPhone.trim() || null
+      basePayload.org_name = stationOrgName.trim() || null
+      basePayload.address = verifiedResponderStationAddress?.trim() || null
     } else if (selectedRole === 'data_analyst') {
-      basePayload.phone = institution || null
+      basePayload.org_name = institution.trim() || null
     }
 
     const { error: e1 } = await supabase.from('profiles').upsert(basePayload)
@@ -393,7 +426,7 @@ function OnboardingInner() {
               {isHouseholdRole
                 ? 'We use your real street address to automate distance-to-fire awareness, routing, and safety flows. Search suggests numbered street addresses only — not cities or counties.'
                 : selectedRole === 'emergency_responder'
-                  ? 'Customize incident intelligence for your agency.'
+                  ? 'Your station name and verified base address power the command map anchor, incident radius, and turn-by-turn directions to priority sites.'
                   : 'Tailor the analyst dashboard to your research context.'}
             </p>
             <div className="space-y-4 mb-6">
@@ -432,7 +465,51 @@ function OnboardingInner() {
               )}
 
               {selectedRole === 'emergency_responder' && (
-                <div><Label>Station / Agency</Label>{inp(agency, setAgency, 'e.g. Clayton Station #1')}</div>
+                <>
+                  <div>
+                    <Label>
+                      Station / department name <span className="text-ember-400/90 font-normal">(required)</span>
+                    </Label>
+                    {inp(stationOrgName, setStationOrgName, 'e.g. Clayton Fire Station #1')}
+                  </div>
+                  <div>
+                    <Label>Phone <span className="text-ash-500 font-normal">(optional)</span></Label>
+                    {inp(responderPhone, setResponderPhone, '+1 (555) 000-0000', 'tel')}
+                  </div>
+                  <div>
+                    <Label>
+                      Station / command post address <span className="text-ember-400/90 font-normal">(required)</span>
+                    </Label>
+                    <p className="mb-2 text-xs text-ash-500">
+                      Same address the hub uses as &quot;station&quot; for maps and routing — not the code your crew uses to join
+                      you (that&apos;s created later under Station &amp; setup).
+                    </p>
+                    <AddressVerifySave
+                      variant="dark"
+                      hint="Fire station, staging area, or command post — must be a verifiable street address."
+                      value={responderStationDraft}
+                      onChange={v => {
+                        setResponderStationDraft(v)
+                        setError('')
+                      }}
+                      savedAddress={verifiedResponderStationAddress}
+                      onVerifiedSave={async (line: string) => {
+                        const supabase = createClient()
+                        const { data: { user } } = await supabase.auth.getUser()
+                        if (!user) throw new Error('Not signed in')
+                        const { error } = await supabase.from('profiles').update({ address: line }).eq('id', user.id)
+                        if (error) throw new Error(error.message)
+                        setVerifiedResponderStationAddress(line)
+                        setResponderStationDraft(line)
+                        try {
+                          window.dispatchEvent(new CustomEvent('wfa-flameo-context-refresh'))
+                        } catch {
+                          /* ignore */
+                        }
+                      }}
+                    />
+                  </div>
+                </>
               )}
               {selectedRole === 'data_analyst' && (
                 <div><Label>Institution / Organization</Label>{inp(institution, setInstitution, 'e.g. Stanford University, USGS')}</div>
@@ -441,8 +518,18 @@ function OnboardingInner() {
             </div>
             {error && <p className="text-signal-danger text-sm mb-4">{error}</p>}
             {!isHouseholdRole && (selectedRole === 'emergency_responder' || selectedRole === 'data_analyst') && (
-              <div className="bg-ash-800/60 border border-ash-700 rounded-xl p-3 mb-4 text-ash-400 text-xs">
-                You'll need an access code from your organization on the next step.
+              <div className="bg-ash-800/60 border border-ash-700 rounded-xl p-3 mb-4 text-ash-400 text-xs leading-relaxed">
+                {selectedRole === 'emergency_responder' ? (
+                  <>
+                    <span className="font-semibold text-ash-200">Next step:</span> you&apos;ll enter your{' '}
+                    <strong className="text-ash-200">organization access code</strong> (from your department) to unlock this
+                    role. That is <strong className="text-ash-200">not</strong> the same as a{' '}
+                    <strong className="text-ash-200">station join code</strong> (e.g. STATION-ABC123) — those are generated in
+                    the app under Station &amp; setup after you&apos;re in, for firefighters joining your incident channel.
+                  </>
+                ) : (
+                  <>You&apos;ll need an access code from your organization on the next step.</>
+                )}
               </div>
             )}
             <button
@@ -451,11 +538,26 @@ function OnboardingInner() {
                   setError('Search for your address, pick a suggestion, then use Verify & Save before continuing.')
                   return
                 }
+                if (selectedRole === 'emergency_responder') {
+                  if (!stationOrgName.trim()) {
+                    setError('Enter your station or department name.')
+                    return
+                  }
+                  if (!verifiedResponderStationAddress?.trim()) {
+                    setError('Search for your station address, pick a suggestion, then Verify & Save before continuing.')
+                    return
+                  }
+                }
                 setError('')
                 if (isHouseholdRole) setStep(3)
                 else void finish()
               }}
-              disabled={saving || (isHouseholdRole && !verifiedHomeAddress?.trim())}
+              disabled={
+                saving
+                || (isHouseholdRole && !verifiedHomeAddress?.trim())
+                || (selectedRole === 'emergency_responder'
+                  && (!stationOrgName.trim() || !verifiedResponderStationAddress?.trim()))
+              }
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-forest-700 hover:bg-forest-600 disabled:opacity-50 text-white font-semibold transition-colors">
               {saving ? (
                 <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Setting up…</>

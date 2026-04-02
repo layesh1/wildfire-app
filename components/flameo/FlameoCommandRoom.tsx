@@ -11,9 +11,10 @@ import { assembleFlameoCommandContext } from '@/lib/flameo-command'
 type Props = {
   householdPins: HouseholdPin[]
   firefighterPins?: FirefighterPin[]
+  /** Station roster size (includes members not yet reporting GPS). */
+  rosterFieldUnitTotal?: number
   mapCenter: [number, number]
   fireContext: FlameoContext | null
-  demoMode: boolean
   briefingRefreshKey: number
   onViewOnMap: (lat: number, lng: number) => void
   /** Station / base address for Google Maps driving directions to priority sites. */
@@ -91,9 +92,9 @@ function openFlameoChat() {
 export default function FlameoCommandRoom({
   householdPins,
   firefighterPins = [],
+  rosterFieldUnitTotal = 0,
   mapCenter,
   fireContext: _fireContext,
-  demoMode,
   briefingRefreshKey,
   onViewOnMap,
   directionsOrigin = null,
@@ -115,9 +116,10 @@ export default function FlameoCommandRoom({
           wind_mph: firePart.wind_mph,
           fire_risk: firePart.fire_risk,
         },
-        firefighterPins
+        firefighterPins,
+        rosterFieldUnitTotal
       ),
-    [householdPins, firePart, firefighterPins]
+    [householdPins, firePart, firefighterPins, rosterFieldUnitTotal]
   )
 
   const loadFireFromApi = useCallback(async () => {
@@ -229,11 +231,6 @@ export default function FlameoCommandRoom({
             style={{ width: `${Math.min(100, Math.max(0, s.completion_rate))}%` }}
           />
         </div>
-        {demoMode && (
-          <p className="mt-2 text-[10px] font-medium text-amber-800 dark:text-amber-300/95">
-            Demo households — live opt-ins replace these when available.
-          </p>
-        )}
       </div>
 
       <div className={panel}>

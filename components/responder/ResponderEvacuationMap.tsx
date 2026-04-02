@@ -18,11 +18,6 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import type { HouseholdPin } from '@/lib/responder-household'
-import {
-  CHARLOTTE_DEMO_NIFC_FIRES,
-  FIELD_HUB_DEMO_MAP_CENTER,
-  RESPONDER_DEMO_HOUSEHOLDS_TAGGED,
-} from '@/lib/responder-demo-households'
 import { fetchResponderEvacuationHouseholds } from '@/lib/fetch-responder-evacuation-households'
 import type { FlameoContext } from '@/lib/flameo-context-types'
 import FlameoCommandRoom from '@/components/flameo/FlameoCommandRoom'
@@ -92,8 +87,8 @@ export default function ResponderEvacuationMap({
   stationAddressGeocodeFailed = false,
 }: ResponderEvacuationMapProps) {
   const [householdPins, setHouseholdPins] = useState<HouseholdPin[]>([])
-  const [mapDemoMode, setMapDemoMode] = useState(true)
   const [loading, setLoading] = useState(true)
+  const [rosterFieldUnitTotal, setRosterFieldUnitTotal] = useState(0)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [redFlagCount, setRedFlagCount] = useState<number | null>(null)
   const [showFacilities, setShowFacilities] = useState(false)
@@ -109,20 +104,16 @@ export default function ResponderEvacuationMap({
   const [rosterStationId, setRosterStationId] = useState<string | null>(null)
   const supabase = useMemo(() => createClient(), [])
 
-  const effectiveMapCenter = useMemo<[number, number]>(
-    () => (mapDemoMode ? FIELD_HUB_DEMO_MAP_CENTER : mapCenter),
-    [mapDemoMode, mapCenter]
-  )
+  const effectiveMapCenter = mapCenter
 
   const nifcForEvacMap = useMemo(() => {
-    if (mapDemoMode) return [...CHARLOTTE_DEMO_NIFC_FIRES]
     const hub = mapCenter
     const r = incidentRadiusMiles
     return nifcFires.filter(f => {
       if (!Number.isFinite(f.latitude) || !Number.isFinite(f.longitude)) return false
       return distanceMiles([f.latitude, f.longitude], hub) <= r
     })
-  }, [mapDemoMode, nifcFires, mapCenter, incidentRadiusMiles])
+  }, [nifcFires, mapCenter, incidentRadiusMiles])
 
   useEffect(() => {
     const st =
@@ -170,16 +161,14 @@ export default function ResponderEvacuationMap({
   }, [effectiveMapCenter, stationAddressForDirections])
 
   const refreshFiresAndWind = useCallback(async () => {
-    if (!mapDemoMode) {
-      try {
-        const nifcRes = await fetch('/api/fires/nifc')
-        if (nifcRes.ok) {
-          const json = (await nifcRes.json().catch(() => ({}))) as { data?: NifcFire[] }
-          if (Array.isArray(json.data)) setNifcFires(json.data)
-        }
-      } catch {
-        /* ignore */
+    try {
+      const nifcRes = await fetch('/api/fires/nifc')
+      if (nifcRes.ok) {
+        const json = (await nifcRes.json().catch(() => ({}))) as { data?: NifcFire[] }
+        if (Array.isArray(json.data)) setNifcFires(json.data)
       }
+    } catch {
+      /* ignore */
     }
     const [lat, lng] = effectiveMapCenter
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
@@ -207,7 +196,7 @@ export default function ResponderEvacuationMap({
     } catch {
       setWindData(null)
     }
-  }, [mapDemoMode, effectiveMapCenter])
+  }, [effectiveMapCenter])
 
   useEffect(() => {
     void refreshFiresAndWind()
@@ -215,12 +204,10 @@ export default function ResponderEvacuationMap({
 
   const loadEvacMap = useCallback(async () => {
     try {
-      const { householdPins: hp, demoMode } = await fetchResponderEvacuationHouseholds()
+      const { householdPins: hp } = await fetchResponderEvacuationHouseholds()
       setHouseholdPins(hp)
-      setMapDemoMode(demoMode)
     } catch {
-      setHouseholdPins(RESPONDER_DEMO_HOUSEHOLDS_TAGGED)
-      setMapDemoMode(true)
+      setHouseholdPins([])
     } finally {
       setCommandBriefingKey(k => k + 1)
     }
@@ -232,6 +219,7 @@ export default function ResponderEvacuationMap({
       if (!r.ok) {
         setFirefighterPins([])
         setRosterStationId(null)
+        setRosterFieldUnitTotal(0)
         return
       }
       const j = (await r.json()) as {
@@ -250,6 +238,7 @@ export default function ResponderEvacuationMap({
       const sid = j.station?.id ?? null
       setRosterStationId(sid)
       const members = j.members ?? []
+      setRosterFieldUnitTotal(members.length)
       const pins: FirefighterPin[] = members
         .filter(m => m.current_lat != null && m.current_lng != null)
         .map(m => ({
@@ -265,16 +254,17 @@ export default function ResponderEvacuationMap({
     } catch {
       setFirefighterPins([])
       setRosterStationId(null)
+      setRosterFieldUnitTotal(0)
     }
   }, [])
 
   const loadData = useCallback(async () => {
     if (!canAccessEvacueeData) {
       setHouseholdPins([])
-      setMapDemoMode(false)
       setResponderProfiles([])
       setFirefighterPins([])
       setRosterStationId(null)
+      setRosterFieldUnitTotal(0)
       setLoading(false)
       setLastUpdated(new Date())
       return
@@ -377,9 +367,8 @@ export default function ResponderEvacuationMap({
             </span>
           </div>
           <p className="text-[11px] text-gray-500 dark:text-ash-500 pl-7 leading-snug max-w-xl">
-            {mapDemoMode
-              ? 'Training scenario: Charlotte metro — demo households, NIFC-style incidents, and optional modeled fire halos.'
-              : `Live NIFC perimeters & points within ${incidentRadiusMiles} mi of your station; dashed rings = modeled risk (not official zones).`}
+            Live NIFC perimeters &amp; points within {incidentRadiusMiles} mi of your station; dashed rings = modeled risk (not
+            official zones). Households show only when evacuees have opted in.
           </p>
         </div>
 
@@ -398,7 +387,7 @@ export default function ResponderEvacuationMap({
           </div>
         )}
 
-        {stationAddressGeocodeFailed && !mapDemoMode && (
+        {stationAddressGeocodeFailed && (
           <div className="w-full order-last sm:order-none rounded-lg border border-amber-300/80 bg-amber-50/95 px-3 py-2 text-[11px] text-amber-950 dark:border-amber-700/50 dark:bg-amber-950/40 dark:text-amber-100">
             <span>
               Your saved station address could not be placed on the map (check spelling and include city/state/ZIP).{' '}
@@ -531,13 +520,13 @@ export default function ResponderEvacuationMap({
                 shelters={HUMAN_EVAC_SHELTERS}
                 liveShelters={liveMapShelters}
                 showShelters={showShelters}
-                demoMode={mapDemoMode}
+                demoMode={false}
                 mapFocusRequest={mapFocus}
                 nifcFires={nifcForEvacMap}
                 showNifcPredictionOverlays={showFirePredictions}
                 windData={windData}
                 stationAnchor={
-                  stationAddressGeocodeFailed && !mapDemoMode
+                  stationAddressGeocodeFailed
                     ? null
                     : {
                         lat: effectiveMapCenter[0],
@@ -559,9 +548,9 @@ export default function ResponderEvacuationMap({
               <FlameoCommandRoom
                 householdPins={householdPins}
                 firefighterPins={firefighterPins}
+                rosterFieldUnitTotal={rosterFieldUnitTotal}
                 mapCenter={effectiveMapCenter}
                 fireContext={flameoContext}
-                demoMode={mapDemoMode}
                 briefingRefreshKey={commandBriefingKey}
                 onViewOnMap={(lat, lng) => setMapFocus({ lat, lng, nonce: Date.now() })}
                 directionsOrigin={stationAddressForDirections}

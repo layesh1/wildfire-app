@@ -41,9 +41,23 @@ export interface FlameoCommandFireContext {
   fire_risk: string
 }
 
+/** Field units reporting GPS on the command map (station roster). */
+export interface CommandFieldUnitReporting {
+  name: string
+  lat: number
+  lng: number
+  status: string
+  current_assignment: string | null
+  last_seen_at: string
+}
+
 export interface FlameoCommandContext {
   incident_summary: FlameoCommandIncidentSummary
   priority_assignments: PriorityAssignment[]
   fire_context: FlameoCommandFireContext
   generated_at: string
+  /** Units with last-known positions — use with priority_assignments.assigned_to for dispatch wording. */
+  field_units_reporting: CommandFieldUnitReporting[]
+  /** Roster members not sharing GPS (cannot auto-assign nearest). */
+  field_units_without_position_count: number
 }

@@ -14,7 +14,7 @@ const ROLE_LABELS: Record<string, { label: string; placeholder: string; hint: st
   emergency_responder: {
     label: 'Emergency Responder',
     placeholder: 'ER-ORG-XXXX',
-    hint: 'Enter the organization code provided by your agency or department.',
+    hint: 'Enter the organization access code from your agency — not a station join code for firefighters.',
   },
 }
 
@@ -172,9 +172,23 @@ function AddRoleForm() {
             {' '}{roleInfo.hint}
           </p>
 
+          {role === 'emergency_responder' && !verified && (
+            <div className="mb-5 rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-2.5 text-xs leading-relaxed text-amber-100/95">
+              <strong className="text-amber-50">Two different codes:</strong>{' '}
+              <span className="text-amber-100/90">
+                This screen is for your <strong>organization access code</strong> (unlocks the responder dashboard).{' '}
+                <strong>Station join codes</strong> (e.g. STATION-ABC123) are created under{' '}
+                <strong>Station &amp; setup</strong> after you&apos;re in — share those with field units / the Minutes Matter
+                app so they join <em>your</em> incident channel.
+              </span>
+            </div>
+          )}
+
           {!verified ? (
             <>
-              <label className="block text-ash-300 text-xs font-medium mb-1.5">Access code</label>
+              <label className="block text-ash-300 text-xs font-medium mb-1.5">
+                {role === 'emergency_responder' ? 'Organization access code' : 'Access code'}
+              </label>
               <div className="flex gap-2 mb-2">
                 <input
                   type="text"
