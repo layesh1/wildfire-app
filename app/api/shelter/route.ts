@@ -244,12 +244,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'originLat, originLng, shelters are required' }, { status: 400 })
   }
 
-  const hasExplicitVerified = shelters.some(s => typeof s?.verified === 'boolean')
-  const verifiedOnly = shelters.filter(s => s?.verified === true)
-  const routeTargets =
-    hasExplicitVerified && verifiedOnly.length > 0 ? verifiedOnly : shelters
-  const shelter_verified =
-    !hasExplicitVerified || verifiedOnly.length > 0
+  /** Route every valid shelter in the payload (live FEMA + pre-identified). Verified flag is metadata only. */
+  const routeTargets = shelters.filter(
+    s => s && Number.isFinite(s.lat) && Number.isFinite(s.lng)
+  )
+  const shelter_verified = routeTargets.some(s => s.verified === true)
 
   const key = getRoutesKey()
   const origin = { lat: originLat, lng: originLng }

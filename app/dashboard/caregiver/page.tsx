@@ -18,7 +18,7 @@ import type { NifcFire, WindData, EvacShelter, LiveShelterPin } from './map/Leaf
 import type { HazardFacility } from '@/lib/hazard-facilities'
 import AlertJar from '@/components/AlertJar'
 import { useRoleContext, type RolePerson } from '@/components/RoleContext'
-import { loadPersons, loadGoBag, saveGoBag } from '@/lib/user-data'
+import { loadPersons, loadGoBag, saveGoBag, monitoredPersonsExcludingSelf } from '@/lib/user-data'
 import { useConsumerAlerts } from '@/hooks/useConsumerAlerts'
 import { useFlameoContext } from '@/hooks/useFlameoContext'
 import { useFlameoHubAgentBridge } from '@/components/FlameoHubAgentBridge'
@@ -622,16 +622,18 @@ export function ConsumerHubDashboard({
   const showPeopleRail = consumerRole === 'evacuee'
   const personsManageHref = '/dashboard/home/persons'
 
+  const monitoredOthers = useMemo(() => monitoredPersonsExcludingSelf(persons), [persons])
+
   const watchedLocationsForMap = useMemo(() => {
     const out: { label: string; lat: number; lng: number }[] = []
     if (geocodeMonitoredPeople) {
-      for (const p of persons) {
+      for (const p of monitoredOthers) {
         const c = personCoords[p.id]
         if (c) out.push({ label: p.name, lat: c[0], lng: c[1] })
       }
     }
     return out
-  }, [geocodeMonitoredPeople, persons, personCoords])
+  }, [geocodeMonitoredPeople, monitoredOthers, personCoords])
 
   const nearestSheltersList = useMemo(() => {
     if (!mapAnchor) return [] as EvacShelter[]
@@ -655,14 +657,14 @@ export function ConsumerHubDashboard({
   }, [mapAnchor])
 
   useEffect(() => {
-    if (!geocodeMonitoredPeople || !persons.length) {
+    if (!geocodeMonitoredPeople || !monitoredOthers.length) {
       setPersonCoords({})
       return
     }
     let cancelled = false
     async function geocodeAll() {
       const next: Record<string, [number, number]> = {}
-      for (const p of persons) {
+      for (const p of monitoredOthers) {
         if (!p.address?.trim()) continue
         try {
           const g = await geocodeAddressClient(p.address)
@@ -675,7 +677,7 @@ export function ConsumerHubDashboard({
     }
     geocodeAll()
     return () => { cancelled = true }
-  }, [persons, geocodeMonitoredPeople])
+  }, [monitoredOthers, geocodeMonitoredPeople])
 
   useEffect(() => {
     if (!mapAnchor) {
@@ -1146,7 +1148,7 @@ export function ConsumerHubDashboard({
     onDismiss: dismissFlameoPrologue,
   }
   const shouldShowShelterRoutes =
-    flameo.status === 'ready'
+    (flameo.status === 'ready' || flameo.status === 'feeds_partial' || flameo.status === 'no_fires_in_radius')
     && (flameo.context?.shelters_ranked?.length ?? 0) > 0
     && userLocHook.lat != null
     && userLocHook.lng != null
@@ -1157,7 +1159,7 @@ export function ConsumerHubDashboard({
 
   const situationRoomPeople = useMemo(() => {
     const incidents = flameo.context?.incidents_nearby ?? []
-    return persons.map(p => {
+    return monitoredOthers.map(p => {
       const status = personStatuses[p.id]
       const coord = personCoords[p.id]
       let inDanger = false
@@ -1172,7 +1174,7 @@ export function ConsumerHubDashboard({
         in_danger_zone: inDanger,
       }
     })
-  }, [alertRadiusMiles, flameo.context?.incidents_nearby, personCoords, personStatuses, persons])
+  }, [alertRadiusMiles, flameo.context?.incidents_nearby, monitoredOthers, personCoords, personStatuses])
 
   return (
     <div className="flex min-h-[100dvh] w-full flex-1 flex-col">
@@ -1562,7 +1564,7 @@ export function ConsumerHubDashboard({
                     )}
                   </button>
                   {meCard}
-                  {persons.map((p) => (
+                  {monitoredOthers.map((p) => (
                     <div key={p.id} className="space-y-1">
                       <button
                         type="button"

@@ -323,7 +323,8 @@ function SidebarInner({ user, profile }: Props) {
         >
           <LanguageSwitcher
             menuOpens="above"
-            className={open ? 'w-full' : ''}
+            compact={collapsed}
+            className={open ? 'w-full' : undefined}
             menuButtonClassName={cn(
               'justify-center border-white/25 bg-white/10 text-white/95 hover:bg-white/15 hover:text-white',
               'dark:border-white/25 dark:bg-white/10 dark:text-white/95 dark:hover:bg-white/15',

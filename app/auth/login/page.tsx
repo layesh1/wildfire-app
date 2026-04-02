@@ -1,5 +1,6 @@
 'use client'
 import { useState, useRef, useEffect, Suspense } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, ArrowLeft, ArrowRight, Check, ChevronDown } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
@@ -98,6 +99,10 @@ function LoginForm() {
   const [evacuationConsent, setEvacuationConsent] = useState(false)
   const [healthConsent, setHealthConsent] = useState(false)
   const [consentError, setConsentError] = useState('')
+  const [loginResendable, setLoginResendable] = useState(false)
+  const [loginResendNotice, setLoginResendNotice] = useState('')
+  const [resendBusy, setResendBusy] = useState(false)
+  const [signupResendMsg, setSignupResendMsg] = useState('')
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -108,6 +113,13 @@ function LoginForm() {
   }, [])
 
   const errorParam = searchParams.get('error')
+  const emailNotConfirmedFromOAuth = errorParam === 'email_not_confirmed'
+  const oauthErrorMessage =
+    emailNotConfirmedFromOAuth
+      ? 'Confirm your email before using the app. Check your inbox and spam folder.'
+      : errorParam
+  /** Show resend on sign-in after password error or OAuth/middleware redirect. */
+  const loginResendEligible = loginResendable || emailNotConfirmedFromOAuth
 
   /** Deep link e.g. /auth/login?mode=signup&role=emergency_responder — align signup role with invite */
   const roleFromUrlApplied = useRef(false)
@@ -266,13 +278,22 @@ function LoginForm() {
     setError('')
     try {
       const { data, error: signupErr } = await supabase.auth.signUp({
-        email, password,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
       })
       if (signupErr) throw signupErr
 
+      const signedUser = data.user
+      const hasEmailIdentity = Boolean(
+        signedUser?.identities?.some(i => i.provider === 'email')
+      )
+      const emailConfirmed = Boolean(signedUser?.email_confirmed_at)
+
       // Save profile data immediately (works before email confirmation)
-      if (data.user) {
+      if (signedUser) {
         const mobilityNeeds = ob.mobilityAccessNeeds.filter(k => k !== 'other')
         if (ob.mobilityAccessNeeds.includes('other')) mobilityNeeds.push('other')
         const profilePayload: Record<string, unknown> = {
@@ -300,12 +321,22 @@ function LoginForm() {
               locationConsent && evacuationConsent ? new Date().toISOString() : null,
           }),
         }
-        await supabase.from('profiles').upsert({ id: data.user.id, ...profilePayload })
+        await supabase.from('profiles').upsert({ id: signedUser.id, ...profilePayload })
+      }
+
+      // If Supabase returns a session before the address is confirmed (misconfiguration or
+      // rare edge case), sign out so we never skip the "check your email" step for email signups.
+      if (data.session && hasEmailIdentity && !emailConfirmed) {
+        await supabase.auth.signOut()
+        setSignupResendMsg('')
+        setOnboardingStep(5)
+        return
       }
 
       if (data.session) {
         window.location.href = '/dashboard'
       } else {
+        setSignupResendMsg('')
         setOnboardingStep(5)
       }
     } catch (err: any) {
@@ -326,6 +357,8 @@ function LoginForm() {
   const handleLogin = async () => {
     setLoading(true)
     setError('')
+    setLoginResendable(false)
+    setLoginResendNotice('')
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
@@ -335,10 +368,49 @@ function LoginForm() {
         return
       }
       window.location.href = '/dashboard'
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      const lower = msg.toLowerCase()
+      if (lower.includes('email not confirmed') || lower.includes('not confirmed')) {
+        setError(
+          'Confirm your email before signing in. Check your inbox and spam folder, or resend the link below.'
+        )
+        setLoginResendable(true)
+      } else {
+        setError(msg)
+      }
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function resendConfirmationEmail() {
+    const em = email.trim()
+    if (!em) return
+    setResendBusy(true)
+    setSignupResendMsg('')
+    setLoginResendNotice('')
+    try {
+      const { error: e } = await supabase.auth.resend({
+        type: 'signup',
+        email: em,
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      })
+      if (e) {
+        if (mode === 'login' && loginResendEligible) setError(e.message)
+        else setSignupResendMsg(e.message)
+      } else {
+        const ok =
+          'If this email is registered and not yet confirmed, we sent a new confirmation link.'
+        if (mode === 'login' && loginResendEligible) {
+          setError('')
+          setLoginResendNotice(ok)
+        } else {
+          setSignupResendMsg(ok)
+        }
+      }
+    } finally {
+      setResendBusy(false)
     }
   }
 
@@ -476,9 +548,36 @@ function LoginForm() {
                   </div>
                 </div>
 
-                {(error || errorParam) && (
-                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-base text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
-                    {error || errorParam}
+                {loginResendNotice && (
+                  <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-base text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200">
+                    {loginResendNotice}
+                  </div>
+                )}
+                {(error || oauthErrorMessage) && (
+                  <div className="mb-4 space-y-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-base text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
+                    <p>{error || oauthErrorMessage}</p>
+                    {loginResendEligible && (
+                      <button
+                        type="button"
+                        disabled={resendBusy || !email.trim()}
+                        onClick={() => void resendConfirmationEmail()}
+                        className="text-sm font-semibold text-red-800 underline underline-offset-2 hover:text-red-950 disabled:opacity-50 dark:text-red-300 dark:hover:text-red-100"
+                      >
+                        {resendBusy ? 'Sending…' : 'Resend confirmation email'}
+                      </button>
+                    )}
+                  </div>
+                )}
+                {loginResendNotice && loginResendEligible && (
+                  <div className="mb-4">
+                    <button
+                      type="button"
+                      disabled={resendBusy || !email.trim()}
+                      onClick={() => void resendConfirmationEmail()}
+                      className="text-sm font-semibold text-emerald-800 underline underline-offset-2 hover:text-emerald-950 disabled:opacity-50 dark:text-emerald-300 dark:hover:text-emerald-100"
+                    >
+                      {resendBusy ? 'Sending…' : 'Resend confirmation email'}
+                    </button>
                   </div>
                 )}
 
@@ -496,6 +595,8 @@ function LoginForm() {
                   <button onClick={() => {
                     setMode('signup')
                     setError('')
+                    setLoginResendable(false)
+                    setLoginResendNotice('')
                     setEmailFormatError('')
                     setEmailTaken(false)
                     setOnboardingStep(0)
@@ -868,7 +969,26 @@ function LoginForm() {
                 </div>
 
                 <p className="mb-4 text-base leading-relaxed text-gray-600 dark:text-gray-300">
-                  Please review and agree to the following to use WildfireAlert.
+                  Please review and agree to the following to use WildfireAlert. Read our{' '}
+                  <Link
+                    href="/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-green-800 underline underline-offset-2 hover:text-green-950 dark:text-amber-300 dark:hover:text-amber-200"
+                  >
+                    Terms of Service
+                  </Link>
+                  {' '}and{' '}
+                  <Link
+                    href="/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-green-800 underline underline-offset-2 hover:text-green-950 dark:text-amber-300 dark:hover:text-amber-200"
+                  >
+                    Privacy Policy
+                  </Link>
+                  {' '}
+                  (each opens in a new tab).
                 </p>
                 <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm leading-relaxed text-gray-700 dark:border-gray-600 dark:bg-gray-800/80 dark:text-gray-300">
                   Your health information is encrypted and only shared with emergency responders during active incidents in your area. You control what you share and can remove it anytime in Settings.
@@ -968,12 +1088,24 @@ function LoginForm() {
                 <p className="mb-6 text-base leading-relaxed text-gray-500 dark:text-gray-400">
                   We sent a confirmation link to <strong className="text-gray-800 dark:text-gray-200">{email}</strong>. Click it to activate your account, then come back to sign in.
                 </p>
-                <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">Don't see it? Check your spam folder.</p>
+                <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">Don&apos;t see it? Check your spam folder.</p>
+                {signupResendMsg && (
+                  <p className="mb-4 text-sm text-forest-800 dark:text-forest-300">{signupResendMsg}</p>
+                )}
+                <button
+                  type="button"
+                  disabled={resendBusy || !email.trim()}
+                  onClick={() => void resendConfirmationEmail()}
+                  className="mb-4 w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base font-semibold text-gray-800 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
+                >
+                  {resendBusy ? 'Sending…' : 'Resend confirmation email'}
+                </button>
                 <button
                   onClick={() => {
                     setMode('login')
                     setOnboardingStep(0)
                     setError('')
+                    setSignupResendMsg('')
                     setLocationConsent(false)
                     setEvacuationConsent(false)
                     setHealthConsent(false)

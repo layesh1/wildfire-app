@@ -111,7 +111,12 @@ export default function FlameoSituationRoom({
   const shelterMeta = flameoContext?.shelters_meta
   const readyLike = status === 'ready' || status === 'feeds_partial'
   const hasThreat = flameoContext?.flags?.has_confirmed_threat === true
-  const shouldShowRoute = readyLike && hasThreat && shelters.length > 0
+  /** Show fastest shelter + directions whenever we have ranked routes — not only when fire is in context (hazards still shape routing). */
+  const shouldShowRoute =
+    shelters.length > 0
+    && status !== 'address_missing'
+    && status !== 'geocode_failed'
+    && (readyLike || status === 'no_fires_in_radius')
   const shelterCheckedMins =
     minutesSinceIso(shelterMeta?.last_checked_at)
     ?? Math.floor((shelterMeta?.cache_age_seconds ?? 0) / 60)
@@ -349,8 +354,11 @@ export default function FlameoSituationRoom({
             {topShelter.route_avoids_fire && topShelter.passes_near_hazard === true && (
               <span className="text-amber-700 dark:text-amber-400">⚠️ Route passes near hazard site</span>
             )}
-            {topShelter.route_avoids_fire && topShelter.passes_near_hazard !== true && (
+            {topShelter.route_avoids_fire && topShelter.passes_near_hazard !== true && hasThreat && (
               <span className="text-green-700 dark:text-green-400">✅ Route avoids fire and hazard sites</span>
+            )}
+            {topShelter.route_avoids_fire && topShelter.passes_near_hazard !== true && !hasThreat && (
+              <span className="text-green-700 dark:text-green-400">✅ Route avoids mapped hazard sites</span>
             )}
           </div>
           {userLat != null && userLng != null && (

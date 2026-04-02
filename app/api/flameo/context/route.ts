@@ -5,7 +5,7 @@ import { HUMAN_EVAC_SHELTERS } from '@/lib/evac-shelters'
 import { HAZARD_FACILITIES } from '@/lib/hazard-facilities'
 import { geocodeAddress } from '@/lib/geocoding'
 import { reverseGeocode } from '@/lib/geocoding'
-import { rankSheltersByProximity } from '@/lib/shelter-ranking'
+import { rankSheltersByProximity, type Shelter } from '@/lib/shelter-ranking'
 import { parseUsStateCodeFromAddress } from '@/lib/us-address-state'
 import type {
   FlameoAnchor,
@@ -22,7 +22,12 @@ import type {
 
 const DEFAULT_RADIUS_MI = 50
 const MAX_INCIDENTS = 25
-const MAX_SHELTERS = 6
+/** Merged FEMA + pre-identified list for map / situation room */
+const MAX_SHELTERS_NEARBY = 12
+/** Google Distance Matrix practical limit per request */
+const MAX_SHELTER_RANK_INPUT = 20
+/** Skip static pin if it matches an open FEMA shelter at same site */
+const SHELTER_DEDUP_MILES = 0.25
 /** Match map “away from home” — below this, treat GPS as same place as saved home for Flameo. */
 const LIVE_HOME_DIVERGENCE_MI = 0.35
 
@@ -43,6 +48,14 @@ function parseDetectedAnchor(
 ): 'work' | 'home' | 'unknown' | null {
   if (raw === 'work' || raw === 'home' || raw === 'unknown') return raw
   return null
+}
+
+function isDupOfLiveShelters(
+  lat: number,
+  lng: number,
+  live: Array<{ lat: number; lng: number }>
+): boolean {
+  return live.some(p => distanceMiles([lat, lng], [p.lat, p.lng]) <= SHELTER_DEDUP_MILES)
 }
 
 function resolveRole(profileRole: string | undefined, q: string | null): FlameoUserRole {
@@ -342,29 +355,26 @@ export async function GET(request: NextRequest) {
     && liveBody.fallback !== true
   const femaList: LiveShelterApi[] =
     femaOk && Array.isArray(liveBody?.shelters) ? liveBody!.shelters! : []
-  const useFemaForList = femaList.length > 0
+  const femaCoords = femaList.map(s => ({ lat: s.lat, lng: s.lng }))
 
-  let shelters_nearby: FlameoShelterNearby[] = []
-  if (useFemaForList) {
-    shelters_nearby = femaList
-      .map(s => ({
-        name: s.name,
-        county: s.city || '',
-        lat: s.lat,
-        lon: s.lng,
-        distance_miles: Math.round(distanceMiles(shelterOrigin, [s.lat, s.lng]) * 10) / 10,
-        phone: null,
-        address: s.address,
-        capacity: s.capacity,
-        current_occupancy: s.current_occupancy,
-        verified: true,
-        source: 'fema_nss' as const,
-        last_verified_at: s.last_verified_at,
-      }))
-      .sort((a, b) => a.distance_miles - b.distance_miles)
-      .slice(0, MAX_SHELTERS)
-  } else {
-    shelters_nearby = HUMAN_EVAC_SHELTERS.map(s => ({
+  const femaNearby: FlameoShelterNearby[] = femaList.map(s => ({
+    name: s.name,
+    county: s.city || '',
+    lat: s.lat,
+    lon: s.lng,
+    distance_miles: Math.round(distanceMiles(shelterOrigin, [s.lat, s.lng]) * 10) / 10,
+    phone: null,
+    address: s.address,
+    capacity: s.capacity,
+    current_occupancy: s.current_occupancy,
+    verified: true,
+    source: 'fema_nss' as const,
+    last_verified_at: s.last_verified_at,
+  }))
+
+  const staticNearby: FlameoShelterNearby[] = HUMAN_EVAC_SHELTERS
+    .filter(s => !isDupOfLiveShelters(s.lat, s.lng, femaCoords))
+    .map(s => ({
       name: s.name,
       county: s.county,
       lat: s.lat,
@@ -378,35 +388,46 @@ export async function GET(request: NextRequest) {
       source: 'pre_identified' as const,
       last_verified_at: null,
     }))
-      .sort((a, b) => a.distance_miles - b.distance_miles)
-      .slice(0, MAX_SHELTERS)
-  }
 
-  const rankingShelters = useFemaForList
-    ? femaList.map(s => ({
-        name: s.name,
-        lat: s.lat,
-        lng: s.lng,
-        county: s.city,
-        phone: null as string | null,
-        verified: true as boolean,
-        source: 'fema_nss' as const,
-        last_verified_at: s.last_verified_at,
-        capacity: s.capacity,
-        current_occupancy: s.current_occupancy,
-      }))
-    : HUMAN_EVAC_SHELTERS.map(s => ({
-        name: s.name,
-        lat: s.lat,
-        lng: s.lng,
-        county: s.county,
-        phone: null as string | null,
-        verified: false as boolean,
-        source: 'pre_identified' as const,
-        last_verified_at: null as string | null,
-        capacity: s.capacity ?? null,
-        current_occupancy: null as number | null,
-      }))
+  const shelters_nearby: FlameoShelterNearby[] = [...femaNearby, ...staticNearby]
+    .sort((a, b) => a.distance_miles - b.distance_miles)
+    .slice(0, MAX_SHELTERS_NEARBY)
+
+  const femaRanking: Shelter[] = femaList.map(s => ({
+    name: s.name,
+    lat: s.lat,
+    lng: s.lng,
+    county: s.city,
+    phone: null,
+    verified: true,
+    source: 'fema_nss',
+    last_verified_at: s.last_verified_at,
+    capacity: s.capacity,
+    current_occupancy: s.current_occupancy,
+  }))
+
+  const staticRanking: Shelter[] = HUMAN_EVAC_SHELTERS.filter(
+    s => !isDupOfLiveShelters(s.lat, s.lng, femaCoords)
+  ).map(s => ({
+    name: s.name,
+    lat: s.lat,
+    lng: s.lng,
+    county: s.county,
+    phone: null,
+    verified: false,
+    source: 'pre_identified',
+    last_verified_at: null,
+    capacity: s.capacity ?? null,
+    current_occupancy: null,
+  }))
+
+  const rankingShelters: Shelter[] = [...femaRanking, ...staticRanking]
+    .sort((a, b) => {
+      const da = distanceMiles(shelterOrigin, [a.lat, a.lng])
+      const db = distanceMiles(shelterOrigin, [b.lat, b.lng])
+      return da - db
+    })
+    .slice(0, MAX_SHELTER_RANK_INPUT)
 
   let rankedByTravel = await rankSheltersByProximity(
     shelterOriginObj,
@@ -421,9 +442,11 @@ export async function GET(request: NextRequest) {
         : new Date().toISOString(),
     cache_age_seconds: liveCacheAgeSec,
     live_feed_ok: femaOk,
-    fema_shelter_count: useFemaForList ? femaList.length : 0,
-    pre_identified_count: useFemaForList ? 0 : shelters_nearby.length,
-    routes_use_verified_open: useFemaForList,
+    fema_shelter_count: femaList.length,
+    pre_identified_count: shelters_nearby.filter(s => s.source === 'pre_identified').length,
+    routes_use_verified_open:
+      rankedByTravel.length > 0
+      && rankedByTravel.every(s => s.source === 'fema_nss' && s.verified === true),
   }
 
   let nifcOk = false
@@ -483,7 +506,7 @@ export async function GET(request: NextRequest) {
         body: JSON.stringify({
           originLat: shelterOrigin[0],
           originLng: shelterOrigin[1],
-          shelters: rankedByTravel.slice(0, 6).map(s => ({
+          shelters: rankedByTravel.slice(0, 10).map(s => ({
             name: s.name,
             lat: s.lat,
             lng: s.lng,

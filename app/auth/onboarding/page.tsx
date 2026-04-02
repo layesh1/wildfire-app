@@ -1,7 +1,8 @@
 'use client'
 import { useState, useEffect, Suspense } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Flame, Heart, Shield, BarChart3, ArrowRight, ArrowLeft, Check, Home } from 'lucide-react'
+import { Flame, Shield, BarChart3, ArrowRight, ArrowLeft, Check, Home } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import AddressVerifySave from '@/components/AddressVerifySave'
 import { looksLikeUsStreetAddress } from '@/components/AddressAutocomplete'
@@ -22,18 +23,9 @@ import { CHIP_SELECTED, CHIP_UNSELECTED } from '@/lib/ui-chip-classes'
 
 const ROLES = [
   {
-    id: 'caregiver',
-    label: 'Caregiver',
-    desc: 'Automate alerts and maps for people you support — anchored to real home addresses.',
-    icon: Heart,
-    color: 'text-amber-400',
-    border: 'border-amber-500/40 bg-amber-500/5',
-    activeBorder: 'border-amber-400 bg-amber-500/10',
-  },
-  {
     id: 'evacuee',
     label: 'Evacuee',
-    desc: 'Personal safety automation: fire distance, shelters, and check-ins from your actual address.',
+    desc: 'Safety automation for your home: fire distance, shelters, and check-ins. Add people you support anytime in My Persons.',
     icon: Home,
     color: 'text-green-400',
     border: 'border-green-500/40 bg-green-500/5',
@@ -51,7 +43,7 @@ const ROLES = [
   },
   {
     id: 'data_analyst',
-    label: 'Data Analyst / Researcher',
+    label: 'Data Analyst',
     desc: 'I analyze wildfire data, equity gaps, and evacuation patterns for research or policy work.',
     icon: BarChart3,
     color: 'text-blue-400',
@@ -64,7 +56,6 @@ const ROLES = [
 const ROLE_DESTINATIONS: Record<string, string> = {
   emergency_responder: '/dashboard/responder',
   data_analyst: '/dashboard/analyst',
-  caregiver: '/dashboard/caregiver',
   evacuee: '/dashboard/evacuee',
 }
 
@@ -96,7 +87,11 @@ function OnboardingInner() {
   const searchParams = useSearchParams()
 
   const [step, setStep] = useState(1)
-  const [selectedRole, setSelectedRole] = useState(searchParams.get('role') || '')
+  /** Legacy links used caregiver; household onboarding is a single evacuee path (add people in My Persons). */
+  const [selectedRole, setSelectedRole] = useState(() => {
+    const r = searchParams.get('role') || ''
+    return r === 'caregiver' ? 'evacuee' : r
+  })
 
   // Step 2 fields
   const [fullName, setFullName] = useState('')
@@ -105,13 +100,11 @@ function OnboardingInner() {
   const [address, setAddress] = useState('')
   /** Set only after successful "Verify & Save" (geocode + profiles.address write). */
   const [verifiedHomeAddress, setVerifiedHomeAddress] = useState<string | null>(null)
-  const [bloodType, setBloodType] = useState('')
-  const [allergies, setAllergies] = useState('')
   const [notifEmail, setNotifEmail] = useState('')
   const [agency, setAgency] = useState('')
   const [institution, setInstitution] = useState('')
 
-  // Step 3 fields (caregiver & evacuee)
+  // Step 3 fields (household / evacuee)
   const [ecName, setEcName] = useState('')
   const [ecPhone, setEcPhone] = useState('')
   const [languages, setLanguages] = useState('')
@@ -137,9 +130,9 @@ function OnboardingInner() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  const isConsumerHomeRole = selectedRole === 'caregiver' || selectedRole === 'evacuee'
+  const isHouseholdRole = selectedRole === 'evacuee'
   const isEvacuee = selectedRole === 'evacuee'
-  const totalSteps = isEvacuee ? 5 : isConsumerHomeRole ? 4 : 2
+  const totalSteps = isEvacuee ? 5 : 2
   const hasMobilityNeedsForWorkNote = mobilityNeeds.length > 0
 
   useEffect(() => {
@@ -158,7 +151,7 @@ function OnboardingInner() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setError('Not signed in'); setSaving(false); return }
 
-    if (isConsumerHomeRole) {
+    if (isHouseholdRole) {
       const line = verifiedHomeAddress?.trim() || ''
       if (!line || !looksLikeUsStreetAddress(line)) {
         setError('Verify and save your home address using the button below (search, pick a street, then Verify & Save).')
@@ -192,7 +185,7 @@ function OnboardingInner() {
       notification_email: notifEmail || null,
     }
 
-    if (isConsumerHomeRole) {
+    if (isHouseholdRole) {
       const wf = parseInt(workFloor, 10)
       const floorOk =
         Number.isFinite(wf) && wf >= 1 && wf <= 200
@@ -249,14 +242,14 @@ function OnboardingInner() {
     }
 
     // Pre-populate emergency card in localStorage
-    if (isConsumerHomeRole) {
+    if (isHouseholdRole) {
       try {
         const card = {
           name: fullName,
           phone,
           address: verifiedHomeAddress || '',
-          bloodType,
-          allergies,
+          bloodType: '',
+          allergies: '',
           languages,
           mobility: resolvedMobility,
           mobilityOther: disabilityNeeds.includes(DISABILITY_OTHER_LABEL) ? disabilityOtherTrim : '',
@@ -314,9 +307,7 @@ function OnboardingInner() {
   const roleConfig = ROLES.find(r => r.id === selectedRole)
   const stepLabels = isEvacuee
     ? ['Your role', 'Your info', 'Preferences', 'Work / secondary', 'Terms']
-    : isConsumerHomeRole
-      ? ['Your role', 'Your info', 'Preferences', 'Terms']
-      : ['Your role', 'Set up profile']
+    : ['Your role', 'Set up profile']
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-ash-950 p-4 wfa-auth-typography">
@@ -353,8 +344,10 @@ function OnboardingInner() {
         {/* Step 1: Role selection */}
         {step === 1 && (
           <div>
-            <h1 className="font-display text-2xl font-bold text-white mb-1">Caregiver or evacuee?</h1>
-            <p className="text-ash-400 text-sm mb-6">Caregiver coordinates people you support; Evacuee focuses on your own household. Both use home-address automation toward safety.</p>
+            <h1 className="font-display text-2xl font-bold text-white mb-1">Your role</h1>
+            <p className="text-ash-400 text-sm mb-6">
+              Household accounts use your home address for maps, alerts, and check-ins. Add people you support anytime in My Persons after setup.
+            </p>
             <div className="space-y-3 mb-8">
               {ROLES.map(role => {
                 const Icon = role.icon
@@ -397,16 +390,16 @@ function OnboardingInner() {
               <h1 className="font-display text-2xl font-bold text-white">Your information</h1>
             </div>
             <p className="text-ash-400 text-sm mb-6">
-              {selectedRole === 'caregiver' || selectedRole === 'evacuee'
-                ? `${selectedRole === 'caregiver' ? 'Caregiver' : 'Evacuee'} mode uses your real street address to automate distance-to-fire awareness, routing, and safety flows. Search suggests numbered street addresses only — not cities or counties.`
+              {isHouseholdRole
+                ? 'We use your real street address to automate distance-to-fire awareness, routing, and safety flows. Search suggests numbered street addresses only — not cities or counties.'
                 : selectedRole === 'emergency_responder'
-                ? 'Customize incident intelligence for your agency.'
-                : 'Tailor the analyst dashboard to your research context.'}
+                  ? 'Customize incident intelligence for your agency.'
+                  : 'Tailor the analyst dashboard to your research context.'}
             </p>
             <div className="space-y-4 mb-6">
               <div><Label>Full name</Label>{inp(fullName, setFullName, 'Your name')}</div>
 
-              {(selectedRole === 'caregiver' || selectedRole === 'evacuee') && (
+              {isHouseholdRole && (
                 <>
                   <div><Label>Phone number</Label>{inp(phone, setPhone, '+1 (555) 000-0000', 'tel')}</div>
                   <div>
@@ -435,17 +428,6 @@ function OnboardingInner() {
                       }}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>Blood type <span className="text-ash-600 font-normal">(optional)</span></Label>
-                      <select value={bloodType} onChange={e => setBloodType(e.target.value)}
-                        className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-amber-500/60 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white">
-                        <option value="">Unknown</option>
-                        {['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(t => <option key={t}>{t}</option>)}
-                      </select>
-                    </div>
-                    <div><Label>Allergies <span className="text-ash-600 font-normal">(optional)</span></Label>{inp(allergies, setAllergies, 'e.g. penicillin, latex')}</div>
-                  </div>
                 </>
               )}
 
@@ -458,32 +440,32 @@ function OnboardingInner() {
               <div><Label>Email for alerts</Label>{inp(notifEmail, setNotifEmail, 'you@example.com', 'email')}</div>
             </div>
             {error && <p className="text-signal-danger text-sm mb-4">{error}</p>}
-            {selectedRole !== 'caregiver' && selectedRole !== 'evacuee' && (selectedRole === 'emergency_responder' || selectedRole === 'data_analyst') && (
+            {!isHouseholdRole && (selectedRole === 'emergency_responder' || selectedRole === 'data_analyst') && (
               <div className="bg-ash-800/60 border border-ash-700 rounded-xl p-3 mb-4 text-ash-400 text-xs">
                 You'll need an access code from your organization on the next step.
               </div>
             )}
             <button
               onClick={() => {
-                if ((selectedRole === 'caregiver' || selectedRole === 'evacuee') && !verifiedHomeAddress?.trim()) {
+                if (isHouseholdRole && !verifiedHomeAddress?.trim()) {
                   setError('Search for your address, pick a suggestion, then use Verify & Save before continuing.')
                   return
                 }
                 setError('')
-                if (selectedRole === 'caregiver' || selectedRole === 'evacuee') setStep(3)
+                if (isHouseholdRole) setStep(3)
                 else void finish()
               }}
-              disabled={saving || ((selectedRole === 'caregiver' || selectedRole === 'evacuee') && !verifiedHomeAddress?.trim())}
+              disabled={saving || (isHouseholdRole && !verifiedHomeAddress?.trim())}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-forest-700 hover:bg-forest-600 disabled:opacity-50 text-white font-semibold transition-colors">
               {saving ? (
                 <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Setting up…</>
-              ) : (selectedRole === 'caregiver' || selectedRole === 'evacuee') ? (
+              ) : isHouseholdRole ? (
                 <>Continue <ArrowRight className="w-4 h-4" /></>
               ) : (
                 <>Set up my account <ArrowRight className="w-4 h-4" /></>
               )}
             </button>
-            {selectedRole !== 'caregiver' && selectedRole !== 'evacuee' && (
+            {!isHouseholdRole && (
               <button
                 type="button"
                 onClick={() => router.replace(ROLE_DESTINATIONS[selectedRole] ?? '/dashboard')}
@@ -495,8 +477,8 @@ function OnboardingInner() {
           </div>
         )}
 
-        {/* Step 3: Preferences (caregiver & evacuee) */}
-        {step === 3 && (selectedRole === 'caregiver' || selectedRole === 'evacuee') && (
+        {/* Step 3: Preferences (household) */}
+        {step === 3 && isHouseholdRole && (
           <div>
             <button
               onClick={() => setStep(2)}
@@ -689,98 +671,6 @@ function OnboardingInner() {
           </div>
         )}
 
-        {/* Step 4: Terms & consent (caregiver only) */}
-        {step === 4 && selectedRole === 'caregiver' && (
-          <div>
-            <button
-              type="button"
-              onClick={() => setStep(3)}
-              className="mb-4 flex items-center gap-1.5 text-sm text-ash-400 transition-colors hover:text-white"
-            >
-              <ArrowLeft className="w-4 h-4" /> Back
-            </button>
-            <h1 className="font-display mb-1 text-2xl font-bold text-white">Before you continue</h1>
-            <p className="mb-6 text-sm text-ash-400">
-              Please review and agree to the following to use WildfireAlert
-            </p>
-            <p className="mb-4 rounded-xl border border-ash-700/80 bg-ash-900/50 p-4 text-sm leading-relaxed text-ash-300">
-              🔒 Your health information is encrypted and only shared with emergency responders during active incidents in your area. You control what you share and can remove it anytime in Settings.
-            </p>
-            <div className="mb-6 space-y-4">
-              <label className="flex cursor-pointer items-start gap-3">
-                <input
-                  type="checkbox"
-                  className="mt-1 shrink-0 accent-ember-500"
-                  checked={locationConsent}
-                  onChange={e => {
-                    setLocationConsent(e.target.checked)
-                    if (e.target.checked) setConsentError('')
-                  }}
-                />
-                <span className="text-sm leading-relaxed text-ash-200">
-                  I agree that my home address and general location will be shared with emergency responders in my area during an active wildfire incident.
-                </span>
-              </label>
-              <label className="flex cursor-pointer items-start gap-3">
-                <input
-                  type="checkbox"
-                  className="mt-1 shrink-0 accent-ember-500"
-                  checked={evacuationConsent}
-                  onChange={e => {
-                    setEvacuationConsent(e.target.checked)
-                    if (e.target.checked) setConsentError('')
-                  }}
-                />
-                <span className="text-sm leading-relaxed text-ash-200">
-                  I agree that my evacuation status will be visible to emergency responders during an active incident.
-                </span>
-              </label>
-              <label className="flex cursor-pointer items-start gap-3">
-                <input
-                  type="checkbox"
-                  className="mt-1 shrink-0 accent-ember-500"
-                  checked={healthConsent}
-                  onChange={e => {
-                    setHealthConsent(e.target.checked)
-                    if (e.target.checked) setConsentError('')
-                  }}
-                />
-                <span className="text-sm leading-relaxed text-ash-200">
-                  I agree that any health or mobility information I choose to share will be visible to emergency responders to help them assist me safely.
-                </span>
-              </label>
-            </div>
-            {(!locationConsent || !evacuationConsent || !healthConsent) && (
-              <p className="mb-4 text-sm text-signal-danger">Please agree to all terms to continue</p>
-            )}
-            {consentError && <p className="mb-4 text-sm text-signal-danger">{consentError}</p>}
-            {error && <p className="mb-4 text-sm text-signal-danger">{error}</p>}
-            <button
-              type="button"
-              onClick={() => {
-                if (!locationConsent || !evacuationConsent || !healthConsent) {
-                  setConsentError('Please agree to all terms to continue')
-                  return
-                }
-                setConsentError('')
-                void finish()
-              }}
-              disabled={saving || !locationConsent || !evacuationConsent || !healthConsent}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-forest-700 py-3 font-semibold text-white transition-colors hover:bg-forest-600 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {saving ? (
-                <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> Setting up…
-                </>
-              ) : (
-                <>
-                  Create account <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </button>
-          </div>
-        )}
-
         {/* Step 4: Work / secondary (evacuee only, optional) */}
         {step === 4 && selectedRole === 'evacuee' && (
           <div>
@@ -929,8 +819,27 @@ function OnboardingInner() {
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
             <h1 className="font-display mb-1 text-2xl font-bold text-white">Before you continue</h1>
-            <p className="mb-6 text-sm text-ash-400">
-              Please review and agree to the following to use WildfireAlert
+            <p className="mb-4 text-sm leading-relaxed text-ash-400">
+              Please review and agree to the following to use WildfireAlert. Read our{' '}
+              <Link
+                href="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-amber-200/95 underline underline-offset-2 hover:text-white"
+              >
+                Terms of Service
+              </Link>
+              {' '}and{' '}
+              <Link
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-amber-200/95 underline underline-offset-2 hover:text-white"
+              >
+                Privacy Policy
+              </Link>
+              {' '}
+              (each opens in a new tab).
             </p>
             <p className="mb-4 rounded-xl border border-ash-700/80 bg-ash-900/50 p-4 text-sm leading-relaxed text-ash-300">
               🔒 Your health information is encrypted and only shared with emergency responders during active incidents in your area. You control what you share and can remove it anytime in Settings.

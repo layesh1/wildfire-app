@@ -121,7 +121,7 @@ export interface FlameoSheltersMeta {
   live_feed_ok: boolean
   fema_shelter_count: number
   pre_identified_count: number
-  /** True when driving directions used only FEMA-verified open shelters */
+  /** True when ranked routes consider only FEMA-verified open shelters (no pre-identified in that batch) */
   routes_use_verified_open: boolean
 }
 

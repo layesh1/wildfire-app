@@ -16,6 +16,24 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 const PERSONS_LS = 'monitored_persons_v2'
 
+/** Onboarding syncs the account holder as a synthetic row — not someone you monitor. */
+export function isPlaceholderSelfMonitoredPerson(p: {
+  id?: string
+  relationship?: string
+  familyRelation?: string
+}): boolean {
+  if (p.id === 'self-user') return true
+  const r = String(p.relationship || '').toLowerCase()
+  const fr = String(p.familyRelation || '').toLowerCase()
+  return r === 'self' || fr === 'self'
+}
+
+export function monitoredPersonsExcludingSelf<
+  T extends { id?: string; relationship?: string; familyRelation?: string },
+>(persons: T[]): T[] {
+  return persons.filter(p => !isPlaceholderSelfMonitoredPerson(p))
+}
+
 export async function loadPersons(supabase: SupabaseClient, userId: string): Promise<any[]> {
   try {
     const { data } = await supabase

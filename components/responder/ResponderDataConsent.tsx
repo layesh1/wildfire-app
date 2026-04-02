@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase'
 import {
@@ -101,7 +102,26 @@ export default function ResponderDataConsent({ open, onAgreed }: Props) {
             </li>
           </ol>
           <p className="text-ash-300">
-            By continuing, you confirm you understand and agree to these terms.
+            By continuing, you confirm you understand and agree to these terms. Our site-wide{' '}
+            <Link
+              href="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-amber-200/95 underline underline-offset-2 hover:text-white"
+            >
+              Terms of Service
+            </Link>
+            {' '}and{' '}
+            <Link
+              href="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-amber-200/95 underline underline-offset-2 hover:text-white"
+            >
+              Privacy Policy
+            </Link>
+            {' '}
+            also apply (each opens in a new tab).
           </p>
         </div>
         {err && (

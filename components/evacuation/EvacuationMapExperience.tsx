@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase'
 import type { NifcFire, WindData, EvacShelter, LiveShelterPin } from '@/app/dashboard/caregiver/map/LeafletMap'
 import type { HazardFacility } from '@/lib/hazard-facilities'
 import { useRoleContext, type RolePerson } from '@/components/RoleContext'
-import { loadPersons } from '@/lib/user-data'
+import { loadPersons, monitoredPersonsExcludingSelf } from '@/lib/user-data'
 import { HUMAN_EVAC_SHELTERS } from '@/lib/evac-shelters'
 import { HAZARD_FACILITIES } from '@/lib/hazard-facilities'
 import { distanceMiles } from '@/lib/hub-map-distance'
@@ -88,6 +88,7 @@ export default function EvacuationMapExperience({
 
   const { mode, activePerson, setMode, setActivePerson } = useRoleContext()
   const isViewingMember = mode === 'member' && activePerson !== null
+  const monitoredOthers = useMemo(() => monitoredPersonsExcludingSelf(persons), [persons])
 
   /** Deep links from Flameo Phase C tools: ?lat=&lon=&shelters=1 */
   useEffect(() => {
@@ -230,12 +231,12 @@ export default function EvacuationMapExperience({
 
   const watchedLocationsForMap = useMemo(() => {
     const out: { label: string; lat: number; lng: number }[] = []
-    for (const p of persons) {
+    for (const p of monitoredOthers) {
       const c = personCoords[p.id]
       if (c) out.push({ label: p.name, lat: c[0], lng: c[1] })
     }
     return out
-  }, [persons, personCoords])
+  }, [monitoredOthers, personCoords])
 
   const nearestSheltersList = useMemo(() => {
     if (!mapAnchor) return [] as EvacShelter[]
@@ -266,14 +267,14 @@ export default function EvacuationMapExperience({
   )
 
   useEffect(() => {
-    if (!persons.length) {
+    if (!monitoredOthers.length) {
       setPersonCoords({})
       return
     }
     let cancelled = false
     async function geocodeAll() {
       const next: Record<string, [number, number]> = {}
-      for (const p of persons) {
+      for (const p of monitoredOthers) {
         if (!p.address?.trim()) continue
         try {
           const g = await geocodeAddressClient(p.address)
@@ -288,7 +289,7 @@ export default function EvacuationMapExperience({
     return () => {
       cancelled = true
     }
-  }, [persons])
+  }, [monitoredOthers])
 
   useEffect(() => {
     if (!mapAnchor) {
@@ -593,33 +594,31 @@ export default function EvacuationMapExperience({
       </div>
       {drawerOpen && (
         <div className="w-full md:w-[min(360px,36vw)] shrink-0 border-t md:border-t-0 md:border-l border-gray-200 flex flex-col min-h-[200px] md:min-h-0">
-          {persons.length > 0 && (
-            <div className="px-2 py-2 border-b border-gray-100 text-[11px] space-y-1 max-h-28 overflow-y-auto bg-gray-50">
-              <div className="font-semibold text-gray-600">Map anchor</div>
-              <div className="flex flex-wrap gap-1">
+          <div className="px-2 py-2 border-b border-gray-100 text-[11px] space-y-1 max-h-28 overflow-y-auto bg-gray-50">
+            <div className="font-semibold text-gray-600">Map anchor</div>
+            <div className="flex flex-wrap gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('self')
+                  setActivePerson(null)
+                }}
+                className={`px-2 py-0.5 rounded-md border text-[10px] ${mode === 'self' ? 'bg-white border-gray-400' : 'border-transparent'}`}
+              >
+                Me
+              </button>
+              {monitoredOthers.map(p => (
                 <button
+                  key={p.id}
                   type="button"
-                  onClick={() => {
-                    setMode('self')
-                    setActivePerson(null)
-                  }}
-                  className={`px-2 py-0.5 rounded-md border text-[10px] ${mode === 'self' ? 'bg-white border-gray-400' : 'border-transparent'}`}
+                  onClick={() => setActivePerson(toRolePerson(p))}
+                  className={`px-2 py-0.5 rounded-md border text-[10px] truncate max-w-[100px] ${activePerson?.id === p.id ? 'bg-white border-gray-400' : 'border-transparent'}`}
                 >
-                  Me
+                  {p.name}
                 </button>
-                {persons.map(p => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setActivePerson(toRolePerson(p))}
-                    className={`px-2 py-0.5 rounded-md border text-[10px] truncate max-w-[100px] ${activePerson?.id === p.id ? 'bg-white border-gray-400' : 'border-transparent'}`}
-                  >
-                    {p.name}
-                  </button>
-                ))}
-              </div>
+              ))}
             </div>
-          )}
+          </div>
           {rail}
         </div>
       )}

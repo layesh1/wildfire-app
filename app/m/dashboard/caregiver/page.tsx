@@ -5,7 +5,7 @@ import { Flame, MapPin, CheckCircle, Shield, Bell, Package, ChevronRight, Monito
 import { createClient } from '@/lib/supabase'
 import { useRoleContext } from '@/components/RoleContext'
 import { addNotification } from '@/components/NotificationCenter'
-import { loadPersons, loadGoBag, loadProfileCard } from '@/lib/user-data'
+import { loadPersons, loadGoBag, loadProfileCard, monitoredPersonsExcludingSelf } from '@/lib/user-data'
 
 type FireEvent = {
   id: string; incident_name: string; county: string; state: string
@@ -101,8 +101,9 @@ export default function MobileCaregiverHub() {
           // Notify for monitored persons if evacuation orders exist
           try {
             const storedPersons: Person[] = JSON.parse(localStorage.getItem('monitored_persons_v2') || '[]')
-            if (storedPersons.length > 0 && urgent.length > 0) {
-              for (const person of storedPersons) {
+            const toNotify = monitoredPersonsExcludingSelf(storedPersons)
+            if (toNotify.length > 0 && urgent.length > 0) {
+              for (const person of toNotify) {
                 addNotification({
                   title: `Alert for ${person.name}`,
                   body: `Evacuation order issued near monitored person. Check on ${person.name.split(' ')[0]} immediately.`,
@@ -118,6 +119,7 @@ export default function MobileCaregiverHub() {
   }, [])
 
   const topFire = fires[0] ?? null
+  const familyMembers = monitoredPersonsExcludingSelf(persons)
   const level = fireLevel(topFire)
   const cfg = LEVEL_CONFIG[level]
   const readyPct = Math.round((bagChecked.size / GO_BAG_ITEMS.length) * 100)
@@ -196,12 +198,12 @@ export default function MobileCaregiverHub() {
           <div className="text-xs text-gray-400 mt-1.5">{bagChecked.size} / {GO_BAG_ITEMS.length} items packed</div>
         </div>
 
-        {/* Monitored persons */}
-        {persons.length > 0 && (
+        {/* Monitored persons (not the synthetic self row from onboarding) */}
+        {familyMembers.length > 0 && (
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-widest text-green-700 mb-2">My Family</h2>
             <div className="space-y-2">
-              {persons.map(p => (
+              {familyMembers.map(p => (
                 <div key={p.id} className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center shrink-0">
                     <span className="text-sm font-bold text-green-800">{p.name.charAt(0)}</span>

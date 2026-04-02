@@ -10,9 +10,16 @@ type Props = {
   menuButtonClassName?: string
   /** Open menu above the button (e.g. footer of sidebar) so it is not clipped below the viewport. */
   menuOpens?: 'below' | 'above'
+  /** Flag only — fits narrow / collapsed rails (e.g. 64px sidebar). */
+  compact?: boolean
 }
 
-export default function LanguageSwitcher({ className, menuButtonClassName, menuOpens = 'below' }: Props) {
+export default function LanguageSwitcher({
+  className,
+  menuButtonClassName,
+  menuOpens = 'below',
+  compact = false,
+}: Props) {
   const { lang, setLanguage } = useLanguage()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -28,29 +35,40 @@ export default function LanguageSwitcher({ className, menuButtonClassName, menuO
   const code = lang.code.split('-')[0].toUpperCase()
 
   return (
-    <div ref={ref} className={cn('relative shrink-0', className)}>
+    <div
+      ref={ref}
+      className={cn(
+        'relative',
+        compact ? 'flex w-full min-w-0 max-w-full justify-center' : 'shrink-0',
+        className
+      )}
+    >
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
         className={cn(
-          'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-base font-medium transition-colors',
+          'flex items-center rounded-lg transition-colors',
+          compact
+            ? 'h-9 w-9 shrink-0 items-center justify-center border p-0 text-lg leading-none'
+            : 'gap-1.5 px-2.5 py-1.5 text-base font-medium',
           'border border-gray-300 dark:border-gray-600 bg-white/90 dark:bg-gray-800/90',
           'text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700',
           menuButtonClassName
         )}
         aria-expanded={open}
         aria-haspopup="listbox"
-        aria-label={`Language: ${lang.name}`}
+        aria-label={`Language: ${lang.name} (${code})`}
       >
-        <span className="text-lg leading-none" aria-hidden>
+        <span className={cn('leading-none', compact ? 'text-xl' : 'text-lg')} aria-hidden>
           {lang.flag}
         </span>
-        <span className="uppercase tracking-wide">{code}</span>
+        {!compact && <span className="uppercase tracking-wide">{code}</span>}
       </button>
       {open && (
         <div
           className={cn(
-            'absolute right-0 z-[90] min-w-[260px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-600 dark:bg-gray-900',
+            'absolute z-[90] min-w-[260px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-600 dark:bg-gray-900',
+            compact ? 'left-0' : 'right-0',
             menuOpens === 'above' ? 'bottom-full mb-1' : 'top-full mt-1'
           )}
           role="listbox"
