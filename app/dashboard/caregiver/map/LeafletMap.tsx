@@ -7,6 +7,8 @@ import type { HazardFacility, FacilityType } from '@/lib/hazard-facilities'
 import LeafletInvalidateOnLayout from '@/components/leaflet/LeafletInvalidateOnLayout'
 import NifcFireMapFeatures from '@/components/leaflet/NifcFireMapFeatures'
 import WindCompassOverlay from '@/components/leaflet/WindCompassOverlay'
+import type { HouseholdPin } from '@/lib/responder-household'
+import HouseholdPinMapFeatures from '@/components/leaflet/HouseholdPinMapFeatures'
 
 export interface NifcFire {
   id: string
@@ -317,6 +319,11 @@ interface Props {
   flyToTrigger?: number
   /** Avoid auto panning to GPS on load (field hub keeps Concord/demo framing until Locate me). */
   suppressInitialFlyToUser?: boolean
+  /** Responder command hub: same household layer as evacuation status map. */
+  householdPins?: HouseholdPin[]
+  onHouseholdPinsUpdated?: () => void
+  /** Point-only fires (responder hub matches evacuation map). */
+  nifcCircleMarkersOnly?: boolean
 }
 
 export default function LeafletMap({
@@ -335,6 +342,9 @@ export default function LeafletMap({
   windData = null,
   flyToTrigger = 0,
   suppressInitialFlyToUser = false,
+  householdPins = [],
+  onHouseholdPinsUpdated,
+  nifcCircleMarkersOnly = false,
 }: Props) {
   const [tileLayer, setTileLayer] = useState<TileLayerType>('street')
   /** Unique per component instance so React never reuses a Leaflet container incorrectly. */
@@ -460,6 +470,8 @@ export default function LeafletMap({
             </Popup>
           </Marker>
         ))}
+
+        <HouseholdPinMapFeatures householdPins={householdPins} onUpdated={onHouseholdPinsUpdated} />
 
         {/* User location pin (last) */}
         {userLocation && (

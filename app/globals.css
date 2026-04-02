@@ -12,6 +12,15 @@
 @keyframes alertJarGlowPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.7; } }
 @keyframes alertJarRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
+/* Responder household pins (Leaflet circle markers) — CRITICAL priority pulse */
+@keyframes wf-household-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.wf-household-critical path {
+  animation: wf-household-pulse 1.25s ease-in-out infinite;
+}
+
 /* Translation loading — hide body before first paint to prevent flash of English */
 html.wfa-translating body {
   opacity: 0;
@@ -351,20 +360,6 @@ html.dark .lp .hover\:text-gray-700:hover { color: #374151 !important; }
 .light-theme .wfa-content-page .text-ash-400 { color: #57534e !important; }
 .light-theme .wfa-content-page .text-ash-500 { color: #78716c !important; }
 .light-theme .wfa-content-page .text-ash-600 { color: #78716c !important; }
-
-/* Evacuation map strip stays dark inside light mode — override global ash→white remap */
-.light-theme .wfa-content-page .wfa-responder-map-surface,
-.light-theme .wfa-content-page .wfa-responder-map-surface [class*="bg-ash-9"] {
-  background-color: #0c0f1a !important;
-}
-.light-theme .wfa-content-page .wfa-responder-map-surface .text-white,
-.light-theme .wfa-content-page .wfa-responder-map-surface [class*="text-white"] {
-  color: #fafafa !important;
-}
-.light-theme .wfa-content-page .wfa-responder-map-surface .text-ash-300 { color: #d6d3d1 !important; }
-.light-theme .wfa-content-page .wfa-responder-map-surface .text-ash-400 { color: #a8a29e !important; }
-.light-theme .wfa-content-page .wfa-responder-map-surface .text-ash-500 { color: #78716c !important; }
-.light-theme .wfa-content-page .wfa-responder-map-surface .text-ash-600 { color: #57534e !important; }
 
 /* Hover states */
 .light-theme .hover\:bg-ash-800:hover { background-color: #f3f4f6 !important; }

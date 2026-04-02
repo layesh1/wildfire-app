@@ -1,6 +1,5 @@
 import type { HouseholdPin } from '@/lib/responder-household'
 import type { NifcFire } from '@/app/dashboard/caregiver/map/LeafletMap'
-import { distanceMiles } from '@/lib/hub-map-distance'
 
 /** Charlotte, NC — demo framing for responder evacuation map + field hub demo pins. */
 export const FIELD_HUB_DEMO_MAP_CENTER: [number, number] = [35.21, -80.84]
@@ -188,45 +187,3 @@ export const RESPONDER_DEMO_HOUSEHOLDS_TAGGED: HouseholdPin[] = RESPONDER_DEMO_H
   ...h,
   is_demo: true,
 }))
-
-export function responderFieldHubDemoWatchedLocations(): { label: string; lat: number; lng: number }[] {
-  return RESPONDER_DEMO_HOUSEHOLDS.map(h => ({
-    label: `${h.address.split(',')[0]?.trim() ?? 'Household'} (demo)`,
-    lat: h.lat,
-    lng: h.lng,
-  }))
-}
-
-export function responderFieldHubDemoSituationPeople(
-  incidents: Array<{ lat: number; lon: number }>,
-  alertRadiusMiles: number
-): Array<{
-  id: string
-  name: string
-  address?: string
-  home_evacuation_status: string | null
-  in_danger_zone: boolean
-}> {
-  const out: Array<{
-    id: string
-    name: string
-    address?: string
-    home_evacuation_status: string | null
-    in_danger_zone: boolean
-  }> = []
-  for (const h of RESPONDER_DEMO_HOUSEHOLDS) {
-    const inDanger =
-      incidents.length > 0 &&
-      incidents.some(i => distanceMiles([h.lat, h.lng], [i.lat, i.lon]) <= alertRadiusMiles)
-    for (const m of h.members) {
-      out.push({
-        id: m.id,
-        name: m.name,
-        address: h.address,
-        home_evacuation_status: m.home_evacuation_status,
-        in_danger_zone: inDanger,
-      })
-    }
-  }
-  return out
-}

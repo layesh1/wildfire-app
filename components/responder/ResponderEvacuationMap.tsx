@@ -20,6 +20,7 @@ import {
   FIELD_HUB_DEMO_MAP_CENTER,
   RESPONDER_DEMO_HOUSEHOLDS_TAGGED,
 } from '@/lib/responder-demo-households'
+import { fetchResponderEvacuationHouseholds } from '@/lib/fetch-responder-evacuation-households'
 import type { FlameoContext } from '@/lib/flameo-context-types'
 import FlameoCommandRoom from '@/components/flameo/FlameoCommandRoom'
 import { HAZARD_FACILITIES } from '@/lib/hazard-facilities'
@@ -138,39 +139,9 @@ export default function ResponderEvacuationMap({
 
   const loadEvacMap = useCallback(async () => {
     try {
-      const res = await fetch('/api/responder/evacuees')
-      if (res.status === 403) {
-        let body: { error?: string; code?: string } = {}
-        try {
-          body = await res.json()
-        } catch {
-          body = {}
-        }
-        if (body.code === 'RESPONDER_CONSENT_REQUIRED' || body.error === 'consent_required') {
-          setHouseholdPins([])
-          setMapDemoMode(false)
-          return
-        }
-      }
-      if (!res.ok) {
-        setHouseholdPins(RESPONDER_DEMO_HOUSEHOLDS_TAGGED)
-        setMapDemoMode(true)
-        return
-      }
-      const json = (await res.json()) as { profiles?: unknown; householdPins?: HouseholdPin[] } | unknown[]
-      if (Array.isArray(json)) {
-        setHouseholdPins(RESPONDER_DEMO_HOUSEHOLDS_TAGGED)
-        setMapDemoMode(true)
-        return
-      }
-      const hp = Array.isArray(json.householdPins) ? json.householdPins : []
-      if (hp.length > 0) {
-        setHouseholdPins(hp)
-        setMapDemoMode(false)
-      } else {
-        setHouseholdPins(RESPONDER_DEMO_HOUSEHOLDS_TAGGED)
-        setMapDemoMode(true)
-      }
+      const { householdPins: hp, demoMode } = await fetchResponderEvacuationHouseholds()
+      setHouseholdPins(hp)
+      setMapDemoMode(demoMode)
     } catch {
       setHouseholdPins(RESPONDER_DEMO_HOUSEHOLDS_TAGGED)
       setMapDemoMode(true)

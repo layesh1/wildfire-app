@@ -45,10 +45,12 @@ import { geocodeAddressClient } from '@/lib/geocoding-client'
 import { coerceAlertRadiusToChip, DEFAULT_ALERT_RADIUS_MILES } from '@/lib/alert-radius'
 import { parseUsStateCodeFromAddress } from '@/lib/us-address-state'
 import {
+  CHARLOTTE_DEMO_NIFC_FIRES,
   FIELD_HUB_DEMO_MAP_CENTER,
-  responderFieldHubDemoWatchedLocations,
-  responderFieldHubDemoSituationPeople,
 } from '@/lib/responder-demo-households'
+import type { HouseholdPin } from '@/lib/responder-household'
+import { fetchResponderEvacuationHouseholds } from '@/lib/fetch-responder-evacuation-households'
+import { isResponderConsentSatisfied } from '@/lib/responder-data-consent'
 
 const LeafletMap = dynamic(() => import('./map/LeafletMap'), { ssr: false })
 
@@ -336,6 +338,9 @@ export function ConsumerHubDashboard({
   const [familyAddLoading, setFamilyAddLoading] = useState(false)
   const [familyAddErr, setFamilyAddErr] = useState<string | null>(null)
   const [familyAddOk, setFamilyAddOk] = useState<string | null>(null)
+  const [responderConsentOk, setResponderConsentOk] = useState(false)
+  const [responderHouseholdPins, setResponderHouseholdPins] = useState<HouseholdPin[]>([])
+  const [responderMapDemoMode, setResponderMapDemoMode] = useState(false)
 
   useEffect(() => {
     if (!dragging) return
@@ -546,11 +551,12 @@ export function ConsumerHubDashboard({
   const mapAnchor = useMemo((): [number, number] | null => {
     if (isViewingMember && personLocation) return personLocation
     if (isResponderHub) {
-      return homeCoords ?? FIELD_HUB_DEMO_MAP_CENTER ?? userLocation
+      if (responderMapDemoMode) return FIELD_HUB_DEMO_MAP_CENTER
+      return homeCoords ?? userLocation ?? FIELD_HUB_DEMO_MAP_CENTER
     }
     if (userLocation) return userLocation
     return homeCoords
-  }, [isViewingMember, isResponderHub, personLocation, userLocation, homeCoords])
+  }, [isViewingMember, isResponderHub, responderMapDemoMode, personLocation, userLocation, homeCoords])
 
   useEffect(() => {
     const addr =
@@ -638,6 +644,11 @@ export function ConsumerHubDashboard({
     })
   }, [nifc])
 
+  const nifcForHubMap = useMemo(() => {
+    if (isResponderHub && responderMapDemoMode) return [...CHARLOTTE_DEMO_NIFC_FIRES]
+    return sortedNifc
+  }, [isResponderHub, responderMapDemoMode, sortedNifc])
+
   /** Geocode everyone in My People for map pins (all evacuee accounts). */
   const geocodeMonitoredPeople = consumerRole === 'evacuee'
   const showPeopleRail = consumerRole === 'evacuee'
@@ -653,11 +664,8 @@ export function ConsumerHubDashboard({
         if (c) out.push({ label: p.name, lat: c[0], lng: c[1] })
       }
     }
-    if (isResponderHub && !homeCoords) {
-      out.push(...responderFieldHubDemoWatchedLocations())
-    }
     return out
-  }, [geocodeMonitoredPeople, monitoredOthers, personCoords, isResponderHub, homeCoords])
+  }, [geocodeMonitoredPeople, monitoredOthers, personCoords])
 
   const nearestSheltersList = useMemo(() => {
     if (!mapAnchor) return [] as EvacShelter[]
@@ -755,6 +763,47 @@ export function ConsumerHubDashboard({
     },
     [supabase]
   )
+
+  useEffect(() => {
+    if (!isResponderHub) {
+      setResponderConsentOk(false)
+      setResponderHouseholdPins([])
+      setResponderMapDemoMode(false)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        if (!cancelled) setResponderConsentOk(false)
+        return
+      }
+      const { data: p } = await supabase
+        .from('profiles')
+        .select('responder_consent_accepted, responder_consent_version')
+        .eq('id', user.id)
+        .maybeSingle()
+      if (!cancelled) setResponderConsentOk(isResponderConsentSatisfied(p))
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [isResponderHub, supabase])
+
+  const reloadResponderHubHouseholds = useCallback(async () => {
+    if (!isResponderHub || !responderConsentOk) {
+      setResponderHouseholdPins([])
+      setResponderMapDemoMode(false)
+      return
+    }
+    const { householdPins, demoMode } = await fetchResponderEvacuationHouseholds()
+    setResponderHouseholdPins(householdPins)
+    setResponderMapDemoMode(demoMode)
+  }, [isResponderHub, responderConsentOk])
+
+  useEffect(() => {
+    void reloadResponderHubHouseholds()
+  }, [reloadResponderHubHouseholds])
 
   useEffect(() => {
     // Supabase data + NIFC live fires
@@ -1159,6 +1208,53 @@ export function ConsumerHubDashboard({
     </div>
   )
 
+  const responderMissingStationAddress = Boolean(
+    !loading && userProfile != null && !userProfile.address?.trim()
+  )
+
+  const responderOperationsCard = (
+    <div
+      className={cn(
+        'rounded-xl border-2 px-3 py-2.5',
+        responderMissingStationAddress
+          ? 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40'
+          : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
+      )}
+    >
+      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+        Emergency responder
+      </div>
+      <div className="text-xs font-semibold text-gray-900 dark:text-white">
+        {userProfile?.full_name?.trim() || 'Signed in'}
+      </div>
+      {userProfile?.email && (
+        <div className="text-[11px] text-gray-500 dark:text-gray-400">{userProfile.email}</div>
+      )}
+      <div className="mt-2 text-[11px] leading-snug text-gray-600 dark:text-gray-400">
+        <span className="font-semibold text-gray-900 dark:text-white">Station / map anchor: </span>
+        {userProfile?.address?.trim() || (
+          <span className="font-medium text-amber-800 dark:text-amber-200">
+            Add a base or station address in Settings to center the map and Flameo on your area of operations.
+          </span>
+        )}
+      </div>
+      <div className="mt-2 flex flex-col gap-1.5">
+        <Link
+          href="/dashboard/settings?tab=profile"
+          className="inline-flex text-[11px] font-semibold text-amber-700 underline-offset-2 hover:underline dark:text-amber-300"
+        >
+          Account &amp; station settings →
+        </Link>
+        <Link
+          href={mapHref}
+          className="inline-flex text-[11px] font-semibold text-gray-700 underline-offset-2 hover:underline dark:text-gray-300"
+        >
+          Full evacuation status map →
+        </Link>
+      </div>
+    </div>
+  )
+
 
   const flameoBriefingProps = {
     mode: proactiveUi,
@@ -1183,8 +1279,29 @@ export function ConsumerHubDashboard({
 
   const situationRoomPeople = useMemo(() => {
     const incidents = flameo.context?.incidents_nearby ?? []
-    if (isResponderHub && monitoredOthers.length === 0) {
-      return responderFieldHubDemoSituationPeople(incidents, alertRadiusMiles)
+    if (isResponderHub) {
+      const rows: Array<{
+        id: string
+        name: string
+        address?: string
+        home_evacuation_status: string | null
+        in_danger_zone: boolean
+      }> = []
+      for (const h of responderHouseholdPins) {
+        const inDanger =
+          incidents.length > 0
+          && incidents.some(i => distanceMiles([h.lat, h.lng], [i.lat, i.lon]) <= alertRadiusMiles)
+        for (const m of h.members) {
+          rows.push({
+            id: m.id,
+            name: m.name,
+            address: h.address,
+            home_evacuation_status: m.home_evacuation_status,
+            in_danger_zone: inDanger,
+          })
+        }
+      }
+      return rows
     }
     return monitoredOthers.map(p => {
       const status = personStatuses[p.id]
@@ -1208,6 +1325,7 @@ export function ConsumerHubDashboard({
     monitoredOthers,
     personCoords,
     personStatuses,
+    responderHouseholdPins,
   ])
 
   return (
@@ -1256,14 +1374,14 @@ export function ConsumerHubDashboard({
             {isViewingMember
               ? `${activePerson!.name.split(' ')[0]}'s Hub`
               : isResponderHub
-                ? 'Field hub'
+                ? 'Command hub'
                 : 'My Hub'}
           </h1>
         </div>
 
         {!showPeopleRail && (
           <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            {meCard}
+            {isResponderHub ? responderOperationsCard : meCard}
           </div>
         )}
 
@@ -1277,7 +1395,7 @@ export function ConsumerHubDashboard({
         <div className="h-56 rounded-2xl overflow-hidden relative border border-gray-200" data-hub-tour="map">
           <MapErrorBoundary mapHref={mapHref}>
             <LeafletMap
-              nifc={sortedNifc}
+              nifc={nifcForHubMap}
               userLocation={userLocation}
               center={mapAnchor ?? userLocation ?? [37.5, -119.5]}
               flyToUserZoom={7}
@@ -1292,6 +1410,9 @@ export function ConsumerHubDashboard({
               facilities={HAZARD_FACILITIES}
               showFacilities={showFacilities}
               windData={windData}
+              householdPins={isResponderHub ? responderHouseholdPins : []}
+              onHouseholdPinsUpdated={isResponderHub ? reloadResponderHubHouseholds : undefined}
+              nifcCircleMarkersOnly={isResponderHub}
             />
           </MapErrorBoundary>
         </div>
@@ -1369,7 +1490,7 @@ export function ConsumerHubDashboard({
           </div>
         </div>
 
-        {/* Go-bag */}
+        {!isResponderHub && (
         <div className="group relative rounded-2xl p-4 bg-white border" style={{ borderColor: 'var(--wfa-border)' }}>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--wfa-text)' }}>
@@ -1406,6 +1527,7 @@ export function ConsumerHubDashboard({
             </div>
           </div>
         </div>
+        )}
 
         {/* My People */}
         {showPeopleRail && (
@@ -1539,8 +1661,10 @@ export function ConsumerHubDashboard({
             <Bell className="w-4 h-4 text-white" />
           </div>
           <div className="flex-1">
-            <div className="text-sm font-semibold">My alerts</div>
-            <div className="text-white/50 text-[11px]">Fires and resources near you</div>
+            <div className="text-sm font-semibold">{isResponderHub ? 'Flameo & alerts' : 'My alerts'}</div>
+            <div className="text-white/50 text-[11px]">
+              {isResponderHub ? 'Situation + fire context for your station' : 'Fires and resources near you'}
+            </div>
           </div>
           <ChevronRight className="w-4 h-4 text-white/40" />
         </Link>
@@ -1578,7 +1702,7 @@ export function ConsumerHubDashboard({
           style={{ background: 'var(--wfa-page-bg)', fontFamily: 'var(--font-body)', userSelect: dragging ? 'none' : undefined }}
         >
 
-          {/* ══ LEFT — My People (family circle) or You ═══════════════════════════════════════════ */}
+          {/* ══ LEFT — household My People, evacuee You, or responder operations ═══════════════════ */}
           <div
             data-hub-tour="people"
             className="flex min-h-0 flex-col shrink-0 border-r"
@@ -1586,13 +1710,13 @@ export function ConsumerHubDashboard({
           >
             <div className="border-b border-gray-200 px-4 pb-3 pt-5 dark:border-gray-700">
               <div className="font-display text-lg font-bold text-gray-900 dark:text-white">
-                {showPeopleRail ? 'My People' : isResponderHub ? 'Profile' : 'You'}
+                {showPeopleRail ? 'My People' : isResponderHub ? 'Operations' : 'You'}
               </div>
               <div className="mt-1 text-xs leading-snug text-gray-600 dark:text-gray-400">
                 {showPeopleRail
                   ? 'If you are caring for somebody or watching out for your family, add them here. Tap a row to center the map.'
                   : isResponderHub
-                    ? 'Your saved address centers the map and Flameo. Open Evacuation map in the sidebar for the full household view (after consent).'
+                    ? 'Command hub: map, incidents, and opt-in evacuee households. Your station address anchors the view; consent for evacuee data is under Settings.'
                     : 'Address powers nearby alerts'}
               </div>
             </div>
@@ -1690,6 +1814,8 @@ export function ConsumerHubDashboard({
                     {familyAddOk && <p className="text-[10px] text-green-700">{familyAddOk}</p>}
                   </div>
                 </>
+              ) : isResponderHub ? (
+                responderOperationsCard
               ) : (
                 <div
                   className={cn(
@@ -1710,6 +1836,7 @@ export function ConsumerHubDashboard({
                   </Link>
                 </div>
               )}
+              {!isResponderHub && (
               <div className="group relative rounded-2xl p-3 bg-white border" style={{ borderColor: 'var(--wfa-border)' }}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: 'var(--wfa-text)' }}>
@@ -1747,6 +1874,7 @@ export function ConsumerHubDashboard({
                   </div>
                 </div>
               </div>
+              )}
             </div>
           </div>
 
@@ -1759,12 +1887,14 @@ export function ConsumerHubDashboard({
           <div data-hub-tour="map" className="flex-1 flex flex-col overflow-hidden min-w-0" style={{ minWidth: 240 }}>
             <div className="shrink-0 px-3 py-2 border-b flex flex-wrap items-center gap-2 justify-between" style={{ borderColor: 'var(--wfa-border)', background: 'var(--wfa-page-bg)' }}>
               <div>
-                <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--wfa-accent)' }}>Evacuation map</div>
+                <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--wfa-accent)' }}>
+                  {isResponderHub ? 'Command map' : 'Evacuation map'}
+                </div>
                 <div className="font-display font-bold text-lg leading-tight" style={{ color: 'var(--wfa-text)' }}>
                   {isViewingMember
                     ? `${activePerson!.name.split(' ')[0]}'s view`
                     : isResponderHub
-                      ? 'Field hub'
+                      ? 'Command hub'
                       : 'My Hub'}
                 </div>
               </div>
@@ -1790,7 +1920,7 @@ export function ConsumerHubDashboard({
             <div className="flex-1 min-h-0 relative">
               <MapErrorBoundary mapHref={mapHref}>
                 <LeafletMap
-                  nifc={sortedNifc}
+                  nifc={nifcForHubMap}
                   userLocation={userLocation}
                   center={mapAnchor ?? userLocation ?? [37.5, -119.5]}
                   flyToUserZoom={7}
@@ -1805,6 +1935,9 @@ export function ConsumerHubDashboard({
                   facilities={HAZARD_FACILITIES}
                   showFacilities={showFacilities}
                   windData={windData}
+                  householdPins={isResponderHub ? responderHouseholdPins : []}
+                  onHouseholdPinsUpdated={isResponderHub ? reloadResponderHubHouseholds : undefined}
+                  nifcCircleMarkersOnly={isResponderHub}
                 />
               </MapErrorBoundary>
             </div>
@@ -1826,12 +1959,16 @@ export function ConsumerHubDashboard({
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <Bell className="w-4 h-4 shrink-0" style={{ color: 'var(--wfa-accent)' }} />
-                  <span className="font-display truncate text-lg font-bold" style={{ color: 'var(--wfa-text)' }}>My alerts</span>
+                  <span className="font-display truncate text-lg font-bold" style={{ color: 'var(--wfa-text)' }}>
+                    {isResponderHub ? 'Flameo & alerts' : 'My alerts'}
+                  </span>
                 </div>
                 <Link href="/dashboard/settings" className="shrink-0 text-sm font-semibold" style={{ color: 'var(--wfa-accent)' }}>Settings</Link>
               </div>
               <p className="mt-0.5 text-xs" style={{ color: 'var(--wfa-text-40)' }}>
-                Fire list uses your saved home; shelters and hazards follow the map view
+                {isResponderHub
+                  ? 'Situation briefing and fire context for your station. Map shows opt-in evacuee households and NIFC.'
+                  : 'Fire list uses your saved home; shelters and hazards follow the map view'}
               </p>
             </div>
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-contain p-3 space-y-3">
@@ -1856,6 +1993,7 @@ export function ConsumerHubDashboard({
                 userLng={userLocHook.lng}
                 detectedAnchor={userLocHook.detected_anchor ?? 'home'}
                 myPeople={situationRoomPeople}
+                peopleSectionTitle={isResponderHub ? 'Zone evacuees (opt-in)' : 'My People'}
                 wheelchairMode={hasWheelchairNeed}
                 onAskFlameo={() => router.push(`${hubBase}/ai`)}
                 notifyFamilyHref={isResponderHub ? mapHref : undefined}

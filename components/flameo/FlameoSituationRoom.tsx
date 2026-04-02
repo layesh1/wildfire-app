@@ -25,7 +25,8 @@ type Props = {
   myPeople: Person[]
   wheelchairMode: boolean
   onAskFlameo: () => void
-  /** Defaults to household My People; use responder evacuation map when in field hub. */
+  /** Household: "My People"; responder: e.g. "Zone evacuees (opt-in)". */
+  peopleSectionTitle?: string
   notifyFamilyHref?: string
   sheltersMapHref?: string
   peopleDirectoryHref?: string
@@ -94,6 +95,7 @@ export default function FlameoSituationRoom({
   myPeople,
   wheelchairMode,
   onAskFlameo,
+  peopleSectionTitle = 'My People',
   notifyFamilyHref = '/dashboard/home/people',
   sheltersMapHref = '/dashboard/home/map',
   peopleDirectoryHref = '/dashboard/home/people',
@@ -419,7 +421,7 @@ export default function FlameoSituationRoom({
 
       {myPeople.length > 0 && (
         <div className={panel}>
-          <div className={sectionHead}>My People</div>
+          <div className={sectionHead}>{peopleSectionTitle}</div>
           <div className="mt-2 space-y-1.5">
             {myPeople.slice(0, 3).map(p => {
               const s = statusIconLabel(p.home_evacuation_status)
