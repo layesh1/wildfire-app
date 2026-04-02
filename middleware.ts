@@ -67,17 +67,36 @@ export async function middleware(request: NextRequest) {
   }
 
   if (user && isAuthRoute) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    const authPathsOkWhileLoggedIn = [
+      '/auth/onboarding',
+      '/auth/add-role',
+      '/auth/post-login',
+      '/auth/family-invite',
+      '/auth/callback',
+    ]
+    const onAllowedAuthPath = authPathsOkWhileLoggedIn.some(
+      p => pathname === p || pathname.startsWith(`${p}/`)
+    )
+    if (!onAllowedAuthPath) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
   }
 
   // Consumer hubs: canonical /dashboard/home (Life360-style). Legacy caregiver/evacuee URLs redirect.
   if (user && isDashboard) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, terms_accepted_at')
       .eq('id', user.id)
       .maybeSingle()
     const pr = profile?.role
+
+    if ((pr === 'evacuee' || pr === 'caregiver') && !profile?.terms_accepted_at) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/auth/onboarding'
+      url.searchParams.set('role', pr === 'caregiver' ? 'caregiver' : 'evacuee')
+      return NextResponse.redirect(url)
+    }
     const mobile = pathname.startsWith('/m/dashboard')
     const dash = mobile ? pathname.slice('/m'.length) : pathname
     if ((pr === 'evacuee' || pr === 'caregiver') && (dash.startsWith('/dashboard/caregiver') || dash.startsWith('/dashboard/evacuee'))) {
@@ -92,5 +111,12 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/m/dashboard/:path*', '/auth/:path*', '/api/:path*'],
+  matcher: [
+    '/dashboard',
+    '/dashboard/:path*',
+    '/m/dashboard',
+    '/m/dashboard/:path*',
+    '/auth/:path*',
+    '/api/:path*',
+  ],
 }

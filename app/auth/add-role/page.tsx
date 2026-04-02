@@ -52,7 +52,7 @@ function AddRoleForm() {
         router.replace('/auth/login')
         return
       }
-      const { data: profile } = await supabase.from('profiles').select('role, roles').eq('id', user.id).single()
+      const { data: profile } = await supabase.from('profiles').select('role, roles').eq('id', user.id).maybeSingle()
       if (cancelled) return
       const existing: string[] = Array.isArray(profile?.roles) && profile.roles.length
         ? profile.roles
@@ -109,7 +109,7 @@ function AddRoleForm() {
       setSaving(true)
       const { data: { user: u } } = await supabase.auth.getUser()
       if (u) {
-        const { data: profile } = await supabase.from('profiles').select('role, roles').eq('id', u.id).single()
+        const { data: profile } = await supabase.from('profiles').select('role, roles').eq('id', u.id).maybeSingle()
         const existingRoles: string[] = Array.isArray(profile?.roles) && profile.roles.length
           ? profile.roles : profile?.role ? [profile.role] : []
         const updatedRoles = [...new Set([...existingRoles, role])]

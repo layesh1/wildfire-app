@@ -42,7 +42,7 @@ function PostLoginRedirect() {
         .from('profiles')
         .select('role, roles')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
 
       const existingRolesRaw: string[] = Array.isArray(profile?.roles) && profile.roles.length
         ? profile.roles

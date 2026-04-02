@@ -26,10 +26,10 @@ export async function GET(request: NextRequest) {
       .from('profiles')
       .select('id')
       .eq('id', data.user.id)
-      .single()
+      .maybeSingle()
 
     const pendingCookie = request.cookies.get('wfa_pending_consumer_role')?.value
-    const consumerRole = pendingCookie === 'evacuee' ? 'evacuee' : 'caregiver'
+    const consumerRole = pendingCookie === 'caregiver' ? 'caregiver' : 'evacuee'
 
     if (!existing) {
       await supabase.from('profiles').insert({
@@ -39,6 +39,11 @@ export async function GET(request: NextRequest) {
         role: consumerRole,
         roles: [consumerRole],
       })
+      const res = NextResponse.redirect(
+        `${origin}/auth/onboarding?role=${encodeURIComponent(consumerRole)}`
+      )
+      res.cookies.set('wfa_pending_consumer_role', '', { path: '/', maxAge: 0 })
+      return res
     }
 
     const res = NextResponse.redirect(`${origin}/dashboard`)

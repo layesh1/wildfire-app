@@ -11,7 +11,7 @@ export default async function DashboardPage() {
     .from('profiles')
     .select('role, roles, full_name')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   const activeRole = profile?.role || user.user_metadata?.role || 'evacuee'
   const allRoles: string[] = Array.isArray(profile?.roles) && profile.roles.length > 0

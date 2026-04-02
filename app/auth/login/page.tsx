@@ -157,6 +157,18 @@ function LoginForm() {
   const handleGoogleLogin = async () => {
     setGoogleLoading(true)
     setError('')
+    try {
+      if (typeof document !== 'undefined') {
+        const maxAge = 30 * 60
+        if (mode === 'signup') {
+          document.cookie = `wfa_pending_consumer_role=evacuee; path=/; max-age=${maxAge}; SameSite=Lax`
+        } else {
+          document.cookie = 'wfa_pending_consumer_role=; path=/; max-age=0'
+        }
+      }
+    } catch {
+      /* ignore cookie failures */
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/callback` },
