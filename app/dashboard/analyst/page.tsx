@@ -228,8 +228,14 @@ export default function AnalystOverviewPage() {
 
       <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
         <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400">
-          <span className="font-medium text-gray-800 dark:text-gray-200">Dataset note:</span> Many charts rely on the
-          enriched WatchDuty-derived wildfire set (prescribed burns and non-wildfire noise excluded). See{' '}
+          <span className="font-medium text-gray-800 dark:text-gray-200">Dataset note:</span> Operational views and
+          Flameo context combine live feeds — including{' '}
+          <span className="text-gray-700 dark:text-gray-300">NIFC / Esri</span>,{' '}
+          <span className="text-gray-700 dark:text-gray-300">NASA FIRMS</span>,{' '}
+          <span className="text-gray-700 dark:text-gray-300">Open-Meteo</span>, curated shelter and hazard layers,
+          Google geocoding and routing, and Supabase profiles and incident data. Some equity and signal-gap analytics
+          use the WiDS / WatchDuty-enriched longitudinal set (prescribed burns and non-wildfire noise excluded) for
+          comparable statistics — not as the sole source for the whole product. See{' '}
           <Link href="/dashboard/analyst/data-health" className="text-forest-700 underline underline-offset-2 dark:text-amber-400">
             Data health
           </Link>{' '}

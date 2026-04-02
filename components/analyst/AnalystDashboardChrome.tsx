@@ -26,11 +26,8 @@ export default function AnalystDashboardChrome({ children }: { children: React.R
       <div className="shrink-0 border-b border-gray-200 bg-white/95 px-4 py-3 backdrop-blur-sm dark:border-gray-800 dark:bg-gray-950/90">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-              Data analyst
-            </p>
             <h1 className="font-display text-lg font-bold text-gray-900 dark:text-white md:text-xl">
-              Research &amp; analytics
+              Data Analyst
             </h1>
           </div>
           <Link
