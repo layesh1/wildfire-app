@@ -107,6 +107,7 @@ export default function AddressVerifySave({
         onChange={handleDraftChange}
         onPickSuggestion={onPickSuggestion}
         hint={helperText}
+        matchesPersistedAddress={savedAddress ?? undefined}
       />
       {geocodeError && (
         <p className="text-sm text-red-400 mt-1">{geocodeError}</p>

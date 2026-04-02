@@ -53,6 +53,21 @@ export function looksLikeUsStreetAddress(line: string): boolean {
   return /\d/.test(t)
 }
 
+/** Full US-style line (e.g. after pick or paste). Autocomplete often returns 0 hits for these — not a user error. */
+export function looksLikeCompleteUsAddress(line: string): boolean {
+  const t = line.trim()
+  if (t.length < 18) return false
+  return /,\s*[A-Za-z]{2}\s+\d{5}(-\d{4})?\b/.test(t)
+}
+
+function normAddr(s: string) {
+  return s
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/,?\s*(USA|United States)\s*$/i, '')
+    .trim()
+}
+
 export type AddressAutocompleteProps = {
   value: string
   onChange: (v: string) => void
@@ -66,6 +81,8 @@ export type AddressAutocompleteProps = {
   'aria-invalid'?: boolean
   variant?: 'light' | 'dark'
   hint?: string
+  /** When input matches this (e.g. saved profile line), do not show "no matches" for empty autocomplete. */
+  matchesPersistedAddress?: string | null
 }
 
 export default function AddressAutocomplete({
@@ -79,6 +96,7 @@ export default function AddressAutocomplete({
   'aria-invalid': ariaInvalid,
   variant = 'light',
   hint,
+  matchesPersistedAddress,
 }: AddressAutocompleteProps) {
   const [suggestions, setSuggestions] = useState<GoogleAutocompletePrediction[]>([])
   const [showDrop, setShowDrop] = useState(false)
@@ -156,39 +174,63 @@ export default function AddressAutocomplete({
           throw new Error('Google Places unavailable')
         }
         const service = new mapsAny.places.AutocompleteService()
-        const preds = await new Promise<GoogleAutocompletePrediction[]>(resolve => {
-          let done = false
-          const timer = window.setTimeout(() => {
-            if (done) return
-            done = true
-            resolve([])
-          }, 5000)
-          service.getPlacePredictions(
-            {
-              input: v,
-              componentRestrictions: { country: 'us' },
-              types: ['address'],
-            },
-            (predictions: any[] | null, status: any) => {
+        const runPredictions = (request: {
+          input: string
+          componentRestrictions: { country: string }
+          types?: string[]
+        }) =>
+          new Promise<GoogleAutocompletePrediction[]>(resolve => {
+            let done = false
+            const timer = window.setTimeout(() => {
               if (done) return
               done = true
-              window.clearTimeout(timer)
-              if (status !== mapsAny.places.PlacesServiceStatus.OK || !predictions) {
-                resolve([])
-                return
+              resolve([])
+            }, 5000)
+            service.getPlacePredictions(
+              request,
+              (predictions: any[] | null, status: any) => {
+                if (done) return
+                done = true
+                window.clearTimeout(timer)
+                if (status !== mapsAny.places.PlacesServiceStatus.OK || !predictions) {
+                  resolve([])
+                  return
+                }
+                resolve(
+                  predictions.slice(0, 12).map(p => ({
+                    place_id: String(p.place_id || ''),
+                    description: String(p.description || ''),
+                  }))
+                )
               }
-              resolve(
-                predictions.slice(0, 12).map(p => ({
-                  place_id: String(p.place_id || ''),
-                  description: String(p.description || ''),
-                }))
-              )
-            }
-          )
+            )
+          })
+
+        let preds = await runPredictions({
+          input: v,
+          componentRestrictions: { country: 'us' },
+          types: ['address'],
         })
+        // `types: ['address']` misses many valid lines; retry without type filter and keep street-like rows.
+        if (preds.length === 0 && looksLikeUsStreetAddress(v)) {
+          const broad = await runPredictions({
+            input: v,
+            componentRestrictions: { country: 'us' },
+          })
+          preds = broad.filter(p => /^\d/.test(p.description.trim())).slice(0, 12)
+        }
+
         setSuggestions(preds)
         setShowDrop(preds.length > 0)
-        if (preds.length === 0) setSearchError('No address matches found. Try a more complete street address.')
+
+        const persisted =
+          matchesPersistedAddress && normAddr(v) === normAddr(matchesPersistedAddress)
+        const ambiguousLine = looksLikeCompleteUsAddress(v) || persisted
+        if (preds.length === 0 && !ambiguousLine) {
+          setSearchError('No address matches found. Try a more complete street address.')
+        } else if (preds.length === 0) {
+          setSearchError(null)
+        }
       } catch {
         setSuggestions([])
         setShowDrop(false)

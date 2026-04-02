@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, ArrowLeft, ArrowRight, Check, ChevronDown } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+import { describeAuthEmailError, getAuthCallbackUrl } from '@/lib/auth-callback-url'
 import { LANGUAGES } from '@/lib/languages'
 import AddressAutocomplete, { looksLikeUsStreetAddress } from '@/components/AddressAutocomplete'
 
@@ -183,7 +184,7 @@ function LoginForm() {
     }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: getAuthCallbackUrl() },
     })
     if (error) { setError(error.message); setGoogleLoading(false) }
   }
@@ -281,7 +282,7 @@ function LoginForm() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: getAuthCallbackUrl(),
         },
       })
       if (signupErr) throw signupErr
@@ -390,15 +391,33 @@ function LoginForm() {
     setResendBusy(true)
     setSignupResendMsg('')
     setLoginResendNotice('')
+    const showResendError = (raw: string) => {
+      const shown = describeAuthEmailError(raw)
+      if (mode === 'login' && loginResendEligible) setError(shown)
+      else setSignupResendMsg(shown)
+    }
     try {
-      const { error: e } = await supabase.auth.resend({
-        type: 'signup',
+      const redirect = getAuthCallbackUrl()
+      const withRedirect = {
+        type: 'signup' as const,
         email: em,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-      })
+        options: { emailRedirectTo: redirect },
+      }
+      const minimal = { type: 'signup' as const, email: em }
+
+      let { error: e } = await supabase.auth.resend(withRedirect)
+      const lower = (e?.message || '').toLowerCase()
+      if (
+        e &&
+        (lower.includes('redirect') ||
+          lower.includes('callback') ||
+          (lower.includes('url') && lower.includes('invalid')))
+      ) {
+        const second = await supabase.auth.resend(minimal)
+        e = second.error
+      }
       if (e) {
-        if (mode === 'login' && loginResendEligible) setError(e.message)
-        else setSignupResendMsg(e.message)
+        showResendError(e.message)
       } else {
         const ok =
           'If this email is registered and not yet confirmed, we sent a new confirmation link.'
@@ -409,6 +428,9 @@ function LoginForm() {
           setSignupResendMsg(ok)
         }
       }
+    } catch (err: unknown) {
+      const raw = err instanceof Error ? err.message : String(err)
+      showResendError(raw)
     } finally {
       setResendBusy(false)
     }

@@ -294,8 +294,8 @@ export default function FlameoSituationRoom({
           {shelterMeta?.live_feed_ok === true && shelterMeta.fema_shelter_count === 0 && (
             <div className="mt-2 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-2 text-xs text-sky-950 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-100">
               <p>
-                No confirmed open shelters in our live feed. Check your county emergency management website or call{' '}
-                <strong>211</strong> for verified shelter locations.
+                No confirmed open shelters in our live feed. Check your county emergency management website or dial{' '}
+                <strong>2-1-1</strong> (community info line) for verified shelter locations.
               </p>
               <a
                 href="https://www.fema.gov/emergency-managers/nims/emergency-operations-centers"
@@ -309,7 +309,7 @@ export default function FlameoSituationRoom({
           )}
           {shelterMeta?.live_feed_ok === false && (
             <p className="mt-2 text-xs text-amber-800 dark:text-amber-200">
-              Live shelter data unavailable. Contact your local emergency management or call 211.
+              Live shelter data unavailable. Contact your local emergency management or dial 2-1-1.
             </p>
           )}
           <div className="mt-2 text-lg font-semibold text-gray-900 dark:text-gray-100">{topShelter.name}</div>

@@ -88,7 +88,12 @@ export async function queryFemaOpenSheltersForState(options: {
     + '&f=json'
     + `&resultRecordCount=${limit}`
 
-  let json: { features?: Array<{ attributes?: Record<string, unknown> }> }
+  type FemaFeature = {
+    attributes?: Record<string, unknown>
+    /** NSS layer often leaves latitude/longitude null and only sets point geometry (WGS84: x=lng, y=lat). */
+    geometry?: { x?: number; y?: number }
+  }
+  let json: { features?: FemaFeature[]; error?: { message?: string } }
   try {
     const res = await fetch(url, { headers: { Accept: 'application/json' }, cache: 'no-store' })
     if (!res.ok) return { shelters: [], fetched_at, ok: false }
@@ -97,13 +102,27 @@ export async function queryFemaOpenSheltersForState(options: {
     return { shelters: [], fetched_at, ok: false }
   }
 
+  if (json.error && !Array.isArray(json.features)) {
+    return { shelters: [], fetched_at, ok: false }
+  }
+
   const features = Array.isArray(json.features) ? json.features : []
   const shelters: LiveShelter[] = []
 
   for (const f of features) {
     const a = f.attributes ?? {}
-    const lat = typeof a.latitude === 'number' ? a.latitude : Number(a.latitude)
-    const lng = typeof a.longitude === 'number' ? a.longitude : Number(a.longitude)
+    const geom = f.geometry
+    let lat = typeof a.latitude === 'number' ? a.latitude : Number(a.latitude)
+    let lng = typeof a.longitude === 'number' ? a.longitude : Number(a.longitude)
+    if (
+      (!Number.isFinite(lat) || !Number.isFinite(lng)) &&
+      geom &&
+      typeof geom.x === 'number' &&
+      typeof geom.y === 'number'
+    ) {
+      lng = geom.x
+      lat = geom.y
+    }
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue
     if (lat < 24 || lat > 49 || lng < -125 || lng > -66) continue
 
