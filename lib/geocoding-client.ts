@@ -5,38 +5,32 @@ export type ClientGeocodeResult = {
   types: string[]
 }
 
-function requireClientPlacesKey(): string {
-  const key = process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY
-  if (!key) throw new Error('Missing NEXT_PUBLIC_GOOGLE_PLACES_API_KEY')
-  return key
-}
-
+/**
+ * Geocode a saved address line from the browser via `/api/geocode/forward` (server uses `GOOGLE_GEOCODING_API_KEY`).
+ * Direct calls to maps.googleapis.com from the browser often fail (CORS, key restrictions on Geocoding API).
+ */
 export async function geocodeAddressClient(address: string): Promise<ClientGeocodeResult> {
-  const key = requireClientPlacesKey()
-  const url =
-    'https://maps.googleapis.com/maps/api/geocode/json'
-    + `?address=${encodeURIComponent(address)}`
-    + '&region=us'
-    + `&key=${encodeURIComponent(key)}`
+  const q = address.trim()
+  if (q.length < 4) throw new Error('Address too short')
 
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`Geocoding request failed (${res.status})`)
-  const data = (await res.json()) as {
-    status?: string
-    results?: Array<{
-      formatted_address?: string
-      geometry?: { location?: { lat?: number; lng?: number } }
-      types?: string[]
-    }>
+  const res = await fetch(`/api/geocode/forward?address=${encodeURIComponent(q)}`, {
+    credentials: 'same-origin',
+  })
+  const data = (await res.json().catch(() => ({}))) as {
+    error?: string
+    lat?: number
+    lng?: number
+    formatted?: string
+    types?: string[]
   }
 
-  const first = data.results?.[0]
-  const lat = first?.geometry?.location?.lat
-  const lng = first?.geometry?.location?.lng
-  const formatted = first?.formatted_address
+  if (!res.ok) {
+    throw new Error(data.error || `Geocoding failed (${res.status})`)
+  }
+
+  const { lat, lng, formatted, types } = data
   if (
-    data.status !== 'OK'
-    || typeof lat !== 'number'
+    typeof lat !== 'number'
     || typeof lng !== 'number'
     || typeof formatted !== 'string'
     || !formatted.trim()
@@ -48,6 +42,6 @@ export async function geocodeAddressClient(address: string): Promise<ClientGeoco
     lat,
     lng,
     formatted: formatted.trim(),
-    types: Array.isArray(first?.types) ? first.types : [],
+    types: Array.isArray(types) ? types : [],
   }
 }

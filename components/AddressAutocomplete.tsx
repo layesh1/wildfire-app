@@ -244,7 +244,9 @@ export default function AddressAutocomplete({
   const inputCls =
     variant === 'dark'
       ? cn(
-          'w-full bg-ash-800 text-white text-sm rounded-xl px-3 py-2.5 border focus:outline-none focus:border-ember-500/60 placeholder:text-ash-600',
+          // Forest body text on light panels (not `.text-white` — avoids fighting global content-page rules).
+          'w-full bg-ash-800 text-sm rounded-xl px-3 py-2.5 border focus:outline-none focus:border-ember-500/60',
+          'text-forest-900 placeholder:text-gray-500 dark:text-white dark:placeholder:text-ash-600',
           ariaInvalid ? 'border-signal-danger/60' : 'border-ash-700'
         )
       : cn('input w-full', ariaInvalid && 'border-red-300 ring-1 ring-red-200')

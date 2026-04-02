@@ -684,6 +684,7 @@ function SettingsInner() {
                     <AddressVerifySave
                       id="settings-responder-station-address"
                       variant="dark"
+                      hint="Search for a numbered station or base address, pick a result, then Verify &amp; Save. This anchors the command hub map and NIFC radius — not a city or nickname alone."
                       value={addressDraft}
                       onChange={v => {
                         setAddressDraft(v)
