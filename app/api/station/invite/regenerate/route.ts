@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServiceRoleClient } from '@/lib/supabase-service-role'
 import { isEmergencyResponder } from '@/lib/responder-evacuees-server'
 import { formatStationInviteCode, randomInviteSuffix } from '@/lib/station-invite-code'
 
@@ -20,7 +21,10 @@ export async function POST() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { data: station } = await supabase
+  const admin = createServiceRoleClient()
+  const db = admin ?? supabase
+
+  const { data: station, error: stErr } = await db
     .from('stations')
     .select('id, station_name')
     .eq('created_by', user.id)
@@ -28,11 +32,15 @@ export async function POST() {
     .limit(1)
     .maybeSingle()
 
+  if (stErr) {
+    return NextResponse.json({ error: stErr.message }, { status: 500 })
+  }
+
   if (!station?.id) {
     return NextResponse.json({ error: 'No station found' }, { status: 404 })
   }
 
-  await supabase
+  await db
     .from('station_invite_codes')
     .update({ is_active: false })
     .eq('station_id', station.id)
@@ -45,7 +53,7 @@ export async function POST() {
   let codeRow: { code: string; expires_at: string | null } | null = null
   for (let attempt = 0; attempt < 8; attempt++) {
     const code = formatStationInviteCode(stationName, randomInviteSuffix(6))
-    const { data: row, error } = await supabase
+    const { data: row, error } = await db
       .from('station_invite_codes')
       .insert({
         station_id: station.id,

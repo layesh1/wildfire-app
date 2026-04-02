@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServiceRoleClient } from '@/lib/supabase-service-role'
 import { isEmergencyResponder } from '@/lib/responder-evacuees-server'
 import { formatStationInviteCode, randomInviteSuffix } from '@/lib/station-invite-code'
 
@@ -20,6 +21,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  const admin = createServiceRoleClient()
+  const db = admin ?? supabase
+
   let body: { station_name?: string; incident_name?: string; incident_zone?: string }
   try {
     body = await request.json()
@@ -32,13 +36,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'station_name required' }, { status: 400 })
   }
 
-  const { data: existing } = await supabase
+  const { data: existing, error: existingErr } = await db
     .from('stations')
     .select('id')
     .eq('created_by', user.id)
     .eq('is_active', true)
     .limit(1)
     .maybeSingle()
+
+  if (existingErr) {
+    return NextResponse.json({ error: existingErr.message }, { status: 500 })
+  }
 
   if (existing?.id) {
     return NextResponse.json(
@@ -56,7 +64,7 @@ export async function POST(request: NextRequest) {
   const incidentZone =
     typeof body.incident_zone === 'string' && body.incident_zone.trim() ? body.incident_zone.trim().slice(0, 500) : null
 
-  const { data: station, error: stErr } = await supabase
+  const { data: station, error: stErr } = await db
     .from('stations')
     .insert({
       created_by: user.id,
@@ -99,7 +107,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (!codeRow) {
-    await supabase.from('stations').delete().eq('id', station.id)
+    await db.from('stations').delete().eq('id', station.id)
     return NextResponse.json({ error: 'Could not generate unique invite code' }, { status: 500 })
   }
 

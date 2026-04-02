@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServiceRoleClient } from '@/lib/supabase-service-role'
 import { isEmergencyResponder } from '@/lib/responder-evacuees-server'
 
 export async function PATCH(request: NextRequest) {
@@ -19,6 +20,9 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  const admin = createServiceRoleClient()
+  const db = admin ?? supabase
+
   let body: { station_name?: string; incident_name?: string | null; incident_zone?: string | null }
   try {
     body = await request.json()
@@ -26,13 +30,17 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { data: station } = await supabase
+  const { data: station, error: stLookupErr } = await db
     .from('stations')
     .select('id')
     .eq('created_by', user.id)
     .eq('is_active', true)
     .limit(1)
     .maybeSingle()
+
+  if (stLookupErr) {
+    return NextResponse.json({ error: stLookupErr.message }, { status: 500 })
+  }
 
   if (!station?.id) {
     return NextResponse.json({ error: 'No station found' }, { status: 404 })
@@ -61,7 +69,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
   }
 
-  const { error } = await supabase.from('stations').update(patch).eq('id', station.id)
+  const { error } = await db.from('stations').update(patch).eq('id', station.id)
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

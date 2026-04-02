@@ -256,7 +256,18 @@ export default function ResponderStationPage() {
         {canCreateStation && (
           <div className="mt-4 space-y-2">
             <p className="text-xs text-amber-900/90 dark:text-amber-200/90">
-              No station record yet — usually it&apos;s created when you save station name + address during signup. Use this if that step didn&apos;t complete or you&apos;re on an older account.
+              {error ? (
+                <>
+                  The roster API failed (see the red message above). That often means Supabase RLS needs the station migrations, or{' '}
+                  <code className="rounded bg-amber-100 px-1 dark:bg-amber-950/60">SUPABASE_SERVICE_ROLE_KEY</code> is missing on the
+                  server. Fix that first so you don&apos;t create a second station by mistake.
+                </>
+              ) : (
+                <>
+                  No station record yet — usually it&apos;s created when you save station name + address during signup. Use this if that
+                  step didn&apos;t complete or you&apos;re on an older account.
+                </>
+              )}
             </p>
             <button
               type="button"
