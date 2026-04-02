@@ -2,7 +2,7 @@
 
 **Owner narrative:** This document is the single source of truth for transforming the app into a **clear, automated story** with **two distinct consumer roles** (Caregiver vs Evacuee), **family groups** (Life360-style invites), a **Command Center** for emergency responders, and a path for **field → command** communication from iOS.
 
-**Related:** [ANISHA_00_INDEX.md](./ANISHA_00_INDEX.md) · [**ANISHA_implementation-record.md**](./ANISHA_implementation-record.md) (**as-built: migrations, API/FE, high-level app — use this for what shipped**) · [**ANISHA_locked-product-phases-1-4.md**](./ANISHA_locked-product-phases-1-4.md) (**Phases 1–4 reference**) · [ANISHA_ui-hub-map-redesign.md](./ANISHA_ui-hub-map-redesign.md) · [ANISHA_automation-evacmap-checkin-agentic-alerts.md](./ANISHA_automation-evacmap-checkin-agentic-alerts.md)
+**Related:** [ANISHA_00_INDEX.md](./ANISHA_00_INDEX.md) · [**ANISHA_implementation-record.md**](./ANISHA_implementation-record.md) (**as-built: migrations, API/FE, high-level app — use this for what shipped**) · [**ANISHA_emergency-responder-station-and-consent.md**](./ANISHA_emergency-responder-station-and-consent.md) (**ER: station hub, RLS, roster APIs, consent**) · [**ANISHA_locked-product-phases-1-4.md**](./ANISHA_locked-product-phases-1-4.md) (**Phases 1–4 reference**) · [ANISHA_ui-hub-map-redesign.md](./ANISHA_ui-hub-map-redesign.md) · [ANISHA_automation-evacmap-checkin-agentic-alerts.md](./ANISHA_automation-evacmap-checkin-agentic-alerts.md)
 
 **Implementation note:** The codebase has moved toward a **single consumer role (`evacuee`)** and **My People** instead of a separate caregiver product role; Section 1 goals below reflect an earlier two-role UX target. See **ANISHA_implementation-record.md** for the current model.
 

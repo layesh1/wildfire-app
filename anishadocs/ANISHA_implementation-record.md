@@ -1,9 +1,9 @@
 # ANISHA — Implementation record (stack, migrations, app behavior)
 
 **Purpose:** Single place to see what shipped in code: **Supabase migrations** (what each file does), **backend/API** surfaces, **frontend** routes and UX, and a **high-level app** overview.  
-**Companion docs:** [ANISHA_00_INDEX.md](./ANISHA_00_INDEX.md) · [ANISHA_locked-product-phases-1-4.md](./ANISHA_locked-product-phases-1-4.md) · [ANISHA_wildfire-transformation-implementation-plan.md](./ANISHA_wildfire-transformation-implementation-plan.md)
+**Companion docs:** [ANISHA_00_INDEX.md](./ANISHA_00_INDEX.md) · [ANISHA_locked-product-phases-1-4.md](./ANISHA_locked-product-phases-1-4.md) · [ANISHA_wildfire-transformation-implementation-plan.md](./ANISHA_wildfire-transformation-implementation-plan.md) · [**ANISHA_emergency-responder-station-and-consent.md**](./ANISHA_emergency-responder-station-and-consent.md) (**ER station, RLS, consent**)
 
-**Last updated:** 2026-03-27
+**Last updated:** 2026-04-02
 
 ---
 
@@ -45,6 +45,21 @@ Apply in chronological order when bootstrapping a fresh project. File names use 
 | **20260403_profile_mobility_access.sql** | **`mobility_access_needs`** (`text[]`) and **`mobility_access_other`** on `profiles` (signup + settings). |
 | **20260404_unify_evacuee_role.sql** | Data migration: `profiles.role` **`caregiver` → `evacuee`**; normalizes **`roles[]`** the same way and dedupes. |
 
+**Emergency responder / station track (April 2026):** Full narrative, API behavior, RLS fix order, and **`SUPABASE_SERVICE_ROLE_KEY`** are documented in [**ANISHA_emergency-responder-station-and-consent.md**](./ANISHA_emergency-responder-station-and-consent.md). Migration files (also apply **`20260405`–`20260407`**, **`20260411`** if bootstrapping a clone):
+
+| File | Summary |
+|------|---------|
+| **20260402_station_invite_system.sql** | **`stations`**, **`station_invite_codes`**, **`station_firefighters`** + baseline RLS. |
+| **20260408_profiles_rls_responder_no_recursion.sql** | **`auth_profile_role()`**; fixes **`profiles`** RLS recursion for responders. |
+| **20260409_responder_consent.sql** | **`responder_consent_*`** columns on **`profiles`** for Data Access Agreement versioning. |
+| **20260410_responder_access_log.sql** | **`responder_access_log`** audit table + RLS. |
+| **20260412_responder_update_evacuee_home_status_rpc.sql** | RPC for responder updates to evacuee home status (not station RLS). |
+| **20260413_station_scope_rls_for_roster.sql** | **`station_ids_for_user()`** + same-station SELECT policies. |
+| **20260414_station_ids_for_user_bypass_rls.sql** | **`SET row_security = off`** on **`station_ids_for_user()`**. |
+| **20260415_station_rls_recursion_fix_reapply.sql** | Drop/recreate dependent policies; reapply function with **`row_security = off`**. |
+| **20260416_responder_roster_rpc_bypass_rls.sql** | RPC bundle for roster when service role key absent; reasserts **`station_ids_for_user`**. |
+| **20260417_stations_select_no_recursion.sql** | **`user_can_read_station()`** + new **`stations_select`** (breaks **`stations` ↔ `station_firefighters`** cycle). |
+
 ---
 
 ## 3. Backend / API (representative)
@@ -59,6 +74,7 @@ Not exhaustive; grep `app/api` for the full set.
 | **`/api/checkin`**, **`/api/evacuee-records/*`** | Check-in and legacy/simple status paths aligned with two-status model where implemented. |
 | **`/api/alerts/*`**, **`/api/push/*`** | Alert and push cadence hooks (see Flameo push columns). |
 | **`/api/invite/*`** | Analyst/responder invite verification and consumption. |
+| **`/api/station/*`** | Responder **station** create/update, **roster** (`GET /api/station/roster`), **invite** validate/accept/regenerate; prefers **`SUPABASE_SERVICE_ROLE_KEY`** when set. See **ANISHA_emergency-responder-station-and-consent.md**. |
 | **`middleware.ts`** | Auth gate for `/dashboard` and `/m/dashboard`; **mobile UA** redirect to `/m/...`; **consumer** redirect from `/dashboard/caregiver|evacuee` → **`/dashboard/home`** preserving subpath. |
 
 **Environment:** See **`.env.example`** for `NEXT_PUBLIC_*`, Supabase keys, optional AI keys, email for family invites, etc.
@@ -77,6 +93,9 @@ Not exhaustive; grep `app/api` for the full set.
 | **`components/evacuation/EvacuationMapExperience.tsx`** | Map anchor uses **member** + selected person’s address; loads monitored people for all consumers. |
 | **`components/check-in/SafetyCheckIn.tsx`** | Self + monitored subjects; Flameo **`evacuee`** role; links to **`/dashboard/home/map`**. |
 | **`/m/dashboard/*`** | Mobile layouts mirroring home and responder paths where present. |
+| **`/dashboard/responder/station`** | **Station hub** — roster, commander station rename, iOS code regenerate; creation is signup-driven (`useEnsureResponderStationFromProfile`, onboarding). |
+| **`components/flameo/FlameoCommandRoom.tsx`** | Command hub Flameo: **join code** from roster API, links to Station hub. |
+| **`components/responder/ResponderDataConsent.tsx`** | **Data Access Agreement** modal (contrast-friendly light card + emerald legal links). |
 
 ---
 

@@ -11,7 +11,8 @@ This folder tracks transformation work for **Minutes Matter / WildfireAlert**: f
 | [ANISHA_ui-hub-map-redesign.md](./ANISHA_ui-hub-map-redesign.md) | **UI spec**: Hub tab layout, map + side panel, alerts, deprecations |
 | [ANISHA_automation-evacmap-checkin-agentic-alerts.md](./ANISHA_automation-evacmap-checkin-agentic-alerts.md) | **Phase continuation**: multi-address automation, check-in, evacuation map, agentic alerts, nav IA |
 | [ANISHA_flameo-agentic-transformation.md](./ANISHA_flameo-agentic-transformation.md) | **Flameo / agentic** AI — triggers, bounded actions, API phases |
+| [**ANISHA_emergency-responder-station-and-consent.md**](./ANISHA_emergency-responder-station-and-consent.md) | **Emergency responder (as-built)**: station + iOS codes, roster APIs, **RLS recursion fixes** (20260413–20260417), **`SUPABASE_SERVICE_ROLE_KEY`**, Station hub vs Command hub, **Data Access Agreement** consent UI |
 
 **Naming convention:** All transformation docs use the prefix `ANISHA_` so they are easy to find and grep.
 
-**Last updated:** 2026-03-27 (implementation record + unified evacuee index note)
+**Last updated:** 2026-04-02 (ER station / RLS / consent doc)
