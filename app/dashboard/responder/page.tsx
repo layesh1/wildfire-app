@@ -8,7 +8,9 @@ import type { EvacueePin } from '@/components/EvacueeStatusMap'
 import type { HouseholdPin } from '@/lib/responder-household'
 import type { FlameoContext } from '@/lib/flameo-context-types'
 import FlameoCommandRoom from '@/components/flameo/FlameoCommandRoom'
+import ResponderDataConsent from '@/components/responder/ResponderDataConsent'
 import { HAZARD_FACILITIES } from '@/lib/hazard-facilities'
+import { isResponderConsentSatisfied } from '@/lib/responder-data-consent'
 import { useResponderStationAnchor } from '@/hooks/useResponderStationAnchor'
 import { useFlameoContext } from '@/hooks/useFlameoContext'
 import { useFlameoHubAgentBridge } from '@/components/FlameoHubAgentBridge'
@@ -395,9 +397,11 @@ function SituationReportHeader() {
 function RedFlagSection({
   mapCenter,
   flameoContext,
+  canAccessEvacueeData,
 }: {
   mapCenter: [number, number]
   flameoContext: FlameoContext | null
+  canAccessEvacueeData: boolean
 }) {
   const [householdPins, setHouseholdPins] = useState<HouseholdPin[]>([])
   const [mapDemoMode, setMapDemoMode] = useState(true)
@@ -413,6 +417,19 @@ function RedFlagSection({
   const loadEvacMap = useCallback(async () => {
     try {
       const res = await fetch('/api/responder/evacuees')
+      if (res.status === 403) {
+        let body: { error?: string; code?: string } = {}
+        try {
+          body = await res.json()
+        } catch {
+          body = {}
+        }
+        if (body.code === 'RESPONDER_CONSENT_REQUIRED' || body.error === 'consent_required') {
+          setHouseholdPins([])
+          setMapDemoMode(false)
+          return
+        }
+      }
       if (!res.ok) {
         setHouseholdPins(DEMO_HOUSEHOLDS_TAGGED)
         setMapDemoMode(true)
@@ -440,7 +457,15 @@ function RedFlagSection({
     }
   }, [])
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
+    if (!canAccessEvacueeData) {
+      setHouseholdPins([])
+      setMapDemoMode(false)
+      setResponderProfiles([])
+      setLoading(false)
+      setLastUpdated(new Date())
+      return
+    }
     setLoading(true)
     await loadEvacMap()
 
@@ -451,7 +476,6 @@ function RedFlagSection({
       setResponderProfiles([])
     }
 
-    // Also fetch red flag warnings count
     try {
       const res = await fetch('/api/fires/redflags')
       if (res.ok) {
@@ -464,11 +488,14 @@ function RedFlagSection({
 
     setLastUpdated(new Date())
     setLoading(false)
-  }
-
-  useEffect(() => { loadData() }, []) // eslint-disable-line
+  }, [canAccessEvacueeData, loadEvacMap, supabase])
 
   useEffect(() => {
+    void loadData()
+  }, [loadData])
+
+  useEffect(() => {
+    if (!canAccessEvacueeData) return
     const channel = supabase
       .channel('responder-profiles-home-status')
       .on(
@@ -485,7 +512,7 @@ function RedFlagSection({
     return () => {
       void supabase.removeChannel(channel)
     }
-  }, [supabase, loadEvacMap])
+  }, [supabase, loadEvacMap, canAccessEvacueeData])
 
   const byHome = useMemo(() => {
     let evacuated = 0
@@ -561,7 +588,18 @@ function RedFlagSection({
 
       {/* Main content: map + COMMAND panel */}
       <div className="flex flex-1 min-h-0 min-w-0 flex-col lg:flex-row gap-0">
-        {loading ? (
+        {!canAccessEvacueeData ? (
+          <div className="flex flex-1 min-h-[220px] items-center justify-center px-4 lg:min-h-0">
+            <div className="max-w-md text-center">
+              <Shield className="mx-auto mb-3 h-10 w-10 text-amber-500/80" />
+              <p className="text-sm font-semibold text-white">Evacuation data is locked</p>
+              <p className="mt-2 text-xs leading-relaxed text-ash-500">
+                Accept the Data Access Agreement above to load the evacuation map and opt-in household details.
+                Demo pins are not shown until you agree.
+              </p>
+            </div>
+          </div>
+        ) : loading ? (
           <div className="flex-1 flex items-center justify-center min-h-[220px] lg:min-h-0">
             <div className="text-center">
               <div className="w-8 h-8 border-2 border-signal-info/30 border-t-signal-info rounded-full animate-spin mx-auto mb-3" />
@@ -777,6 +815,8 @@ function ShelterSection() {
 export default function ResponderDashboard() {
   const [activeFires, setActiveFires] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [consentReady, setConsentReady] = useState(false)
+  const [consentOk, setConsentOk] = useState(false)
   const supabase = createClient()
   const flameoAgent = useFlameoContext({ role: 'emergency_responder' })
   const { setPayload: setFlameoHubAgentPayload } = useFlameoHubAgentBridge()
@@ -788,6 +828,28 @@ export default function ResponderDashboard() {
       flameoRole: 'responder',
     })
   }, [flameoAgent.context, flameoAgent.status, setFlameoHubAgentPayload])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || cancelled) {
+        if (!cancelled) setConsentReady(true)
+        return
+      }
+      const { data: p } = await supabase
+        .from('profiles')
+        .select('responder_consent_accepted, responder_consent_version')
+        .eq('id', user.id)
+        .maybeSingle()
+      if (cancelled) return
+      setConsentOk(isResponderConsentSatisfied(p))
+      setConsentReady(true)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [supabase])
 
   const { center, weatherLocation, stationLabel, manualInput, setManualInput, applyManualStation, geoReady } = useResponderStationAnchor()
   const [weather, setWeather] = useState<any>(null)
@@ -837,8 +899,10 @@ export default function ResponderDashboard() {
     load()
   }, [])
 
+  const showConsentGate = consentReady && !consentOk
+
   return (
-    <div className="w-full min-w-0 max-w-none mx-auto px-3 py-3 sm:px-4 sm:py-4 md:px-5">
+    <div className="relative w-full min-w-0 max-w-none mx-auto px-3 py-3 sm:px-4 sm:py-4 md:px-5">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-red-400 text-xs sm:text-sm font-medium">
           <Shield className="w-4 h-4" />
@@ -853,7 +917,22 @@ export default function ResponderDashboard() {
           </Link>
         </div>
       </div>
-      <RedFlagSection mapCenter={center} flameoContext={flameoAgent.context} />
+      {consentOk && (
+        <div
+          className="mb-3 rounded-lg border border-amber-500/40 bg-amber-950/60 px-3 py-2.5 text-xs leading-snug text-amber-100/95 sm:text-sm"
+          role="status"
+        >
+          🔒 You are viewing sensitive evacuation data. Access is logged. Use only for active incident response.
+        </div>
+      )}
+      <div className={showConsentGate ? 'pointer-events-none select-none blur-[3px] opacity-40' : ''}>
+        <RedFlagSection
+          mapCenter={center}
+          flameoContext={flameoAgent.context}
+          canAccessEvacueeData={consentOk}
+        />
+      </div>
+      <ResponderDataConsent open={showConsentGate} onAgreed={() => setConsentOk(true)} />
     </div>
   )
 }

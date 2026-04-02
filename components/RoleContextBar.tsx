@@ -1,7 +1,6 @@
 'use client'
 import { User, Shield } from 'lucide-react'
 import { useRoleContext } from '@/components/RoleContext'
-import LanguageSwitcher from '@/components/LanguageSwitcher'
 
 export default function RoleContextBar() {
   const { mode, activePerson } = useRoleContext()
@@ -15,9 +14,6 @@ export default function RoleContextBar() {
         <p className="min-w-0 flex-1 leading-snug">
           My Hub — maps and Flameo use your saved home (and your live location when shared)
         </p>
-        <LanguageSwitcher
-          menuButtonClassName="border-green-300/80 bg-white/70 text-green-900 hover:bg-white dark:border-green-800 dark:bg-green-900/50 dark:text-green-50 dark:hover:bg-green-900/70"
-        />
       </div>
     )
   }
@@ -33,9 +29,6 @@ export default function RoleContextBar() {
           <span className="text-amber-900/70 dark:text-amber-200/80">· map &amp; alerts use their address</span>
         ) : null}
       </p>
-      <LanguageSwitcher
-        menuButtonClassName="border-amber-300/80 bg-white/80 text-amber-950 hover:bg-white dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-50 dark:hover:bg-amber-950/70"
-      />
     </div>
   )
 }

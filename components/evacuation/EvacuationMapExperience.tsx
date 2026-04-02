@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useSearchParams, usePathname } from 'next/navigation'
 import { Heart, Factory, ChevronLeft, ChevronRight, Bell } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
-import type { NifcFire, WindData, EvacShelter } from '@/app/dashboard/caregiver/map/LeafletMap'
+import type { NifcFire, WindData, EvacShelter, LiveShelterPin } from '@/app/dashboard/caregiver/map/LeafletMap'
 import type { HazardFacility } from '@/lib/hazard-facilities'
 import { useRoleContext, type RolePerson } from '@/components/RoleContext'
 import { loadPersons } from '@/lib/user-data'
@@ -16,6 +16,7 @@ import { distanceMiles } from '@/lib/hub-map-distance'
 import { useConsumerAlerts } from '@/hooks/useConsumerAlerts'
 import { geocodeAddressClient } from '@/lib/geocoding-client'
 import { coerceAlertRadiusToChip, DEFAULT_ALERT_RADIUS_MILES } from '@/lib/alert-radius'
+import { parseUsStateCodeFromAddress } from '@/lib/us-address-state'
 const LeafletMap = dynamic(() => import('@/app/dashboard/caregiver/map/LeafletMap'), { ssr: false })
 
 class MapErrorBoundary extends Component<{ children: ReactNode }, { crashed: boolean }> {
@@ -80,6 +81,7 @@ export default function EvacuationMapExperience({
   const [windData, setWindData] = useState<WindData | null>(null)
   const [locatingMap, setLocatingMap] = useState(false)
   const [flyToNonce, setFlyToNonce] = useState(0)
+  const [liveMapShelters, setLiveMapShelters] = useState<LiveShelterPin[]>([])
   const [drawerOpen, setDrawerOpen] = useState(!mobile)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [radiusMiles, setRadiusMiles] = useState(DEFAULT_ALERT_RADIUS_MILES)
@@ -147,6 +149,55 @@ export default function EvacuationMapExperience({
     if (userLocation) return userLocation
     return homeCoords
   }, [isViewingMember, personLocation, userLocation, homeCoords])
+
+  useEffect(() => {
+    const addr =
+      (isViewingMember && activePerson?.address?.trim()) || userProfile?.address?.trim() || ''
+    const st = parseUsStateCodeFromAddress(addr) || 'NC'
+    if (!mapAnchor) {
+      setLiveMapShelters([])
+      return
+    }
+    const [lat, lng] = mapAnchor
+    let cancelled = false
+    fetch(
+      `/api/shelters/live?state=${encodeURIComponent(st)}&lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(String(lng))}`
+    )
+      .then(r => r.json())
+      .then(
+        (data: {
+          shelters?: Array<{
+            id: string
+            name: string
+            lat: number
+            lng: number
+            capacity: number | null
+            current_occupancy: number | null
+            last_verified_at: string
+          }>
+        }) => {
+          if (cancelled) return
+          const list = Array.isArray(data.shelters) ? data.shelters : []
+          setLiveMapShelters(
+            list.map(s => ({
+              id: String(s.id),
+              name: s.name,
+              lat: s.lat,
+              lng: s.lng,
+              capacity: s.capacity,
+              currentOccupancy: s.current_occupancy,
+              lastVerifiedAt: s.last_verified_at,
+            }))
+          )
+        }
+      )
+      .catch(() => {
+        if (!cancelled) setLiveMapShelters([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [mapAnchor, isViewingMember, activePerson?.address, userProfile?.address])
 
   const homeAnchorForAlerts = useMemo((): [number, number] | null => {
     if (isViewingMember && personLocation) return personLocation
@@ -501,6 +552,7 @@ export default function EvacuationMapExperience({
         homePosition={homeCoords}
         showHomePin={isAwayFromHome && !!homeCoords}
         shelters={HUMAN_EVAC_SHELTERS}
+        liveShelters={liveMapShelters}
         showShelters={showShelters}
         watchedLocations={watchedLocationsForMap}
         facilities={HAZARD_FACILITIES}

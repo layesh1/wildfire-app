@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { distanceMiles } from '@/lib/hub-map-distance'
 
 type LatLng = { lat: number; lng: number }
-type ShelterInput = { name: string; lat: number; lng: number }
+type ShelterInput = { name: string; lat: number; lng: number; verified?: boolean }
 
 type RouteRow = {
   shelter: ShelterInput
@@ -244,6 +244,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'originLat, originLng, shelters are required' }, { status: 400 })
   }
 
+  const hasExplicitVerified = shelters.some(s => typeof s?.verified === 'boolean')
+  const verifiedOnly = shelters.filter(s => s?.verified === true)
+  const routeTargets =
+    hasExplicitVerified && verifiedOnly.length > 0 ? verifiedOnly : shelters
+  const shelter_verified =
+    !hasExplicitVerified || verifiedOnly.length > 0
+
   const key = getRoutesKey()
   const origin = { lat: originLat, lng: originLng }
   const firePerimeter =
@@ -263,7 +270,7 @@ export async function POST(request: NextRequest) {
   const fireCenter = toFireCenter(firePerimeter)
 
   const out: RouteRow[] = []
-  for (const shelter of shelters) {
+  for (const shelter of routeTargets) {
     if (!Number.isFinite(shelter?.lat) || !Number.isFinite(shelter?.lng)) continue
     try {
       const route = await computeRoute(
@@ -303,5 +310,6 @@ export async function POST(request: NextRequest) {
     origin,
     fire_center: fireCenter,
     ranked: out.slice(0, 3),
+    shelter_verified,
   })
 }

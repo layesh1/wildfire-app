@@ -13,6 +13,7 @@ import {
   SidebarBody,
   useSidebar,
 } from '@/components/ui/sidebar'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
 interface Props {
   user: any
   profile: any
@@ -312,8 +313,25 @@ function SidebarInner({ user, profile }: Props) {
         )}
       </nav>
 
-      {/* User + signout */}
+      {/* Language + user + signout */}
       <div className={cn('pb-3 border-t border-white/10', collapsed ? 'flex flex-col items-center gap-1' : '')}>
+        <div
+          className={cn(
+            'px-2 pt-3 pb-2',
+            open ? 'w-full' : 'flex justify-center'
+          )}
+        >
+          <LanguageSwitcher
+            menuOpens="above"
+            className={open ? 'w-full' : ''}
+            menuButtonClassName={cn(
+              'justify-center border-white/25 bg-white/10 text-white/95 hover:bg-white/15 hover:text-white',
+              'dark:border-white/25 dark:bg-white/10 dark:text-white/95 dark:hover:bg-white/15',
+              open ? 'w-full' : ''
+            )}
+          />
+        </div>
+
         <AnimatePresence>
           {open && (
             <motion.div

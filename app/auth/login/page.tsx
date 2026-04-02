@@ -74,8 +74,8 @@ function LoginForm() {
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // signup onboarding
-  const [onboardingStep, setOnboardingStep] = useState(0) // 0 = credentials, 1-3 = steps, 4 = done
+  // signup onboarding: 0 = credentials, 1–3 = profile/prefs, 4 = terms (evacuee only), 5 = check email
+  const [onboardingStep, setOnboardingStep] = useState(0)
   const [ob, setOb] = useState<OnboardingData>({
     fullName: '', phone: '', address: '',
     role: 'evacuee', inviteCode: '',
@@ -92,6 +92,12 @@ function LoginForm() {
   const [langSearch, setLangSearch] = useState('')
   const [showLangDrop, setShowLangDrop] = useState(false)
   const langRef = useRef<HTMLDivElement>(null)
+
+  /** Evacuee email signup — same agreements as /auth/onboarding before account is created. */
+  const [locationConsent, setLocationConsent] = useState(false)
+  const [evacuationConsent, setEvacuationConsent] = useState(false)
+  const [healthConsent, setHealthConsent] = useState(false)
+  const [consentError, setConsentError] = useState('')
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -118,6 +124,8 @@ function LoginForm() {
     l.name.toLowerCase().includes(langSearch.toLowerCase()) ||
     l.native.toLowerCase().includes(langSearch.toLowerCase())
   )
+
+  const signupStepTotal = ob.role === 'evacuee' ? 4 : 3
 
   const selectedLang = LANGUAGES.find(l => l.code === ob.language)
 
@@ -224,12 +232,24 @@ function LoginForm() {
       setError('')
       setOnboardingStep(3)
     } else if (onboardingStep === 3) {
-      await handleSignup()
+      if (ob.role === 'evacuee') {
+        setConsentError('')
+        setOnboardingStep(4)
+      } else {
+        await handleSignup()
+      }
     }
   }
 
   // Final signup
   async function handleSignup() {
+    if (ob.role === 'evacuee') {
+      if (!locationConsent || !evacuationConsent || !healthConsent) {
+        setConsentError('Please agree to all terms to continue')
+        return
+      }
+      setConsentError('')
+    }
     setLoading(true)
     setError('')
     try {
@@ -258,6 +278,15 @@ function LoginForm() {
               : null,
           ...(ob.emergencyContactName && { emergency_contact_name: ob.emergencyContactName.trim() }),
           ...(ob.emergencyContactPhone && { emergency_contact_phone: ob.emergencyContactPhone.trim() }),
+          ...(ob.role === 'evacuee' && {
+            location_sharing_consent: locationConsent,
+            evacuation_status_consent: evacuationConsent,
+            health_data_consent: healthConsent,
+            terms_accepted_at: new Date().toISOString(),
+            responder_data_consent: locationConsent && evacuationConsent,
+            responder_data_consent_at:
+              locationConsent && evacuationConsent ? new Date().toISOString() : null,
+          }),
         }
         await supabase.from('profiles').upsert({ id: data.user.id, ...profilePayload })
       }
@@ -265,7 +294,7 @@ function LoginForm() {
       if (data.session) {
         window.location.href = '/dashboard'
       } else {
-        setOnboardingStep(4)
+        setOnboardingStep(5)
       }
     } catch (err: any) {
       const msg: string = err.message || ''
@@ -345,20 +374,25 @@ function LoginForm() {
                 {onboardingStep === 1 && <>Caregiver or<br/>evacuee?</>}
                 {onboardingStep === 2 && <>Your home<br/>on the map.</>}
                 {onboardingStep === 3 && <>Almost done.</>}
-                {onboardingStep === 4 && <>You&apos;re all set.</>}
+                {onboardingStep === 4 && ob.role === 'evacuee' && <>Agree to<br/>sharing terms.</>}
+                {onboardingStep === 5 && <>You&apos;re all set.</>}
               </h2>
               <p className="text-green-200/70 text-base leading-relaxed mb-10">
                 {onboardingStep === 0 && 'Get personalized evacuation intelligence, plan safe routes, and automate distance-to-fire awareness for the people in your care.'}
                 {onboardingStep === 1 && 'Choose Caregiver to coordinate others, or Evacuee for your own household. Both paths use home-address automation to safety — not city- or county-level guesses.'}
                 {onboardingStep === 2 && 'Enter a numbered street address. Our search filters out cities and counties so alerts and Flameo stay tied to a real location.'}
                 {onboardingStep === 3 && 'Set your language and emergency contact so we can reach the right people the right way.'}
-                {onboardingStep === 4 && 'Check your inbox to confirm your email, then sign in to access your dashboard.'}
+                {onboardingStep === 4 && ob.role === 'evacuee' && 'Review how location, evacuation status, and optional health details are shared with responders during active incidents — required to create your account.'}
+                {onboardingStep === 5 && 'Check your inbox to confirm your email, then sign in to access your dashboard.'}
               </p>
               {/* Step indicators */}
-              {onboardingStep > 0 && onboardingStep < 4 && (
+              {onboardingStep > 0 && onboardingStep <= signupStepTotal && (
                 <div className="flex items-center gap-2">
-                  {[1, 2, 3].map(s => (
-                    <div key={s} className={`h-1 rounded-full flex-1 transition-all ${s <= onboardingStep ? 'bg-green-400' : 'bg-white/20'}`} />
+                  {Array.from({ length: signupStepTotal }, (_, i) => i + 1).map(s => (
+                    <div
+                      key={s}
+                      className={`h-1 rounded-full flex-1 transition-all ${s <= onboardingStep ? 'bg-green-400' : 'bg-white/20'}`}
+                    />
                   ))}
                 </div>
               )}
@@ -447,7 +481,17 @@ function LoginForm() {
 
                 <p className="mt-6 text-center text-base text-gray-500 dark:text-gray-400">
                   Don't have an account?{' '}
-                  <button onClick={() => { setMode('signup'); setError(''); setEmailFormatError(''); setEmailTaken(false); setOnboardingStep(0) }}
+                  <button onClick={() => {
+                    setMode('signup')
+                    setError('')
+                    setEmailFormatError('')
+                    setEmailTaken(false)
+                    setOnboardingStep(0)
+                    setLocationConsent(false)
+                    setEvacuationConsent(false)
+                    setHealthConsent(false)
+                    setConsentError('')
+                  }}
                     className="font-medium text-forest-600 transition-colors hover:text-forest-700 dark:text-forest-400 dark:hover:text-forest-300">
                     Sign up free
                   </button>
@@ -554,7 +598,7 @@ function LoginForm() {
                   </button>
                   <div>
                     <h2 className="font-display text-xl font-bold text-gray-900">How you&apos;ll use the app</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Step 1 of 3</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Step 1 of {signupStepTotal}</p>
                   </div>
                 </div>
 
@@ -611,7 +655,7 @@ function LoginForm() {
                   </button>
                   <div>
                     <h2 className="font-display text-xl font-bold text-gray-900">About you</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Step 2 of 3</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Step 2 of {signupStepTotal}</p>
                   </div>
                 </div>
 
@@ -669,7 +713,7 @@ function LoginForm() {
                   </button>
                   <div>
                     <h2 className="font-display text-xl font-bold text-gray-900">Preferences</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Step 3 of 3</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Step 3 of {signupStepTotal}</p>
                   </div>
                 </div>
 
@@ -780,15 +824,130 @@ function LoginForm() {
                   {loading ? (
                     <span className="flex items-center justify-center gap-2">
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Creating account...
+                      {ob.role === 'evacuee' ? 'Loading…' : 'Creating account...'}
                     </span>
-                  ) : <>Create account <ArrowRight className="w-4 h-4" /></>}
+                  ) : ob.role === 'evacuee' ? (
+                    <>Continue <ArrowRight className="w-4 h-4" /></>
+                  ) : (
+                    <>Create account <ArrowRight className="w-4 h-4" /></>
+                  )}
                 </button>
               </>
             )}
 
-            {/* ── SIGNUP — Step 4: Check email ── */}
-            {mode === 'signup' && onboardingStep === 4 && (
+            {/* ── SIGNUP — Step 4: Terms & consent (evacuee only) ── */}
+            {mode === 'signup' && onboardingStep === 4 && ob.role === 'evacuee' && (
+              <>
+                <div className="flex items-center gap-3 mb-6">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOnboardingStep(3)
+                      setConsentError('')
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+                  <div>
+                    <h2 className="font-display text-xl font-bold text-gray-900">Before you continue</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Step 4 of 4</p>
+                  </div>
+                </div>
+
+                <p className="mb-4 text-base leading-relaxed text-gray-600 dark:text-gray-300">
+                  Please review and agree to the following to use WildfireAlert.
+                </p>
+                <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm leading-relaxed text-gray-700 dark:border-gray-600 dark:bg-gray-800/80 dark:text-gray-300">
+                  Your health information is encrypted and only shared with emergency responders during active incidents in your area. You control what you share and can remove it anytime in Settings.
+                </div>
+
+                <div className="mb-6 space-y-4">
+                  <label className="flex cursor-pointer items-start gap-3">
+                    <input
+                      type="checkbox"
+                      className="mt-1 shrink-0 accent-forest-600"
+                      checked={locationConsent}
+                      onChange={e => {
+                        setLocationConsent(e.target.checked)
+                        if (e.target.checked) setConsentError('')
+                      }}
+                    />
+                    <span className="text-sm leading-relaxed text-gray-800 dark:text-gray-200">
+                      I agree that my home address and general location will be shared with emergency responders in my area during an active wildfire incident.
+                    </span>
+                  </label>
+                  <label className="flex cursor-pointer items-start gap-3">
+                    <input
+                      type="checkbox"
+                      className="mt-1 shrink-0 accent-forest-600"
+                      checked={evacuationConsent}
+                      onChange={e => {
+                        setEvacuationConsent(e.target.checked)
+                        if (e.target.checked) setConsentError('')
+                      }}
+                    />
+                    <span className="text-sm leading-relaxed text-gray-800 dark:text-gray-200">
+                      I agree that my evacuation status will be visible to emergency responders during an active incident.
+                    </span>
+                  </label>
+                  <label className="flex cursor-pointer items-start gap-3">
+                    <input
+                      type="checkbox"
+                      className="mt-1 shrink-0 accent-forest-600"
+                      checked={healthConsent}
+                      onChange={e => {
+                        setHealthConsent(e.target.checked)
+                        if (e.target.checked) setConsentError('')
+                      }}
+                    />
+                    <span className="text-sm leading-relaxed text-gray-800 dark:text-gray-200">
+                      I agree that any health or mobility information I choose to share will be visible to emergency responders to help them assist me safely.
+                    </span>
+                  </label>
+                </div>
+
+                {(!locationConsent || !evacuationConsent || !healthConsent) && (
+                  <p className="mb-3 text-sm text-red-600 dark:text-red-400">Please agree to all terms to continue</p>
+                )}
+                {consentError && (
+                  <p className="mb-3 text-sm text-red-600 dark:text-red-400" role="alert">
+                    {consentError}
+                  </p>
+                )}
+                {error && (
+                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-base text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!locationConsent || !evacuationConsent || !healthConsent) {
+                      setConsentError('Please agree to all terms to continue')
+                      return
+                    }
+                    setConsentError('')
+                    void handleSignup()
+                  }}
+                  disabled={loading || !locationConsent || !evacuationConsent || !healthConsent}
+                  className="btn-primary w-full flex items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Creating account...
+                    </span>
+                  ) : (
+                    <>Create account <ArrowRight className="w-4 h-4" /></>
+                  )}
+                </button>
+              </>
+            )}
+
+            {/* ── SIGNUP — Step 5: Check email ── */}
+            {mode === 'signup' && onboardingStep === 5 && (
               <div className="text-center">
                 <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
                   <Check className="w-8 h-8 text-forest-600" />
@@ -798,8 +957,18 @@ function LoginForm() {
                   We sent a confirmation link to <strong className="text-gray-800 dark:text-gray-200">{email}</strong>. Click it to activate your account, then come back to sign in.
                 </p>
                 <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">Don't see it? Check your spam folder.</p>
-                <button onClick={() => { setMode('login'); setOnboardingStep(0); setError('') }}
-                  className="btn-primary w-full">
+                <button
+                  onClick={() => {
+                    setMode('login')
+                    setOnboardingStep(0)
+                    setError('')
+                    setLocationConsent(false)
+                    setEvacuationConsent(false)
+                    setHealthConsent(false)
+                    setConsentError('')
+                  }}
+                  className="btn-primary w-full"
+                >
                   Go to sign in
                 </button>
               </div>

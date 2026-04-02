@@ -87,6 +87,13 @@ export interface FlameoShelterNearby {
   lon: number
   distance_miles: number
   phone?: string | null
+  address?: string | null
+  capacity?: number | null
+  current_occupancy?: number | null
+  /** FEMA NSS open shelter vs static pre-identified site */
+  verified: boolean
+  source: 'fema_nss' | 'pre_identified'
+  last_verified_at?: string | null
 }
 
 export interface FlameoShelterRouteRanked {
@@ -100,6 +107,22 @@ export interface FlameoShelterRouteRanked {
   passes_near_hazard?: boolean
   accessibility_likely?: boolean
   phone?: string | null
+  verified: boolean
+  source: 'fema_nss' | 'pre_identified'
+  last_verified_at?: string | null
+  capacity?: number | null
+  current_occupancy?: number | null
+}
+
+/** Provenance and freshness for shelter UI (Flameo Situation Room, route cards). */
+export interface FlameoSheltersMeta {
+  last_checked_at: string
+  cache_age_seconds: number
+  live_feed_ok: boolean
+  fema_shelter_count: number
+  pre_identified_count: number
+  /** True when driving directions used only FEMA-verified open shelters */
+  routes_use_verified_open: boolean
 }
 
 export interface FlameoContext {
@@ -111,6 +134,7 @@ export interface FlameoContext {
   hazard_sites_nearby: FlameoHazardSite[]
   shelters_nearby?: FlameoShelterNearby[]
   shelters_ranked?: FlameoShelterRouteRanked[]
+  shelters_meta?: FlameoSheltersMeta
   flags: FlameoContextFlags
   /** Miles — from profile `alert_radius_miles` or default */
   alert_radius_miles: number

@@ -8,9 +8,11 @@ import { cn } from '@/lib/utils'
 type Props = {
   className?: string
   menuButtonClassName?: string
+  /** Open menu above the button (e.g. footer of sidebar) so it is not clipped below the viewport. */
+  menuOpens?: 'below' | 'above'
 }
 
-export default function LanguageSwitcher({ className, menuButtonClassName }: Props) {
+export default function LanguageSwitcher({ className, menuButtonClassName, menuOpens = 'below' }: Props) {
   const { lang, setLanguage } = useLanguage()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -47,7 +49,10 @@ export default function LanguageSwitcher({ className, menuButtonClassName }: Pro
       </button>
       {open && (
         <div
-          className="absolute top-full right-0 z-[90] mt-1 min-w-[260px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-600 dark:bg-gray-900"
+          className={cn(
+            'absolute right-0 z-[90] min-w-[260px] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-600 dark:bg-gray-900',
+            menuOpens === 'above' ? 'bottom-full mb-1' : 'top-full mt-1'
+          )}
           role="listbox"
         >
           <div className="border-b border-gray-100 px-3 py-2 dark:border-gray-700">

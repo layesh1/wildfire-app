@@ -4,6 +4,11 @@ export type Shelter = {
   lng: number
   county?: string
   phone?: string | null
+  verified?: boolean
+  source?: 'fema_nss' | 'pre_identified'
+  last_verified_at?: string | null
+  capacity?: number | null
+  current_occupancy?: number | null
 }
 
 export type RankedShelter = Shelter & {
@@ -54,7 +59,16 @@ export async function rankSheltersByProximity(
     const time = el?.status === 'OK' ? (el.duration?.value ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER
     const dist = el?.status === 'OK' ? (el.distance?.value ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER
     return {
-      ...s,
+      name: s.name,
+      lat: s.lat,
+      lng: s.lng,
+      county: s.county,
+      phone: s.phone,
+      verified: s.verified,
+      source: s.source,
+      last_verified_at: s.last_verified_at,
+      capacity: s.capacity,
+      current_occupancy: s.current_occupancy,
       travelTimeSeconds: time,
       travelDistanceMeters: dist,
       accessibilityLikely: isAccessibilityLikely(s.name),

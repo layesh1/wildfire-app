@@ -6,6 +6,7 @@ import { HAZARD_FACILITIES } from '@/lib/hazard-facilities'
 import { geocodeAddress } from '@/lib/geocoding'
 import { reverseGeocode } from '@/lib/geocoding'
 import { rankSheltersByProximity } from '@/lib/shelter-ranking'
+import { parseUsStateCodeFromAddress } from '@/lib/us-address-state'
 import type {
   FlameoAnchor,
   FlameoContext,
@@ -13,6 +14,8 @@ import type {
   FlameoContextStatus,
   FlameoIncidentNearby,
   FlameoLocationAnchorDetail,
+  FlameoShelterNearby,
+  FlameoSheltersMeta,
   FlameoUserRole,
   FlameoWeatherSummary,
 } from '@/lib/flameo-context-types'
@@ -292,36 +295,140 @@ export async function GET(request: NextRequest) {
     .filter(h => h.distance_miles <= alertRadiusMiles)
     .sort((a, b) => a.distance_miles - b.distance_miles)
 
-  // Grounding for shelter-oriented Flameo requests: only vetted human evacuation shelters.
   const shelterOrigin: [number, number] = refB ?? refA
-  const shelters_nearby = HUMAN_EVAC_SHELTERS
-    .map(s => ({
+  const shelterOriginObj = { lat: shelterOrigin[0], lng: shelterOrigin[1] }
+  const origin = new URL(request.url).origin
+
+  const addressForState = (contextAddress || address || workAddr || '').trim()
+  const stateForShelters =
+    parseUsStateCodeFromAddress(addressForState) || 'NC'
+
+  type LiveShelterApi = {
+    id: string
+    name: string
+    address: string
+    city: string
+    state: string
+    lat: number
+    lng: number
+    capacity: number | null
+    current_occupancy: number | null
+    last_verified_at: string
+    source: 'fema_nss'
+  }
+  type LiveApiBody = {
+    shelters?: LiveShelterApi[]
+    source_status?: string
+    fallback?: boolean
+    fetched_at?: string
+  }
+
+  let liveBody: LiveApiBody | null = null
+  let liveCacheAgeSec = 0
+  try {
+    const liveUrl =
+      `${origin}/api/shelters/live?state=${encodeURIComponent(stateForShelters)}`
+      + `&lat=${encodeURIComponent(String(shelterOrigin[0]))}`
+      + `&lng=${encodeURIComponent(String(shelterOrigin[1]))}`
+    const liveRes = await fetch(liveUrl, { cache: 'no-store' })
+    liveCacheAgeSec = parseInt(liveRes.headers.get('x-cache-age') || '0', 10) || 0
+    if (liveRes.ok) liveBody = (await liveRes.json()) as LiveApiBody
+  } catch {
+    liveBody = null
+  }
+
+  const femaOk =
+    liveBody?.source_status === 'ok'
+    && liveBody.fallback !== true
+  const femaList: LiveShelterApi[] =
+    femaOk && Array.isArray(liveBody?.shelters) ? liveBody!.shelters! : []
+  const useFemaForList = femaList.length > 0
+
+  let shelters_nearby: FlameoShelterNearby[] = []
+  if (useFemaForList) {
+    shelters_nearby = femaList
+      .map(s => ({
+        name: s.name,
+        county: s.city || '',
+        lat: s.lat,
+        lon: s.lng,
+        distance_miles: Math.round(distanceMiles(shelterOrigin, [s.lat, s.lng]) * 10) / 10,
+        phone: null,
+        address: s.address,
+        capacity: s.capacity,
+        current_occupancy: s.current_occupancy,
+        verified: true,
+        source: 'fema_nss' as const,
+        last_verified_at: s.last_verified_at,
+      }))
+      .sort((a, b) => a.distance_miles - b.distance_miles)
+      .slice(0, MAX_SHELTERS)
+  } else {
+    shelters_nearby = HUMAN_EVAC_SHELTERS.map(s => ({
       name: s.name,
       county: s.county,
       lat: s.lat,
       lon: s.lng,
       distance_miles: Math.round(distanceMiles(shelterOrigin, [s.lat, s.lng]) * 10) / 10,
+      phone: null,
+      address: null,
+      capacity: s.capacity ?? null,
+      current_occupancy: null,
+      verified: false,
+      source: 'pre_identified' as const,
+      last_verified_at: null,
     }))
-    .sort((a, b) => a.distance_miles - b.distance_miles)
-    .slice(0, MAX_SHELTERS)
+      .sort((a, b) => a.distance_miles - b.distance_miles)
+      .slice(0, MAX_SHELTERS)
+  }
 
-  const shelterOriginObj = { lat: shelterOrigin[0], lng: shelterOrigin[1] }
+  const rankingShelters = useFemaForList
+    ? femaList.map(s => ({
+        name: s.name,
+        lat: s.lat,
+        lng: s.lng,
+        county: s.city,
+        phone: null as string | null,
+        verified: true as boolean,
+        source: 'fema_nss' as const,
+        last_verified_at: s.last_verified_at,
+        capacity: s.capacity,
+        current_occupancy: s.current_occupancy,
+      }))
+    : HUMAN_EVAC_SHELTERS.map(s => ({
+        name: s.name,
+        lat: s.lat,
+        lng: s.lng,
+        county: s.county,
+        phone: null as string | null,
+        verified: false as boolean,
+        source: 'pre_identified' as const,
+        last_verified_at: null as string | null,
+        capacity: s.capacity ?? null,
+        current_occupancy: null as number | null,
+      }))
+
   let rankedByTravel = await rankSheltersByProximity(
     shelterOriginObj,
-    shelters_nearby.map(s => ({
-      name: s.name,
-      lat: s.lat,
-      lng: s.lon,
-      county: s.county,
-    }))
-    ,
+    rankingShelters,
     { preferAccessible: prefersAccessibleShelter }
   ).catch(() => [])
 
-  const origin = new URL(request.url).origin
+  const shelters_meta: FlameoSheltersMeta = {
+    last_checked_at:
+      typeof liveBody?.fetched_at === 'string'
+        ? liveBody.fetched_at
+        : new Date().toISOString(),
+    cache_age_seconds: liveCacheAgeSec,
+    live_feed_ok: femaOk,
+    fema_shelter_count: useFemaForList ? femaList.length : 0,
+    pre_identified_count: useFemaForList ? 0 : shelters_nearby.length,
+    routes_use_verified_open: useFemaForList,
+  }
 
   let nifcOk = false
-  let firmsOk = false
+  /** NASA FIRMS hotspots are excluded from consumer Flameo context — they are often non-wildfire (industrial flare, ag burn) and read as false “fires” near cities. NIFC incident/perimeter layers only. */
+  const firmsOk = false
   const candidates: FlameoIncidentNearby[] = []
 
   try {
@@ -361,47 +468,6 @@ export async function GET(request: NextRequest) {
     nifcOk = false
   }
 
-  try {
-    const firmsRes = await fetch(`${origin}/api/fires/firms?days=2`, { cache: 'no-store' })
-    if (firmsRes.ok) {
-      const json = await firmsRes.json()
-      firmsOk = true
-      const rows = Array.isArray(json.data) ? json.data : []
-      rows.forEach((row: Record<string, string>, i: number) => {
-        const lat = parseFloat(row.latitude || '')
-        const lon = parseFloat(row.longitude || '')
-        if (Number.isNaN(lat) || Number.isNaN(lon)) return
-        const dHome = distanceMiles(homePoint, [lat, lon])
-        const dA = distanceMiles(refA, [lat, lon])
-        const dB = refB ? distanceMiles(refB, [lat, lon]) : null
-        const dLive = livePoint ? distanceMiles(livePoint, [lat, lon]) : null
-        const inRadius =
-          dA <= alertRadiusMiles || (dB != null && dB <= alertRadiusMiles)
-        if (!inRadius) return
-        const distMin = Math.min(dA, dB ?? Infinity)
-        let nearest: 'home' | 'live' | 'work' | 'unknown' = 'home'
-        if (location_anchor?.anchor === 'work') nearest = 'work'
-        else if (location_anchor?.anchor === 'unknown') nearest = 'unknown'
-        else if (dualForIncidents && dB != null && dB < dA) nearest = 'live'
-        candidates.push({
-          id: `firms-${i}-${lat.toFixed(3)}-${lon.toFixed(3)}`,
-          source: 'firms',
-          distance_miles: Math.round(distMin * 10) / 10,
-          distance_miles_from_home: Math.round(dHome * 10) / 10,
-          distance_miles_from_live: dLive != null ? Math.round(dLive * 10) / 10 : null,
-          nearest_anchor_id: dualForIncidents || location_anchor ? nearest : 'home',
-          name: null,
-          lat,
-          lon,
-        })
-      })
-    } else if (firmsRes.status === 503) {
-      firmsOk = false
-    }
-  } catch {
-    firmsOk = false
-  }
-
   candidates.sort((a, b) => a.distance_miles - b.distance_miles)
   const incidents_nearby = candidates.slice(0, MAX_INCIDENTS)
 
@@ -417,7 +483,12 @@ export async function GET(request: NextRequest) {
         body: JSON.stringify({
           originLat: shelterOrigin[0],
           originLng: shelterOrigin[1],
-          shelters: rankedByTravel.slice(0, 6).map(s => ({ name: s.name, lat: s.lat, lng: s.lng })),
+          shelters: rankedByTravel.slice(0, 6).map(s => ({
+            name: s.name,
+            lat: s.lat,
+            lng: s.lng,
+            verified: s.verified === true,
+          })),
           firePerimeter: firePerimeter.length >= 3 ? firePerimeter : undefined,
           hazardSites: hazard_sites_nearby.map(h => ({
             lat: h.lat,
@@ -428,6 +499,7 @@ export async function GET(request: NextRequest) {
         cache: 'no-store',
       })
       const routeJson = (await routeRes.json()) as {
+        shelter_verified?: boolean
         ranked?: Array<{
           shelter: { name: string; lat: number; lng: number }
           duration_seconds: number
@@ -442,6 +514,7 @@ export async function GET(request: NextRequest) {
         const match = rankedByTravel.find(
           s => s.name === r.shelter.name && s.lat === r.shelter.lat && s.lng === r.shelter.lng
         )
+        const verified = routeJson.shelter_verified === true && match?.verified === true
         return {
           name: r.shelter.name,
           lat: r.shelter.lat,
@@ -453,6 +526,11 @@ export async function GET(request: NextRequest) {
           passes_near_hazard: r.passes_near_hazard ?? false,
           accessibility_likely: match?.accessibilityLikely ?? false,
           phone: match?.phone ?? null,
+          verified,
+          source: match?.source ?? 'pre_identified',
+          last_verified_at: match?.last_verified_at ?? null,
+          capacity: match?.capacity ?? null,
+          current_occupancy: match?.current_occupancy ?? null,
         }
       })
     } catch {
@@ -467,6 +545,11 @@ export async function GET(request: NextRequest) {
         passes_near_hazard: false,
         accessibility_likely: s.accessibilityLikely,
         phone: s.phone ?? null,
+        verified: s.verified === true,
+        source: s.source ?? 'pre_identified',
+        last_verified_at: s.last_verified_at ?? null,
+        capacity: s.capacity ?? null,
+        current_occupancy: s.current_occupancy ?? null,
       }))
     }
   }
@@ -492,25 +575,15 @@ export async function GET(request: NextRequest) {
   }
 
   const hasThreat = incidents_nearby.length > 0
-  const feedsWorked = nifcOk || firmsOk
-  const partialFeeds = nifcOk !== firmsOk && feedsWorked
 
   let status: FlameoContextStatus
   let message: string | undefined
 
-  if (!nifcOk && !firmsOk) {
+  if (!nifcOk) {
     status = 'feeds_unavailable'
     message = 'Active fire feeds are unavailable right now. Try again later.'
   } else if (hasThreat) {
-    status = partialFeeds ? 'feeds_partial' : 'ready'
-    if (partialFeeds) {
-      message = 'Some fire feeds were unavailable; showing incidents from available sources only.'
-    }
-  } else if (partialFeeds) {
-    status = 'feeds_partial'
-    message = dualMode
-      ? 'Partial fire data: at least one source was unavailable. Nothing confirmed within your alert radius of home or your current location.'
-      : 'Partial fire data: at least one source was unavailable. Nothing confirmed within your alert radius.'
+    status = 'ready'
   } else {
     status = 'no_fires_in_radius'
     message = dualMode
@@ -527,6 +600,7 @@ export async function GET(request: NextRequest) {
     hazard_sites_nearby,
     shelters_nearby,
     shelters_ranked,
+    shelters_meta,
     weather_summary,
     flags: {
       has_confirmed_threat: hasThreat,

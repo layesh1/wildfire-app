@@ -6,7 +6,7 @@ import {
   Shield, Heart, BarChart3, Lock, Check, ShieldCheck, Globe,
   Settings, Plus, User, Bell, BellOff, Moon, Sun, Monitor, LogOut,
   Trash2, Key, Save, CheckCircle, PawPrint, ShieldAlert,
-  Activity, FileText, Brain, Flame
+  Activity, FileText, Brain, Flame,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { useLanguage } from '@/components/LanguageProvider'
@@ -180,6 +180,10 @@ function SettingsInner() {
   const [theme, setThemeState] = useState<Theme>('dark')
   const [langSearch, setLangSearch] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [clearHealthModal, setClearHealthModal] = useState(false)
+  const [clearLocationModal, setClearLocationModal] = useState(false)
+  const [dataActionBusy, setDataActionBusy] = useState(false)
+  const [dataActionMessage, setDataActionMessage] = useState<string | null>(null)
 
   // Analyst-specific prefs (localStorage only — no DB needed)
   const [analystSviThreshold, setAnalystSviThreshold] = useState(0.7)
@@ -463,6 +467,77 @@ function SettingsInner() {
 
   function resetCode() { setAddingRole(null); setCode(''); setCodeVerified(false); setCodeError(''); setOrgName(null); setCodeId(null) }
 
+  async function confirmClearHealthData() {
+    setDataActionBusy(true)
+    setDataActionMessage(null)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setDataActionBusy(false)
+        return
+      }
+      const { error } = await supabase.from('profiles').update({
+        mobility_needs: null,
+        disability_needs: null,
+        disability_other: null,
+        medical_needs: null,
+        medical_other: null,
+        health_data_consent: false,
+      }).eq('id', user.id)
+      if (error) throw error
+      setProfile(p => ({
+        ...p,
+        mobility_needs: [],
+        disability_needs: [],
+        disability_other: '',
+        medical_needs: [],
+        medical_other: '',
+      }))
+      setDataActionMessage('✅ Your health information has been removed.')
+      setClearHealthModal(false)
+    } catch (e) {
+      setDataActionMessage(e instanceof Error ? e.message : 'Could not clear health data.')
+    } finally {
+      setDataActionBusy(false)
+    }
+  }
+
+  async function confirmClearLocationData() {
+    setDataActionBusy(true)
+    setDataActionMessage(null)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setDataActionBusy(false)
+        return
+      }
+      const { error } = await supabase.from('profiles').update({
+        address: null,
+        work_address: null,
+        work_building_type: null,
+        work_floor_number: null,
+        work_location_note: null,
+        work_address_verified: false,
+        location_sharing_consent: false,
+        evacuation_status_consent: false,
+      }).eq('id', user.id)
+      if (error) throw error
+      setProfile(p => ({ ...p, address: '' }))
+      setAddressDraft('')
+      setWorkAddressDraft('')
+      setSavedWorkAddress(null)
+      setWorkBuildingType('')
+      setWorkFloor('')
+      setWorkLocationNote('')
+      setDataActionMessage('✅ Your saved location data has been removed.')
+      setClearLocationModal(false)
+    } catch (e) {
+      setDataActionMessage(e instanceof Error ? e.message : 'Could not clear location data.')
+    } finally {
+      setDataActionBusy(false)
+    }
+  }
+
   const otherRoles = settingsInviteRoleOptions({ myRoles, profileHasProtectedRole })
   const profileTabLabel = activeRole === 'data_analyst' ? 'Analyst Profile'
     : activeRole === 'emergency_responder' ? 'Responder Profile'
@@ -515,18 +590,32 @@ function SettingsInner() {
       )}
 
       {/* Tabs */}
-      <div className="mb-6 flex gap-1 rounded-xl border border-gray-200 bg-gray-100 p-1 dark:border-gray-700 dark:bg-gray-900">
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={cn(
-              'flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all',
-              tab === t.id
-                ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white'
-                : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
-            )}
-          >{t.label}</button>
-        ))}
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex gap-1 rounded-xl border border-gray-200 bg-gray-100 p-1 dark:border-gray-700 dark:bg-gray-900">
+          {TABS.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={cn(
+                'flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-all',
+                tab === t.id
+                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white'
+                  : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+              )}
+            >{t.label}</button>
+          ))}
+        </div>
+        <Link
+          href="/dashboard/settings/privacy"
+          className="shrink-0 text-sm font-semibold text-amber-700 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-200"
+        >
+          Privacy &amp; Security →
+        </Link>
       </div>
+
+      {dataActionMessage && (
+        <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100">
+          {dataActionMessage}
+        </div>
+      )}
 
       {/* ── PROFILE TAB ── */}
       {tab === 'profile' && activeRole === 'emergency_responder' && (
@@ -1170,6 +1259,44 @@ function SettingsInner() {
             </div>
           </section>
 
+          {isConsumerRole(activeRole) && (
+            <>
+              <section className="card p-6">
+                <div className="mb-4 flex items-center gap-2">
+                  <Heart className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  <h2 className="font-semibold text-gray-900 dark:text-white">Your health information</h2>
+                </div>
+                <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                  You&apos;ve shared health and mobility information to help emergency responders assist you. You can remove this information at any time.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { setClearHealthModal(true); setDataActionMessage(null) }}
+                  className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-900 transition-colors hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/60"
+                >
+                  Clear my health data
+                </button>
+              </section>
+
+              <section className="card p-6">
+                <div className="mb-4 flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  <h2 className="font-semibold text-gray-900 dark:text-white">Your location data</h2>
+                </div>
+                <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                  Remove your saved home and work addresses and turn off responder location sharing consents. You can add them again anytime in your profile.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { setClearLocationModal(true); setDataActionMessage(null) }}
+                  className="rounded-xl border border-gray-300 bg-gray-50 px-4 py-2.5 text-sm font-semibold text-gray-900 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700"
+                >
+                  Clear my location data
+                </button>
+              </section>
+            </>
+          )}
+
           <section className="card p-6">
             <div className="mb-1 flex items-center gap-2">
               <Shield className="h-4 w-4 text-amber-600 dark:text-amber-400" />
@@ -1436,6 +1563,68 @@ function SettingsInner() {
               ))}
             </div>
           </section>
+        </div>
+      )}
+
+      {clearHealthModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="clear-health-title">
+          <div className="max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+            <h2 id="clear-health-title" className="text-lg font-semibold text-gray-900 dark:text-white">
+              Clear health data?
+            </h2>
+            <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+              Are you sure? Emergency responders will no longer have your health information. You can re-add it anytime in Preferences.
+            </p>
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                disabled={dataActionBusy}
+                onClick={() => setClearHealthModal(false)}
+                className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={dataActionBusy}
+                onClick={() => void confirmClearHealthData()}
+                className="rounded-xl bg-amber-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
+              >
+                {dataActionBusy ? 'Working…' : 'Yes, clear my health data'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {clearLocationModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="clear-loc-title">
+          <div className="max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+            <h2 id="clear-loc-title" className="text-lg font-semibold text-gray-900 dark:text-white">
+              Clear location data?
+            </h2>
+            <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+              Clearing your address means emergency responders cannot locate your home during an evacuation. You can re-add it anytime in Settings.
+            </p>
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                disabled={dataActionBusy}
+                onClick={() => setClearLocationModal(false)}
+                className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={dataActionBusy}
+                onClick={() => void confirmClearLocationData()}
+                className="rounded-xl bg-amber-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50"
+              >
+                {dataActionBusy ? 'Working…' : 'Yes, clear my location data'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

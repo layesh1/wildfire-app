@@ -28,6 +28,17 @@ export interface EvacShelter {
   capacity: number
 }
 
+/** FEMA NSS open shelters for map (from GET /api/shelters/live). */
+export interface LiveShelterPin {
+  id: string
+  name: string
+  lat: number
+  lng: number
+  capacity?: number | null
+  currentOccupancy?: number | null
+  lastVerifiedAt?: string | null
+}
+
 export interface WindData {
   speedMph: number
   directionDeg: number   // meteorological: direction wind comes FROM
@@ -85,6 +96,36 @@ function shelterIcon(type: 'evacuation' | 'animal') {
     iconSize: [26, 26],
     iconAnchor: [13, 13],
     popupAnchor: [0, -13],
+    className: '',
+  })
+}
+
+/** FEMA-verified open shelter — green circle + check */
+function verifiedFemaShelterIcon() {
+  const svg = encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28">
+    <circle cx="14" cy="14" r="12" fill="#22c55e" fill-opacity="0.25" stroke="#16a34a" stroke-width="2"/>
+    <path d="M8 14.5l4 4 8-9" fill="none" stroke="#15803d" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`)
+  return L.divIcon({
+    html: `<img src="data:image/svg+xml,${svg}" width="28" height="28" style="display:block" alt="" />`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -14],
+    className: '',
+  })
+}
+
+/** Pre-identified site — not confirmed open */
+function preIdentifiedShelterIcon() {
+  const svg = encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28">
+    <circle cx="14" cy="14" r="12" fill="#64748b" fill-opacity="0.35" stroke="#475569" stroke-width="2"/>
+    <text x="14" y="18" text-anchor="middle" font-size="12" fill="#1e293b">&#x1F4CD;</text>
+  </svg>`)
+  return L.divIcon({
+    html: `<img src="data:image/svg+xml,${svg}" width="28" height="28" style="display:block" alt="" />`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -14],
     className: '',
   })
 }
@@ -263,22 +304,26 @@ function MapLegend({
         </div>
       )}
       {showShelters && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden>
-            <svg width="22" height="22" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="11" fill="#22c55e" fillOpacity={0.22} stroke="#22c55e" strokeWidth="1.5" />
-              <path
-                d="M12 4.5L4.5 10.5V19h3v-6h9v6h3v-8.5L12 4.5z"
-                fill="#15803d"
-                stroke="#15803d"
-                strokeWidth="0.35"
-                strokeLinejoin="round"
-              />
-              <path d="M9 19v-5h6v5" fill="none" stroke="#15803d" strokeWidth="1.2" strokeLinecap="round" />
-            </svg>
-          </span>
-          <span>Evacuation shelter</span>
-        </div>
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden>
+              <svg width="22" height="22" viewBox="0 0 28 28">
+                <circle cx="14" cy="14" r="11" fill="#22c55e" fillOpacity={0.25} stroke="#16a34a" strokeWidth="2" />
+                <path d="M8 14.5l4 4 8-9" fill="none" stroke="#15803d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <span>Open shelter (FEMA feed)</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden>
+              <svg width="22" height="22" viewBox="0 0 28 28">
+                <circle cx="14" cy="14" r="11" fill="#64748b" fillOpacity={0.35} stroke="#475569" strokeWidth="2" />
+                <text x="14" y="18" textAnchor="middle" fontSize="11" fill="#e2e8f0">&#x1F4CD;</text>
+              </svg>
+            </span>
+            <span>Pre-identified (unconfirmed)</span>
+          </div>
+        </>
       )}
       {showFacilities && (
         <>
@@ -316,6 +361,8 @@ interface Props {
   homePosition?: [number, number] | null
   showHomePin?: boolean
   shelters?: EvacShelter[]
+  /** Live FEMA NSS open shelters — rendered as verified green pins */
+  liveShelters?: LiveShelterPin[]
   showShelters?: boolean
   watchedLocations?: WatchedLocation[]
   facilities?: HazardFacility[]
@@ -333,6 +380,7 @@ export default function LeafletMap({
   homePosition = null,
   showHomePin = false,
   shelters = [],
+  liveShelters = [],
   showShelters = false,
   watchedLocations = [],
   facilities = [],
@@ -410,15 +458,36 @@ export default function LeafletMap({
           </Marker>
         ))}
 
-        {/* Human evacuation shelters only (animal shelters omitted from map) */}
-        {showShelters && shelters.filter(s => s.type === 'evacuation').map(s => (
-          <Marker key={`shelter-${s.id}`} position={[s.lat, s.lng]} icon={shelterIcon('evacuation')}>
+        {showShelters && liveShelters.map(s => (
+          <Marker key={`live-shelter-${s.id}`} position={[s.lat, s.lng]} icon={verifiedFemaShelterIcon()}>
             <Popup>
               <div style={{ fontFamily: 'sans-serif', fontSize: 13, lineHeight: 1.7 }}>
                 <strong>{s.name}</strong><br />
-                🏠 Evacuation shelter<br />
+                OPEN — verified (FEMA NSS)<br />
+                {s.capacity != null && s.capacity > 0 && (
+                  <>
+                    Capacity: {s.capacity.toLocaleString()}
+                    {s.currentOccupancy != null && s.currentOccupancy >= 0
+                      ? ` · ${s.currentOccupancy.toLocaleString()} reported`
+                      : ''}
+                    <br />
+                  </>
+                )}
+                <span style={{ fontSize: 11, color: '#64748b' }}>Confirm before traveling.</span>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+        {/* Pre-identified human sites only — not confirmed open */}
+        {showShelters && shelters.filter(s => s.type === 'evacuation').map(s => (
+          <Marker key={`shelter-${s.id}`} position={[s.lat, s.lng]} icon={preIdentifiedShelterIcon()}>
+            <Popup>
+              <div style={{ fontFamily: 'sans-serif', fontSize: 13, lineHeight: 1.7 }}>
+                <strong>{s.name}</strong><br />
+                📍 Pre-identified — status unconfirmed<br />
                 {s.county}<br />
-                Capacity: {s.capacity.toLocaleString()}
+                Typical capacity (estimate): {s.capacity.toLocaleString()}
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>Tap for details — call ahead before traveling.</div>
               </div>
             </Popup>
           </Marker>

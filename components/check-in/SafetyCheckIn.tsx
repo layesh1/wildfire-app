@@ -664,6 +664,7 @@ export function SafetyCheckIn({
               <section className="flex flex-col rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="mb-3">
                   <h2 className="font-semibold text-gray-900">My Home Status</h2>
+                  <p className="mt-0.5 text-xs font-medium text-gray-700">(For Emergency Responders)</p>
                   <p className="mt-0.5 text-xs text-gray-500">
                     Used by emergency responders for door-to-door checks
                   </p>
@@ -718,6 +719,7 @@ export function SafetyCheckIn({
               <section className="flex flex-col rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="mb-3">
                   <h2 className="font-semibold text-gray-900">My Personal Safety</h2>
+                  <p className="mt-0.5 text-xs font-medium text-gray-700">(For your Circle)</p>
                   <p className="mt-0.5 text-xs text-gray-500">Shared with your family</p>
                 </div>
                 <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1001,7 +1003,8 @@ export function SafetyCheckIn({
             <section className="flex flex-col rounded-2xl border border-ash-800 bg-ash-900/50 p-5 sm:p-6">
               <div className="mb-4">
                 <h2 className="text-lg font-semibold text-white">My Home Status</h2>
-                <p className="mt-1 text-sm text-ash-500">
+                <p className="mt-1 text-sm font-medium text-ash-400">(For Emergency Responders)</p>
+                <p className="mt-0.5 text-sm text-ash-500">
                   Used by emergency responders for door-to-door checks
                 </p>
               </div>
@@ -1057,7 +1060,8 @@ export function SafetyCheckIn({
             <section className="flex flex-col rounded-2xl border border-ash-800 bg-ash-900/50 p-5 sm:p-6">
               <div className="mb-4">
                 <h2 className="text-lg font-semibold text-white">My Personal Safety</h2>
-                <p className="mt-1 text-sm text-ash-500">Shared with your family</p>
+                <p className="mt-1 text-sm font-medium text-ash-400">(For your Circle)</p>
+                <p className="mt-0.5 text-sm text-ash-500">Shared with your family</p>
               </div>
               <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
                 {PERSON_SAFETY_CHECKIN_STATUS_OPTIONS.map(({ value }) => {

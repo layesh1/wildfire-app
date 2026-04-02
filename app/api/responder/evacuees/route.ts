@@ -5,6 +5,8 @@ import {
   fetchResponderEvacueeProfiles,
   isEmergencyResponder,
 } from '@/lib/responder-evacuees-server'
+import { isResponderConsentSatisfied } from '@/lib/responder-data-consent'
+import { logResponderAccessFireAndForget } from '@/lib/responder-access-log'
 
 export type { ResponderEvacueeProfile as ResponderEvacueeApiRow } from '@/lib/responder-household'
 
@@ -20,13 +22,22 @@ export async function GET() {
 
   const { data: me, error: meErr } = await supabase
     .from('profiles')
-    .select('role, roles')
+    .select('role, roles, responder_consent_accepted, responder_consent_version')
     .eq('id', user.id)
     .maybeSingle()
 
   if (meErr || !isEmergencyResponder(me?.role, me?.roles as string[] | null)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
+
+  if (!isResponderConsentSatisfied(me)) {
+    return NextResponse.json(
+      { error: 'consent_required', code: 'RESPONDER_CONSENT_REQUIRED' },
+      { status: 403 }
+    )
+  }
+
+  logResponderAccessFireAndForget(supabase, user.id, { action: 'viewed_map' })
 
   const { list, error } = await fetchResponderEvacueeProfiles(supabase)
   if (error) {

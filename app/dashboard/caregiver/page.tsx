@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import Link from 'next/link'
-import type { NifcFire, WindData, EvacShelter } from './map/LeafletMap'
+import type { NifcFire, WindData, EvacShelter, LiveShelterPin } from './map/LeafletMap'
 import type { HazardFacility } from '@/lib/hazard-facilities'
 import AlertJar from '@/components/AlertJar'
 import { useRoleContext, type RolePerson } from '@/components/RoleContext'
@@ -43,6 +43,7 @@ import {
 import { flameoGroundingBadgeText } from '@/lib/flameo-grounding-ui'
 import { geocodeAddressClient } from '@/lib/geocoding-client'
 import { coerceAlertRadiusToChip, DEFAULT_ALERT_RADIUS_MILES } from '@/lib/alert-radius'
+import { parseUsStateCodeFromAddress } from '@/lib/us-address-state'
 
 const LeafletMap = dynamic(() => import('./map/LeafletMap'), { ssr: false })
 
@@ -312,6 +313,7 @@ export function ConsumerHubDashboard({
   const [personCoords, setPersonCoords] = useState<Record<string, [number, number]>>({})
   const [locatingMap, setLocatingMap] = useState(false)
   const [mapFlyToNonce, setMapFlyToNonce] = useState(0)
+  const [liveMapShelters, setLiveMapShelters] = useState<LiveShelterPin[]>([])
   const [hubUserId, setHubUserId] = useState<string | null>(null)
   const [personStatuses, setPersonStatuses] = useState<
     Record<
@@ -528,6 +530,55 @@ export function ConsumerHubDashboard({
     if (userLocation) return userLocation
     return homeCoords
   }, [isViewingMember, personLocation, userLocation, homeCoords])
+
+  useEffect(() => {
+    const addr =
+      (isViewingMember && activePerson?.address?.trim()) || userProfile?.address?.trim() || ''
+    const st = parseUsStateCodeFromAddress(addr) || 'NC'
+    if (!mapAnchor) {
+      setLiveMapShelters([])
+      return
+    }
+    const [lat, lng] = mapAnchor
+    let cancelled = false
+    fetch(
+      `/api/shelters/live?state=${encodeURIComponent(st)}&lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(String(lng))}`
+    )
+      .then(r => r.json())
+      .then(
+        (data: {
+          shelters?: Array<{
+            id: string
+            name: string
+            lat: number
+            lng: number
+            capacity: number | null
+            current_occupancy: number | null
+            last_verified_at: string
+          }>
+        }) => {
+          if (cancelled) return
+          const list = Array.isArray(data.shelters) ? data.shelters : []
+          setLiveMapShelters(
+            list.map(s => ({
+              id: String(s.id),
+              name: s.name,
+              lat: s.lat,
+              lng: s.lng,
+              capacity: s.capacity,
+              currentOccupancy: s.current_occupancy,
+              lastVerifiedAt: s.last_verified_at,
+            }))
+          )
+        }
+      )
+      .catch(() => {
+        if (!cancelled) setLiveMapShelters([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [mapAnchor, isViewingMember, activePerson?.address, userProfile?.address])
 
   /** NIFC + AI proximity use saved home (or monitored person’s address), not GPS — matches Flameo “near home”. */
   const homeAnchorForAlerts = useMemo((): [number, number] | null => {
@@ -1151,7 +1202,10 @@ export function ConsumerHubDashboard({
 
       {/* ══ MOBILE LAYOUT (< md) — only one branch mounts so Leaflet is not initialized twice ══ */}
       {bpMd !== true && (
-      <div className="flex flex-col overflow-y-auto space-y-4 px-4 pt-4 pb-8" style={{ background: 'var(--wfa-page-bg)' }}>
+      <div
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain space-y-4 px-4 pt-4 pb-28 [-webkit-overflow-scrolling:touch]"
+        style={{ background: 'var(--wfa-page-bg)' }}
+      >
 
         {/* Header */}
         <div className="pt-2">
@@ -1183,6 +1237,7 @@ export function ConsumerHubDashboard({
               homePosition={homeCoords}
               showHomePin={isAwayFromHome && !!homeCoords}
               shelters={HUMAN_EVAC_SHELTERS}
+              liveShelters={liveMapShelters}
               showShelters={showShelters}
               watchedLocations={watchedLocationsForMap}
               facilities={HAZARD_FACILITIES}
@@ -1385,6 +1440,8 @@ export function ConsumerHubDashboard({
             userLng={userLocHook.lng!}
             mapHref="/dashboard/home/map"
             wheelchairMode={wheelchairShelterMode}
+            shelterDataCheckedAt={flameo.context.shelters_meta?.last_checked_at}
+            shelterCacheAgeSeconds={flameo.context.shelters_meta?.cache_age_seconds}
           />
         )}
 
@@ -1454,8 +1511,8 @@ export function ConsumerHubDashboard({
 
       {/* ══ DESKTOP LAYOUT (≥ md) — map-first hub ═══════════════════════════════ */}
       {bpMd === true && (
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {/* Root: full height 3-column resizable layout — min-h-0 so nested panels can scroll */}
+      <div className="flex min-h-0 max-h-[100dvh] flex-1 flex-col overflow-hidden">
+        {/* Root: viewport-tall 3-column layout — max-h + min-h-0 so My alerts column can scroll */}
         <div
           ref={containerRef}
           className="flex min-h-0 flex-1 overflow-hidden items-stretch"
@@ -1676,6 +1733,7 @@ export function ConsumerHubDashboard({
                   homePosition={homeCoords}
                   showHomePin={isAwayFromHome && !!homeCoords}
                   shelters={HUMAN_EVAC_SHELTERS}
+                  liveShelters={liveMapShelters}
                   showShelters={showShelters}
                   watchedLocations={watchedLocationsForMap}
                   facilities={HAZARD_FACILITIES}
