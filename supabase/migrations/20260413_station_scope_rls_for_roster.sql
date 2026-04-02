@@ -7,6 +7,7 @@ LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = public
+SET row_security = off
 AS $$
   SELECT s.id
   FROM public.stations s

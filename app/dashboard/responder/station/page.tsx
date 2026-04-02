@@ -210,9 +210,11 @@ export default function ResponderStationPage() {
         <div>
           <h1 className="font-display text-2xl font-bold tracking-tight">Station setup</h1>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Uses the <strong className="font-semibold text-gray-800 dark:text-gray-200">station name</strong> from your signup journey
-            (you can adjust it here). Create the station once — you get <strong className="font-semibold text-gray-800 dark:text-gray-200">one</strong> join code for firefighters to sign up on the{' '}
-            <strong className="font-semibold text-gray-800 dark:text-gray-200">Minutes Matter iOS</strong> app.{' '}
+            Signup already saved your <strong className="font-semibold text-gray-800 dark:text-gray-200">station name</strong> and{' '}
+            <strong className="font-semibold text-gray-800 dark:text-gray-200">command post address</strong> for the map. Finishing
+            responder onboarding also creates your <strong className="font-semibold text-gray-800 dark:text-gray-200">station record</strong>{' '}
+            and <strong className="font-semibold text-gray-800 dark:text-gray-200">one Minutes Matter iOS join code</strong> — copy or
+            replace it below, or rename the station.{' '}
             <Link href="/dashboard/responder" className="font-semibold text-amber-800 underline-offset-2 hover:underline dark:text-amber-400">
               Back to command hub
             </Link>
@@ -255,15 +257,20 @@ export default function ResponderStationPage() {
           </button>
         )}
         {canCreateStation && (
-          <button
-            type="button"
-            onClick={() => void createStation()}
-            disabled={creating || !stationName.trim()}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
-          >
-            {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Create station
-          </button>
+          <div className="mt-4 space-y-2">
+            <p className="text-xs text-amber-900/90 dark:text-amber-200/90">
+              No station record found — usually it&apos;s created when you finish responder onboarding. Use this if you skipped that step or it failed.
+            </p>
+            <button
+              type="button"
+              onClick={() => void createStation()}
+              disabled={creating || !stationName.trim()}
+              className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+            >
+              {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Create station &amp; join code
+            </button>
+          </div>
         )}
         {hasStation && !isCommander && (
           <p className="mt-4 text-xs text-gray-500 dark:text-gray-400">
@@ -347,8 +354,9 @@ export default function ResponderStationPage() {
         </h2>
         {!hasStation ? (
           <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-            No station yet. Use <strong className="font-semibold text-gray-800 dark:text-gray-200">Create station</strong> above — that
-            creates your station and your single iOS join code.
+            Finish responder onboarding to auto-create your station and iOS code, or use{' '}
+            <strong className="font-semibold text-gray-800 dark:text-gray-200">Create station &amp; join code</strong> above if setup
+            didn&apos;t complete.
           </p>
         ) : roster?.members.length === 0 ? (
           <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">No firefighters have joined yet.</p>

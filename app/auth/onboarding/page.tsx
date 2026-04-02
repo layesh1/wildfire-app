@@ -274,6 +274,24 @@ function OnboardingInner() {
       if (e2) { setError(e2.message); setSaving(false); return }
     }
 
+    if (selectedRole === 'emergency_responder') {
+      const sn = stationOrgName.trim().slice(0, 200)
+      if (sn) {
+        try {
+          const res = await fetch('/api/station/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ station_name: sn }),
+          })
+          if (!res.ok && res.status !== 409) {
+            console.warn('[onboarding] station auto-create failed', res.status)
+          }
+        } catch {
+          /* User can finish station setup on /dashboard/responder/station */
+        }
+      }
+    }
+
     // Pre-populate emergency card in localStorage
     if (isHouseholdRole) {
       try {
@@ -526,10 +544,9 @@ function OnboardingInner() {
                     <strong className="text-ash-200">organization access code</strong> (from your department) to unlock the{' '}
                     <strong className="text-ash-200">Emergency Responder Command Hub</strong>. That is{' '}
                     <strong className="text-ash-200">not</strong> a <strong className="text-ash-200">station join code</strong>{' '}
-                    (e.g. STATION-ABC123). <strong className="text-ash-200">One</strong> station join code is created under Station &amp;
-                    setup after you&apos;re in — firefighters use it to <strong className="text-ash-200">sign up</strong> on{' '}
-                    <strong className="text-ash-200">Minutes Matter iOS</strong>, the <strong className="text-ash-200">only</strong>{' '}
-                    signup path for that flow.
+                    (e.g. STATION-ABC123). When you finish this flow we create your station record and <strong className="text-ash-200">one</strong> iOS join code; <strong className="text-ash-200">Station &amp; setup</strong> is where you copy or replace it. Firefighters use that code to <strong className="text-ash-200">sign up</strong> on{' '}
+                    <strong className="text-ash-200">Minutes Matter iOS</strong> — the <strong className="text-ash-200">only</strong>{' '}
+                    signup path for joining your roster.
                   </>
                 ) : (
                   <>You&apos;ll need an access code from your organization on the next step.</>
