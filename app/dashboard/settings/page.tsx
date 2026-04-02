@@ -755,7 +755,7 @@ function SettingsInner() {
 
           <div className="flex items-center gap-4 pb-8">
             <button onClick={save} disabled={saving}
-              className="flex items-center gap-2 px-6 py-3 bg-forest-700 hover:bg-forest-600 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors text-sm">
+              className="flex items-center gap-2 rounded-xl border-2 border-white bg-forest-700 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-forest-600 disabled:opacity-50 dark:border-white/30">
               <Save className="w-4 h-4" />{saving ? 'Saving…' : 'Save profile'}
             </button>
             {saved && <div className="flex items-center gap-2 text-signal-safe text-sm"><CheckCircle className="w-4 h-4" /> Saved</div>}
@@ -864,7 +864,7 @@ function SettingsInner() {
 
           <div className="flex items-center gap-4 pb-8">
             <button onClick={async () => { await save(); saveAnalystPrefs() }} disabled={saving}
-              className="flex items-center gap-2 px-6 py-3 bg-forest-700 hover:bg-forest-600 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors text-sm">
+              className="flex items-center gap-2 rounded-xl border-2 border-white bg-forest-700 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-forest-600 disabled:opacity-50 dark:border-white/30">
               <Save className="w-4 h-4" />{saving ? 'Saving…' : 'Save analyst profile'}
             </button>
             {saved && <div className="flex items-center gap-2 text-signal-safe text-sm"><CheckCircle className="w-4 h-4" /> Saved</div>}
@@ -1347,7 +1347,7 @@ function SettingsInner() {
 
           <div className="flex items-center gap-4 pb-8">
             <button onClick={save} disabled={saving}
-              className="flex items-center gap-2 px-6 py-3 bg-forest-700 hover:bg-forest-600 disabled:opacity-50 text-white font-semibold rounded-xl transition-colors text-sm">
+              className="flex items-center gap-2 rounded-xl border-2 border-white bg-forest-700 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-forest-600 disabled:opacity-50 dark:border-white/30">
               <Save className="w-4 h-4" />{saving ? 'Saving…' : 'Save profile'}
             </button>
             {saved && <div className="flex items-center gap-2 text-signal-safe text-sm"><CheckCircle className="w-4 h-4" /> Saved</div>}
