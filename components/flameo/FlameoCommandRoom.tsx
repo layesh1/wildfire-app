@@ -362,7 +362,7 @@ export default function FlameoCommandRoom({
             ) : roster.station.is_commander ? (
               <div className="space-y-2">
                 <p className="text-[11px] text-gray-600 dark:text-gray-400">
-                  No active iOS join code (for example it expired). Issue one — it&apos;s the only code until you replace it.
+                  No active iOS join code yet. Issue one — it stays valid until you replace it or reach the join limit.
                 </p>
                 <button
                   type="button"

@@ -46,8 +46,6 @@ export async function POST() {
     .eq('station_id', station.id)
     .eq('is_active', true)
 
-  const expiresAt = new Date()
-  expiresAt.setDate(expiresAt.getDate() + 7)
   const stationName = typeof station.station_name === 'string' ? station.station_name : 'STATION'
 
   let codeRow: { code: string; expires_at: string | null } | null = null
@@ -59,7 +57,7 @@ export async function POST() {
         station_id: station.id,
         code,
         created_by: user.id,
-        expires_at: expiresAt.toISOString(),
+        expires_at: null,
         max_uses: 50,
         uses_count: 0,
         is_active: true,

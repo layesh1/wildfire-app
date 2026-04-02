@@ -174,7 +174,7 @@ export default function ResponderStationPage() {
               Command hub
             </Link>{' '}
             Flameo sidebar to copy the join code for field units. Here you can <strong className="font-semibold text-gray-800 dark:text-gray-200">rename the station</strong>,{' '}
-            see the <strong className="font-semibold text-gray-800 dark:text-gray-200">roster</strong>, or <strong className="font-semibold text-gray-800 dark:text-gray-200">replace an expired code</strong>.
+            see the <strong className="font-semibold text-gray-800 dark:text-gray-200">roster</strong>, or <strong className="font-semibold text-gray-800 dark:text-gray-200">replace the join code</strong> if needed.
           </p>
         </div>
       </div>
@@ -272,7 +272,7 @@ export default function ResponderStationPage() {
             </button>
           </div>
           <p className="mt-2 text-[11px] text-gray-500 dark:text-gray-400">
-            Replacing revokes the previous code — use only if leaked or expired.
+            Replacing revokes the previous code — use only if leaked, at capacity, or you want to rotate it.
           </p>
         </section>
       )}

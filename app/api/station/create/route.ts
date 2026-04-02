@@ -80,9 +80,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: stErr?.message ?? 'Could not create station' }, { status: 500 })
   }
 
-  const expiresAt = new Date()
-  expiresAt.setDate(expiresAt.getDate() + 7)
-
   let codeRow: { code: string; expires_at: string | null } | null = null
   for (let attempt = 0; attempt < 8; attempt++) {
     const code = formatStationInviteCode(stationName, randomInviteSuffix(6))
@@ -92,7 +89,7 @@ export async function POST(request: NextRequest) {
         station_id: station.id,
         code,
         created_by: user.id,
-        expires_at: expiresAt.toISOString(),
+        expires_at: null,
         max_uses: 50,
         uses_count: 0,
         is_active: true,
