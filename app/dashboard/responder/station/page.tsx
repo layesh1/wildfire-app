@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Users, Copy, RefreshCw, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/lib/supabase'
 
 type RosterJson = {
   station: {
@@ -51,24 +52,20 @@ export default function ResponderStationPage() {
   const [error, setError] = useState<string | null>(null)
 
   const [stationName, setStationName] = useState('')
-  const [incidentName, setIncidentName] = useState('')
-  const [incidentZone, setIncidentZone] = useState('')
 
   const load = useCallback(async () => {
     setError(null)
     try {
       const res = await fetch('/api/station/roster')
+      const j = (await res.json().catch(() => ({}))) as RosterJson & { error?: string }
       if (!res.ok) {
         setRoster(null)
-        setError('Could not load station.')
+        setError(typeof j.error === 'string' ? j.error : 'Could not load station.')
         return
       }
-      const j = (await res.json()) as RosterJson
       setRoster(j)
       if (j.station) {
         setStationName(j.station.station_name ?? '')
-        setIncidentName(j.station.incident_name ?? '')
-        setIncidentZone(j.station.incident_zone ?? '')
       }
     } catch {
       setError('Could not load station.')
@@ -81,6 +78,26 @@ export default function ResponderStationPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  /** Station name from onboarding / login (profiles.org_name) when no station row yet. */
+  useEffect(() => {
+    if (loading || roster?.station) return
+    let cancelled = false
+    ;(async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || cancelled) return
+      const { data: p } = await supabase.from('profiles').select('org_name').eq('id', user.id).maybeSingle()
+      if (cancelled) return
+      const o = typeof p?.org_name === 'string' ? p.org_name.trim() : ''
+      if (o) {
+        setStationName(prev => (prev.trim() ? prev : o))
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [loading, roster?.station])
 
   const commander = roster?.station?.is_commander ?? false
   const hasStation = !!roster?.station
@@ -95,8 +112,6 @@ export default function ResponderStationPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           station_name: stationName.trim(),
-          incident_name: incidentName.trim() || null,
-          incident_zone: incidentZone.trim() || null,
         }),
       })
       const j = await res.json().catch(() => ({}))
@@ -126,8 +141,6 @@ export default function ResponderStationPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           station_name: name,
-          incident_name: incidentName.trim() || undefined,
-          incident_zone: incidentZone.trim() || undefined,
         }),
       })
       const j = await res.json().catch(() => ({}))
@@ -193,9 +206,10 @@ export default function ResponderStationPage() {
           <Users className="h-7 w-7 text-amber-800 dark:text-amber-300" />
         </div>
         <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight">Station &amp; Incident Setup</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight">Station setup</h1>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Commanders create a station and share an invite code with field units.{' '}
+            Uses the <strong className="font-semibold text-gray-800 dark:text-gray-200">station name</strong> from your signup journey
+            (you can adjust it here). Create the station once, then share the generated join code with firefighters.{' '}
             <Link href="/dashboard/responder" className="font-semibold text-amber-800 underline-offset-2 hover:underline dark:text-amber-400">
               Back to command hub
             </Link>
@@ -210,7 +224,10 @@ export default function ResponderStationPage() {
       )}
 
       <section className="mb-10 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900/60">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Section 1 — Station info</h2>
+        <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Station name</h2>
+        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+          Pulled from your responder signup when empty; editable until you save. It formats the invite code prefix (e.g. STATION-ABC123).
+        </p>
         <div className="mt-4 space-y-3">
           <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400">
             Station name
@@ -222,24 +239,6 @@ export default function ResponderStationPage() {
               placeholder="e.g. Clayton Fire Station 2"
             />
           </label>
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400">
-            Incident name <span className="font-normal text-gray-400">(optional)</span>
-            <input
-              value={incidentName}
-              onChange={e => setIncidentName(e.target.value)}
-              disabled={!commander && hasStation}
-              className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-950 disabled:opacity-60"
-            />
-          </label>
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400">
-            Incident zone <span className="font-normal text-gray-400">(optional)</span>
-            <input
-              value={incidentZone}
-              onChange={e => setIncidentZone(e.target.value)}
-              disabled={!commander && hasStation}
-              className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-950 disabled:opacity-60"
-            />
-          </label>
         </div>
         {commander && hasStation && (
           <button
@@ -249,7 +248,7 @@ export default function ResponderStationPage() {
             className="mt-4 inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Save station info
+            Save station name
           </button>
         )}
         {commander && !hasStation && (
@@ -273,7 +272,7 @@ export default function ResponderStationPage() {
       {commander && hasStation && (
         <section className="mb-10 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900/60">
           <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-            Section 2 — Firefighter invite code
+            Firefighter join code
           </h2>
           {roster?.active_invite ? (
             <div className="mt-4 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-950/50">
@@ -342,7 +341,7 @@ export default function ResponderStationPage() {
 
       <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900/60">
         <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-          Section 3 — Connected firefighters
+          Connected firefighters
         </h2>
         {!hasStation ? (
           <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">No station yet. Create a station above to see roster.</p>

@@ -15,8 +15,17 @@ export type StationRosterMember = {
   status: string | null
 }
 
+const EMPTY = {
+  station: null,
+  active_invite: null,
+  members: [] as StationRosterMember[],
+}
+
 /**
- * Members of the caller's station (creator or firefighter), with names (service role join).
+ * Members of the caller's station (creator or firefighter).
+ * No service role required when the user has no station, or when RLS allows reads
+ * (see migration 20260413_station_scope_rls_for_roster.sql). Service role still used
+ * when configured for reliable cross-profile names.
  */
 export async function GET() {
   const supabase = await createServerSupabaseClient()
@@ -33,11 +42,6 @@ export async function GET() {
 
   if (!isEmergencyResponder(me?.role, me?.roles as string[] | null)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
-  const admin = createServiceRoleClient()
-  if (!admin) {
-    return NextResponse.json({ error: 'Server misconfigured' }, { status: 503 })
   }
 
   const { data: asCreator } = await supabase
@@ -61,16 +65,26 @@ export async function GET() {
   }
 
   if (!stationId) {
-    return NextResponse.json({ station: null, members: [] as StationRosterMember[] })
+    return NextResponse.json(EMPTY)
   }
 
-  const { data: station } = await admin
+  const admin = createServiceRoleClient()
+  const db = admin ?? supabase
+
+  const { data: station, error: stErr } = await db
     .from('stations')
     .select('id, station_name, incident_name, incident_zone, created_at, created_by')
     .eq('id', stationId)
     .maybeSingle()
 
-  const { data: rows, error: rowsErr } = await admin
+  if (stErr || !station) {
+    return NextResponse.json(
+      { error: stErr?.message ?? 'Station not found' },
+      { status: 500 }
+    )
+  }
+
+  const { data: rows, error: rowsErr } = await db
     .from('station_firefighters')
     .select('id, firefighter_id, joined_at, last_seen_at, current_lat, current_lng, current_assignment, status')
     .eq('station_id', stationId)
@@ -82,9 +96,18 @@ export async function GET() {
   const ffIds = [...new Set((rows ?? []).map(r => r.firefighter_id as string).filter(Boolean))]
   let names = new Map<string, string | null>()
   if (ffIds.length > 0) {
-    const { data: profs } = await admin.from('profiles').select('id, full_name').in('id', ffIds)
+    const { data: profs } = await db.from('profiles').select('id, full_name').in('id', ffIds)
     names = new Map((profs ?? []).map(p => [p.id as string, (p.full_name as string | null) ?? null]))
   }
+
+  const { data: activeCode } = await supabase
+    .from('station_invite_codes')
+    .select('code, expires_at, uses_count, max_uses, is_active')
+    .eq('station_id', stationId)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
   const members: StationRosterMember[] = (rows ?? []).map(r => ({
     id: r.id as string,
@@ -98,26 +121,15 @@ export async function GET() {
     status: typeof r.status === 'string' ? r.status : null,
   }))
 
-  const { data: activeCode } = await supabase
-    .from('station_invite_codes')
-    .select('code, expires_at, uses_count, max_uses, is_active')
-    .eq('station_id', stationId)
-    .eq('is_active', true)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
   return NextResponse.json({
-    station: station
-      ? {
-          id: station.id,
-          station_name: station.station_name,
-          incident_name: station.incident_name,
-          incident_zone: station.incident_zone,
-          created_at: station.created_at,
-          is_commander: station.created_by === user.id,
-        }
-      : null,
+    station: {
+      id: station.id,
+      station_name: station.station_name,
+      incident_name: station.incident_name,
+      incident_zone: station.incident_zone,
+      created_at: station.created_at,
+      is_commander: station.created_by === user.id,
+    },
     active_invite: activeCode
       ? {
           code: activeCode.code,
