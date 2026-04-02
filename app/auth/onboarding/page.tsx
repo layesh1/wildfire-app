@@ -481,8 +481,9 @@ function OnboardingInner() {
                       Station / command post address <span className="text-ember-400/90 font-normal">(required)</span>
                     </Label>
                     <p className="mb-2 text-xs text-ash-500">
-                      Same address the hub uses as &quot;station&quot; for maps and routing — not the code your crew uses to join
-                      you (that&apos;s created later under Station &amp; setup).
+                      Same address the Command Hub uses as &quot;station&quot; for maps and routing — not the station join code
+                      firefighters use to sign up (created later under Station &amp; setup; on iOS that code is the only signup path
+                      for joining your roster).
                     </p>
                     <AddressVerifySave
                       variant="dark"
@@ -522,10 +523,13 @@ function OnboardingInner() {
                 {selectedRole === 'emergency_responder' ? (
                   <>
                     <span className="font-semibold text-ash-200">Next step:</span> you&apos;ll enter your{' '}
-                    <strong className="text-ash-200">organization access code</strong> (from your department) to unlock this
-                    role. That is <strong className="text-ash-200">not</strong> the same as a{' '}
-                    <strong className="text-ash-200">station join code</strong> (e.g. STATION-ABC123) — those are generated in
-                    the app under Station &amp; setup after you&apos;re in, for firefighters joining your incident channel.
+                    <strong className="text-ash-200">organization access code</strong> (from your department) to unlock the{' '}
+                    <strong className="text-ash-200">Emergency Responder Command Hub</strong>. That is{' '}
+                    <strong className="text-ash-200">not</strong> a <strong className="text-ash-200">station join code</strong>{' '}
+                    (e.g. STATION-ABC123). Station join codes are generated under Station &amp; setup after you&apos;re in — they are
+                    how firefighters <strong className="text-ash-200">sign up</strong> to join your station; on{' '}
+                    <strong className="text-ash-200">Minutes Matter iOS</strong> that is the <strong className="text-ash-200">only</strong>{' '}
+                    signup path for that flow.
                   </>
                 ) : (
                   <>You&apos;ll need an access code from your organization on the next step.</>

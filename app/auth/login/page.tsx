@@ -802,9 +802,9 @@ function LoginForm() {
                     </label>
                     {ob.role === 'emergency_responder' && (
                       <p className="mb-2 text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-                        From your department or admin — unlocks the Emergency Responder role in this app.{' '}
-                        <strong className="text-gray-700 dark:text-gray-300">Not</strong> a station join code like STATION-ABC123;
-                        those are for your crew after you&apos;re set up (Station &amp; setup in the dashboard).
+                        From your department or admin — unlocks the <strong className="text-gray-700 dark:text-gray-300">Emergency
+                        Responder Command Hub</strong> on the web. This is <strong className="text-gray-700 dark:text-gray-300">not</strong>{' '}
+                        a station join code (e.g. STATION-ABC123). Station join codes are how firefighters <strong className="text-gray-700 dark:text-gray-300">sign up</strong> to join your station; on the <strong className="text-gray-700 dark:text-gray-300">Minutes Matter iOS app</strong>, that code is the <strong className="text-gray-700 dark:text-gray-300">only</strong> signup path for that flow.
                       </p>
                     )}
                     <input
@@ -844,9 +844,11 @@ function LoginForm() {
                   )}
                   {ob.role === 'emergency_responder' && (
                     <>
-                      Your <strong>station name</strong> and <strong>verified command post address</strong> anchor the responder
-                      map, incident radius, and directions. This is not the same as the <strong>organization access code</strong>{' '}
-                      you entered earlier, or the <strong>station join codes</strong> you&apos;ll create later for your crew.
+                      Your <strong>station name</strong> and <strong>verified command post address</strong> anchor the Command Hub
+                      map, incident radius, and directions. The <strong>organization access code</strong> you entered unlocks the
+                      Command Hub. <strong>Station join codes</strong> (you&apos;ll create them under Station &amp; setup) are how
+                      firefighters sign up to join your roster — and on <strong>Minutes Matter iOS</strong> they are the{' '}
+                      <strong>only</strong> way to complete that signup.
                     </>
                   )}
                   {ob.role === 'data_analyst' && (

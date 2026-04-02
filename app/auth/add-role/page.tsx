@@ -14,7 +14,7 @@ const ROLE_LABELS: Record<string, { label: string; placeholder: string; hint: st
   emergency_responder: {
     label: 'Emergency Responder',
     placeholder: 'ER-ORG-XXXX',
-    hint: 'Enter the organization access code from your agency — not a station join code for firefighters.',
+    hint: 'Organization code from your agency — unlocks the Emergency Responder Command Hub. Not a station join code.',
   },
 }
 
@@ -176,10 +176,12 @@ function AddRoleForm() {
             <div className="mb-5 rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-2.5 text-xs leading-relaxed text-amber-100/95">
               <strong className="text-amber-50">Two different codes:</strong>{' '}
               <span className="text-amber-100/90">
-                This screen is for your <strong>organization access code</strong> (unlocks the responder dashboard).{' '}
+                This screen is for your <strong>organization access code</strong> — it unlocks the{' '}
+                <strong>Emergency Responder Command Hub</strong> on the web.{' '}
                 <strong>Station join codes</strong> (e.g. STATION-ABC123) are created under{' '}
-                <strong>Station &amp; setup</strong> after you&apos;re in — share those with field units / the Minutes Matter
-                app so they join <em>your</em> incident channel.
+                <strong>Station &amp; setup</strong> after you&apos;re in. Those codes are how firefighters <strong>sign up</strong> to
+                join your station; on the <strong>Minutes Matter iOS app</strong>, a station join code is the <strong>only</strong> signup
+                path for that flow.
               </span>
             </div>
           )}

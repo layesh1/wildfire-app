@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { RefreshCw, AlertTriangle, MapPin } from 'lucide-react'
+import Link from 'next/link'
+import { RefreshCw, AlertTriangle, MapPin, Copy, Users } from 'lucide-react'
 import type { HouseholdPin } from '@/lib/responder-household'
 import type { FirefighterPin } from '@/lib/firefighter-pin'
 import type { FlameoContext } from '@/lib/flameo-context-types'
@@ -84,6 +85,28 @@ function completionBarTone(rate: number): string {
   return 'bg-emerald-500 dark:bg-emerald-600'
 }
 
+type StationRosterSnippet = {
+  station: {
+    id: string
+    station_name: string
+    is_commander: boolean
+  } | null
+  active_invite: {
+    code: string
+    expires_at: string | null
+  } | null
+}
+
+function expiresInLabel(expiresAt: string | null): string {
+  if (!expiresAt) return 'No expiry set'
+  const ms = new Date(expiresAt).getTime() - Date.now()
+  if (!Number.isFinite(ms)) return 'Unknown'
+  if (ms <= 0) return 'Expired'
+  const d = Math.ceil(ms / (24 * 60 * 60 * 1000))
+  if (d <= 1) return 'Expires in 1 day'
+  return `Expires in ${d} days`
+}
+
 function openFlameoChat() {
   if (typeof window === 'undefined') return
   window.dispatchEvent(new Event('wfa-flameo-open'))
@@ -105,6 +128,12 @@ export default function FlameoCommandRoom({
   const [briefingLoading, setBriefingLoading] = useState(true)
   const [briefingAt, setBriefingAt] = useState<Date | null>(null)
   const [briefingManualTick, setBriefingManualTick] = useState(0)
+
+  const [roster, setRoster] = useState<StationRosterSnippet | null>(null)
+  const [rosterLoading, setRosterLoading] = useState(true)
+  const [rosterError, setRosterError] = useState<string | null>(null)
+  const [regenBusy, setRegenBusy] = useState(false)
+  const [copyOk, setCopyOk] = useState(false)
 
   const commandContext: FlameoCommandContext = useMemo(
     () =>
@@ -143,6 +172,59 @@ export default function FlameoCommandRoom({
     const id = window.setInterval(() => void loadFireFromApi(), 5 * 60 * 1000)
     return () => window.clearInterval(id)
   }, [loadFireFromApi])
+
+  const loadStationRoster = useCallback(async () => {
+    setRosterError(null)
+    try {
+      const res = await fetch('/api/station/roster')
+      if (!res.ok) {
+        setRoster(null)
+        setRosterError('Could not load station.')
+        return
+      }
+      const j = (await res.json()) as StationRosterSnippet
+      setRoster(j)
+    } catch {
+      setRoster(null)
+      setRosterError('Could not load station.')
+    } finally {
+      setRosterLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadStationRoster()
+  }, [loadStationRoster])
+
+  const regenerateInvite = async () => {
+    setRegenBusy(true)
+    setRosterError(null)
+    try {
+      const res = await fetch('/api/station/invite/regenerate', { method: 'POST' })
+      const j = (await res.json().catch(() => ({}))) as { error?: string }
+      if (!res.ok) {
+        setRosterError(typeof j.error === 'string' ? j.error : 'Could not generate code')
+        return
+      }
+      await loadStationRoster()
+    } catch {
+      setRosterError('Could not generate code')
+    } finally {
+      setRegenBusy(false)
+    }
+  }
+
+  const copyInviteCode = async () => {
+    const code = roster?.active_invite?.code
+    if (!code || typeof navigator === 'undefined' || !navigator.clipboard) return
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopyOk(true)
+      window.setTimeout(() => setCopyOk(false), 2000)
+    } catch {
+      setRosterError('Could not copy to clipboard')
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -211,6 +293,97 @@ export default function FlameoCommandRoom({
           <p className="mt-2 text-[10px] text-amber-800/80 dark:text-amber-500">
             Last updated {briefingAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </p>
+        )}
+      </div>
+
+      <div className={panel}>
+        <div className="mb-2 flex items-center gap-2">
+          <Users className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400" />
+          <span className={sectionHead}>Station join code</span>
+        </div>
+        {rosterLoading ? (
+          <p className="text-xs text-gray-500 dark:text-gray-400" aria-busy="true">
+            Loading…
+          </p>
+        ) : rosterError && !roster ? (
+          <p className="text-xs text-red-600 dark:text-red-400">{rosterError}</p>
+        ) : !roster?.station ? (
+          <p className="text-[11px] leading-snug text-gray-600 dark:text-gray-400">
+            Create your station to generate a join code for firefighters. Full setup (name, incident, roster) lives on{' '}
+            <Link
+              href="/dashboard/responder/station"
+              className="font-semibold text-amber-800 underline-offset-2 hover:underline dark:text-amber-400"
+            >
+              Station &amp; setup
+            </Link>
+            .
+          </p>
+        ) : (
+          <>
+            {rosterError && (
+              <p className="mb-2 text-[10px] text-red-600 dark:text-red-400">{rosterError}</p>
+            )}
+            <p className="mb-2 text-[10px] leading-snug text-gray-500 dark:text-gray-400">
+              Firefighters use this to sign up and join your station; on <strong className="font-semibold text-gray-700 dark:text-gray-300">Minutes Matter iOS</strong> it is the only signup path for that flow.
+            </p>
+            {roster.active_invite?.code ? (
+              <>
+                <div className="rounded-lg border border-dashed border-amber-300/90 bg-amber-50/80 px-2 py-1.5 font-mono text-[11px] font-bold tracking-wide text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/35 dark:text-amber-100">
+                  {roster.active_invite.code}
+                </div>
+                <p className="mt-1 text-[9px] text-gray-500 dark:text-gray-500">
+                  {expiresInLabel(roster.active_invite.expires_at)}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void copyInviteCode()}
+                    className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2 py-1 text-[10px] font-semibold text-gray-800 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700"
+                  >
+                    <Copy className="h-3 w-3" />
+                    {copyOk ? 'Copied' : 'Copy'}
+                  </button>
+                  {roster.station.is_commander && (
+                    <button
+                      type="button"
+                      disabled={regenBusy}
+                      onClick={() => void regenerateInvite()}
+                      className="inline-flex items-center gap-1 rounded-lg border border-amber-400/80 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-950 shadow-sm hover:bg-amber-100 disabled:opacity-50 dark:border-amber-800/60 dark:bg-amber-950/50 dark:text-amber-100 dark:hover:bg-amber-900/55"
+                    >
+                      <RefreshCw className={`h-3 w-3 ${regenBusy ? 'animate-spin' : ''}`} />
+                      New code
+                    </button>
+                  )}
+                </div>
+              </>
+            ) : roster.station.is_commander ? (
+              <div className="space-y-2">
+                <p className="text-[11px] text-gray-600 dark:text-gray-400">No active invite code.</p>
+                <button
+                  type="button"
+                  disabled={regenBusy}
+                  onClick={() => void regenerateInvite()}
+                  className="inline-flex items-center gap-1 rounded-lg border border-amber-400/80 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-950 shadow-sm hover:bg-amber-100 disabled:opacity-50 dark:border-amber-800/60 dark:bg-amber-950/50 dark:text-amber-100 dark:hover:bg-amber-900/55"
+                >
+                  <RefreshCw className={`h-3 w-3 ${regenBusy ? 'animate-spin' : ''}`} />
+                  Generate invite code
+                </button>
+              </div>
+            ) : (
+              <p className="text-[11px] text-gray-600 dark:text-gray-400">
+                Ask your commander for the current join code.
+              </p>
+            )}
+            <p className="mt-2 text-[9px] text-gray-500 dark:text-gray-500">
+              <Link
+                href="/dashboard/responder/station"
+                className="font-semibold text-amber-800 underline-offset-2 hover:underline dark:text-amber-400"
+              >
+                Station &amp; setup
+              </Link>{' '}
+              for roster and incident details.
+            </p>
+          </>
         )}
       </div>
 

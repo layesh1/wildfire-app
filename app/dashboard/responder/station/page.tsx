@@ -329,9 +329,13 @@ export default function ResponderStationPage() {
             </div>
           )}
           <p className="mt-4 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
-            This <strong className="text-gray-800 dark:text-gray-200">station join code</strong> is only for linking firefighters
-            to your roster — not the same as the organization access code they used to unlock the Emergency Responder role.
-            Share it with your firefighters; they enter it when signing up on the Minutes Matter iOS app to join your station.
+            This <strong className="text-gray-800 dark:text-gray-200">station join code</strong> is how firefighters{' '}
+            <strong className="text-gray-800 dark:text-gray-200">sign up</strong> to join your roster. On the{' '}
+            <strong className="text-gray-800 dark:text-gray-200">Minutes Matter iOS app</strong>, it is the{' '}
+            <strong className="text-gray-800 dark:text-gray-200">only</strong> signup path for that flow. It is{' '}
+            <strong className="text-gray-800 dark:text-gray-200">not</strong> the organization access code commanders use to unlock
+            the <strong className="text-gray-800 dark:text-gray-200">Emergency Responder Command Hub</strong> on the web. Share this
+            code with your crew so they can join your station.
           </p>
         </section>
       )}

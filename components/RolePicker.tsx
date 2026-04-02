@@ -297,8 +297,18 @@ export default function RolePicker({ roles, activeRole, name }: Props) {
                             {!codeVerified ? (
                               <>
                                 <p className="text-gray-500 text-xs mb-3">
-                                  Enter your access code to unlock {cfg.label}.
-                                  Codes are issued by your organization or agency.
+                                  {role === 'emergency_responder' ? (
+                                    <>
+                                      Enter your organization access code to unlock the{' '}
+                                      <span className="font-medium text-gray-700">Emergency Responder Command Hub</span>. Codes are
+                                      issued by your department or admin — not station join codes (iOS signup uses those).
+                                    </>
+                                  ) : (
+                                    <>
+                                      Enter your access code to unlock {cfg.label}. Codes are issued by your organization or
+                                      agency.
+                                    </>
+                                  )}
                                 </p>
                                 <div className="flex gap-2">
                                   <input
