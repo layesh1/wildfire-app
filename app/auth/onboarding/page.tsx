@@ -526,9 +526,9 @@ function OnboardingInner() {
                     <strong className="text-ash-200">organization access code</strong> (from your department) to unlock the{' '}
                     <strong className="text-ash-200">Emergency Responder Command Hub</strong>. That is{' '}
                     <strong className="text-ash-200">not</strong> a <strong className="text-ash-200">station join code</strong>{' '}
-                    (e.g. STATION-ABC123). Station join codes are generated under Station &amp; setup after you&apos;re in — they are
-                    how firefighters <strong className="text-ash-200">sign up</strong> to join your station; on{' '}
-                    <strong className="text-ash-200">Minutes Matter iOS</strong> that is the <strong className="text-ash-200">only</strong>{' '}
+                    (e.g. STATION-ABC123). <strong className="text-ash-200">One</strong> station join code is created under Station &amp;
+                    setup after you&apos;re in — firefighters use it to <strong className="text-ash-200">sign up</strong> on{' '}
+                    <strong className="text-ash-200">Minutes Matter iOS</strong>, the <strong className="text-ash-200">only</strong>{' '}
                     signup path for that flow.
                   </>
                 ) : (

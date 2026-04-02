@@ -132,7 +132,6 @@ export default function FlameoCommandRoom({
   const [roster, setRoster] = useState<StationRosterSnippet | null>(null)
   const [rosterLoading, setRosterLoading] = useState(true)
   const [rosterError, setRosterError] = useState<string | null>(null)
-  const [regenBusy, setRegenBusy] = useState(false)
   const [copyOk, setCopyOk] = useState(false)
 
   const commandContext: FlameoCommandContext = useMemo(
@@ -195,24 +194,6 @@ export default function FlameoCommandRoom({
   useEffect(() => {
     void loadStationRoster()
   }, [loadStationRoster])
-
-  const regenerateInvite = async () => {
-    setRegenBusy(true)
-    setRosterError(null)
-    try {
-      const res = await fetch('/api/station/invite/regenerate', { method: 'POST' })
-      const j = (await res.json().catch(() => ({}))) as { error?: string }
-      if (!res.ok) {
-        setRosterError(typeof j.error === 'string' ? j.error : 'Could not generate code')
-        return
-      }
-      await loadStationRoster()
-    } catch {
-      setRosterError('Could not generate code')
-    } finally {
-      setRegenBusy(false)
-    }
-  }
 
   const copyInviteCode = async () => {
     const code = roster?.active_invite?.code
@@ -299,7 +280,7 @@ export default function FlameoCommandRoom({
       <div className={panel}>
         <div className="mb-2 flex items-center gap-2">
           <Users className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400" />
-          <span className={sectionHead}>Station join code</span>
+          <span className={sectionHead}>Station join code (iOS)</span>
         </div>
         {rosterLoading ? (
           <p className="text-xs text-gray-500 dark:text-gray-400" aria-busy="true">
@@ -309,14 +290,14 @@ export default function FlameoCommandRoom({
           <p className="text-xs text-red-600 dark:text-red-400">{rosterError}</p>
         ) : !roster?.station ? (
           <p className="text-[11px] leading-snug text-gray-600 dark:text-gray-400">
-            Create your station to generate a join code for firefighters. Full setup (name, incident, roster) lives on{' '}
+            Create your station once on{' '}
             <Link
               href="/dashboard/responder/station"
               className="font-semibold text-amber-800 underline-offset-2 hover:underline dark:text-amber-400"
             >
               Station &amp; setup
-            </Link>
-            .
+            </Link>{' '}
+            — you get <strong className="font-semibold text-gray-700 dark:text-gray-300">one</strong> join code for the Minutes Matter iOS app.
           </p>
         ) : (
           <>
@@ -324,7 +305,8 @@ export default function FlameoCommandRoom({
               <p className="mb-2 text-[10px] text-red-600 dark:text-red-400">{rosterError}</p>
             )}
             <p className="mb-2 text-[10px] leading-snug text-gray-500 dark:text-gray-400">
-              Firefighters use this to sign up and join your station; on <strong className="font-semibold text-gray-700 dark:text-gray-300">Minutes Matter iOS</strong> it is the only signup path for that flow.
+              <strong className="font-semibold text-gray-700 dark:text-gray-300">One</strong> code per station — firefighters enter it in{' '}
+              <strong className="font-semibold text-gray-700 dark:text-gray-300">Minutes Matter iOS</strong> to join this roster.
             </p>
             {roster.active_invite?.code ? (
               <>
@@ -343,35 +325,22 @@ export default function FlameoCommandRoom({
                     <Copy className="h-3 w-3" />
                     {copyOk ? 'Copied' : 'Copy'}
                   </button>
-                  {roster.station.is_commander && (
-                    <button
-                      type="button"
-                      disabled={regenBusy}
-                      onClick={() => void regenerateInvite()}
-                      className="inline-flex items-center gap-1 rounded-lg border border-amber-400/80 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-950 shadow-sm hover:bg-amber-100 disabled:opacity-50 dark:border-amber-800/60 dark:bg-amber-950/50 dark:text-amber-100 dark:hover:bg-amber-900/55"
-                    >
-                      <RefreshCw className={`h-3 w-3 ${regenBusy ? 'animate-spin' : ''}`} />
-                      New code
-                    </button>
-                  )}
                 </div>
               </>
             ) : roster.station.is_commander ? (
-              <div className="space-y-2">
-                <p className="text-[11px] text-gray-600 dark:text-gray-400">No active invite code.</p>
-                <button
-                  type="button"
-                  disabled={regenBusy}
-                  onClick={() => void regenerateInvite()}
-                  className="inline-flex items-center gap-1 rounded-lg border border-amber-400/80 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-950 shadow-sm hover:bg-amber-100 disabled:opacity-50 dark:border-amber-800/60 dark:bg-amber-950/50 dark:text-amber-100 dark:hover:bg-amber-900/55"
+              <p className="text-[11px] text-gray-600 dark:text-gray-400">
+                No active code.{' '}
+                <Link
+                  href="/dashboard/responder/station"
+                  className="font-semibold text-amber-800 underline-offset-2 hover:underline dark:text-amber-400"
                 >
-                  <RefreshCw className={`h-3 w-3 ${regenBusy ? 'animate-spin' : ''}`} />
-                  Generate invite code
-                </button>
-              </div>
+                  Open Station &amp; setup
+                </Link>{' '}
+                to issue the iOS join code.
+              </p>
             ) : (
               <p className="text-[11px] text-gray-600 dark:text-gray-400">
-                Ask your commander for the current join code.
+                Ask your commander for the station&apos;s iOS join code.
               </p>
             )}
             <p className="mt-2 text-[9px] text-gray-500 dark:text-gray-500">
@@ -381,7 +350,7 @@ export default function FlameoCommandRoom({
               >
                 Station &amp; setup
               </Link>{' '}
-              for roster and incident details.
+              — replace the code or manage roster.
             </p>
           </>
         )}

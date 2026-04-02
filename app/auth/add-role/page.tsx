@@ -178,10 +178,10 @@ function AddRoleForm() {
               <span className="text-amber-100/90">
                 This screen is for your <strong>organization access code</strong> — it unlocks the{' '}
                 <strong>Emergency Responder Command Hub</strong> on the web.{' '}
-                <strong>Station join codes</strong> (e.g. STATION-ABC123) are created under{' '}
-                <strong>Station &amp; setup</strong> after you&apos;re in. Those codes are how firefighters <strong>sign up</strong> to
-                join your station; on the <strong>Minutes Matter iOS app</strong>, a station join code is the <strong>only</strong> signup
-                path for that flow.
+                Your <strong>station join code</strong> (e.g. STATION-ABC123) is created once under{' '}
+                <strong>Station &amp; setup</strong> after you&apos;re in. Firefighters use that <strong>single code</strong> to{' '}
+                <strong>sign up</strong> on the <strong>Minutes Matter iOS app</strong> — the <strong>only</strong> signup path for
+                joining your station.
               </span>
             </div>
           )}

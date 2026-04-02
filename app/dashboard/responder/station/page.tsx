@@ -99,11 +99,13 @@ export default function ResponderStationPage() {
     }
   }, [loading, roster?.station])
 
-  const commander = roster?.station?.is_commander ?? false
   const hasStation = !!roster?.station
+  /** Creator of the station row — undefined when no station yet (do not use for "can create"). */
+  const isCommander = roster?.station?.is_commander === true
+  const canCreateStation = !hasStation
 
   const saveStationInfo = async () => {
-    if (!commander) return
+    if (!isCommander) return
     setSaving(true)
     setError(null)
     try {
@@ -209,7 +211,8 @@ export default function ResponderStationPage() {
           <h1 className="font-display text-2xl font-bold tracking-tight">Station setup</h1>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
             Uses the <strong className="font-semibold text-gray-800 dark:text-gray-200">station name</strong> from your signup journey
-            (you can adjust it here). Create the station once, then share the generated join code with firefighters.{' '}
+            (you can adjust it here). Create the station once — you get <strong className="font-semibold text-gray-800 dark:text-gray-200">one</strong> join code for firefighters to sign up on the{' '}
+            <strong className="font-semibold text-gray-800 dark:text-gray-200">Minutes Matter iOS</strong> app.{' '}
             <Link href="/dashboard/responder" className="font-semibold text-amber-800 underline-offset-2 hover:underline dark:text-amber-400">
               Back to command hub
             </Link>
@@ -234,13 +237,13 @@ export default function ResponderStationPage() {
             <input
               value={stationName}
               onChange={e => setStationName(e.target.value)}
-              disabled={!commander && hasStation}
+              disabled={hasStation && !isCommander}
               className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-950 disabled:opacity-60"
               placeholder="e.g. Clayton Fire Station 2"
             />
           </label>
         </div>
-        {commander && hasStation && (
+        {isCommander && hasStation && (
           <button
             type="button"
             onClick={() => void saveStationInfo()}
@@ -251,7 +254,7 @@ export default function ResponderStationPage() {
             Save station name
           </button>
         )}
-        {commander && !hasStation && (
+        {canCreateStation && (
           <button
             type="button"
             onClick={() => void createStation()}
@@ -259,21 +262,24 @@ export default function ResponderStationPage() {
             className="mt-4 inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
           >
             {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Create station &amp; invite code
+            Create station
           </button>
         )}
-        {!commander && hasStation && (
+        {hasStation && !isCommander && (
           <p className="mt-4 text-xs text-gray-500 dark:text-gray-400">
             Only the station creator can edit station details. You are connected as a field unit.
           </p>
         )}
       </section>
 
-      {commander && hasStation && (
+      {isCommander && hasStation && (
         <section className="mb-10 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900/60">
           <h2 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-            Firefighter join code
+            Station join code (iOS)
           </h2>
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            One code per station. Firefighters enter it in the <strong className="font-semibold text-gray-700 dark:text-gray-300">Minutes Matter</strong> iOS app to join this roster — not the web Command Hub access code.
+          </p>
           {roster?.active_invite ? (
             <div className="mt-4 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-950/50">
               <div className="font-mono text-xl font-bold tracking-wider text-gray-900 dark:text-white sm:text-2xl">
@@ -281,12 +287,9 @@ export default function ResponderStationPage() {
               </div>
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{expiresInLabel(roster.active_invite.expires_at)}</p>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Used by{' '}
-                <span className="font-semibold text-gray-900 dark:text-white">
-                  {roster.active_invite.uses_count ?? 0}
-                </span>{' '}
-                firefighter{(roster.active_invite.uses_count ?? 0) === 1 ? '' : 's'}{' '}
-                <span className="text-gray-400">(max {roster.active_invite.max_uses ?? 50})</span>
+                <span className="font-semibold text-gray-900 dark:text-white">{roster.active_invite.uses_count ?? 0}</span> firefighter
+                {(roster.active_invite.uses_count ?? 0) === 1 ? '' : 's'} joined with this code
+                <span className="text-gray-400"> (limit {roster.active_invite.max_uses ?? 50})</span>
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
@@ -300,21 +303,29 @@ export default function ResponderStationPage() {
                   <Copy className="h-3.5 w-3.5" />
                   {copyOk ? 'Copied' : 'Copy code'}
                 </button>
+              </div>
+              <details className="mt-4 rounded-lg border border-gray-200 bg-white/80 p-3 dark:border-gray-600 dark:bg-gray-900/40">
+                <summary className="cursor-pointer text-xs font-semibold text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100">
+                  Replace join code
+                </summary>
+                <p className="mt-2 text-[11px] leading-relaxed text-gray-500 dark:text-gray-400">
+                  Only if this code was leaked or expired. The previous code stops working immediately.
+                </p>
                 <button
                   type="button"
                   onClick={() => void regenerateCode()}
                   disabled={regenBusy}
-                  className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100 disabled:opacity-50"
+                  className="mt-2 inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100 disabled:opacity-50"
                 >
                   <RefreshCw className={cn('h-3.5 w-3.5', regenBusy && 'animate-spin')} />
-                  Generate new code
+                  Issue new code
                 </button>
-              </div>
+              </details>
             </div>
           ) : (
             <div className="mt-4">
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                No active code. Generate one for your station.
+                No active join code (for example it expired). Issue a new one — it becomes the only code for iOS signup.
               </p>
               <button
                 type="button"
@@ -323,19 +334,10 @@ export default function ResponderStationPage() {
                 className="mt-3 inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100 disabled:opacity-50"
               >
                 <RefreshCw className={cn('h-3.5 w-3.5', regenBusy && 'animate-spin')} />
-                Generate invite code
+                Issue join code
               </button>
             </div>
           )}
-          <p className="mt-4 text-xs leading-relaxed text-gray-600 dark:text-gray-400">
-            This <strong className="text-gray-800 dark:text-gray-200">station join code</strong> is how firefighters{' '}
-            <strong className="text-gray-800 dark:text-gray-200">sign up</strong> to join your roster. On the{' '}
-            <strong className="text-gray-800 dark:text-gray-200">Minutes Matter iOS app</strong>, it is the{' '}
-            <strong className="text-gray-800 dark:text-gray-200">only</strong> signup path for that flow. It is{' '}
-            <strong className="text-gray-800 dark:text-gray-200">not</strong> the organization access code commanders use to unlock
-            the <strong className="text-gray-800 dark:text-gray-200">Emergency Responder Command Hub</strong> on the web. Share this
-            code with your crew so they can join your station.
-          </p>
         </section>
       )}
 
@@ -344,7 +346,10 @@ export default function ResponderStationPage() {
           Connected firefighters
         </h2>
         {!hasStation ? (
-          <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">No station yet. Create a station above to see roster.</p>
+          <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+            No station yet. Use <strong className="font-semibold text-gray-800 dark:text-gray-200">Create station</strong> above — that
+            creates your station and your single iOS join code.
+          </p>
         ) : roster?.members.length === 0 ? (
           <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">No firefighters have joined yet.</p>
         ) : (

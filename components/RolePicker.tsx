@@ -301,7 +301,7 @@ export default function RolePicker({ roles, activeRole, name }: Props) {
                                     <>
                                       Enter your organization access code to unlock the{' '}
                                       <span className="font-medium text-gray-700">Emergency Responder Command Hub</span>. Codes are
-                                      issued by your department or admin — not station join codes (iOS signup uses those).
+                                      issued by your department or admin — not your station&apos;s single iOS join code.
                                     </>
                                   ) : (
                                     <>

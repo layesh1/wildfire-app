@@ -42,7 +42,11 @@ export async function POST(request: NextRequest) {
 
   if (existing?.id) {
     return NextResponse.json(
-      { error: 'already_has_station', station_id: existing.id, message: 'Use invite regenerate or update station.' },
+      {
+        error: 'already_has_station',
+        station_id: existing.id,
+        message: 'You already have a station. Open Station setup to copy or replace the iOS join code.',
+      },
       { status: 409 }
     )
   }
