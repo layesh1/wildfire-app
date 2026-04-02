@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense } from 'react'
-import { ConsumerHubDashboard } from '../caregiver/page'
+import { ConsumerHubDashboard } from '@/app/dashboard/evacuee/hub-dashboard'
 
 export default function EvacueeDashboard() {
   return (

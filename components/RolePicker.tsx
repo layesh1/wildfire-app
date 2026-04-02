@@ -101,7 +101,7 @@ export default function RolePicker({ roles, activeRole, name }: Props) {
   const otherRoles = ALL_ROLES.filter(r => {
     if (myRoles.includes(r)) return false
     if (!profileHasProtected && (r === 'emergency_responder' || r === 'data_analyst')) return false
-    // Responders unlock Data Analyst with a code in Settings; household hub uses Settings “Add evacuee” — not here.
+    // Responders add Data Analyst with an invite code in Settings; evacuee/household is not offered here.
     if (myRoles.includes('emergency_responder') && !myRoles.includes('data_analyst') && (r === 'evacuee' || r === 'caregiver')) {
       return false
     }

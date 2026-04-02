@@ -25,6 +25,10 @@ type Props = {
   myPeople: Person[]
   wheelchairMode: boolean
   onAskFlameo: () => void
+  /** Defaults to household My People; use responder evacuation map when in field hub. */
+  notifyFamilyHref?: string
+  sheltersMapHref?: string
+  peopleDirectoryHref?: string
 }
 
 function dangerBand(nearestMiles: number | null): 'danger' | 'monitor' | 'clear' {
@@ -90,6 +94,9 @@ export default function FlameoSituationRoom({
   myPeople,
   wheelchairMode,
   onAskFlameo,
+  notifyFamilyHref = '/dashboard/home/people',
+  sheltersMapHref = '/dashboard/home/map',
+  peopleDirectoryHref = '/dashboard/home/people',
 }: Props) {
   const status = flameoStatus
   const incidents = flameoContext?.incidents_nearby ?? []
@@ -274,7 +281,7 @@ export default function FlameoSituationRoom({
           {detectedAnchor === 'work' && anchorRows.some(a => a.anchor.id === 'home' && dangerBand(a.nearestMiles) !== 'clear') && (
             <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-2 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-100">
               <p>⚠️ Fire detected near your home address. Is anyone there? Let your family know.</p>
-              <Link href="/dashboard/home/people" className="mt-1 inline-flex font-semibold hover:underline">
+              <Link href={notifyFamilyHref} className="mt-1 inline-flex font-semibold hover:underline">
                 Notify My People →
               </Link>
             </div>
@@ -378,7 +385,7 @@ export default function FlameoSituationRoom({
           )}
           <div>
             <Link
-              href="/dashboard/home/map"
+              href={sheltersMapHref}
               className="mt-1 inline-flex text-sm font-semibold text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
             >
               See all shelters →
@@ -435,7 +442,7 @@ export default function FlameoSituationRoom({
             })}
           </div>
           <Link
-            href="/dashboard/home/people"
+            href={peopleDirectoryHref}
             className="mt-2 inline-flex text-sm font-semibold text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
           >
             See all →

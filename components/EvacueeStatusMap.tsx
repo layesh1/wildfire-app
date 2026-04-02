@@ -12,6 +12,9 @@ import {
   type HomeEvacuationStatus,
 } from '@/lib/checkin-status'
 import type { HouseholdPin } from '@/lib/responder-household'
+import type { NifcFire, WindData } from '@/app/dashboard/caregiver/map/LeafletMap'
+import NifcFireMapFeatures from '@/components/leaflet/NifcFireMapFeatures'
+import WindCompassOverlay from '@/components/leaflet/WindCompassOverlay'
 
 export interface EvacueePin {
   id: string
@@ -363,18 +366,26 @@ interface Props {
   onResponderStatusUpdated?: () => void
   /** Fly map to coordinates when `nonce` changes (e.g. COMMAND “View on Map”). */
   mapFocusRequest?: { lat: number; lng: number; nonce: number } | null
+  /** Same NIFC feed as household hub Leaflet map (perimeters + point incidents). */
+  nifcFires?: NifcFire[]
+  /** When true, draw fires as circle markers only (e.g. responder evacuation map). */
+  nifcFiresCircleOnly?: boolean
+  windData?: WindData | null
 }
 
 export default function EvacueeStatusMap({
   pins,
   householdPins = [],
-  center = [35.4088, -80.5795],
+  center = [35.21, -80.84],
   zoom = 12,
   facilities = [],
   showFacilities = false,
   demoMode = false,
   onResponderStatusUpdated,
   mapFocusRequest = null,
+  nifcFires = [],
+  nifcFiresCircleOnly = false,
+  windData = null,
 }: Props) {
   const { notEvacuated, evacuated, cannotEvac } = mapStats(pins, householdPins)
 
@@ -391,7 +402,7 @@ export default function EvacueeStatusMap({
       `}</style>
       {demoMode && (
         <div
-          className="absolute top-2 left-2 z-[1000] rounded-lg border border-amber-500/40 bg-amber-950/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-200 shadow-lg pointer-events-none"
+          className="absolute top-2 left-2 z-[1000] rounded-lg border border-amber-400/70 bg-amber-100/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-950 shadow-lg pointer-events-none dark:border-amber-500/40 dark:bg-amber-950/90 dark:text-amber-200"
         >
           Demo mode
         </div>
@@ -405,62 +416,23 @@ export default function EvacueeStatusMap({
         <MapFlyTo target={mapFocusRequest} />
         <FitBoundsCombined pins={pins} householdPins={householdPins} />
 
-        {householdPins.map(pin => {
-          const fill = PRIORITY_COLOR[pin.priority]
-          const pathClass = pin.priority === 'CRITICAL' ? 'wf-household-critical' : ''
-          const label =
-            pin.total_people === 1
-              ? (() => {
-                  const m = pin.members[0]
-                  if (!m) return '·'
-                  const st = isHomeEvacuationStatus(m.home_evacuation_status)
-                    ? m.home_evacuation_status
-                    : 'not_evacuated'
-                  return st === 'evacuated' ? '✓' : st === 'cannot_evacuate' ? '⚠' : '🏠'
-                })()
-              : `${pin.evacuated}/${pin.total_people}`
+        <NifcFireMapFeatures nifc={nifcFires} circleMarkersOnly={nifcFiresCircleOnly} />
 
-          return (
-            <CircleMarker
-              key={pin.id}
-              center={[pin.lat, pin.lng]}
-              radius={12}
-              pathOptions={{
-                className: pathClass,
-                color: fill,
-                fillColor: fill,
-                fillOpacity: 0.88,
-                weight: 2,
-              }}
-            >
-              <Tooltip direction="center" permanent opacity={1}>
-                <span
-                  style={{
-                    fontFamily: 'sans-serif',
-                    fontSize: 11,
-                    fontWeight: 800,
-                    color: '#0f172a',
-                    textShadow: '0 0 2px #fff, 0 0 4px #fff',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 2,
-                  }}
-                >
-                  {pin.is_demo && (
-                    <span style={{ fontSize: 7, fontWeight: 800, color: '#a8a29e', letterSpacing: '0.08em' }}>
-                      DEMO
-                    </span>
-                  )}
-                  <span>{label}</span>
-                </span>
-              </Tooltip>
-              <Popup>
-                <HouseholdPopupBody pin={pin} onUpdated={onResponderStatusUpdated} />
-              </Popup>
-            </CircleMarker>
-          )
-        })}
+        {showFacilities && facilities.map(f => (
+          <Marker
+            key={`hazard-${f.id}`}
+            position={[f.lat, f.lng]}
+            icon={hazardIcon(f.type)}
+          >
+            <Popup>
+              <div style={{ fontFamily: 'sans-serif', fontSize: 13, lineHeight: 1.7, maxWidth: 240 }}>
+                <strong>{f.name}</strong><br />
+                <span style={{ fontSize: 11, color: '#6b7280' }}>{FACILITY_LABELS[f.type]} · {f.county}, {f.state}</span><br />
+                <span style={{ fontSize: 12, color: '#374151' }}>{f.riskNote}</span>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
 
         {pins.map(pin => {
           const home = pinHomeEvacuationStatus(pin)
@@ -671,21 +643,62 @@ export default function EvacueeStatusMap({
           </CircleMarker>
         )})}
 
-        {showFacilities && facilities.map(f => (
-          <Marker
-            key={`hazard-${f.id}`}
-            position={[f.lat, f.lng]}
-            icon={hazardIcon(f.type)}
-          >
-            <Popup>
-              <div style={{ fontFamily: 'sans-serif', fontSize: 13, lineHeight: 1.7, maxWidth: 240 }}>
-                <strong>{f.name}</strong><br />
-                <span style={{ fontSize: 11, color: '#6b7280' }}>{FACILITY_LABELS[f.type]} · {f.county}, {f.state}</span><br />
-                <span style={{ fontSize: 12, color: '#374151' }}>{f.riskNote}</span>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
+        {householdPins.map(pin => {
+          const fill = PRIORITY_COLOR[pin.priority]
+          const pathClass = pin.priority === 'CRITICAL' ? 'wf-household-critical' : ''
+          const label =
+            pin.total_people === 1
+              ? (() => {
+                  const m = pin.members[0]
+                  if (!m) return '·'
+                  const st = isHomeEvacuationStatus(m.home_evacuation_status)
+                    ? m.home_evacuation_status
+                    : 'not_evacuated'
+                  return st === 'evacuated' ? '✓' : st === 'cannot_evacuate' ? '⚠' : '🏠'
+                })()
+              : `${pin.evacuated}/${pin.total_people}`
+
+          return (
+            <CircleMarker
+              key={pin.id}
+              center={[pin.lat, pin.lng]}
+              radius={12}
+              pathOptions={{
+                className: pathClass,
+                color: fill,
+                fillColor: fill,
+                fillOpacity: 0.88,
+                weight: 2,
+              }}
+            >
+              <Tooltip direction="center" permanent opacity={1}>
+                <span
+                  style={{
+                    fontFamily: 'sans-serif',
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: '#0f172a',
+                    textShadow: '0 0 2px #fff, 0 0 4px #fff',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 2,
+                  }}
+                >
+                  {pin.is_demo && (
+                    <span style={{ fontSize: 7, fontWeight: 800, color: '#a8a29e', letterSpacing: '0.08em' }}>
+                      DEMO
+                    </span>
+                  )}
+                  <span>{label}</span>
+                </span>
+              </Tooltip>
+              <Popup>
+                <HouseholdPopupBody pin={pin} onUpdated={onResponderStatusUpdated} />
+              </Popup>
+            </CircleMarker>
+          )
+        })}
 
         <div style={{
           position: 'absolute', bottom: 28, right: 10, zIndex: 1000,
@@ -693,6 +706,29 @@ export default function EvacueeStatusMap({
           padding: '10px 14px', border: '1px solid rgba(255,255,255,0.1)',
           pointerEvents: 'none',
         }}>
+          {nifcFires.length > 0 && (
+            <>
+              <div style={{ color: '#fff', fontSize: 11, fontWeight: 700, marginBottom: 6, letterSpacing: '0.05em' }}>
+                WILDFIRE (NIFC)
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
+                <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+                <span style={{ color: '#e2e8f0', fontSize: 10 }}>&lt;25% contained</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
+                <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#f97316', flexShrink: 0 }} />
+                <span style={{ color: '#e2e8f0', fontSize: 10 }}>25–50%</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
+                <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#eab308', flexShrink: 0 }} />
+                <span style={{ color: '#e2e8f0', fontSize: 10 }}>50–75%</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+                <span style={{ color: '#e2e8f0', fontSize: 10 }}>75%+ contained</span>
+              </div>
+            </>
+          )}
           <div style={{ color: '#fff', fontSize: 11, fontWeight: 700, marginBottom: 6, letterSpacing: '0.05em' }}>
             HOME STATUS
           </div>
@@ -724,6 +760,7 @@ export default function EvacueeStatusMap({
           </div>
         </div>
       </MapContainer>
+      {windData && <WindCompassOverlay wind={windData} />}
     </div>
   )
 }

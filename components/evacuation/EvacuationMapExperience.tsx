@@ -58,8 +58,8 @@ export default function EvacuationMapExperience({
   consumerRole: _consumerRole = 'evacuee',
   mobile = false,
 }: {
-  /** Legacy `caregiver` matches `evacuee` (unified consumer). */
-  consumerRole?: 'evacuee' | 'caregiver'
+  /** Household evacuation map (evacuee accounts). */
+  consumerRole?: 'evacuee'
   mobile?: boolean
 }) {
   const searchParams = useSearchParams()

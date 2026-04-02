@@ -30,7 +30,8 @@ const CAREGIVER_PAGES = [
 
 export default function MainWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const isResponderSection = pathname?.startsWith('/dashboard/responder')
+  const isResponderSection =
+    pathname?.startsWith('/dashboard/responder') || pathname?.startsWith('/m/dashboard/responder')
   const isEvacueeHub =
     pathname?.startsWith('/dashboard/evacuee') ||
     pathname?.startsWith('/m/dashboard/evacuee') ||
@@ -41,6 +42,7 @@ export default function MainWrapper({ children }: { children: React.ReactNode })
   const showContextBar =
     !flameoAiFullScreen &&
     !isEvacueeHub &&
+    !isResponderSection &&
     (pathname?.startsWith('/dashboard/caregiver') ||
       pathname?.startsWith('/m/dashboard/caregiver') ||
       isContentPage)

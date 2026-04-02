@@ -449,22 +449,6 @@ function SettingsInner() {
     window.location.href = ROLE_DESTINATIONS[addingRole] ?? '/dashboard'
   }
 
-  async function claimEvacueeWithoutCode() {
-    const role = 'evacuee'
-    localStorage.setItem('wfa_active_role', role)
-    try {
-      const prev: string[] = JSON.parse(localStorage.getItem('wfa_claimed_roles') || '[]')
-      localStorage.setItem('wfa_claimed_roles', JSON.stringify([...new Set([...prev, role])]))
-    } catch {}
-    setMyRoles(prev => [...new Set([...prev, role])])
-    await fetch('/api/profile/role', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role }),
-    })
-    window.location.href = ROLE_DESTINATIONS[role] ?? '/dashboard'
-  }
-
   function resetCode() { setAddingRole(null); setCode(''); setCodeVerified(false); setCodeError(''); setOrgName(null); setCodeId(null) }
 
   async function confirmClearHealthData() {
@@ -1303,22 +1287,18 @@ function SettingsInner() {
               <h2 className="font-semibold text-gray-900 dark:text-white">Roles & dashboards</h2>
             </div>
             <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-              Your signup choice is household (evacuee) or emergency responder — those are not interchangeable with an invite code. If you are a responder, you can add <strong className="font-semibold text-gray-800 dark:text-gray-200">Data Analyst</strong> access with an analyst invite code, and open the household hub using the button below when needed.
+              {myRoles.includes('emergency_responder') && !myRoles.includes('evacuee') ? (
+                <>
+                  You can add <strong className="font-semibold text-gray-800 dark:text-gray-200">Data Analyst</strong>{' '}
+                  access with an analyst invite code under <span className="font-medium">Request access</span> below.
+                </>
+              ) : (
+                <>
+                  Switch between dashboards for each role on your account. Roles that require an invite appear under{' '}
+                  <span className="font-medium">Request access</span>.
+                </>
+              )}
             </p>
-            {myRoles.includes('emergency_responder') && !myRoles.includes('evacuee') && (
-              <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
-                <div className="mb-2 text-sm font-medium text-emerald-900 dark:text-emerald-100">
-                  You have the Emergency Responder dashboard. You can also open the household (Evacuee) experience without an invite code.
-                </div>
-                <button
-                  type="button"
-                  onClick={claimEvacueeWithoutCode}
-                  className="rounded-lg border border-emerald-600/40 bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-900 transition-colors hover:bg-emerald-200 dark:border-emerald-500/40 dark:bg-emerald-600/20 dark:text-emerald-100 dark:hover:bg-emerald-600/30"
-                >
-                  Add / switch to Evacuee
-                </button>
-              </div>
-            )}
             <div className="space-y-2 mb-4">
               {myRoles.filter(r => ROLE_CONFIG[r]).map(role => {
                 const cfg = ROLE_CONFIG[role]; const Icon = cfg.icon; const isActive = role === activeRole

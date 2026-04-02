@@ -1,10 +1,12 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Marker, Popup, Polygon, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, CircleMarker, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { HazardFacility, FacilityType } from '@/lib/hazard-facilities'
 import LeafletInvalidateOnLayout from '@/components/leaflet/LeafletInvalidateOnLayout'
+import NifcFireMapFeatures from '@/components/leaflet/NifcFireMapFeatures'
+import WindCompassOverlay from '@/components/leaflet/WindCompassOverlay'
 
 export interface NifcFire {
   id: string
@@ -69,18 +71,6 @@ const TILE_LAYERS: Record<TileLayerType, { url: string; attribution: string; lab
     attribution: '&copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
     label: 'Topo',
   },
-}
-
-function containmentColor(pct: number | null) {
-  if (pct == null || pct < 25) return '#ef4444'
-  if (pct < 50) return '#f97316'
-  if (pct < 75) return '#eab308'
-  return '#22c55e'
-}
-
-function containmentRadius(acres: number | null) {
-  if (!acres) return 9
-  return Math.min(8 + Math.log10(acres + 1) * 4, 22)
 }
 
 function shelterIcon(type: 'evacuation' | 'animal') {
@@ -150,56 +140,6 @@ export function hazardIcon(type: FacilityType) {
   })
 }
 
-function WindCompass({ wind }: { wind: WindData }) {
-  const needleRot = wind.directionDeg  // needle points where wind comes FROM
-  return (
-    <div style={{
-      position: 'absolute',
-      bottom: 28,
-      left: 10,
-      zIndex: 1000,
-      pointerEvents: 'none',
-      background: 'rgba(255,255,255,0.92)',
-      border: '1px solid #e5e7eb',
-      borderRadius: 10,
-      padding: '6px 10px 6px 8px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 7,
-      boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-      fontSize: 12,
-      color: '#374151',
-    }}>
-      <svg width="36" height="36" viewBox="0 0 36 36">
-        {/* Compass ring */}
-        <circle cx="18" cy="18" r="16" fill="none" stroke="#d1d5db" strokeWidth="1.5"/>
-        <text x="18" y="7" textAnchor="middle" fontSize="6" fill="#6b7280">N</text>
-        <text x="18" y="33" textAnchor="middle" fontSize="6" fill="#6b7280">S</text>
-        <text x="7" y="21" textAnchor="middle" fontSize="6" fill="#6b7280">W</text>
-        <text x="30" y="21" textAnchor="middle" fontSize="6" fill="#6b7280">E</text>
-        {/* Wind needle — points to source direction */}
-        <g transform={`rotate(${needleRot}, 18, 18)`}>
-          <polygon points="18,5 20,18 18,22 16,18" fill="#3b82f6" opacity="0.9"/>
-          <polygon points="18,22 20,18 18,31 16,18" fill="#9ca3af" opacity="0.7"/>
-        </g>
-      </svg>
-      <div>
-        <div style={{ fontWeight: 600, color: '#f97316' }}>
-          Wind {Math.round(wind.speedMph)} mph
-        </div>
-        <div style={{ color: '#6b7280', fontSize: 11 }}>
-          Fire spreads {spreadLabel(wind.spreadDeg)}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function spreadLabel(deg: number) {
-  const dirs = ['N','NE','E','SE','S','SW','W','NW']
-  return dirs[Math.round(deg / 45) % 8]
-}
-
 function watchedIcon() {
   const svg = encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 40" width="32" height="40">
     <ellipse cx="16" cy="38" rx="6" ry="2.5" fill="#7c3aed" fill-opacity="0.25"/>
@@ -220,15 +160,20 @@ function FlyToUser({
   coords,
   zoom,
   trigger = 0,
+  suppressInitialFly,
 }: {
   coords: [number, number] | null
   zoom: number
   trigger?: number
+  /** When true, skip flying on first mount; fly only after `trigger` increments (e.g. Locate me). */
+  suppressInitialFly?: boolean
 }) {
   const map = useMap()
   useEffect(() => {
-    if (coords && isFinite(coords[0]) && isFinite(coords[1])) map.flyTo(coords, zoom, { duration: 1.2 })
-  }, [coords, map, zoom, trigger])
+    if (!coords || !isFinite(coords[0]) || !isFinite(coords[1])) return
+    if (suppressInitialFly && trigger === 0) return
+    map.flyTo(coords, zoom, { duration: 1.2 })
+  }, [coords, map, zoom, trigger, suppressInitialFly])
   return null
 }
 
@@ -370,6 +315,8 @@ interface Props {
   windData?: WindData | null
   /** Bump to re-run fly-to even when GPS coords are unchanged (Locate me). */
   flyToTrigger?: number
+  /** Avoid auto panning to GPS on load (field hub keeps Concord/demo framing until Locate me). */
+  suppressInitialFlyToUser?: boolean
 }
 
 export default function LeafletMap({
@@ -387,6 +334,7 @@ export default function LeafletMap({
   showFacilities = false,
   windData = null,
   flyToTrigger = 0,
+  suppressInitialFlyToUser = false,
 }: Props) {
   const [tileLayer, setTileLayer] = useState<TileLayerType>('street')
   /** Unique per component instance so React never reuses a Leaflet container incorrectly. */
@@ -403,10 +351,6 @@ export default function LeafletMap({
     setMapReady(true)
   }, [])
 
-  // Filter out fully contained fires (100%)
-  const activeFires = nifc
-    .filter(f => f.containment == null || f.containment < 100)
-    .filter(f => Number.isFinite(f.latitude) && Number.isFinite(f.longitude))
   const tl = TILE_LAYERS[tileLayer]
   // Guard against NaN/Infinity coords — Leaflet crashes hard if center is invalid
   const safeCenter: [number, number] = (isFinite(center[0]) && isFinite(center[1])) ? center : [37.5, -119.5]
@@ -429,7 +373,12 @@ export default function LeafletMap({
       >
         <TileLayer attribution={tl.attribution} url={tl.url} />
         <LeafletInvalidateOnLayout />
-        <FlyToUser coords={userLocation} zoom={flyToUserZoom} trigger={flyToTrigger} />
+        <FlyToUser
+          coords={userLocation}
+          zoom={flyToUserZoom}
+          trigger={flyToTrigger}
+          suppressInitialFly={suppressInitialFlyToUser}
+        />
 
         {/* Home address pin when you’re away from saved home */}
         {showHomePin && homePosition && isFinite(homePosition[0]) && isFinite(homePosition[1]) && (
@@ -446,17 +395,6 @@ export default function LeafletMap({
             </Popup>
           </CircleMarker>
         )}
-
-        {/* Watched person pins — purple teardrop */}
-        {watchedLocations.map((w, i) => (
-          <Marker key={`watched-${i}`} position={[w.lat, w.lng]} icon={watchedIcon()}>
-            <Popup>
-              <div style={{ fontFamily: 'sans-serif', fontSize: 13, lineHeight: 1.7 }}>
-                <strong style={{ color: '#7c3aed' }}>{w.label}</strong>
-              </div>
-            </Popup>
-          </Marker>
-        ))}
 
         {showShelters && liveShelters.map(s => (
           <Marker key={`live-shelter-${s.id}`} position={[s.lat, s.lng]} icon={verifiedFemaShelterIcon()}>
@@ -510,60 +448,20 @@ export default function LeafletMap({
           </Marker>
         ))}
 
-        {/* NIFC active fires — polygon when perimeter data exists; otherwise point marker */}
-        {activeFires.map((f) => {
-          const color = containmentColor(f.containment)
-          const radius = containmentRadius(f.acres)
-          const pct = f.containment
-          const popup = (
+        <NifcFireMapFeatures nifc={nifc} />
+
+        {/* Watched person pins — above fire polygons so circles stay visible */}
+        {watchedLocations.map((w, i) => (
+          <Marker key={`watched-${i}`} position={[w.lat, w.lng]} icon={watchedIcon()}>
             <Popup>
               <div style={{ fontFamily: 'sans-serif', fontSize: 13, lineHeight: 1.7 }}>
-                <strong>{f.fire_name}</strong><br />
-                {f.acres != null
-                  ? <>{f.acres.toLocaleString(undefined, { maximumFractionDigits: 0 })} acres · </>
-                  : null}
-                {pct != null ? `${pct}% contained` : 'containment unknown'}<br />
-                <span style={{ color, fontWeight: 600 }}>
-                  {pct == null || pct < 25
-                    ? '⚠ Active threat — monitor alerts'
-                    : pct < 50
-                    ? '⚠ Still spreading — stay ready'
-                    : pct < 75
-                    ? '↗ Being controlled'
-                    : '✓ Mostly contained'}
-                </span>
+                <strong style={{ color: '#7c3aed' }}>{w.label}</strong>
               </div>
             </Popup>
-          )
-          const rings = f.perimeter_rings
-          const validPolygon =
-            Array.isArray(rings) &&
-            rings.length > 0 &&
-            rings.every(r => Array.isArray(r) && r.length >= 3)
-          if (validPolygon) {
-            return (
-              <Polygon
-                key={f.id}
-                positions={rings as [number, number][][]}
-                pathOptions={{ color, fillColor: color, fillOpacity: 0.4, weight: 2 }}
-              >
-                {popup}
-              </Polygon>
-            )
-          }
-          return (
-            <CircleMarker
-              key={f.id}
-              center={[f.latitude, f.longitude]}
-              radius={radius}
-              pathOptions={{ color, fillColor: color, fillOpacity: 0.85, weight: 2 }}
-            >
-              {popup}
-            </CircleMarker>
-          )
-        })}
+          </Marker>
+        ))}
 
-        {/* User location pin (render last so it overlays shelters/hazards/fires) */}
+        {/* User location pin (last) */}
         {userLocation && (
           <CircleMarker
             center={userLocation}
@@ -584,7 +482,7 @@ export default function LeafletMap({
       <MapLegend showShelters={showShelters} showFacilities={showFacilities} showHomePin={showHomePin} />
 
       {/* Wind compass overlay */}
-      {windData && <WindCompass wind={windData} />}
+      {windData && <WindCompassOverlay wind={windData} />}
     </div>
   )
 }
