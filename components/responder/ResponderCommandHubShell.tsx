@@ -22,7 +22,7 @@ export default function ResponderCommandHubShell() {
   const supabase = createClient()
   const flameoAgent = useFlameoContext({ role: 'emergency_responder' })
   const { setPayload: setFlameoHubAgentPayload } = useFlameoHubAgentBridge()
-  const { center, stationLabel, geoReady } = useResponderStationAnchor()
+  const { center, stationLabel, geoReady, stationAddressGeocodeFailed } = useResponderStationAnchor()
 
   useEffect(() => {
     setFlameoHubAgentPayload({
@@ -81,6 +81,7 @@ export default function ResponderCommandHubShell() {
           stationAddressForDirections={directionsOrigin}
           stationGeoReady={geoReady}
           stationProfileAddressMissing={!stationAddressLine?.trim()}
+          stationAddressGeocodeFailed={stationAddressGeocodeFailed}
         />
       </div>
     </div>

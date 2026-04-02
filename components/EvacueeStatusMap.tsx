@@ -23,7 +23,7 @@ import NifcFirePredictionOverlay from '@/components/leaflet/NifcFirePredictionOv
 import WindCompassOverlay from '@/components/leaflet/WindCompassOverlay'
 import HouseholdPinMapFeatures from '@/components/leaflet/HouseholdPinMapFeatures'
 import { fireStationMarkerImgHtml, getFireStationMapIcon } from '@/components/leaflet/fireStationMapIcon'
-import { responderEvacueeMarkerHtml, responderEvacueeMarkerHtmlTint } from '@/components/leaflet/responderEvacueeMarkerIcon'
+import { responderEvacueeMarkerHtmlTint } from '@/components/leaflet/responderEvacueeMarkerIcon'
 
 export interface EvacueePin {
   id: string
@@ -633,32 +633,35 @@ export default function EvacueeStatusMap({
               </div>
               {useHouseholdFireTint && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <span
-                    style={{ flexShrink: 0, transform: 'scale(0.82)', transformOrigin: 'left center' }}
-                    // eslint-disable-next-line react/no-danger
-                    dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('neutral') }}
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0, transform: 'scale(0.82)', transformOrigin: 'left center' }}>
+                    {/* eslint-disable-next-line react/no-danger */}
+                    <span dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('neutral', 'home') }} />
+                    {/* eslint-disable-next-line react/no-danger */}
+                    <span dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('neutral', 'office') }} />
+                  </div>
                   <span style={{ color: '#e2e8f0', fontSize: 10, lineHeight: 1.3 }}>
-                    No active fire within hub radius — neutral pin (open for status)
+                    No active fire within hub radius — neutral (house = home, building = work)
                   </span>
                 </div>
               )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <span
-                  style={{ flexShrink: 0, transform: 'scale(0.82)', transformOrigin: 'left center' }}
-                  // eslint-disable-next-line react/no-danger
-                  dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtml(true) }}
-                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0, transform: 'scale(0.82)', transformOrigin: 'left center' }}>
+                  {/* eslint-disable-next-line react/no-danger */}
+                  <span dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('cleared', 'home') }} />
+                  {/* eslint-disable-next-line react/no-danger */}
+                  <span dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('cleared', 'office') }} />
+                </div>
                 <span style={{ color: '#e2e8f0', fontSize: 10, lineHeight: 1.3 }}>
-                  {useHouseholdFireTint ? 'Fire nearby — all evacuated at that pin' : 'All evacuated at that pin (home or work address)'}
+                  {useHouseholdFireTint ? 'Fire nearby — all evacuated at that pin' : 'All evacuated (house = home, building = work / office)'}
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <span
-                  style={{ flexShrink: 0, transform: 'scale(0.82)', transformOrigin: 'left center' }}
-                  // eslint-disable-next-line react/no-danger
-                  dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtml(false) }}
-                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0, transform: 'scale(0.82)', transformOrigin: 'left center' }}>
+                  {/* eslint-disable-next-line react/no-danger */}
+                  <span dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('needs_action', 'home') }} />
+                  {/* eslint-disable-next-line react/no-danger */}
+                  <span dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('needs_action', 'office') }} />
+                </div>
                 <span style={{ color: '#e2e8f0', fontSize: 10, lineHeight: 1.3 }}>
                   {useHouseholdFireTint
                     ? 'Fire nearby — not fully evacuated or needs EMS'

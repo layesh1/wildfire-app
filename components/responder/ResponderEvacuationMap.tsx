@@ -72,6 +72,8 @@ export type ResponderEvacuationMapProps = {
   stationGeoReady?: boolean
   /** True when profile `address` (station / base) is empty — prompts Settings. */
   stationProfileAddressMissing?: boolean
+  /** Saved station line exists but geocoding failed — map must not use device GPS as the station. */
+  stationAddressGeocodeFailed?: boolean
 }
 
 /**
@@ -86,6 +88,7 @@ export default function ResponderEvacuationMap({
   stationAddressForDirections = null,
   stationGeoReady = true,
   stationProfileAddressMissing = false,
+  stationAddressGeocodeFailed = false,
 }: ResponderEvacuationMapProps) {
   const [householdPins, setHouseholdPins] = useState<HouseholdPin[]>([])
   const [mapDemoMode, setMapDemoMode] = useState(true)
@@ -314,7 +317,7 @@ export default function ResponderEvacuationMap({
         {(stationProfileAddressMissing || !stationGeoReady) && (
           <div className="w-full order-last sm:order-none rounded-lg border border-amber-300/80 bg-amber-50/95 px-3 py-2 text-[11px] text-amber-950 dark:border-amber-700/50 dark:bg-amber-950/40 dark:text-amber-100">
             {!stationGeoReady ? (
-              <span>Resolving map anchor (station address or device location)…</span>
+              <span>Resolving map anchor (saved station address, or device location if none saved)…</span>
             ) : (
               <span>
                 Add your <strong>fire station or base address</strong> under Settings → Responder Profile → <strong>Station & command hub</strong> so the map, incident radius, and directions use the correct origin.{' '}
@@ -323,6 +326,17 @@ export default function ResponderEvacuationMap({
                 </Link>
               </span>
             )}
+          </div>
+        )}
+
+        {stationAddressGeocodeFailed && !mapDemoMode && (
+          <div className="w-full order-last sm:order-none rounded-lg border border-amber-300/80 bg-amber-50/95 px-3 py-2 text-[11px] text-amber-950 dark:border-amber-700/50 dark:bg-amber-950/40 dark:text-amber-100">
+            <span>
+              Your saved station address could not be placed on the map (check spelling and include city/state/ZIP).{' '}
+              <Link href="/dashboard/settings?tab=profile&erStation=1" className="font-semibold underline underline-offset-2">
+                Edit in Settings
+              </Link>
+            </span>
           </div>
         )}
 
@@ -428,7 +442,16 @@ export default function ResponderEvacuationMap({
           </div>
         ) : (
           <>
-            <div className="flex h-full w-full min-w-0 min-h-[220px] flex-1 flex-col lg:min-h-0">
+            <div className="flex h-full w-full min-w-0 min-h-[220px] flex-1 flex-col lg:min-h-0 border-b border-gray-200 dark:border-ash-800 lg:border-b-0">
+              <div className="shrink-0 border-b border-gray-200 bg-white/90 px-3 py-2 dark:border-ash-800 dark:bg-ash-900/90">
+                <h2 className="font-display text-sm font-bold tracking-tight text-gray-900 dark:text-white">
+                  Evacuation Status Map
+                </h2>
+                <p className="mt-0.5 text-[10px] text-gray-500 dark:text-ash-500">
+                  NIFC incidents, hazard sites, and shelters respect the toggles above; household pins reflect opt-in evacuation status.
+                </p>
+              </div>
+              <div className="min-h-0 flex-1">
               <EvacueeStatusMap
                 pins={EMPTY_EVACUEE_PINS}
                 householdPins={householdPins}
@@ -444,17 +467,22 @@ export default function ResponderEvacuationMap({
                 nifcFires={nifcForEvacMap}
                 showNifcPredictionOverlays={showFirePredictions}
                 windData={windData}
-                stationAnchor={{
-                  lat: effectiveMapCenter[0],
-                  lng: effectiveMapCenter[1],
-                  label: stationAddressForDirections?.trim() || null,
-                }}
+                stationAnchor={
+                  stationAddressGeocodeFailed && !mapDemoMode
+                    ? null
+                    : {
+                        lat: effectiveMapCenter[0],
+                        lng: effectiveMapCenter[1],
+                        label: stationAddressForDirections?.trim() || null,
+                      }
+                }
                 householdFireTintProximityMiles={incidentRadiusMiles}
                 householdTintNifcFires={nifcForEvacMap}
                 onResponderStatusUpdated={() => {
                   void loadEvacMap()
                 }}
               />
+              </div>
             </div>
 
             <div className="w-full max-h-[45vh] lg:max-h-none lg:w-[26rem] shrink-0 flex flex-col overflow-hidden border-t border-gray-200 bg-gray-50/80 dark:border-ash-800 dark:bg-ash-950 lg:border-t-0 lg:border-l">

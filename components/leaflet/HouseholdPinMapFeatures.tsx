@@ -283,7 +283,7 @@ function OfficeEvacMarker({
     [pin, site, proximityFires, proximityMiles]
   )
 
-  const icon = useMemo(() => createResponderEvacueeDivIconTint(tint), [tint])
+  const icon = useMemo(() => createResponderEvacueeDivIconTint(tint, 'office'), [tint])
 
   return (
     <Marker position={[site.lat, site.lng]} icon={icon}>
@@ -315,7 +315,7 @@ function HouseholdHomeMarker({
     () => homeMarkerTint(pin, proximityFires, proximityMiles),
     [pin, proximityFires, proximityMiles]
   )
-  const icon = useMemo(() => createResponderEvacueeDivIconTint(tint), [tint])
+  const icon = useMemo(() => createResponderEvacueeDivIconTint(tint, 'home'), [tint])
 
   return (
     <Marker position={[pin.lat, pin.lng]} icon={icon}>
