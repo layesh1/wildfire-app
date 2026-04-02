@@ -2,8 +2,7 @@
 import { useRouter, usePathname } from 'next/navigation'
 import {
   Flame, Shield, Heart, BarChart3, Map, AlertTriangle, CheckCircle,
-  Brain, LogOut, Activity, TrendingUp, Bell, Settings, BarChart2,
-  Thermometer, Database, Scale, MapPin,
+  LogOut, Activity, Bell, Settings,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase'
@@ -14,6 +13,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
+import { ANALYST_SIDEBAR_PRIMARY } from '@/lib/analyst-dashboard-nav'
 interface Props {
   user: any
   profile: any
@@ -40,57 +40,9 @@ const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> 
     { label: 'Check-in', href: '/dashboard/home/checkin', icon: CheckCircle },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],
-  /** Flat list unused — analyst uses grouped nav below */
+  /** Analyst nav is ANALYST_SIDEBAR_PRIMARY + Settings in the branch below */
   data_analyst: [],
 }
-
-type AnalystNavItem = { label: string; href: string; icon: typeof BarChart3 }
-type AnalystNavGroup = { heading: string; items: AnalystNavItem[] }
-
-const ANALYST_NAV_OVERVIEW: AnalystNavItem = {
-  label: 'Overview',
-  href: '/dashboard/analyst',
-  icon: BarChart3,
-}
-
-const ANALYST_NAV_GROUPS: AnalystNavGroup[] = [
-  {
-    heading: '🔥 Fire Prediction',
-    items: [
-      { label: 'ML Predictor', href: '/dashboard/analyst/ml', icon: Brain },
-      { label: 'Fire Weather', href: '/dashboard/analyst/fire-weather', icon: Thermometer },
-      { label: 'Fire Patterns', href: '/dashboard/analyst/fire-patterns', icon: Activity },
-    ],
-  },
-  {
-    heading: '🚨 Evacuation Analysis',
-    items: [
-      { label: 'Signal Gap', href: '/dashboard/analyst/signal-gap', icon: AlertTriangle },
-      { label: 'Hidden Danger', href: '/dashboard/analyst/hidden-danger', icon: Flame },
-    ],
-  },
-  {
-    heading: '📊 Impact & Equity',
-    items: [
-      { label: 'Equity Metrics', href: '/dashboard/analyst/equity', icon: Scale },
-      { label: 'NRI Analysis', href: '/dashboard/analyst/nri', icon: BarChart2 },
-    ],
-  },
-  {
-    heading: '🗺️ Geospatial',
-    items: [
-      { label: 'Live Fire Map', href: '/dashboard/analyst/map', icon: Map },
-      { label: 'Fire Density', href: '/dashboard/analyst/fire-density', icon: MapPin },
-    ],
-  },
-  {
-    heading: '📈 Trends & Data',
-    items: [
-      { label: 'Trends', href: '/dashboard/analyst/trends', icon: TrendingUp },
-      { label: 'Data Health', href: '/dashboard/analyst/data-health', icon: Database },
-    ],
-  },
-]
 
 const ROLE_ICONS: Record<string, any> = {
   emergency_responder: Shield,
@@ -208,62 +160,80 @@ function SidebarInner({ user, profile }: Props) {
       <nav className="flex-1 py-3 space-y-0.5 overflow-y-auto overflow-x-hidden">
         {role === 'data_analyst' ? (
           <>
-            {(() => {
-              const rows: { label: string; href: string; icon: typeof BarChart3; group?: string }[] = [
-                { ...ANALYST_NAV_OVERVIEW },
-                ...ANALYST_NAV_GROUPS.flatMap(g => g.items.map(item => ({ ...item, group: g.heading }))),
-                { label: 'Settings', href: '/dashboard/settings', icon: Settings },
-              ]
-              let lastGroup: string | undefined
-              return rows.map(({ label, href, icon: Icon, group }, idx) => {
-                const showHeading = open && group && group !== lastGroup
-                if (group) lastGroup = group
-                const active =
-                  pathname === href || (href !== '/dashboard/home' && pathname.startsWith(href + '/'))
-                const dest = href === '/dashboard/settings' ? `/dashboard/settings?role=${role}` : href
-                return (
-                  <div key={`${idx}-${href}`} className={showHeading ? 'pt-2' : ''}>
-                    {showHeading && (
-                      <div className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-white/40 leading-tight">
-                        {group}
-                      </div>
+            {ANALYST_SIDEBAR_PRIMARY.map(({ label, href, icon: Icon }) => {
+              const active =
+                href === '/dashboard/analyst'
+                  ? pathname === '/dashboard/analyst' || pathname === '/dashboard/analyst/'
+                  : pathname === href || pathname.startsWith(`${href}/`)
+              return (
+                <button
+                  key={href}
+                  type="button"
+                  onClick={() => router.push(href)}
+                  title={collapsed ? label : undefined}
+                  className={cn(
+                    'relative w-full flex items-center gap-3 rounded-lg px-2 py-2.5 text-left transition-all duration-150',
+                    active ? 'bg-white/5 font-medium text-amber-200' : 'text-white/55 hover:bg-white/10',
+                    collapsed ? 'justify-center' : ''
+                  )}
+                >
+                  {active && (
+                    <span
+                      className="pointer-events-none absolute bottom-1 left-0 top-1 w-0.5 rounded-full bg-amber-600"
+                      aria-hidden
+                    />
+                  )}
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <AnimatePresence>
+                    {open && (
+                      <motion.span
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: 'auto' }}
+                        exit={{ opacity: 0, width: 0 }}
+                        transition={{ duration: 0.12 }}
+                        className="text-base whitespace-nowrap overflow-hidden"
+                      >
+                        {label}
+                      </motion.span>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => router.push(dest)}
-                      title={collapsed ? label : undefined}
-                      data-tour={label === 'Settings' ? 'nav-settings' : undefined}
-                      className={cn(
-                        'relative w-full flex items-center gap-3 rounded-lg px-2 py-2.5 text-left transition-all duration-150',
-                        active ? 'bg-white/5 font-medium text-amber-200' : 'text-white/55 hover:bg-white/10',
-                        collapsed ? 'justify-center' : ''
-                      )}
-                    >
-                      {active && (
-                        <span
-                          className="pointer-events-none absolute bottom-1 left-0 top-1 w-0.5 rounded-full bg-amber-600"
-                          aria-hidden
-                        />
-                      )}
-                      <Icon className="w-4 h-4 shrink-0" />
-                      <AnimatePresence>
-                        {open && (
-                          <motion.span
-                            initial={{ opacity: 0, width: 0 }}
-                            animate={{ opacity: 1, width: 'auto' }}
-                            exit={{ opacity: 0, width: 0 }}
-                            transition={{ duration: 0.12 }}
-                            className="text-base whitespace-nowrap overflow-hidden"
-                          >
-                            {label}
-                          </motion.span>
-                        )}
-                      </AnimatePresence>
-                    </button>
-                  </div>
-                )
-              })
-            })()}
+                  </AnimatePresence>
+                </button>
+              )
+            })}
+            <button
+              type="button"
+              onClick={() => router.push(`/dashboard/settings?role=${role}`)}
+              title={collapsed ? 'Settings' : undefined}
+              data-tour="nav-settings"
+              className={cn(
+                'relative mt-1 w-full flex items-center gap-3 rounded-lg px-2 py-2.5 text-left transition-all duration-150',
+                pathname.startsWith('/dashboard/settings')
+                  ? 'bg-white/5 font-medium text-amber-200'
+                  : 'text-white/55 hover:bg-white/10',
+                collapsed ? 'justify-center' : ''
+              )}
+            >
+              {pathname.startsWith('/dashboard/settings') && (
+                <span
+                  className="pointer-events-none absolute bottom-1 left-0 top-1 w-0.5 rounded-full bg-amber-600"
+                  aria-hidden
+                />
+              )}
+              <Settings className="w-4 h-4 shrink-0" />
+              <AnimatePresence>
+                {open && (
+                  <motion.span
+                    initial={{ opacity: 0, width: 0 }}
+                    animate={{ opacity: 1, width: 'auto' }}
+                    exit={{ opacity: 0, width: 0 }}
+                    transition={{ duration: 0.12 }}
+                    className="text-base whitespace-nowrap overflow-hidden"
+                  >
+                    Settings
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </button>
           </>
         ) : (
           nav.map(({ label, href, icon: Icon }) => {
