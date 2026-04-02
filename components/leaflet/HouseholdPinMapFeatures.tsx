@@ -1,25 +1,23 @@
 'use client'
 
-import { useCallback, useState } from 'react'
-import { CircleMarker, Popup, Tooltip } from 'react-leaflet'
-import type { HouseholdPin } from '@/lib/responder-household'
+import { Fragment, useCallback, useMemo, useState } from 'react'
+import { Marker, Popup, Tooltip } from 'react-leaflet'
+import type { HouseholdMember, HouseholdPin } from '@/lib/responder-household'
 import {
   isHomeEvacuationStatus,
   labelForHomeEvacuationStatus,
   type HomeEvacuationStatus,
 } from '@/lib/checkin-status'
-
-const PRIORITY_COLOR: Record<HouseholdPin['priority'], string> = {
-  CRITICAL: '#ef4444',
-  HIGH: '#f97316',
-  MONITOR: '#eab308',
-  CLEAR: '#22c55e',
-}
+import { createResponderEvacueeDivIcon } from '@/components/leaflet/responderEvacueeMarkerIcon'
 
 const HOME_STATUS_COLOR: Record<HomeEvacuationStatus, string> = {
   not_evacuated: '#6b7280',
   evacuated: '#22c55e',
   cannot_evacuate: '#ef4444',
+}
+
+function statusOf(m: HouseholdMember): HomeEvacuationStatus {
+  return isHomeEvacuationStatus(m.home_evacuation_status) ? m.home_evacuation_status : 'not_evacuated'
 }
 
 function mobilityEmojiTag(s: string): string {
@@ -115,9 +113,7 @@ function HouseholdPopupBody({
       {err && <div style={{ color: '#b91c1c', fontSize: 11, marginBottom: 8 }}>{err}</div>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {pin.members.map(m => {
-          const st = isHomeEvacuationStatus(m.home_evacuation_status)
-            ? m.home_evacuation_status
-            : 'not_evacuated'
+          const st = statusOf(m)
           const fill = HOME_STATUS_COLOR[st]
           const label = memberHomeLabel(m.home_evacuation_status)
           const icon = st === 'evacuated' ? '✓' : st === 'cannot_evacuate' ? '⚠' : '🏠'
@@ -233,6 +229,65 @@ function HouseholdPopupBody({
   )
 }
 
+function OfficeEvacMarker({
+  pin,
+  site,
+  onUpdated,
+}: {
+  pin: HouseholdPin
+  site: NonNullable<HouseholdPin['officeSites']>[number]
+  onUpdated?: () => void
+}) {
+  const workOk = useMemo(() => {
+    const w = site.address.trim()
+    const subset = pin.members.filter(m => (m.work_address?.trim() || '') === w)
+    return subset.length > 0 && subset.every(m => statusOf(m) === 'evacuated')
+  }, [pin.members, site.address])
+
+  const icon = useMemo(() => createResponderEvacueeDivIcon(workOk), [workOk])
+
+  return (
+    <Marker position={[site.lat, site.lng]} icon={icon}>
+      <Tooltip direction="top" opacity={0.95}>
+        <div style={{ fontFamily: 'sans-serif', fontSize: 11, maxWidth: 220 }}>
+          <div style={{ fontWeight: 700 }}>Office / work</div>
+          <div style={{ color: '#475569' }}>{site.address}</div>
+        </div>
+      </Tooltip>
+      <Popup>
+        <HouseholdPopupBody pin={pin} onUpdated={onUpdated} />
+      </Popup>
+    </Marker>
+  )
+}
+
+function HouseholdHomeMarker({ pin, onUpdated }: { pin: HouseholdPin; onUpdated?: () => void }) {
+  const homeOk = useMemo(
+    () => pin.total_people > 0 && pin.members.every(m => statusOf(m) === 'evacuated'),
+    [pin.total_people, pin.members]
+  )
+  const icon = useMemo(() => createResponderEvacueeDivIcon(homeOk), [homeOk])
+
+  return (
+    <Marker position={[pin.lat, pin.lng]} icon={icon}>
+      <Tooltip direction="top" opacity={0.95}>
+        <div style={{ fontFamily: 'sans-serif', fontSize: 11, maxWidth: 240 }}>
+          {pin.is_demo && (
+            <div style={{ fontSize: 9, fontWeight: 800, color: '#a8a29e', letterSpacing: '0.06em', marginBottom: 4 }}>
+              DEMO
+            </div>
+          )}
+          <div style={{ fontWeight: 700 }}>Home</div>
+          <div style={{ color: '#475569' }}>{pin.address}</div>
+        </div>
+      </Tooltip>
+      <Popup>
+        <HouseholdPopupBody pin={pin} onUpdated={onUpdated} />
+      </Popup>
+    </Marker>
+  )
+}
+
 export default function HouseholdPinMapFeatures({
   householdPins,
   onUpdated,
@@ -244,62 +299,14 @@ export default function HouseholdPinMapFeatures({
 
   return (
     <>
-      {householdPins.map(pin => {
-        const fill = PRIORITY_COLOR[pin.priority]
-        const pathClass = pin.priority === 'CRITICAL' ? 'wf-household-critical' : ''
-        const label =
-          pin.total_people === 1
-            ? (() => {
-                const m = pin.members[0]
-                if (!m) return '·'
-                const st = isHomeEvacuationStatus(m.home_evacuation_status)
-                  ? m.home_evacuation_status
-                  : 'not_evacuated'
-                return st === 'evacuated' ? '✓' : st === 'cannot_evacuate' ? '⚠' : '🏠'
-              })()
-            : `${pin.evacuated}/${pin.total_people}`
-
-        return (
-          <CircleMarker
-            key={pin.id}
-            center={[pin.lat, pin.lng]}
-            radius={12}
-            pathOptions={{
-              className: pathClass,
-              color: fill,
-              fillColor: fill,
-              fillOpacity: 0.88,
-              weight: 2,
-            }}
-          >
-            <Tooltip direction="center" permanent opacity={1}>
-              <span
-                style={{
-                  fontFamily: 'sans-serif',
-                  fontSize: 11,
-                  fontWeight: 800,
-                  color: '#0f172a',
-                  textShadow: '0 0 2px #fff, 0 0 4px #fff',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 2,
-                }}
-              >
-                {pin.is_demo && (
-                  <span style={{ fontSize: 7, fontWeight: 800, color: '#a8a29e', letterSpacing: '0.08em' }}>
-                    DEMO
-                  </span>
-                )}
-                <span>{label}</span>
-              </span>
-            </Tooltip>
-            <Popup>
-              <HouseholdPopupBody pin={pin} onUpdated={onUpdated} />
-            </Popup>
-          </CircleMarker>
-        )
-      })}
+      {householdPins.map(pin => (
+        <Fragment key={pin.id}>
+          <HouseholdHomeMarker pin={pin} onUpdated={onUpdated} />
+          {(pin.officeSites ?? []).map(site => (
+            <OfficeEvacMarker key={`${pin.id}-${site.key}`} pin={pin} site={site} onUpdated={onUpdated} />
+          ))}
+        </Fragment>
+      ))}
     </>
   )
 }

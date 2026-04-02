@@ -1,31 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { HOME_EVACUATION_STATUS_VALUES, type HomeEvacuationStatus } from '@/lib/checkin-status'
 import { isResponderConsentSatisfied } from '@/lib/responder-data-consent'
 import { logResponderAccessFireAndForget } from '@/lib/responder-access-log'
-
-function adminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
 
 function isEmergencyResponder(role: string | null | undefined, roles: string[] | null | undefined): boolean {
   if (role === 'emergency_responder') return true
   return Array.isArray(roles) && roles.includes('emergency_responder')
 }
 
-export async function PATCH(request: NextRequest) {
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!key) {
-    return NextResponse.json(
-      { error: 'Server misconfiguration: SUPABASE_SERVICE_ROLE_KEY required for responder updates' },
-      { status: 503 }
-    )
-  }
+type RpcResult = { ok?: boolean; error?: string }
 
+export async function PATCH(request: NextRequest) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
@@ -66,37 +52,45 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
   }
 
-  const notes =
-    body.responder_notes === undefined || body.responder_notes === null
-      ? undefined
-      : String(body.responder_notes).slice(0, 2000)
+  const updateNotes = !(body.responder_notes === undefined || body.responder_notes === null)
+  const notesPayload = updateNotes ? String(body.responder_notes).slice(0, 2000) : null
 
-  const admin = adminClient()
-  const { data: target, error: readErr } = await admin
-    .from('profiles')
-    .select('id, location_sharing_consent, evacuation_status_consent')
-    .eq('id', userId)
-    .maybeSingle()
+  const { data: rpcRaw, error: rpcErr } = await supabase.rpc('responder_update_evacuee_home_status', {
+    p_target_user_id: userId,
+    p_home_evacuation_status: status,
+    p_update_notes: updateNotes,
+    p_responder_notes: notesPayload,
+  })
 
-  if (readErr || !target) {
-    return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
+  if (rpcErr) {
+    return NextResponse.json({ error: rpcErr.message }, { status: 500 })
   }
 
-  if (!target.location_sharing_consent || !target.evacuation_status_consent) {
-    return NextResponse.json({ error: 'Target has not consented to responder visibility' }, { status: 403 })
-  }
-
-  const patch: Record<string, unknown> = {
-    home_evacuation_status: status,
-    home_status_updated_at: new Date().toISOString(),
-  }
-  if (notes !== undefined) {
-    patch.responder_notes = notes
-  }
-
-  const { error: upErr } = await admin.from('profiles').update(patch).eq('id', userId)
-  if (upErr) {
-    return NextResponse.json({ error: upErr.message }, { status: 500 })
+  const rpc = rpcRaw as RpcResult | null
+  if (!rpc?.ok) {
+    const code = rpc?.error ?? 'unknown'
+    if (code === 'not_authenticated') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (code === 'forbidden') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    if (code === 'consent_required') {
+      return NextResponse.json(
+        { error: 'consent_required', code: 'RESPONDER_CONSENT_REQUIRED' },
+        { status: 403 }
+      )
+    }
+    if (code === 'profile_not_found') {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
+    }
+    if (code === 'target_not_consented') {
+      return NextResponse.json({ error: 'Target has not consented to responder visibility' }, { status: 403 })
+    }
+    if (code === 'invalid_status') {
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+    }
+    return NextResponse.json({ error: code }, { status: 500 })
   }
 
   logResponderAccessFireAndForget(supabase, user.id, {

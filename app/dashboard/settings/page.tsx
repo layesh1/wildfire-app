@@ -587,12 +587,14 @@ function SettingsInner() {
             >{t.label}</button>
           ))}
         </div>
-        <Link
-          href="/dashboard/settings/privacy"
-          className="shrink-0 text-sm font-semibold text-amber-700 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-200"
-        >
-          Privacy &amp; Security →
-        </Link>
+        {activeRole !== 'emergency_responder' && (
+          <Link
+            href="/dashboard/settings/privacy"
+            className="shrink-0 text-sm font-semibold text-amber-700 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-200"
+          >
+            Privacy &amp; Security →
+          </Link>
+        )}
       </div>
 
       {dataActionMessage && (

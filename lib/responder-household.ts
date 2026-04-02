@@ -33,6 +33,13 @@ export interface HouseholdMember {
 
 export type HouseholdPriority = 'CRITICAL' | 'HIGH' | 'MONITOR' | 'CLEAR'
 
+export interface HouseholdOfficeSite {
+  key: string
+  address: string
+  lat: number
+  lng: number
+}
+
 export interface HouseholdPin {
   id: string
   address: string
@@ -46,10 +53,13 @@ export interface HouseholdPin {
   priority: HouseholdPriority
   mobility_flags: string[]
   medical_flags: string[]
+  /** Geocoded work addresses (distinct from home) for responder map office markers. */
+  officeSites?: HouseholdOfficeSite[]
   is_demo?: boolean
 }
 
 const geocodeCache = new Map<string, { lat: number; lng: number }>()
+const workGeocodeCache = new Map<string, { lat: number; lng: number }>()
 
 /** Lowercase, trim, collapse spaces; strip apt/unit-style segments for grouping only. */
 export function normalizeAddressForGrouping(raw: string): string {
@@ -160,6 +170,29 @@ export async function buildHouseholdPins(profiles: ResponderEvacueeProfile[]): P
       evacuated,
     })
 
+    const officeSites: HouseholdOfficeSite[] = []
+    const seenWork = new Set<string>()
+    for (const m of members) {
+      const rawW = m.work_address?.trim()
+      if (!rawW) continue
+      const wk = normalizeAddressForGrouping(rawW)
+      if (!wk || wk === geoKey) continue
+      if (seenWork.has(wk)) continue
+      seenWork.add(wk)
+      const wCached = workGeocodeCache.get(wk)
+      if (wCached) {
+        officeSites.push({ key: wk, address: rawW, lat: wCached.lat, lng: wCached.lng })
+        continue
+      }
+      try {
+        const wg = await geocodeAddress(rawW)
+        workGeocodeCache.set(wk, { lat: wg.lat, lng: wg.lng })
+        officeSites.push({ key: wk, address: rawW, lat: wg.lat, lng: wg.lng })
+      } catch {
+        /* skip ungeocodable work */
+      }
+    }
+
     out.push({
       id: `hh-${group[0]!.id}`,
       address: displayAddress,
@@ -173,6 +206,7 @@ export async function buildHouseholdPins(profiles: ResponderEvacueeProfile[]): P
       priority,
       mobility_flags,
       medical_flags,
+      officeSites: officeSites.length > 0 ? officeSites : undefined,
     })
   }
 

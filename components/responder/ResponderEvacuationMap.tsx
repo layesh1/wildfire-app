@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
+import Link from 'next/link'
 import {
   Shield,
   AlertTriangle,
@@ -12,6 +13,7 @@ import {
   RefreshCw,
   MessageCircle,
   Phone,
+  Heart,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import type { HouseholdPin } from '@/lib/responder-household'
@@ -24,8 +26,11 @@ import { fetchResponderEvacuationHouseholds } from '@/lib/fetch-responder-evacua
 import type { FlameoContext } from '@/lib/flameo-context-types'
 import FlameoCommandRoom from '@/components/flameo/FlameoCommandRoom'
 import { HAZARD_FACILITIES } from '@/lib/hazard-facilities'
+import { HUMAN_EVAC_SHELTERS } from '@/lib/evac-shelters'
+import { distanceMiles } from '@/lib/hub-map-distance'
+import { parseUsStateCodeFromAddress } from '@/lib/us-address-state'
 import type { EvacueePin } from '@/components/EvacueeStatusMap'
-import type { NifcFire, WindData } from '@/app/dashboard/caregiver/map/LeafletMap'
+import type { LiveShelterPin, NifcFire, WindData } from '@/app/dashboard/caregiver/map/LeafletMap'
 
 const EvacueeStatusMap = dynamic(() => import('@/components/EvacueeStatusMap'), { ssr: false })
 
@@ -57,18 +62,29 @@ function truncateResponderNote(s: string, max: number): string {
 
 export type ResponderEvacuationMapProps = {
   mapCenter: [number, number]
+  mapZoom?: number
   flameoContext: FlameoContext | null
   canAccessEvacueeData: boolean
+  /** Wildfire incidents shown when not in demo mode (miles from `mapCenter`). */
+  incidentRadiusMiles?: number
+  stationAddressForDirections?: string | null
+  stationGeoReady?: boolean
+  /** True when profile `address` (station / base) is empty — prompts Settings. */
+  stationProfileAddressMissing?: boolean
 }
 
 /**
- * Full-screen evacuee household map + Flameo COMMAND + opt-in profile list.
- * Routed at /dashboard/responder/evacuation (Command Hub stays the classic incident board).
+ * Command hub map: households, NIFC (radius-scoped live / Charlotte demo), hazards, shelters, Flameo COMMAND.
  */
 export default function ResponderEvacuationMap({
   mapCenter,
+  mapZoom = 11,
   flameoContext,
   canAccessEvacueeData,
+  incidentRadiusMiles = 50,
+  stationAddressForDirections = null,
+  stationGeoReady = true,
+  stationProfileAddressMissing = false,
 }: ResponderEvacuationMapProps) {
   const [householdPins, setHouseholdPins] = useState<HouseholdPin[]>([])
   const [mapDemoMode, setMapDemoMode] = useState(true)
@@ -76,6 +92,8 @@ export default function ResponderEvacuationMap({
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [redFlagCount, setRedFlagCount] = useState<number | null>(null)
   const [showFacilities, setShowFacilities] = useState(false)
+  const [showShelters, setShowShelters] = useState(true)
+  const [liveMapShelters, setLiveMapShelters] = useState<LiveShelterPin[]>([])
   const [responderProfiles, setResponderProfiles] = useState<ResponderVisibleProfile[]>([])
   const [commandBriefingKey, setCommandBriefingKey] = useState(0)
   const [mapFocus, setMapFocus] = useState<{ lat: number; lng: number; nonce: number } | null>(null)
@@ -88,10 +106,60 @@ export default function ResponderEvacuationMap({
     [mapDemoMode, mapCenter]
   )
 
-  const nifcForEvacMap = useMemo(
-    () => (mapDemoMode ? CHARLOTTE_DEMO_NIFC_FIRES : nifcFires),
-    [mapDemoMode, nifcFires]
-  )
+  const nifcForEvacMap = useMemo(() => {
+    if (mapDemoMode) return [...CHARLOTTE_DEMO_NIFC_FIRES]
+    const hub = mapCenter
+    const r = incidentRadiusMiles
+    return nifcFires.filter(f => {
+      if (!Number.isFinite(f.latitude) || !Number.isFinite(f.longitude)) return false
+      return distanceMiles([f.latitude, f.longitude], hub) <= r
+    })
+  }, [mapDemoMode, nifcFires, mapCenter, incidentRadiusMiles])
+
+  useEffect(() => {
+    const st =
+      parseUsStateCodeFromAddress(stationAddressForDirections ?? '')
+      || (Math.abs(effectiveMapCenter[0] - 35.2) < 3 && Math.abs(effectiveMapCenter[1] + 80.8) < 3 ? 'NC' : 'CA')
+    const [lat, lng] = effectiveMapCenter
+    let cancelled = false
+    fetch(
+      `/api/shelters/live?state=${encodeURIComponent(st)}&lat=${encodeURIComponent(String(lat))}&lng=${encodeURIComponent(String(lng))}`
+    )
+      .then(r => r.json())
+      .then(
+        (data: {
+          shelters?: Array<{
+            id: string
+            name: string
+            lat: number
+            lng: number
+            capacity: number | null
+            current_occupancy: number | null
+            last_verified_at: string
+          }>
+        }) => {
+          if (cancelled) return
+          const list = Array.isArray(data.shelters) ? data.shelters : []
+          setLiveMapShelters(
+            list.map(s => ({
+              id: String(s.id),
+              name: s.name,
+              lat: s.lat,
+              lng: s.lng,
+              capacity: s.capacity,
+              currentOccupancy: s.current_occupancy,
+              lastVerifiedAt: s.last_verified_at,
+            }))
+          )
+        }
+      )
+      .catch(() => {
+        if (!cancelled) setLiveMapShelters([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [effectiveMapCenter, stationAddressForDirections])
 
   const refreshFiresAndWind = useCallback(async () => {
     if (!mapDemoMode) {
@@ -228,15 +296,30 @@ export default function ResponderEvacuationMap({
           <div className="flex items-center gap-2">
             <Shield className="w-5 h-5 shrink-0 text-amber-700 dark:text-signal-info" />
             <span className="font-display font-bold text-gray-900 dark:text-white text-sm truncate">
-              Evacuation status map
+              Command hub
             </span>
           </div>
           <p className="text-[11px] text-gray-500 dark:text-ash-500 pl-7 leading-snug max-w-xl">
             {mapDemoMode
               ? 'Training scenario: Charlotte metro — demo households and simulated fire markers (circles).'
-              : 'Household pins and live wildfire incidents (NIFC), same feed as the household evacuation map.'}
+              : `Live NIFC incidents within ${incidentRadiusMiles} mi of your station anchor, with hazards and shelters.`}
           </p>
         </div>
+
+        {(stationProfileAddressMissing || !stationGeoReady) && (
+          <div className="w-full order-last sm:order-none rounded-lg border border-amber-300/80 bg-amber-50/95 px-3 py-2 text-[11px] text-amber-950 dark:border-amber-700/50 dark:bg-amber-950/40 dark:text-amber-100">
+            {!stationGeoReady ? (
+              <span>Resolving map anchor (station address or device location)…</span>
+            ) : (
+              <span>
+                Add your <strong>fire station or base address</strong> under profile settings so the map, incident radius, and directions use the correct origin.{' '}
+                <Link href="/dashboard/settings?tab=profile" className="font-semibold underline underline-offset-2">
+                  Open settings
+                </Link>
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 sm:ml-2">
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-signal-safe/10 border border-signal-safe/20">
@@ -267,6 +350,19 @@ export default function ResponderEvacuationMap({
         >
           <Factory className="w-3 h-3" />
           {showFacilities ? 'Hazard Sites: ON' : 'Hazard Sites'}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setShowShelters(v => !v)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+            showShelters
+              ? 'bg-emerald-100 border-emerald-300 text-emerald-900 dark:bg-emerald-500/20 dark:border-emerald-500/40 dark:text-emerald-300'
+              : 'border-gray-300 text-gray-600 hover:bg-gray-100 dark:border-ash-700 dark:text-ash-400 dark:hover:text-white dark:hover:border-ash-600'
+          }`}
+        >
+          <Heart className="w-3 h-3" />
+          {showShelters ? 'Shelters: ON' : 'Shelters'}
         </button>
 
         <div className="w-full sm:w-auto sm:ml-auto flex flex-wrap items-center gap-2 sm:gap-3 justify-end">
@@ -319,9 +415,12 @@ export default function ResponderEvacuationMap({
                 pins={EMPTY_EVACUEE_PINS}
                 householdPins={householdPins}
                 center={effectiveMapCenter}
-                zoom={12}
+                zoom={mapZoom}
                 facilities={HAZARD_FACILITIES}
                 showFacilities={showFacilities}
+                shelters={HUMAN_EVAC_SHELTERS}
+                liveShelters={liveMapShelters}
+                showShelters={showShelters}
                 demoMode={mapDemoMode}
                 mapFocusRequest={mapFocus}
                 nifcFires={nifcForEvacMap}
@@ -341,6 +440,7 @@ export default function ResponderEvacuationMap({
                 demoMode={mapDemoMode}
                 briefingRefreshKey={commandBriefingKey}
                 onViewOnMap={(lat, lng) => setMapFocus({ lat, lng, nonce: Date.now() })}
+                directionsOrigin={stationAddressForDirections}
               />
               <div className="flex-1 overflow-y-auto border-t border-gray-200 dark:border-ash-800">
                 <div className="p-2.5 sm:p-3">

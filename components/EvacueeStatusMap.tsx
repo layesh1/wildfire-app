@@ -12,10 +12,16 @@ import {
   type HomeEvacuationStatus,
 } from '@/lib/checkin-status'
 import type { HouseholdPin } from '@/lib/responder-household'
-import type { NifcFire, WindData } from '@/app/dashboard/caregiver/map/LeafletMap'
+import type {
+  EvacShelter,
+  LiveShelterPin,
+  NifcFire,
+  WindData,
+} from '@/app/dashboard/caregiver/map/LeafletMap'
 import NifcFireMapFeatures from '@/components/leaflet/NifcFireMapFeatures'
 import WindCompassOverlay from '@/components/leaflet/WindCompassOverlay'
 import HouseholdPinMapFeatures from '@/components/leaflet/HouseholdPinMapFeatures'
+import { responderEvacueeMarkerHtml } from '@/components/leaflet/responderEvacueeMarkerIcon'
 
 export interface EvacueePin {
   id: string
@@ -42,13 +48,6 @@ const OXY_DIALYSIS = new Set([
   'Requires dialysis',
 ])
 
-const PRIORITY_COLOR: Record<HouseholdPin['priority'], string> = {
-  CRITICAL: '#ef4444',
-  HIGH: '#f97316',
-  MONITOR: '#eab308',
-  CLEAR: '#22c55e',
-}
-
 function truncate(s: string | undefined, max: number) {
   if (!s) return ''
   const t = s.trim()
@@ -69,6 +68,51 @@ const HOME_STATUS_COLOR: Record<HomeEvacuationStatus, string> = {
   not_evacuated: '#6b7280',
   evacuated: '#22c55e',
   cannot_evacuate: '#ef4444',
+}
+
+function shelterIcon(type: 'evacuation' | 'animal') {
+  const ring = type === 'evacuation' ? '#22c55e' : '#3b82f6'
+  const fill = type === 'evacuation' ? '#15803d' : '#2563eb'
+  const svg = encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="26" height="26">
+    <circle cx="12" cy="12" r="11" fill="${ring}" fill-opacity="0.22" stroke="${ring}" stroke-width="1.5"/>
+    <path d="M12 4.5L4.5 10.5V19h3v-6h9v6h3v-8.5L12 4.5z" fill="${fill}" stroke="${fill}" stroke-width="0.35" stroke-linejoin="round"/>
+    <path d="M9 19v-5h6v5" fill="none" stroke="${fill}" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>`)
+  return L.divIcon({
+    html: `<img src="data:image/svg+xml,${svg}" width="26" height="26" style="display:block" />`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+    popupAnchor: [0, -13],
+    className: '',
+  })
+}
+
+function verifiedFemaShelterIcon() {
+  const svg = encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28">
+    <circle cx="14" cy="14" r="12" fill="#22c55e" fill-opacity="0.25" stroke="#16a34a" stroke-width="2"/>
+    <path d="M8 14.5l4 4 8-9" fill="none" stroke="#15803d" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`)
+  return L.divIcon({
+    html: `<img src="data:image/svg+xml,${svg}" width="28" height="28" style="display:block" alt="" />`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -14],
+    className: '',
+  })
+}
+
+function preIdentifiedShelterIcon() {
+  const svg = encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28">
+    <circle cx="14" cy="14" r="12" fill="#64748b" fill-opacity="0.35" stroke="#475569" stroke-width="2"/>
+    <text x="14" y="18" text-anchor="middle" font-size="12" fill="#1e293b">&#x1F4CD;</text>
+  </svg>`)
+  return L.divIcon({
+    html: `<img src="data:image/svg+xml,${svg}" width="28" height="28" style="display:block" alt="" />`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -14],
+    className: '',
+  })
 }
 
 function hazardIcon(type: FacilityType) {
@@ -111,7 +155,11 @@ function FitBoundsCombined({ pins, householdPins }: { pins: EvacueePin[]; househ
   useEffect(() => {
     const pts: [number, number][] = [
       ...pins.map(p => [p.lat, p.lon] as [number, number]),
-      ...householdPins.map(h => [h.lat, h.lng] as [number, number]),
+      ...householdPins.flatMap(h => {
+        const home: [number, number] = [h.lat, h.lng]
+        const offices = (h.officeSites ?? []).map(o => [o.lat, o.lng] as [number, number])
+        return [home, ...offices]
+      }),
     ]
     if (pts.length === 0) return
     const lats = pts.map(p => p[0])
@@ -154,6 +202,9 @@ interface Props {
   /** When true, draw fires as circle markers only (e.g. responder evacuation map). */
   nifcFiresCircleOnly?: boolean
   windData?: WindData | null
+  shelters?: EvacShelter[]
+  liveShelters?: LiveShelterPin[]
+  showShelters?: boolean
 }
 
 export default function EvacueeStatusMap({
@@ -169,6 +220,9 @@ export default function EvacueeStatusMap({
   nifcFires = [],
   nifcFiresCircleOnly = false,
   windData = null,
+  shelters = [],
+  liveShelters = [],
+  showShelters = false,
 }: Props) {
   const { notEvacuated, evacuated, cannotEvac } = mapStats(pins, householdPins)
 
@@ -191,6 +245,51 @@ export default function EvacueeStatusMap({
         <FitBoundsCombined pins={pins} householdPins={householdPins} />
 
         <NifcFireMapFeatures nifc={nifcFires} circleMarkersOnly={nifcFiresCircleOnly} />
+
+        {showShelters && liveShelters.map(s => (
+          <Marker key={`live-shelter-${s.id}`} position={[s.lat, s.lng]} icon={verifiedFemaShelterIcon()}>
+            <Popup>
+              <div style={{ fontFamily: 'sans-serif', fontSize: 13, lineHeight: 1.7 }}>
+                <strong>{s.name}</strong><br />
+                OPEN — verified (FEMA NSS)<br />
+                {s.capacity != null && s.capacity > 0 && (
+                  <>
+                    Capacity: {s.capacity.toLocaleString()}
+                    {s.currentOccupancy != null && s.currentOccupancy >= 0
+                      ? ` · ${s.currentOccupancy.toLocaleString()} reported`
+                      : ''}
+                    <br />
+                  </>
+                )}
+                <span style={{ fontSize: 11, color: '#64748b' }}>Confirm before traveling.</span>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+        {showShelters && shelters.filter(s => s.type === 'evacuation').map(s => (
+          <Marker key={`shelter-${s.id}`} position={[s.lat, s.lng]} icon={preIdentifiedShelterIcon()}>
+            <Popup>
+              <div style={{ fontFamily: 'sans-serif', fontSize: 13, lineHeight: 1.7 }}>
+                <strong>{s.name}</strong><br />
+                📍 Pre-identified — status unconfirmed<br />
+                {s.county}<br />
+                Typical capacity (estimate): {s.capacity.toLocaleString()}
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>Call ahead before traveling.</div>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+        {showShelters && shelters.filter(s => s.type === 'animal').map(s => (
+          <Marker key={`animal-shelter-${s.id}`} position={[s.lat, s.lng]} icon={shelterIcon('animal')}>
+            <Popup>
+              <div style={{ fontFamily: 'sans-serif', fontSize: 13, lineHeight: 1.7 }}>
+                <strong>{s.name}</strong><br />
+                Animal shelter (pre-identified)<br />
+                {s.county}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
 
         {showFacilities && facilities.map(f => (
           <Marker
@@ -448,26 +547,31 @@ export default function EvacueeStatusMap({
               </div>
             </>
           )}
-          <div style={{ color: '#fff', fontSize: 11, fontWeight: 700, marginBottom: 6, letterSpacing: '0.05em' }}>
-            HOME STATUS
-          </div>
-          {(Object.entries(HOME_STATUS_COLOR) as [HomeEvacuationStatus, string][]).map(([s, color]) => (
-            <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 4 }}>
-              <div style={{ width: 12, height: 12, borderRadius: '50%', background: color, flexShrink: 0 }} />
-              <span style={{ color: '#e2e8f0', fontSize: 10 }}>{labelForHomeEvacuationStatus(s)}</span>
-            </div>
-          ))}
           {householdPins.length > 0 && (
             <>
-              <div style={{ color: '#94a3b8', fontSize: 10, fontWeight: 700, marginTop: 8, marginBottom: 4 }}>
-                HOUSEHOLD PRIORITY
+              <div style={{ color: '#fff', fontSize: 11, fontWeight: 700, marginBottom: 6, letterSpacing: '0.05em' }}>
+                EVACUEES (HOME &amp; OFFICE)
               </div>
-              {(Object.entries(PRIORITY_COLOR) as [HouseholdPin['priority'], string][]).map(([p, color]) => (
-                <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
-                  <div style={{ width: 12, height: 12, borderRadius: '50%', background: color, flexShrink: 0 }} />
-                  <span style={{ color: '#e2e8f0', fontSize: 9 }}>{p}</span>
-                </div>
-              ))}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <span
+                  style={{ flexShrink: 0, transform: 'scale(0.82)', transformOrigin: 'left center' }}
+                  // eslint-disable-next-line react/no-danger
+                  dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtml(true) }}
+                />
+                <span style={{ color: '#e2e8f0', fontSize: 10, lineHeight: 1.3 }}>
+                  All evacuated at that pin (home or work address)
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <span
+                  style={{ flexShrink: 0, transform: 'scale(0.82)', transformOrigin: 'left center' }}
+                  // eslint-disable-next-line react/no-danger
+                  dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtml(false) }}
+                />
+                <span style={{ color: '#e2e8f0', fontSize: 10, lineHeight: 1.3 }}>
+                  Not fully evacuated or needs EMS (home or work pin)
+                </span>
+              </div>
             </>
           )}
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: 8, paddingTop: 8 }}>

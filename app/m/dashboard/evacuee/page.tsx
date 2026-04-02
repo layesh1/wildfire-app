@@ -6,7 +6,7 @@ import { ConsumerHubDashboard } from '@/app/dashboard/evacuee/hub-dashboard'
 export default function MobileEvacueeHub() {
   return (
     <Suspense fallback={null}>
-      <ConsumerHubDashboard consumerRole="evacuee" />
+      <ConsumerHubDashboard />
     </Suspense>
   )
 }

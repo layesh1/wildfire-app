@@ -69,6 +69,14 @@ export const RESPONDER_DEMO_HOUSEHOLDS: HouseholdPin[] = [
     priority: 'MONITOR',
     mobility_flags: ['Cannot walk long distances'],
     medical_flags: [],
+    officeSites: [
+      {
+        key: '800-s-mint-charlotte-demo',
+        address: '800 S Mint St, Charlotte, NC 28202',
+        lat: 35.2274,
+        lng: -80.8481,
+      },
+    ],
     members: [
       {
         id: 'demo-hh-branch-1',
@@ -80,7 +88,7 @@ export const RESPONDER_DEMO_HOUSEHOLDS: HouseholdPin[] = [
         disability_other: null,
         medical_other: 'Lives alone, elderly',
         phone: '(704) 555-0521',
-        work_address: null,
+        work_address: '800 S Mint St, Charlotte, NC 28202',
       },
     ],
   },

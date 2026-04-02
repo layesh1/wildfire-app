@@ -14,6 +14,8 @@ type Props = {
   demoMode: boolean
   briefingRefreshKey: number
   onViewOnMap: (lat: number, lng: number) => void
+  /** Station / base address for Google Maps driving directions to priority sites. */
+  directionsOrigin?: string | null
 }
 
 const DEFAULT_FIRE: FlameoCommandContext['fire_context'] = {
@@ -91,6 +93,7 @@ export default function FlameoCommandRoom({
   demoMode,
   briefingRefreshKey,
   onViewOnMap,
+  directionsOrigin = null,
 }: Props) {
   const [firePart, setFirePart] = useState(DEFAULT_FIRE)
   const [briefing, setBriefing] = useState('')
@@ -273,14 +276,26 @@ export default function FlameoCommandRoom({
                 <p className="mt-2 text-[10px] leading-snug text-gray-700 dark:text-gray-300">
                   &quot;{a.reason}&quot;
                 </p>
-                <button
-                  type="button"
-                  onClick={() => onViewOnMap(a.lat, a.lng)}
-                  className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-200"
-                >
-                  <MapPin className="h-3 w-3" />
-                  View on map →
-                </button>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onViewOnMap(a.lat, a.lng)}
+                    className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-200"
+                  >
+                    <MapPin className="h-3 w-3" />
+                    View on map →
+                  </button>
+                  {directionsOrigin?.trim() && a.address?.trim() && (
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(directionsOrigin.trim())}&destination=${encodeURIComponent(a.address.trim())}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] font-semibold text-sky-700 underline-offset-2 hover:underline dark:text-sky-400"
+                    >
+                      Directions (Google Maps)
+                    </a>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

@@ -21,6 +21,12 @@
   animation: wf-household-pulse 1.25s ease-in-out infinite;
 }
 
+/* Responder evacuee home/office div markers — strip Leaflet default frame */
+.leaflet-div-icon.wf-responder-evac-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
 /* Translation loading — hide body before first paint to prevent flash of English */
 html.wfa-translating body {
   opacity: 0;

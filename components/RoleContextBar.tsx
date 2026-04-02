@@ -1,9 +1,37 @@
 'use client'
+import { useEffect, useState } from 'react'
 import { User, Shield } from 'lucide-react'
 import { useRoleContext } from '@/components/RoleContext'
+import { createClient } from '@/lib/supabase'
 
 export default function RoleContextBar() {
   const { mode, activePerson } = useRoleContext()
+  const [profileRole, setProfileRole] = useState<string | null | undefined>(undefined)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || cancelled) {
+        if (!cancelled) setProfileRole(null)
+        return
+      }
+      const { data } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+      if (!cancelled) setProfileRole(typeof data?.role === 'string' ? data.role : null)
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  /** Evacuee-oriented strip — not shown for emergency responder accounts. */
+  if (
+    (mode === 'self' || !activePerson)
+    && profileRole === 'emergency_responder'
+  ) {
+    return null
+  }
 
   if (mode === 'self' || !activePerson) {
     return (

@@ -22,7 +22,6 @@ interface Props {
 const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> = {
   emergency_responder: [
     { label: 'Command Hub', href: '/dashboard/responder', icon: Map },
-    { label: 'Evacuation map', href: '/dashboard/responder/evacuation', icon: MapPin },
     { label: 'Command Analytics', href: '/dashboard/responder/analytics', icon: BarChart3 },
     { label: 'Flameo · Field', href: '/dashboard/responder/ai', icon: Activity },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
