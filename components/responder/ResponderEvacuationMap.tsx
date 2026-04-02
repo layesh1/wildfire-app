@@ -14,6 +14,7 @@ import {
   MessageCircle,
   Phone,
   Heart,
+  Flame,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import type { HouseholdPin } from '@/lib/responder-household'
@@ -93,6 +94,7 @@ export default function ResponderEvacuationMap({
   const [redFlagCount, setRedFlagCount] = useState<number | null>(null)
   const [showFacilities, setShowFacilities] = useState(false)
   const [showShelters, setShowShelters] = useState(true)
+  const [showFirePredictions, setShowFirePredictions] = useState(true)
   const [liveMapShelters, setLiveMapShelters] = useState<LiveShelterPin[]>([])
   const [responderProfiles, setResponderProfiles] = useState<ResponderVisibleProfile[]>([])
   const [commandBriefingKey, setCommandBriefingKey] = useState(0)
@@ -304,8 +306,8 @@ export default function ResponderEvacuationMap({
           </div>
           <p className="text-[11px] text-gray-500 dark:text-ash-500 pl-7 leading-snug max-w-xl">
             {mapDemoMode
-              ? 'Training scenario: Charlotte metro — demo households and simulated fire markers (circles).'
-              : `Live NIFC incidents within ${incidentRadiusMiles} mi of your station anchor, with hazards and shelters.`}
+              ? 'Training scenario: Charlotte metro — demo households, NIFC-style incidents, and optional modeled fire halos.'
+              : `Live NIFC perimeters & points within ${incidentRadiusMiles} mi of your station; dashed rings = modeled risk (not official zones).`}
           </p>
         </div>
 
@@ -368,6 +370,19 @@ export default function ResponderEvacuationMap({
           {showShelters ? 'Shelters: ON' : 'Shelters'}
         </button>
 
+        <button
+          type="button"
+          onClick={() => setShowFirePredictions(v => !v)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+            showFirePredictions
+              ? 'bg-orange-100 border-orange-300 text-orange-950 dark:bg-orange-500/15 dark:border-orange-500/35 dark:text-orange-200'
+              : 'border-gray-300 text-gray-600 hover:bg-gray-100 dark:border-ash-700 dark:text-ash-400 dark:hover:text-white dark:hover:border-ash-600'
+          }`}
+        >
+          <Flame className="w-3 h-3" />
+          {showFirePredictions ? 'Fire model: ON' : 'Fire model'}
+        </button>
+
         <div className="w-full sm:w-auto sm:ml-auto flex flex-wrap items-center gap-2 sm:gap-3 justify-end">
           {redFlagCount !== null && redFlagCount > 0 && (
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-signal-danger/10 border border-signal-danger/30">
@@ -427,8 +442,15 @@ export default function ResponderEvacuationMap({
                 demoMode={mapDemoMode}
                 mapFocusRequest={mapFocus}
                 nifcFires={nifcForEvacMap}
-                nifcFiresCircleOnly
+                showNifcPredictionOverlays={showFirePredictions}
                 windData={windData}
+                stationAnchor={{
+                  lat: effectiveMapCenter[0],
+                  lng: effectiveMapCenter[1],
+                  label: stationAddressForDirections?.trim() || null,
+                }}
+                householdFireTintProximityMiles={incidentRadiusMiles}
+                householdTintNifcFires={nifcForEvacMap}
                 onResponderStatusUpdated={() => {
                   void loadEvacMap()
                 }}

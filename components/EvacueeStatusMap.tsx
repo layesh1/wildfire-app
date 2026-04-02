@@ -19,9 +19,11 @@ import type {
   WindData,
 } from '@/app/dashboard/caregiver/map/LeafletMap'
 import NifcFireMapFeatures from '@/components/leaflet/NifcFireMapFeatures'
+import NifcFirePredictionOverlay from '@/components/leaflet/NifcFirePredictionOverlay'
 import WindCompassOverlay from '@/components/leaflet/WindCompassOverlay'
 import HouseholdPinMapFeatures from '@/components/leaflet/HouseholdPinMapFeatures'
-import { responderEvacueeMarkerHtml } from '@/components/leaflet/responderEvacueeMarkerIcon'
+import { fireStationMarkerImgHtml, getFireStationMapIcon } from '@/components/leaflet/fireStationMapIcon'
+import { responderEvacueeMarkerHtml, responderEvacueeMarkerHtmlTint } from '@/components/leaflet/responderEvacueeMarkerIcon'
 
 export interface EvacueePin {
   id: string
@@ -150,7 +152,15 @@ function MapFlyTo({ target }: { target: { lat: number; lng: number; nonce: numbe
   return null
 }
 
-function FitBoundsCombined({ pins, householdPins }: { pins: EvacueePin[]; householdPins: HouseholdPin[] }) {
+function FitBoundsCombined({
+  pins,
+  householdPins,
+  stationAnchor,
+}: {
+  pins: EvacueePin[]
+  householdPins: HouseholdPin[]
+  stationAnchor?: { lat: number; lng: number } | null
+}) {
   const map = useMap()
   useEffect(() => {
     const pts: [number, number][] = [
@@ -161,6 +171,13 @@ function FitBoundsCombined({ pins, householdPins }: { pins: EvacueePin[]; househ
         return [home, ...offices]
       }),
     ]
+    if (
+      stationAnchor != null
+      && Number.isFinite(stationAnchor.lat)
+      && Number.isFinite(stationAnchor.lng)
+    ) {
+      pts.push([stationAnchor.lat, stationAnchor.lng])
+    }
     if (pts.length === 0) return
     const lats = pts.map(p => p[0])
     const lons = pts.map(p => p[1])
@@ -169,7 +186,7 @@ function FitBoundsCombined({ pins, householdPins }: { pins: EvacueePin[]; househ
        [Math.max(...lats) + 0.01, Math.max(...lons) + 0.01]],
       { maxZoom: 14 }
     )
-  }, [pins, householdPins, map])
+  }, [pins, householdPins, stationAnchor, map])
   return null
 }
 
@@ -199,12 +216,19 @@ interface Props {
   mapFocusRequest?: { lat: number; lng: number; nonce: number } | null
   /** Same NIFC feed as household hub Leaflet map (perimeters + point incidents). */
   nifcFires?: NifcFire[]
-  /** When true, draw fires as circle markers only (e.g. responder evacuation map). */
+  /** When true, draw fires as circle markers only (e.g. legacy minimal view). */
   nifcFiresCircleOnly?: boolean
+  /** Dashed modeled-risk halos (+ wind ellipse when wind data exists). Command hub default on. */
+  showNifcPredictionOverlays?: boolean
   windData?: WindData | null
   shelters?: EvacShelter[]
   liveShelters?: LiveShelterPin[]
   showShelters?: boolean
+  /** Map icon for fire station / command anchor (hub center). */
+  stationAnchor?: { lat: number; lng: number; label?: string | null } | null
+  /** With {@link householdTintNifcFires}, grey house pins when no active incident is within this radius (miles). */
+  householdFireTintProximityMiles?: number
+  householdTintNifcFires?: NifcFire[]
 }
 
 export default function EvacueeStatusMap({
@@ -219,12 +243,18 @@ export default function EvacueeStatusMap({
   mapFocusRequest = null,
   nifcFires = [],
   nifcFiresCircleOnly = false,
+  showNifcPredictionOverlays = false,
   windData = null,
   shelters = [],
   liveShelters = [],
   showShelters = false,
+  stationAnchor = null,
+  householdFireTintProximityMiles,
+  householdTintNifcFires,
 }: Props) {
   const { notEvacuated, evacuated, cannotEvac } = mapStats(pins, householdPins)
+  const useHouseholdFireTint =
+    householdFireTintProximityMiles != null && householdTintNifcFires != null
 
   return (
     <div className="relative h-full min-h-[260px] sm:min-h-[360px] md:min-h-[480px] w-full min-w-0">
@@ -242,8 +272,11 @@ export default function EvacueeStatusMap({
         />
         <LeafletInvalidateOnLayout />
         <MapFlyTo target={mapFocusRequest} />
-        <FitBoundsCombined pins={pins} householdPins={householdPins} />
+        <FitBoundsCombined pins={pins} householdPins={householdPins} stationAnchor={stationAnchor} />
 
+        {showNifcPredictionOverlays && (
+          <NifcFirePredictionOverlay nifc={nifcFires} windData={windData} />
+        )}
         <NifcFireMapFeatures nifc={nifcFires} circleMarkersOnly={nifcFiresCircleOnly} />
 
         {showShelters && liveShelters.map(s => (
@@ -516,7 +549,34 @@ export default function EvacueeStatusMap({
           </CircleMarker>
         )})}
 
-        <HouseholdPinMapFeatures householdPins={householdPins} onUpdated={onResponderStatusUpdated} />
+        <HouseholdPinMapFeatures
+          householdPins={householdPins}
+          onUpdated={onResponderStatusUpdated}
+          proximityMiles={householdFireTintProximityMiles}
+          proximityFires={householdTintNifcFires}
+        />
+
+        {stationAnchor != null
+          && Number.isFinite(stationAnchor.lat)
+          && Number.isFinite(stationAnchor.lng) && (
+          <Marker
+            position={[stationAnchor.lat, stationAnchor.lng]}
+            icon={getFireStationMapIcon()}
+            zIndexOffset={900}
+          >
+            <Popup>
+              <div style={{ fontFamily: 'sans-serif', fontSize: 13, lineHeight: 1.6, minWidth: 200 }}>
+                <strong>Fire station / command anchor</strong>
+                {stationAnchor.label?.trim() ? (
+                  <>
+                    <br />
+                    <span style={{ color: '#475569', fontSize: 12 }}>{stationAnchor.label.trim()}</span>
+                  </>
+                ) : null}
+              </div>
+            </Popup>
+          </Marker>
+        )}
 
         <div style={{
           position: 'absolute', bottom: 28, right: 10, zIndex: 1000,
@@ -547,11 +607,42 @@ export default function EvacueeStatusMap({
               </div>
             </>
           )}
+          {stationAnchor != null
+            && Number.isFinite(stationAnchor.lat)
+            && Number.isFinite(stationAnchor.lng) && (
+            <>
+              <div style={{ color: '#fff', fontSize: 11, fontWeight: 700, marginBottom: 6, letterSpacing: '0.05em' }}>
+                STATION
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <div
+                  style={{ flexShrink: 0, transform: 'scale(0.75)', transformOrigin: 'left center' }}
+                  // eslint-disable-next-line react/no-danger
+                  dangerouslySetInnerHTML={{ __html: fireStationMarkerImgHtml(32) }}
+                />
+                <span style={{ color: '#e2e8f0', fontSize: 10, lineHeight: 1.3 }}>
+                  Your fire station / command map anchor
+                </span>
+              </div>
+            </>
+          )}
           {householdPins.length > 0 && (
             <>
               <div style={{ color: '#fff', fontSize: 11, fontWeight: 700, marginBottom: 6, letterSpacing: '0.05em' }}>
                 EVACUEES (HOME &amp; OFFICE)
               </div>
+              {useHouseholdFireTint && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span
+                    style={{ flexShrink: 0, transform: 'scale(0.82)', transformOrigin: 'left center' }}
+                    // eslint-disable-next-line react/no-danger
+                    dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('neutral') }}
+                  />
+                  <span style={{ color: '#e2e8f0', fontSize: 10, lineHeight: 1.3 }}>
+                    No active fire within hub radius — neutral pin (open for status)
+                  </span>
+                </div>
+              )}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                 <span
                   style={{ flexShrink: 0, transform: 'scale(0.82)', transformOrigin: 'left center' }}
@@ -559,7 +650,7 @@ export default function EvacueeStatusMap({
                   dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtml(true) }}
                 />
                 <span style={{ color: '#e2e8f0', fontSize: 10, lineHeight: 1.3 }}>
-                  All evacuated at that pin (home or work address)
+                  {useHouseholdFireTint ? 'Fire nearby — all evacuated at that pin' : 'All evacuated at that pin (home or work address)'}
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -569,7 +660,9 @@ export default function EvacueeStatusMap({
                   dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtml(false) }}
                 />
                 <span style={{ color: '#e2e8f0', fontSize: 10, lineHeight: 1.3 }}>
-                  Not fully evacuated or needs EMS (home or work pin)
+                  {useHouseholdFireTint
+                    ? 'Fire nearby — not fully evacuated or needs EMS'
+                    : 'Not fully evacuated or needs EMS (home or work pin)'}
                 </span>
               </div>
             </>

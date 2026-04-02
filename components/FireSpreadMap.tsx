@@ -1,6 +1,7 @@
 'use client'
 import { MapContainer, TileLayer, Polygon, CircleMarker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
+import { generateEllipse, vanWagnerLW } from '@/lib/fire-spread-ellipse'
 
 export interface EvacueeOverlayPin {
   id: string
@@ -30,29 +31,6 @@ const TIME_HORIZONS = [1, 3, 6, 12, 24]
 const LABELS = ['1h', '3h', '6h', '12h', '24h']
 const STROKE_COLORS = ['#FFF176', '#FFB300', '#FF6F00', '#FF3D00', '#AA0000']
 const FILL_OPACITIES = [0.06, 0.08, 0.10, 0.12, 0.14]
-
-function vanWagnerLW(windSpeedMph: number): number {
-  const u = windSpeedMph * 0.44704
-  return Math.min(8, Math.max(1.0, 0.936 * Math.exp(0.2566 * u) + 0.461 * Math.exp(-0.1548 * u) - 0.397))
-}
-
-function generateEllipse(
-  lat: number, lon: number,
-  a_m: number, b_m: number, c_m: number,
-  headDirDeg: number,
-  nPts = 72,
-): [number, number][] {
-  const theta = (headDirDeg * Math.PI) / 180
-  const cosLat = Math.cos((lat * Math.PI) / 180)
-  return Array.from({ length: nPts + 1 }, (_, i) => {
-    const phi = (2 * Math.PI * i) / nPts
-    const x = a_m * Math.cos(phi) - c_m
-    const y = b_m * Math.sin(phi)
-    const dE = x * Math.sin(theta) + y * Math.cos(theta)
-    const dN = x * Math.cos(theta) - y * Math.sin(theta)
-    return [lat + dN / 111320, lon + dE / (111320 * cosLat)] as [number, number]
-  })
-}
 
 interface Props {
   lat: number

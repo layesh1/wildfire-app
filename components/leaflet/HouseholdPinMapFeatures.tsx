@@ -8,7 +8,12 @@ import {
   labelForHomeEvacuationStatus,
   type HomeEvacuationStatus,
 } from '@/lib/checkin-status'
-import { createResponderEvacueeDivIcon } from '@/components/leaflet/responderEvacueeMarkerIcon'
+import {
+  createResponderEvacueeDivIconTint,
+  type ResponderEvacMarkerTint,
+} from '@/components/leaflet/responderEvacueeMarkerIcon'
+import type { NifcFire } from '@/app/dashboard/caregiver/map/LeafletMap'
+import { isWithinActiveFireProximity } from '@/lib/nifc-fire-proximity'
 
 const HOME_STATUS_COLOR: Record<HomeEvacuationStatus, string> = {
   not_evacuated: '#6b7280',
@@ -229,22 +234,56 @@ function HouseholdPopupBody({
   )
 }
 
+function homeMarkerTint(
+  pin: HouseholdPin,
+  proximityFires: NifcFire[] | undefined,
+  proximityMiles: number | undefined,
+): ResponderEvacMarkerTint {
+  const fireNearby =
+    proximityFires != null
+    && proximityMiles != null
+    && isWithinActiveFireProximity(pin.lat, pin.lng, proximityFires, proximityMiles)
+  if (proximityFires != null && proximityMiles != null && !fireNearby) return 'neutral'
+  const homeOk = pin.total_people > 0 && pin.members.every(m => statusOf(m) === 'evacuated')
+  return homeOk ? 'cleared' : 'needs_action'
+}
+
+function officeMarkerTint(
+  pin: HouseholdPin,
+  site: NonNullable<HouseholdPin['officeSites']>[number],
+  proximityFires: NifcFire[] | undefined,
+  proximityMiles: number | undefined,
+): ResponderEvacMarkerTint {
+  const fireNearby =
+    proximityFires != null
+    && proximityMiles != null
+    && isWithinActiveFireProximity(site.lat, site.lng, proximityFires, proximityMiles)
+  if (proximityFires != null && proximityMiles != null && !fireNearby) return 'neutral'
+  const w = site.address.trim()
+  const subset = pin.members.filter(m => (m.work_address?.trim() || '') === w)
+  const workOk = subset.length > 0 && subset.every(m => statusOf(m) === 'evacuated')
+  return workOk ? 'cleared' : 'needs_action'
+}
+
 function OfficeEvacMarker({
   pin,
   site,
   onUpdated,
+  proximityFires,
+  proximityMiles,
 }: {
   pin: HouseholdPin
   site: NonNullable<HouseholdPin['officeSites']>[number]
   onUpdated?: () => void
+  proximityFires?: NifcFire[]
+  proximityMiles?: number
 }) {
-  const workOk = useMemo(() => {
-    const w = site.address.trim()
-    const subset = pin.members.filter(m => (m.work_address?.trim() || '') === w)
-    return subset.length > 0 && subset.every(m => statusOf(m) === 'evacuated')
-  }, [pin.members, site.address])
+  const tint = useMemo(
+    () => officeMarkerTint(pin, site, proximityFires, proximityMiles),
+    [pin, site, proximityFires, proximityMiles]
+  )
 
-  const icon = useMemo(() => createResponderEvacueeDivIcon(workOk), [workOk])
+  const icon = useMemo(() => createResponderEvacueeDivIconTint(tint), [tint])
 
   return (
     <Marker position={[site.lat, site.lng]} icon={icon}>
@@ -261,12 +300,22 @@ function OfficeEvacMarker({
   )
 }
 
-function HouseholdHomeMarker({ pin, onUpdated }: { pin: HouseholdPin; onUpdated?: () => void }) {
-  const homeOk = useMemo(
-    () => pin.total_people > 0 && pin.members.every(m => statusOf(m) === 'evacuated'),
-    [pin.total_people, pin.members]
+function HouseholdHomeMarker({
+  pin,
+  onUpdated,
+  proximityFires,
+  proximityMiles,
+}: {
+  pin: HouseholdPin
+  onUpdated?: () => void
+  proximityFires?: NifcFire[]
+  proximityMiles?: number
+}) {
+  const tint = useMemo(
+    () => homeMarkerTint(pin, proximityFires, proximityMiles),
+    [pin, proximityFires, proximityMiles]
   )
-  const icon = useMemo(() => createResponderEvacueeDivIcon(homeOk), [homeOk])
+  const icon = useMemo(() => createResponderEvacueeDivIconTint(tint), [tint])
 
   return (
     <Marker position={[pin.lat, pin.lng]} icon={icon}>
@@ -291,9 +340,14 @@ function HouseholdHomeMarker({ pin, onUpdated }: { pin: HouseholdPin; onUpdated?
 export default function HouseholdPinMapFeatures({
   householdPins,
   onUpdated,
+  /** When set with `proximityFires`, home/office rings are grey outside this radius (mi) of any active incident. */
+  proximityMiles,
+  proximityFires,
 }: {
   householdPins: HouseholdPin[]
   onUpdated?: () => void
+  proximityMiles?: number
+  proximityFires?: NifcFire[]
 }) {
   if (householdPins.length === 0) return null
 
@@ -301,9 +355,21 @@ export default function HouseholdPinMapFeatures({
     <>
       {householdPins.map(pin => (
         <Fragment key={pin.id}>
-          <HouseholdHomeMarker pin={pin} onUpdated={onUpdated} />
+          <HouseholdHomeMarker
+            pin={pin}
+            onUpdated={onUpdated}
+            proximityFires={proximityFires}
+            proximityMiles={proximityMiles}
+          />
           {(pin.officeSites ?? []).map(site => (
-            <OfficeEvacMarker key={`${pin.id}-${site.key}`} pin={pin} site={site} onUpdated={onUpdated} />
+            <OfficeEvacMarker
+              key={`${pin.id}-${site.key}`}
+              pin={pin}
+              site={site}
+              onUpdated={onUpdated}
+              proximityFires={proximityFires}
+              proximityMiles={proximityMiles}
+            />
           ))}
         </Fragment>
       ))}
