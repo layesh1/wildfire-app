@@ -1,4 +1,6 @@
 import type { HouseholdPin } from '@/lib/responder-household'
+import type { FirefighterPin } from '@/lib/firefighter-pin'
+import { distanceMiles } from '@/lib/hub-map-distance'
 import type {
   CommandActionRequired,
   FlameoCommandContext,
@@ -172,7 +174,41 @@ export function buildIncidentSummary(pins: HouseholdPin[]): FlameoCommandInciden
   }
 }
 
-export function buildPriorityAssignments(pins: HouseholdPin[]): PriorityAssignment[] {
+function nearestFirefighterForHousehold(
+  pin: HouseholdPin,
+  firefighters: FirefighterPin[]
+): Pick<PriorityAssignment, 'assigned_to' | 'assigned_firefighter_id' | 'estimated_travel_minutes'> {
+  const eligible = firefighters.filter(
+    f =>
+      f.status === 'active'
+      && Number.isFinite(f.lat)
+      && Number.isFinite(f.lng)
+  )
+  if (eligible.length === 0) return {}
+
+  let best = eligible[0]!
+  let bestD = distanceMiles([pin.lat, pin.lng], [best.lat, best.lng])
+  for (let i = 1; i < eligible.length; i++) {
+    const f = eligible[i]!
+    const d = distanceMiles([pin.lat, pin.lng], [f.lat, f.lng])
+    if (d < bestD) {
+      bestD = d
+      best = f
+    }
+  }
+  const mph = 25
+  const minutes = Math.max(1, Math.round((bestD / mph) * 60))
+  return {
+    assigned_to: best.name,
+    assigned_firefighter_id: best.id,
+    estimated_travel_minutes: minutes,
+  }
+}
+
+export function buildPriorityAssignments(
+  pins: HouseholdPin[],
+  firefighters: FirefighterPin[] = []
+): PriorityAssignment[] {
   const filtered = pins.filter(p => p.priority === 'CRITICAL' || p.priority === 'HIGH')
   const sorted = [...filtered].sort((a, b) => {
     if (b.needs_help !== a.needs_help) return b.needs_help - a.needs_help
@@ -183,6 +219,7 @@ export function buildPriorityAssignments(pins: HouseholdPin[]): PriorityAssignme
   const top = sorted.slice(0, 10)
   return top.map((pin, i) => {
     const action_required = actionRequiredForPin(pin)
+    const ff = nearestFirefighterForHousehold(pin, firefighters)
     return {
       rank: i + 1,
       address: pin.address,
@@ -195,17 +232,19 @@ export function buildPriorityAssignments(pins: HouseholdPin[]): PriorityAssignme
       mobility_flags: [...pin.mobility_flags],
       medical_flags: [...pin.medical_flags],
       members: assignmentMembers(pin),
+      ...ff,
     }
   })
 }
 
 export function assembleFlameoCommandContext(
   pins: HouseholdPin[],
-  fire_context: FlameoCommandFireContext
+  fire_context: FlameoCommandFireContext,
+  firefighters: FirefighterPin[] = []
 ): FlameoCommandContext {
   return {
     incident_summary: buildIncidentSummary(pins),
-    priority_assignments: buildPriorityAssignments(pins),
+    priority_assignments: buildPriorityAssignments(pins, firefighters),
     fire_context,
     generated_at: new Date().toISOString(),
   }

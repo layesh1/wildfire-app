@@ -2,7 +2,7 @@
 import { useRouter, usePathname } from 'next/navigation'
 import {
   Flame, Shield, Heart, BarChart3, Map, AlertTriangle, CheckCircle,
-  LogOut, Activity, Bell, Settings,
+  LogOut, Activity, Bell, Settings, Users,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase'
@@ -23,6 +23,7 @@ const NAV_BY_ROLE: Record<string, { label: string; href: string; icon: any }[]> 
   emergency_responder: [
     { label: 'Command Hub', href: '/dashboard/responder', icon: Map },
     { label: 'Command Analytics', href: '/dashboard/responder/analytics', icon: BarChart3 },
+    { label: 'Station & setup', href: '/dashboard/responder/station', icon: Users },
     { label: 'Flameo · Field', href: '/dashboard/responder/ai', icon: Activity },
     { label: 'Settings', href: '/dashboard/settings', icon: Settings },
   ],

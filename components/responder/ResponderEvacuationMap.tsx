@@ -31,6 +31,7 @@ import { HUMAN_EVAC_SHELTERS } from '@/lib/evac-shelters'
 import { distanceMiles } from '@/lib/hub-map-distance'
 import { parseUsStateCodeFromAddress } from '@/lib/us-address-state'
 import type { EvacueePin } from '@/components/EvacueeStatusMap'
+import type { FirefighterPin } from '@/lib/firefighter-pin'
 import type { LiveShelterPin, NifcFire, WindData } from '@/app/dashboard/caregiver/map/LeafletMap'
 
 const EvacueeStatusMap = dynamic(() => import('@/components/EvacueeStatusMap'), { ssr: false })
@@ -104,6 +105,8 @@ export default function ResponderEvacuationMap({
   const [mapFocus, setMapFocus] = useState<{ lat: number; lng: number; nonce: number } | null>(null)
   const [nifcFires, setNifcFires] = useState<NifcFire[]>([])
   const [windData, setWindData] = useState<WindData | null>(null)
+  const [firefighterPins, setFirefighterPins] = useState<FirefighterPin[]>([])
+  const [rosterStationId, setRosterStationId] = useState<string | null>(null)
   const supabase = useMemo(() => createClient(), [])
 
   const effectiveMapCenter = useMemo<[number, number]>(
@@ -223,11 +226,55 @@ export default function ResponderEvacuationMap({
     }
   }, [])
 
+  const loadFirefighterRoster = useCallback(async () => {
+    try {
+      const r = await fetch('/api/station/roster')
+      if (!r.ok) {
+        setFirefighterPins([])
+        setRosterStationId(null)
+        return
+      }
+      const j = (await r.json()) as {
+        station?: { id: string } | null
+        members?: Array<{
+          id: string
+          full_name: string | null
+          current_lat: number | null
+          current_lng: number | null
+          current_assignment: string | null
+          status: string | null
+          last_seen_at: string | null
+          joined_at: string | null
+        }>
+      }
+      const sid = j.station?.id ?? null
+      setRosterStationId(sid)
+      const members = j.members ?? []
+      const pins: FirefighterPin[] = members
+        .filter(m => m.current_lat != null && m.current_lng != null)
+        .map(m => ({
+          id: m.id,
+          name: (m.full_name && m.full_name.trim()) || 'Firefighter',
+          lat: m.current_lat as number,
+          lng: m.current_lng as number,
+          status: m.status || 'active',
+          current_assignment: m.current_assignment,
+          last_seen_at: m.last_seen_at || m.joined_at || new Date().toISOString(),
+        }))
+      setFirefighterPins(pins)
+    } catch {
+      setFirefighterPins([])
+      setRosterStationId(null)
+    }
+  }, [])
+
   const loadData = useCallback(async () => {
     if (!canAccessEvacueeData) {
       setHouseholdPins([])
       setMapDemoMode(false)
       setResponderProfiles([])
+      setFirefighterPins([])
+      setRosterStationId(null)
       setLoading(false)
       setLastUpdated(new Date())
       return
@@ -241,6 +288,8 @@ export default function ResponderEvacuationMap({
     } catch {
       setResponderProfiles([])
     }
+
+    await loadFirefighterRoster()
 
     try {
       const res = await fetch('/api/fires/redflags')
@@ -256,7 +305,7 @@ export default function ResponderEvacuationMap({
 
     setLastUpdated(new Date())
     setLoading(false)
-  }, [canAccessEvacueeData, loadEvacMap, refreshFiresAndWind, supabase])
+  }, [canAccessEvacueeData, loadEvacMap, loadFirefighterRoster, refreshFiresAndWind, supabase])
 
   useEffect(() => {
     void loadData()
@@ -281,6 +330,26 @@ export default function ResponderEvacuationMap({
       void supabase.removeChannel(channel)
     }
   }, [supabase, loadEvacMap, canAccessEvacueeData])
+
+  useEffect(() => {
+    if (!canAccessEvacueeData || !rosterStationId) return
+    const channel = supabase
+      .channel(`station-ff-${rosterStationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'station_firefighters',
+          filter: `station_id=eq.${rosterStationId}`,
+        },
+        () => void loadFirefighterRoster()
+      )
+      .subscribe()
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [canAccessEvacueeData, rosterStationId, supabase, loadFirefighterRoster])
 
   const byHome = useMemo(() => {
     let evacuated = 0
@@ -478,6 +547,7 @@ export default function ResponderEvacuationMap({
                 }
                 householdFireTintProximityMiles={incidentRadiusMiles}
                 householdTintNifcFires={nifcForEvacMap}
+                firefighters={firefighterPins}
                 onResponderStatusUpdated={() => {
                   void loadEvacMap()
                 }}
@@ -488,6 +558,7 @@ export default function ResponderEvacuationMap({
             <div className="w-full max-h-[45vh] lg:max-h-none lg:w-[26rem] shrink-0 flex flex-col overflow-hidden border-t border-gray-200 bg-gray-50/80 dark:border-ash-800 dark:bg-ash-950 lg:border-t-0 lg:border-l">
               <FlameoCommandRoom
                 householdPins={householdPins}
+                firefighterPins={firefighterPins}
                 mapCenter={effectiveMapCenter}
                 fireContext={flameoContext}
                 demoMode={mapDemoMode}

@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { RefreshCw, AlertTriangle, MapPin } from 'lucide-react'
 import type { HouseholdPin } from '@/lib/responder-household'
+import type { FirefighterPin } from '@/lib/firefighter-pin'
 import type { FlameoContext } from '@/lib/flameo-context-types'
 import type { FlameoCommandContext, PriorityAssignment } from '@/lib/flameo-command-types'
 import { assembleFlameoCommandContext } from '@/lib/flameo-command'
 
 type Props = {
   householdPins: HouseholdPin[]
+  firefighterPins?: FirefighterPin[]
   mapCenter: [number, number]
   fireContext: FlameoContext | null
   demoMode: boolean
@@ -88,6 +90,7 @@ function openFlameoChat() {
 
 export default function FlameoCommandRoom({
   householdPins,
+  firefighterPins = [],
   mapCenter,
   fireContext: _fireContext,
   demoMode,
@@ -104,13 +107,17 @@ export default function FlameoCommandRoom({
 
   const commandContext: FlameoCommandContext = useMemo(
     () =>
-      assembleFlameoCommandContext(householdPins, {
-        nearest_fire_miles: firePart.nearest_fire_miles,
-        wind_dir: firePart.wind_dir,
-        wind_mph: firePart.wind_mph,
-        fire_risk: firePart.fire_risk,
-      }),
-    [householdPins, firePart]
+      assembleFlameoCommandContext(
+        householdPins,
+        {
+          nearest_fire_miles: firePart.nearest_fire_miles,
+          wind_dir: firePart.wind_dir,
+          wind_mph: firePart.wind_mph,
+          fire_risk: firePart.fire_risk,
+        },
+        firefighterPins
+      ),
+    [householdPins, firePart, firefighterPins]
   )
 
   const loadFireFromApi = useCallback(async () => {
@@ -276,6 +283,14 @@ export default function FlameoCommandRoom({
                 <p className="mt-2 text-[10px] leading-snug text-gray-700 dark:text-gray-300">
                   &quot;{a.reason}&quot;
                 </p>
+                {a.assigned_to && (
+                  <p className="mt-1.5 text-[10px] font-semibold text-sky-800 dark:text-sky-300">
+                    Assigned to: {a.assigned_to}
+                    {typeof a.estimated_travel_minutes === 'number'
+                      ? ` · ~${a.estimated_travel_minutes} min (est.)`
+                      : ''}
+                  </p>
+                )}
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <button
                     type="button"

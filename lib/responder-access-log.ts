@@ -5,6 +5,7 @@ export type ResponderAccessLogAction =
   | 'viewed_household'
   | 'updated_status'
   | 'viewed_medical'
+  | 'cleared_house'
 
 /**
  * Fire-and-forget audit insert. Never await in critical path; failures must not block callers.

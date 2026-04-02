@@ -18,6 +18,11 @@ export interface PriorityAssignment {
   mobility_flags: string[]
   medical_flags: string[]
   members: PriorityAssignmentMember[]
+  /** Nearest available firefighter on the map (when positions are reported). */
+  assigned_to?: string
+  assigned_firefighter_id?: string
+  /** Rough drive-time estimate at ~25 mph straight-line proxy. */
+  estimated_travel_minutes?: number
 }
 
 export interface FlameoCommandIncidentSummary {

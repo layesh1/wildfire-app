@@ -18,6 +18,7 @@ import type {
   NifcFire,
   WindData,
 } from '@/app/dashboard/caregiver/map/LeafletMap'
+import type { FirefighterPin } from '@/lib/firefighter-pin'
 import NifcFireMapFeatures from '@/components/leaflet/NifcFireMapFeatures'
 import NifcFirePredictionOverlay from '@/components/leaflet/NifcFirePredictionOverlay'
 import WindCompassOverlay from '@/components/leaflet/WindCompassOverlay'
@@ -152,14 +153,40 @@ function MapFlyTo({ target }: { target: { lat: number; lng: number; nonce: numbe
   return null
 }
 
+const firefighterHelmetIcon = (() => {
+  const svg = encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 34 34" width="34" height="34">
+    <circle cx="17" cy="17" r="15" fill="#2563eb" fill-opacity="0.92" stroke="#1e40af" stroke-width="2"/>
+    <circle cx="17" cy="17" r="6" fill="#93c5fd" fill-opacity="0.95"/>
+  </svg>`)
+  return L.divIcon({
+    html: `<img src="data:image/svg+xml,${svg}" width="34" height="34" style="display:block" alt="" />`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    popupAnchor: [0, -17],
+    className: '',
+  })
+})()
+
+function ffSeenLabel(iso: string) {
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60_000)
+  if (!Number.isFinite(m) || m < 0) return 'Unknown'
+  if (m === 0) return 'Just now'
+  if (m === 1) return '1 min ago'
+  if (m < 60) return `${m} min ago`
+  const h = Math.round(m / 60)
+  return h === 1 ? '1 hr ago' : `${h} hr ago`
+}
+
 function FitBoundsCombined({
   pins,
   householdPins,
   stationAnchor,
+  firefighters = [],
 }: {
   pins: EvacueePin[]
   householdPins: HouseholdPin[]
   stationAnchor?: { lat: number; lng: number } | null
+  firefighters?: FirefighterPin[]
 }) {
   const map = useMap()
   useEffect(() => {
@@ -170,6 +197,9 @@ function FitBoundsCombined({
         const offices = (h.officeSites ?? []).map(o => [o.lat, o.lng] as [number, number])
         return [home, ...offices]
       }),
+      ...firefighters
+        .filter(f => Number.isFinite(f.lat) && Number.isFinite(f.lng))
+        .map(f => [f.lat, f.lng] as [number, number]),
     ]
     if (
       stationAnchor != null
@@ -186,7 +216,7 @@ function FitBoundsCombined({
        [Math.max(...lats) + 0.01, Math.max(...lons) + 0.01]],
       { maxZoom: 14 }
     )
-  }, [pins, householdPins, stationAnchor, map])
+  }, [pins, householdPins, stationAnchor, firefighters, map])
   return null
 }
 
@@ -229,6 +259,8 @@ interface Props {
   /** With {@link householdTintNifcFires}, grey house pins when no active incident is within this radius (miles). */
   householdFireTintProximityMiles?: number
   householdTintNifcFires?: NifcFire[]
+  /** Field units on the same station (blue pins). */
+  firefighters?: FirefighterPin[]
 }
 
 export default function EvacueeStatusMap({
@@ -251,6 +283,7 @@ export default function EvacueeStatusMap({
   stationAnchor = null,
   householdFireTintProximityMiles,
   householdTintNifcFires,
+  firefighters = [],
 }: Props) {
   const { notEvacuated, evacuated, cannotEvac } = mapStats(pins, householdPins)
   const useHouseholdFireTint =
@@ -272,7 +305,12 @@ export default function EvacueeStatusMap({
         />
         <LeafletInvalidateOnLayout />
         <MapFlyTo target={mapFocusRequest} />
-        <FitBoundsCombined pins={pins} householdPins={householdPins} stationAnchor={stationAnchor} />
+        <FitBoundsCombined
+          pins={pins}
+          householdPins={householdPins}
+          stationAnchor={stationAnchor}
+          firefighters={firefighters}
+        />
 
         {showNifcPredictionOverlays && (
           <NifcFirePredictionOverlay nifc={nifcFires} windData={windData} />
@@ -323,6 +361,37 @@ export default function EvacueeStatusMap({
             </Popup>
           </Marker>
         ))}
+
+        {firefighters
+          .filter(f => Number.isFinite(f.lat) && Number.isFinite(f.lng))
+          .map(f => (
+            <Marker key={`firefighter-${f.id}`} position={[f.lat, f.lng]} icon={firefighterHelmetIcon}>
+              <Tooltip direction="top" offset={[0, -12]} opacity={0.95}>
+                <div style={{ fontFamily: 'sans-serif', fontSize: 11, fontWeight: 700 }}>
+                  🧑‍🚒 {f.name}
+                </div>
+              </Tooltip>
+              <Popup>
+                <div style={{ minWidth: 200, fontFamily: 'sans-serif', fontSize: 12, lineHeight: 1.6 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                    🧑‍🚒 {f.name}
+                  </div>
+                  <div style={{ color: '#64748b', fontSize: 11 }}>
+                    Status: <strong style={{ color: '#0f172a' }}>{f.status}</strong>
+                  </div>
+                  <div style={{ color: '#64748b', fontSize: 11, marginTop: 4 }}>
+                    Last seen: {ffSeenLabel(f.last_seen_at)}
+                  </div>
+                  {f.current_assignment?.trim() && (
+                    <div style={{ marginTop: 8, fontSize: 11 }}>
+                      <span style={{ color: '#64748b' }}>Assignment:</span>{' '}
+                      {f.current_assignment.trim()}
+                    </div>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          ))}
 
         {showFacilities && facilities.map(f => (
           <Marker
