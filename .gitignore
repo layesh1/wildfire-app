@@ -7,3 +7,4 @@ node_modules/
 tsconfig.tsbuildinfo
 __pycache__/
 *.pyc
+.venv-poster/

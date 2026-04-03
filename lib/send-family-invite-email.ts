@@ -143,13 +143,20 @@ function buildInviteEmailBrandedTemplate(params: {
   return { html, text }
 }
 
+export type SendFamilyInviteEmailResult = {
+  sent: boolean
+  devLink?: string
+  /** Why email was not delivered (for UI copy; never includes secrets). */
+  failureReason?: 'missing_api_key' | 'provider_error'
+}
+
 export async function sendFamilyInviteEmail({
   to,
   acceptUrl,
   inviteToken,
   inviterName,
   inviterRole,
-}: FamilyInviteEmailParams): Promise<{ sent: boolean; devLink?: string }> {
+}: FamilyInviteEmailParams): Promise<SendFamilyInviteEmailResult> {
   const key = process.env.RESEND_API_KEY
   const from = process.env.RESEND_FROM_EMAIL || 'Wildfire App <onboarding@resend.dev>'
 
@@ -183,7 +190,7 @@ export async function sendFamilyInviteEmail({
 
   if (!key) {
     console.info('[family-invite email] RESEND_API_KEY not set; accept URL:', acceptUrl)
-    return { sent: false, devLink: acceptUrl }
+    return { sent: false, devLink: acceptUrl, failureReason: 'missing_api_key' }
   }
 
   const res = await fetch('https://api.resend.com/emails', {
@@ -204,7 +211,7 @@ export async function sendFamilyInviteEmail({
   if (!res.ok) {
     const errText = await res.text()
     console.error('[family-invite email] Resend error:', res.status, errText)
-    return { sent: false, devLink: acceptUrl }
+    return { sent: false, devLink: acceptUrl, failureReason: 'provider_error' }
   }
 
   return { sent: true }

@@ -449,13 +449,21 @@ export default function PersonsPage() {
           }
           return
         }
-        setInviteOk(`Invite sent to ${email}`)
+        const emailSent = data?.emailSent === true
+        const devLink = typeof data?.devLink === 'string' ? data.devLink : ''
+        const serverMsg = typeof data?.message === 'string' ? data.message : ''
+        let okText = serverMsg || (emailSent ? `Invitation email sent to ${email}` : `Invitation created for ${email}`)
+        if (!emailSent && devLink) {
+          okText += `\n\nAccept link (copy and share):\n${devLink}`
+        }
+        setInviteOk(okText)
         setInviteEmail('')
         try {
           const supabase = createClient()
           const { data: { user } } = await supabase.auth.getUser()
           if (user) {
             await supabase.from('profiles').update({ my_people_consent_shown: true }).eq('id', user.id)
+            await loadPendingInvites(user.id)
           }
         } catch {
           /* non-fatal */
@@ -466,7 +474,7 @@ export default function PersonsPage() {
         setInviteLoading(false)
       }
     },
-    []
+    [loadPendingInvites]
   )
 
   const openInviteConfirm = useCallback(() => {
@@ -739,7 +747,9 @@ export default function PersonsPage() {
         <p className="text-ash-400 text-xs">
           They&apos;ll receive an email to join WildfireAlert. Once they sign up, you&apos;ll see their safety status here automatically.
         </p>
-        {inviteOk && <p className="text-signal-safe text-xs">✅ {inviteOk}</p>}
+        {inviteOk && (
+          <p className="whitespace-pre-wrap break-all text-signal-safe text-xs">✅ {inviteOk}</p>
+        )}
         {inviteError && <p className="text-signal-danger text-xs">{inviteError}</p>}
       </div>
 

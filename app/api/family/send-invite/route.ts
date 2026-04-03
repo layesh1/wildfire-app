@@ -7,8 +7,20 @@ import { sendFamilyInviteEmail } from '@/lib/send-family-invite-email'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i
 
+/**
+ * Invite links must use the public HTTPS origin in production.
+ * Prefer NEXT_PUBLIC_APP_URL; on Vercel fall back to VERCEL_URL when unset (common misconfig).
+ */
 function appBaseUrl() {
-  return (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '')
+  const explicit = process.env.NEXT_PUBLIC_APP_URL?.trim()
+  if (explicit) return explicit.replace(/\/$/, '')
+  const vercel = process.env.VERCEL_URL?.trim()
+  if (vercel) {
+    const host = vercel.replace(/\/$/, '')
+    if (host.startsWith('http://') || host.startsWith('https://')) return host
+    return `https://${host}`
+  }
+  return 'http://localhost:3000'.replace(/\/$/, '')
 }
 
 /**
@@ -129,14 +141,19 @@ export async function POST(request: Request) {
       inviterRole: 'evacuee',
     })
 
+    const message = emailed.sent
+      ? 'Invitation email sent. They can accept with the same email after signing up.'
+      : emailed.failureReason === 'missing_api_key'
+        ? 'Invitation saved. This server has no email API key—copy the link below and send it yourself (e.g. text or email).'
+        : 'Invitation saved, but the email provider rejected the send—copy the link below and share it manually.'
+
     return NextResponse.json({
       ok: true,
       mode: 'invite_sent',
       emailSent: emailed.sent,
       devLink: emailed.devLink,
-      message: emailed.sent
-        ? 'Invitation email sent. They can accept with the same email after signing up.'
-        : 'Invitation created. Share the accept link with them (check server logs if email is not configured).',
+      emailFailureReason: emailed.failureReason,
+      message,
     })
   } catch (e) {
     if (e instanceof ValidationError) {
