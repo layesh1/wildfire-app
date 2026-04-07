@@ -7,8 +7,8 @@
 
 **Links:**
 - GitHub Repository: https://github.com/layesh1/wildfire-app
-- Kaggle Notebook: [TBD — coworker finalizing]
-- Demo: [App screenshots below]
+- Kaggle Notebook (private,for judges only):(https://www.kaggle.com/code/anishanannapaneni/wids-university-datathon-kaggle-notebook/notebook)
+- Demo: https://docs.google.com/document/d/1AHCSSnoAf30v-SL1aTc2SUa_GUd_iMbOoZVCT4EBSu0/edit?usp=sharing
 
 ---
 
@@ -152,15 +152,9 @@ Multilingual SMS delivery — critical for the limited-English populations that 
 
 ## Demo
 
-WildfireAlert is a deployed web application. The demo artifact (application screenshots) is included with this submission.
+WildfireAlert is a deployed web application. The demo artifact (application screenshots) is included with this submission. Link is provided again below for ease.
 
-**Screenshot 1: Caregiver Dashboard** — Person cards with mobility status, go-bag tracker, and active fire alert staging (Evacuate / Warning / Advisory).
-
-**Screenshot 2: Analyst Signal Gap View** — SVI tier bar chart showing 0.7% vs 2.4% order rates, state-level delay table, and protocol inversions list.
-
-**Screenshot 3: Hidden Danger View** — The 100 silent extreme-spread fires ranked by SVI score (average 0.89), with zero evacuation actions logged.
-
-**Screenshot 4: FLAMEO AI Chat** — Caregiver assistant answering an evacuation planning question with data-grounded, plain-language guidance.
+https://docs.google.com/document/d/1AHCSSnoAf30v-SL1aTc2SUa_GUd_iMbOoZVCT4EBSu0/edit?usp=sharing
 
 ---
 
