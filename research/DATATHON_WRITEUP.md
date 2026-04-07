@@ -9,6 +9,7 @@
 - GitHub Repository: https://github.com/layesh1/wildfire-app
 - Kaggle Notebook (private,for judges only):(https://www.kaggle.com/code/anishanannapaneni/wids-university-datathon-kaggle-notebook/notebook)
 - Demo: https://docs.google.com/document/d/1AHCSSnoAf30v-SL1aTc2SUa_GUd_iMbOoZVCT4EBSu0/edit?usp=sharing
+- FULL Writeup: https://docs.google.com/document/d/15fWqcw1d2mXuQ1uK89eSE3lP_lHSR6G9/edit?usp=sharing&ouid=102912583777118274948&rtpof=true&sd=true
 
 ---
 
