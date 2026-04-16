@@ -10,7 +10,15 @@ const ALLOWED_ORIGINS = [
 export function getAllowedOrigin(req: NextRequest): string | null {
   const origin = req.headers.get('origin')
   if (!origin) return null
-  // Allow exact matches and Vercel preview deployments for this project
+
+  // Always allow same-origin requests — browser sends Origin even for same-origin
+  // POST/fetch, so this covers every Vercel deployment URL automatically.
+  try {
+    const serverOrigin = `${req.nextUrl.protocol}//${req.nextUrl.host}`
+    if (origin === serverOrigin) return origin
+  } catch {}
+
+  // Allow explicit origins and Vercel preview deployments for this project
   if (ALLOWED_ORIGINS.includes(origin)) return origin
   if (/^https:\/\/wildfire-app[a-z0-9-]*\.vercel\.app$/.test(origin)) return origin
   return null
