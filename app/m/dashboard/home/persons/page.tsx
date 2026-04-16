@@ -1,1 +1,1 @@
-export { default } from '../../../../dashboard/caregiver/persons/page'
+export { default } from '../../caregiver/persons/page'

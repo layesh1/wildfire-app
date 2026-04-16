@@ -14,6 +14,7 @@ import {
   Copy,
   AlertTriangle,
   Settings,
+  UserPlus,
 } from 'lucide-react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -264,6 +265,15 @@ export default function PersonsPage() {
   const [fireWarningNames, setFireWarningNames] = useState<string[]>([])
   const [myName, setMyName] = useState('')
   const [myAddress, setMyAddress] = useState('')
+  // Manual add (no email) — lets caregivers track people without an invite
+  const [manualOpen, setManualOpen] = useState(false)
+  const [manualName, setManualName] = useState('')
+  const [manualPhone, setManualPhone] = useState('')
+  const [manualAddress, setManualAddress] = useState('')
+  const [manualRelationship, setManualRelationship] = useState<Relationship>('Family Member')
+  const [manualMobility, setManualMobility] = useState<Mobility>('Mobile Adult')
+  const [manualNotes, setManualNotes] = useState('')
+  const [manualError, setManualError] = useState<string | null>(null)
   const personsRef = useRef<Person[]>([])
   personsRef.current = persons
 
@@ -353,6 +363,19 @@ export default function PersonsPage() {
     }).catch(() => {
       try { localStorage.setItem(LS_KEY, JSON.stringify(updated)) } catch {}
     })
+  }, [])
+
+  // ── Re-read persons from DB (call after server-side add / link) ──────────
+
+  const refreshPersons = useCallback(async (uid: string | null) => {
+    if (!uid) return
+    try {
+      const supabase = createClient()
+      const fresh = await loadPersons(supabase, uid)
+      if (Array.isArray(fresh)) setPersons(fresh as Person[])
+    } catch {
+      /* non-fatal: UI keeps current state */
+    }
   }, [])
 
   // ── Background fire check on mount ───────────────────────────────────────
@@ -449,12 +472,21 @@ export default function PersonsPage() {
           }
           return
         }
+        const mode = typeof data?.mode === 'string' ? data.mode : ''
         const emailSent = data?.emailSent === true
         const devLink = typeof data?.devLink === 'string' ? data.devLink : ''
         const serverMsg = typeof data?.message === 'string' ? data.message : ''
-        let okText = serverMsg || (emailSent ? `Invitation email sent to ${email}` : `Invitation created for ${email}`)
-        if (!emailSent && devLink) {
-          okText += `\n\nAccept link (copy and share):\n${devLink}`
+        let okText: string
+        if (mode === 'linked') {
+          // Existing account was linked — they will appear in the list immediately after refresh.
+          okText = serverMsg || `${email} is now in your My People`
+        } else {
+          okText = serverMsg || (emailSent
+            ? `Invitation email sent to ${email}`
+            : `Invitation created for ${email}`)
+          if (!emailSent && devLink) {
+            okText += `\n\nThe invite email couldn't be delivered from this server. Copy the link below and share it yourself (text, WhatsApp, or email):\n${devLink}`
+          }
         }
         setInviteOk(okText)
         setInviteEmail('')
@@ -463,7 +495,11 @@ export default function PersonsPage() {
           const { data: { user } } = await supabase.auth.getUser()
           if (user) {
             await supabase.from('profiles').update({ my_people_consent_shown: true }).eq('id', user.id)
-            await loadPendingInvites(user.id)
+            await Promise.all([
+              loadPendingInvites(user.id),
+              // Re-read monitored_persons so a newly-linked person shows up without a page reload.
+              refreshPersons(user.id),
+            ])
           }
         } catch {
           /* non-fatal */
@@ -474,7 +510,7 @@ export default function PersonsPage() {
         setInviteLoading(false)
       }
     },
-    [loadPendingInvites]
+    [loadPendingInvites, refreshPersons]
   )
 
   const openInviteConfirm = useCallback(() => {
@@ -516,6 +552,48 @@ export default function PersonsPage() {
       setConfirmInviteEmail(null)
     }
   }, [confirmInviteEmail, sendInviteToEmail])
+
+  // ── Manual add (no email) ────────────────────────────────────────────────
+
+  const resetManualForm = useCallback(() => {
+    setManualName('')
+    setManualPhone('')
+    setManualAddress('')
+    setManualRelationship('Family Member')
+    setManualMobility('Mobile Adult')
+    setManualNotes('')
+    setManualError(null)
+  }, [])
+
+  const addManualPerson = useCallback(() => {
+    const name = manualName.trim()
+    if (!name) {
+      setManualError('Enter a name.')
+      return
+    }
+    setManualError(null)
+    const newPerson: Person = {
+      id: `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+      name,
+      address: manualAddress.trim(),
+      relationship: manualRelationship,
+      mobility: manualMobility,
+      phone: manualPhone.trim(),
+      languages: [],
+      notes: manualNotes.trim(),
+      status: 'unknown',
+      last_confirmed: null,
+      checkin_token: null,
+      ping_sent_at: null,
+      justConfirmed: false,
+    }
+    persist([newPerson, ...persons])
+    resetManualForm()
+    setManualOpen(false)
+  }, [
+    manualName, manualPhone, manualAddress, manualRelationship, manualMobility, manualNotes,
+    persons, persist, resetManualForm,
+  ])
 
   const cancelInvite = useCallback(async (id: string) => {
     setPendingActionEmail(id)
@@ -725,13 +803,17 @@ export default function PersonsPage() {
         </div>
       )}
 
-      <div className="card p-5 mb-6 space-y-3 border-ember-500/20">
-        <h2 className="text-white font-semibold text-sm">ADD SOMEONE TO MY PEOPLE</h2>
+      <div className="card p-5 mb-4 space-y-3 border-ember-500/20">
+        <h2 className="text-white font-semibold text-sm">INVITE BY EMAIL (OPTIONAL)</h2>
         <div className="flex flex-col sm:flex-row gap-2">
           <input
             type="email"
             value={inviteEmail}
-            onChange={e => setInviteEmail(e.target.value)}
+            onChange={e => {
+              setInviteEmail(e.target.value)
+              if (inviteOk) setInviteOk(null)
+              if (inviteError) setInviteError(null)
+            }}
             placeholder="Enter their email address"
             className="input flex-1"
           />
@@ -745,12 +827,109 @@ export default function PersonsPage() {
           </button>
         </div>
         <p className="text-ash-400 text-xs">
-          They&apos;ll receive an email to join WildfireAlert. Once they sign up, you&apos;ll see their safety status here automatically.
+          If they already have a Minutes Matter account, they&apos;re added to your list immediately.
+          Otherwise we try to email them an invite — if the email can&apos;t be delivered, you&apos;ll get a
+          link to copy and share yourself.
         </p>
         {inviteOk && (
           <p className="whitespace-pre-wrap break-all text-signal-safe text-xs">✅ {inviteOk}</p>
         )}
         {inviteError && <p className="text-signal-danger text-xs">{inviteError}</p>}
+      </div>
+
+      {/* Manual add — never depends on email delivery */}
+      <div className="card p-5 mb-6 space-y-3 border-ash-700">
+        <div className="flex items-center justify-between">
+          <h2 className="text-white font-semibold text-sm">ADD SOMEONE MANUALLY</h2>
+          <button
+            type="button"
+            onClick={() => {
+              if (manualOpen) resetManualForm()
+              setManualOpen(v => !v)
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-ash-600 text-ash-300 hover:text-white hover:border-ash-500 transition-colors"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            {manualOpen ? 'Close' : 'Add person'}
+          </button>
+        </div>
+        {!manualOpen && (
+          <p className="text-ash-400 text-xs">
+            No email needed. Track anyone you care for — you can ping them via text, WhatsApp or email later.
+          </p>
+        )}
+        {manualOpen && (
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                value={manualName}
+                onChange={e => setManualName(e.target.value)}
+                placeholder="Full name (required)"
+                className="input flex-1"
+              />
+              <input
+                type="tel"
+                value={manualPhone}
+                onChange={e => setManualPhone(e.target.value)}
+                placeholder="Phone (optional)"
+                className="input flex-1"
+              />
+            </div>
+            <input
+              type="text"
+              value={manualAddress}
+              onChange={e => setManualAddress(e.target.value)}
+              placeholder="Address (optional — used for fire proximity)"
+              className="input w-full"
+            />
+            <div className="flex flex-col sm:flex-row gap-2">
+              <select
+                value={manualRelationship}
+                onChange={e => setManualRelationship(e.target.value as Relationship)}
+                className="input flex-1"
+              >
+                {(['Family Member', 'Client', 'Neighbor', 'Self', 'Other'] as Relationship[]).map(r => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+              <select
+                value={manualMobility}
+                onChange={e => setManualMobility(e.target.value as Mobility)}
+                className="input flex-1"
+              >
+                {MOBILITIES.map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <input
+              type="text"
+              value={manualNotes}
+              onChange={e => setManualNotes(e.target.value)}
+              placeholder="Notes (medications, mobility needs, pets…)"
+              className="input w-full"
+            />
+            {manualError && <p className="text-signal-danger text-xs">{manualError}</p>}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { resetManualForm(); setManualOpen(false) }}
+                className="px-4 py-2 rounded-lg text-sm font-medium border border-ash-600 text-ash-300 hover:bg-ash-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={addManualPerson}
+                disabled={!manualName.trim()}
+                className="btn-primary px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Add to My People
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {pendingInvites.length > 0 && (
