@@ -113,11 +113,24 @@ export function FlameoAskPage({ variant }: { variant: FlameoNavConsumer }) {
         body: JSON.stringify({
           persona: 'FLAMEO',
           flameoRole: variant,
-          messages: next.map(m => ({ role: m.role, content: m.content })),
+          // Only send user/assistant turns, drop any stray intro content.
+          messages: next
+            .filter(m => m.role === 'user' || m.role === 'assistant')
+            .map(m => ({ role: m.role, content: m.content })),
           flameoNavContext: { consumer: variant, navBase },
         }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({} as { content?: string; error?: string; actions?: unknown }))
+      if (!res.ok) {
+        const errMsg = typeof data?.error === 'string' && data.error
+          ? data.error
+          : `Flameo could not respond (status ${res.status}).`
+        setMessages(prev => [
+          ...prev,
+          { role: 'assistant', content: errMsg },
+        ])
+        return
+      }
       let chips: Chip[] | undefined
       if (Array.isArray(data.actions) && data.actions.length > 0) {
         const { flameo } = partitionAiActions(data.actions)
@@ -128,7 +141,7 @@ export function FlameoAskPage({ variant }: { variant: FlameoNavConsumer }) {
         ...prev,
         {
           role: 'assistant',
-          content: data.content || 'Sorry, I encountered an error. Please try again.',
+          content: data.content || 'Sorry, I could not form a reply. Please try again.',
           chips,
         },
       ])

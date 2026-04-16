@@ -70,15 +70,25 @@ export default function MobileFlameo() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: [...messages, userMsg],
+          // Only send real user/assistant turns — server rejects leading assistant.
+          messages: [...messages, userMsg]
+            .filter(m => m.role === 'user' || m.role === 'assistant')
+            .map(m => ({ role: m.role, content: m.content })),
           persona: 'FLAMEO',
           flameoRole,
           flameoNavContext,
           ...(flameoContext ? { flameoContext } : {}),
         }),
       })
-      const data = await res.json()
-      let reply = res.ok ? (data.content || 'No response — try again.') : "I'm having trouble right now. Try again in a moment."
+      const data = await res.json().catch(() => ({} as { content?: string; error?: string; actions?: unknown; flameoRole?: string }))
+      let reply: string
+      if (res.ok) {
+        reply = data.content || 'No response — try again.'
+      } else {
+        reply = typeof data?.error === 'string' && data.error
+          ? data.error
+          : "I'm having trouble right now. Try again in a moment."
+      }
       let chips: Chip[] | undefined
       if (res.ok && Array.isArray(data.actions) && data.actions.length > 0) {
         const apiRole = (data.flameoRole as FlameoAiRole | undefined) ?? flameoRole

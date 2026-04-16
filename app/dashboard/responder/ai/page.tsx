@@ -98,22 +98,29 @@ export default function ResponderFlameoAiPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          messages: next,
+          messages: next
+            .filter(m => m.role === 'user' || m.role === 'assistant')
+            .map(m => ({ role: m.role, content: m.content })),
           persona: 'FLAMEO',
           flameoRole: 'responder',
           ...(flameo.context ? { flameoContext: flameo.context } : {}),
         }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({} as { content?: string; error?: string; actions?: unknown }))
       let chips: Chip[] | undefined
       if (res.ok && Array.isArray(data.actions) && data.actions.length > 0) {
         const { intel } = partitionAiActions(data.actions)
         chips = commandIntelActionsToChips(intel)
         if (chips.length === 0) chips = undefined
       }
+      const replyContent = res.ok
+        ? (data.content ?? 'No response.')
+        : (typeof data?.error === 'string' && data.error
+            ? data.error
+            : `Flameo could not respond (status ${res.status}).`)
       setMessages(m => [
         ...m,
-        { role: 'assistant', content: data.content ?? data.error ?? 'No response.', chips },
+        { role: 'assistant', content: replyContent, chips },
       ])
     } catch {
       setMessages(m => [...m, { role: 'assistant', content: 'Connection error. Please try again.' }])

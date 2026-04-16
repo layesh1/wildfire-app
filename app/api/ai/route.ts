@@ -77,6 +77,19 @@ export async function POST(request: NextRequest) {
       content: m.content,
     }))
 
+    // Anthropic requires the first message to be user role. Client intros often
+    // start with an assistant greeting, so strip any leading assistant turns.
+    let normalizedMessages = anthropicMessages
+    while (normalizedMessages.length > 0 && normalizedMessages[0].role !== 'user') {
+      normalizedMessages = normalizedMessages.slice(1)
+    }
+    if (normalizedMessages.length === 0) {
+      return NextResponse.json(
+        { error: 'No user message to reply to.' },
+        { status: 400 }
+      )
+    }
+
     const isResponder = flameoRole === 'responder'
     const tools = isResponder ? [...COMMAND_INTEL_TOOLS] : [...FLAMEO_TOOLS]
     const useTools = true
@@ -98,7 +111,7 @@ export async function POST(request: NextRequest) {
       model: 'claude-sonnet-4-6',
       max_tokens: 900,
       system,
-      messages: anthropicMessages,
+      messages: normalizedMessages,
     }
     if (useTools && tools.length) {
       createParams.tools = tools as Parameters<typeof client.messages.create>[0]['tools']
@@ -140,7 +153,18 @@ export async function POST(request: NextRequest) {
     if (err instanceof ValidationError) {
       return NextResponse.json({ error: err.message }, { status: 400 })
     }
-    logger.error('ai handler failed', { route: 'ai', durationMs: Date.now() - start, error: err instanceof Error ? err.message : String(err) })
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    const errMessage = err instanceof Error ? err.message : String(err)
+    logger.error('ai handler failed', { route: 'ai', durationMs: Date.now() - start, error: errMessage })
+    // Surface missing-key as a clear message; everything else stays generic.
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return NextResponse.json(
+        { error: 'Flameo is not configured on this server (missing API key).' },
+        { status: 503 }
+      )
+    }
+    return NextResponse.json(
+      { error: 'Flameo could not respond right now. Please try again in a moment.' },
+      { status: 500 }
+    )
   }
 }
