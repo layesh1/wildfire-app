@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Minutes Matter',
   webDir: 'public',
   server: {
-    url: 'https://wildfire-app-layesh1s-projects.vercel.app',
+    url: 'https://wildfire-app-layesh1s-projects.vercel.app/auth/login',
     cleartext: false,
   },
   ios: {
