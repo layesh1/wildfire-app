@@ -655,24 +655,28 @@ export default function EvacueeStatusMap({
         }}>
           {nifcFires.length > 0 && (
             <>
-              <div style={{ color: '#fff', fontSize: 11, fontWeight: 700, marginBottom: 6, letterSpacing: '0.05em' }}>
-                WILDFIRE (NIFC)
+              <div style={{ color: '#94a3b8', fontSize: 10, fontWeight: 700, marginBottom: 8, letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+                Active fires
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
-                <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
-                <span style={{ color: '#e2e8f0', fontSize: 10 }}>&lt;25% contained</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+                <span style={{ color: '#fca5a5', fontSize: 11, fontWeight: 600 }}>Spreading</span>
+                <span style={{ color: '#64748b', fontSize: 10 }}>&lt;25% contained</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
-                <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#f97316', flexShrink: 0 }} />
-                <span style={{ color: '#e2e8f0', fontSize: 10 }}>25–50%</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#f97316', flexShrink: 0 }} />
+                <span style={{ color: '#fdba74', fontSize: 11, fontWeight: 600 }}>Active</span>
+                <span style={{ color: '#64748b', fontSize: 10 }}>25–50%</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
-                <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#eab308', flexShrink: 0 }} />
-                <span style={{ color: '#e2e8f0', fontSize: 10 }}>50–75%</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#eab308', flexShrink: 0 }} />
+                <span style={{ color: '#fde047', fontSize: 11, fontWeight: 600 }}>Partial</span>
+                <span style={{ color: '#64748b', fontSize: 10 }}>50–75%</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
-                <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
-                <span style={{ color: '#e2e8f0', fontSize: 10 }}>75%+ contained</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+                <span style={{ color: '#86efac', fontSize: 11, fontWeight: 600 }}>Controlled</span>
+                <span style={{ color: '#64748b', fontSize: 10 }}>75%+</span>
               </div>
             </>
           )}
@@ -680,71 +684,80 @@ export default function EvacueeStatusMap({
             && Number.isFinite(stationAnchor.lat)
             && Number.isFinite(stationAnchor.lng) && (
             <>
-              <div style={{ color: '#fff', fontSize: 11, fontWeight: 700, marginBottom: 6, letterSpacing: '0.05em' }}>
-                STATION
+              <div style={{ color: '#94a3b8', fontSize: 10, fontWeight: 700, marginBottom: 8, letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+                Station
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                 <div
-                  style={{ flexShrink: 0, transform: 'scale(0.75)', transformOrigin: 'left center' }}
+                  style={{ flexShrink: 0, transform: 'scale(0.72)', transformOrigin: 'left center', width: 24, height: 24 }}
                   // eslint-disable-next-line react/no-danger
                   dangerouslySetInnerHTML={{ __html: fireStationMarkerImgHtml(32) }}
                 />
-                <span style={{ color: '#e2e8f0', fontSize: 10, lineHeight: 1.3 }}>
-                  Your fire station / command map anchor
-                </span>
+                <div>
+                  <div style={{ color: '#cbd5e1', fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Your station</div>
+                  <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Command map anchor</div>
+                </div>
               </div>
             </>
           )}
           {householdPins.length > 0 && (
             <>
-              <div style={{ color: '#fff', fontSize: 11, fontWeight: 700, marginBottom: 6, letterSpacing: '0.05em' }}>
-                EVACUEES (HOME &amp; OFFICE)
+              <div style={{ color: '#94a3b8', fontSize: 10, fontWeight: 700, marginBottom: 8, letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+                Evacuees
               </div>
-              {useHouseholdFireTint && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0, transform: 'scale(0.82)', transformOrigin: 'left center' }}>
-                    {/* eslint-disable-next-line react/no-danger */}
-                    <span dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('neutral', 'home') }} />
-                    {/* eslint-disable-next-line react/no-danger */}
-                    <span dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('neutral', 'office') }} />
-                  </div>
-                  <span style={{ color: '#e2e8f0', fontSize: 10, lineHeight: 1.3 }}>
-                    No active fire within hub radius — neutral (house = home, building = work)
-                  </span>
+              {/* Not evacuated */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 7 }}>
+                <div style={{ flexShrink: 0, transform: 'scale(0.72)', transformOrigin: 'left center', width: 24, height: 24 }}
+                  // eslint-disable-next-line react/no-danger
+                  dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('neutral', 'home') }}
+                />
+                <div>
+                  <div style={{ color: '#cbd5e1', fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Home, not evacuated</div>
+                  <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Still at address</div>
                 </div>
-              )}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0, transform: 'scale(0.82)', transformOrigin: 'left center' }}>
-                  {/* eslint-disable-next-line react/no-danger */}
-                  <span dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('cleared', 'home') }} />
-                  {/* eslint-disable-next-line react/no-danger */}
-                  <span dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('cleared', 'office') }} />
-                </div>
-                <span style={{ color: '#e2e8f0', fontSize: 10, lineHeight: 1.3 }}>
-                  {useHouseholdFireTint ? 'Fire nearby — all evacuated at that pin' : 'All evacuated (house = home, building = work / office)'}
-                </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0, transform: 'scale(0.82)', transformOrigin: 'left center' }}>
-                  {/* eslint-disable-next-line react/no-danger */}
-                  <span dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('needs_action', 'home') }} />
-                  {/* eslint-disable-next-line react/no-danger */}
-                  <span dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('needs_action', 'office') }} />
+              {/* Evacuated */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 7 }}>
+                <div style={{ flexShrink: 0, transform: 'scale(0.72)', transformOrigin: 'left center', width: 24, height: 24 }}
+                  // eslint-disable-next-line react/no-danger
+                  dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('cleared', 'home') }}
+                />
+                <div>
+                  <div style={{ color: '#4ade80', fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Evacuated — I left</div>
+                  <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Cleared location</div>
                 </div>
-                <span style={{ color: '#e2e8f0', fontSize: 10, lineHeight: 1.3 }}>
-                  {useHouseholdFireTint
-                    ? 'Fire nearby — not fully evacuated or needs EMS'
-                    : 'Not fully evacuated or needs EMS (home or work pin)'}
-                </span>
+              </div>
+              {/* Cannot evacuate */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 7 }}>
+                <div style={{ flexShrink: 0, transform: 'scale(0.72)', transformOrigin: 'left center', width: 24, height: 24 }}
+                  // eslint-disable-next-line react/no-danger
+                  dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('needs_action', 'home') }}
+                />
+                <div>
+                  <div style={{ color: '#f87171', fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Cannot evacuate</div>
+                  <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Needs assistance / EMS</div>
+                </div>
+              </div>
+              {/* Icon key */}
+              <div style={{ color: '#475569', fontSize: 9.5, lineHeight: 1.5, marginTop: 2, marginBottom: 2 }}>
+                🏠 home address &nbsp;·&nbsp; 🏢 work address
               </div>
             </>
           )}
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: 8, paddingTop: 8 }}>
-            <span style={{ color: '#64748b', fontWeight: 700, fontSize: 11 }}>{notEvacuated} not evacuated</span>
-            <span style={{ color: '#64748b', fontSize: 11 }}> · </span>
-            <span style={{ color: '#22c55e', fontWeight: 700, fontSize: 11 }}>{evacuated} evacuated</span>
-            <span style={{ color: '#64748b', fontSize: 11 }}> · </span>
-            <span style={{ color: '#ef4444', fontWeight: 700, fontSize: 11 }}>{cannotEvac} cannot evacuate</span>
+          {/* Status counts */}
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: 8, paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#64748b', flexShrink: 0 }} />
+              <span style={{ color: '#94a3b8', fontSize: 11 }}>{notEvacuated} not evacuated</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+              <span style={{ color: '#4ade80', fontSize: 11, fontWeight: 600 }}>{evacuated} evacuated</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+              <span style={{ color: '#f87171', fontSize: 11, fontWeight: 600 }}>{cannotEvac} cannot evacuate</span>
+            </div>
           </div>
         </div>
       </MapContainer>
