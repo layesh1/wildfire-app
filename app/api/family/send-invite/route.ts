@@ -112,20 +112,26 @@ export async function POST(request: Request) {
       })
     }
 
+    // Cancel any existing pending invite for this pair so we can issue a fresh token.
+    // (The unique constraint is a partial index on pending rows, so we can't upsert — cancel first.)
+    await supabase
+      .from('family_invites')
+      .update({ status: 'cancelled' })
+      .eq('inviter_user_id', user.id)
+      .ilike('invitee_email', email)
+      .eq('status', 'pending')
+
     const token = randomBytes(24).toString('hex')
-    const { error: insErr } = await supabase.from('family_invites').upsert(
-      {
-        inviter_user_id: user.id,
-        inviter_role: 'evacuee',
-        invitee_email: email,
-        token,
-        expires_at: new Date(Date.now() + 14 * 86400000).toISOString(),
-      },
-      { onConflict: 'inviter_user_id,invitee_email' }
-    )
+    const { error: insErr } = await supabase.from('family_invites').insert({
+      inviter_user_id: user.id,
+      inviter_role: 'evacuee',
+      invitee_email: email,
+      token,
+      expires_at: new Date(Date.now() + 14 * 86400000).toISOString(),
+    })
 
     if (insErr) {
-      console.error('[family/send-invite] upsert', insErr)
+      console.error('[family/send-invite] insert', insErr)
       return NextResponse.json({ error: insErr.message }, { status: 500 })
     }
 
