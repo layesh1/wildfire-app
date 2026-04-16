@@ -147,8 +147,12 @@ const FACILITY_LABELS: Record<FacilityType, string> = {
 function MapFlyTo({ target }: { target: { lat: number; lng: number; nonce: number } | null }) {
   const map = useMap()
   useEffect(() => {
-    if (!target) return
-    map.flyTo([target.lat, target.lng], 15, { duration: 0.85 })
+    if (!target || !Number.isFinite(target.lat) || !Number.isFinite(target.lng)) return
+    // setTimeout ensures flyTo runs after any fitBounds effects triggered in the same render cycle
+    const id = setTimeout(() => {
+      map.flyTo([target.lat, target.lng], 16, { duration: 0.9 })
+    }, 50)
+    return () => clearTimeout(id)
   }, [map, target?.lat, target?.lng, target?.nonce])
   return null
 }

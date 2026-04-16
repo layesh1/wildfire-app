@@ -356,6 +356,18 @@ export default function ResponderEvacuationMap({
     return { evacuated, not_evacuated, cannot_evacuate }
   }, [householdPins])
 
+  const stationAnchor = useMemo(
+    () =>
+      stationAddressGeocodeFailed
+        ? null
+        : {
+            lat: effectiveMapCenter[0],
+            lng: effectiveMapCenter[1],
+            label: stationAddressForDirections?.trim() || null,
+          },
+    [stationAddressGeocodeFailed, effectiveMapCenter, stationAddressForDirections]
+  )
+
   // Flat list of members matching the active status filter, with their pin's lat/lng for map focus.
   const filteredPeople = useMemo(() => {
     if (!statusFilter) return []
@@ -568,15 +580,7 @@ export default function ResponderEvacuationMap({
                 nifcFires={nifcForEvacMap}
                 showNifcPredictionOverlays={showFirePredictions}
                 windData={windData}
-                stationAnchor={
-                  stationAddressGeocodeFailed
-                    ? null
-                    : {
-                        lat: effectiveMapCenter[0],
-                        lng: effectiveMapCenter[1],
-                        label: stationAddressForDirections?.trim() || null,
-                      }
-                }
+                stationAnchor={stationAnchor}
                 householdFireTintProximityMiles={incidentRadiusMiles}
                 householdTintNifcFires={nifcForEvacMap}
                 firefighters={firefighterPins}
