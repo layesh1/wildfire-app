@@ -740,7 +740,7 @@ export default function EvacueeStatusMap({
               </div>
               {/* Icon key */}
               <div style={{ color: '#475569', fontSize: 9.5, lineHeight: 1.5, marginTop: 2, marginBottom: 2 }}>
-                🏠 home address &nbsp;·&nbsp; 🏢 work address
+                house pin = home address &nbsp;·&nbsp; building pin = work
               </div>
             </>
           )}

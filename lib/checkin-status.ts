@@ -23,17 +23,17 @@ export type HomeCheckinStatusOption = {
 export const HOME_CHECKIN_STATUS_OPTIONS: HomeCheckinStatusOption[] = [
   {
     value: 'not_evacuated',
-    label: '🏠 Home, not evacuated',
+    label: 'Home, not evacuated',
     desc: 'You are still at home and have not left the area.',
   },
   {
     value: 'evacuated',
-    label: '🚗 Evacuated — I left',
+    label: 'Evacuated — I left',
     desc: 'You have left the hazard area.',
   },
   {
     value: 'cannot_evacuate',
-    label: '⚠️ Cannot evacuate — need help',
+    label: 'Cannot evacuate — need help',
     desc: 'You cannot leave safely without assistance.',
   },
 ]
@@ -56,10 +56,10 @@ export type PersonSafetyCheckinOption = {
 
 /** Options for "My Personal Safety" — maps to profiles.person_safety_status. */
 export const PERSON_SAFETY_CHECKIN_STATUS_OPTIONS: PersonSafetyCheckinOption[] = [
-  { value: 'safe', label: '✅ Safe' },
-  { value: 'at_shelter', label: '🏥 At a shelter' },
-  { value: 'safe_elsewhere', label: '📍 Safe elsewhere' },
-  { value: 'need_help', label: '🆘 Need help' },
+  { value: 'safe', label: 'Safe' },
+  { value: 'at_shelter', label: 'At a shelter' },
+  { value: 'safe_elsewhere', label: 'Safe elsewhere' },
+  { value: 'need_help', label: 'Need help' },
 ]
 
 // ── Type guards ─────────────────────────────────────────────────────────────

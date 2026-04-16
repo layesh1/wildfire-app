@@ -206,7 +206,7 @@ function HouseholdPopupBody({
                     cursor: busy ? 'wait' : 'pointer',
                   }}
                 >
-                  ✓ Checked — Evacuated
+                  ✓ Evacuated — I left
                 </button>
                 <button
                   type="button"
@@ -223,7 +223,7 @@ function HouseholdPopupBody({
                     cursor: busy ? 'wait' : 'pointer',
                   }}
                 >
-                  ✓ Checked — Needs EMS
+                  ✓ Cannot evacuate
                 </button>
               </div>
             </div>
