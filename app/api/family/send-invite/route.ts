@@ -113,22 +113,19 @@ export async function POST(request: Request) {
     }
 
     const token = randomBytes(24).toString('hex')
-    const { error: insErr } = await supabase.from('family_invites').insert({
-      inviter_user_id: user.id,
-      inviter_role: 'evacuee',
-      invitee_email: email,
-      token,
-      expires_at: new Date(Date.now() + 14 * 86400000).toISOString(),
-    })
+    const { error: insErr } = await supabase.from('family_invites').upsert(
+      {
+        inviter_user_id: user.id,
+        inviter_role: 'evacuee',
+        invitee_email: email,
+        token,
+        expires_at: new Date(Date.now() + 14 * 86400000).toISOString(),
+      },
+      { onConflict: 'inviter_user_id,invitee_email' }
+    )
 
     if (insErr) {
-      if (insErr.code === '23505') {
-        return NextResponse.json(
-          { error: 'You already have a pending invite for that email.' },
-          { status: 409 }
-        )
-      }
-      console.error('[family/send-invite] insert', insErr)
+      console.error('[family/send-invite] upsert', insErr)
       return NextResponse.json({ error: insErr.message }, { status: 500 })
     }
 
