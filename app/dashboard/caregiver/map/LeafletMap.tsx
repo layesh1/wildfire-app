@@ -219,71 +219,71 @@ function MapLegend({
     <div style={{
       position: 'absolute', bottom: 24, right: 10, zIndex: 1000,
       background: 'rgba(15,23,42,0.88)', backdropFilter: 'blur(4px)',
-      border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10,
-      padding: '8px 12px', color: '#cbd5e1', fontSize: 13, lineHeight: '1.8',
-      maxWidth: 220,
+      border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8,
+      padding: '6px 9px', color: '#cbd5e1', fontSize: 11, lineHeight: '1.55',
+      maxWidth: 175,
     }}>
-      <div style={{ fontWeight: 700, color: '#f1f5f9', marginBottom: 4, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Legend</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
-        Active threat (&lt;25% contained)
+      <div style={{ fontWeight: 700, color: '#f1f5f9', marginBottom: 3, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Legend</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <div style={{ width: 9, height: 9, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+        Active threat (&lt;25%)
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#f97316', flexShrink: 0 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <div style={{ width: 9, height: 9, borderRadius: '50%', background: '#f97316', flexShrink: 0 }} />
         Still spreading (25–50%)
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#eab308', flexShrink: 0 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <div style={{ width: 9, height: 9, borderRadius: '50%', background: '#eab308', flexShrink: 0 }} />
         Being controlled (50–75%)
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <div style={{ width: 9, height: 9, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
         Mostly contained (75%+)
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#3b82f6', flexShrink: 0 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <div style={{ width: 9, height: 9, borderRadius: '50%', background: '#3b82f6', flexShrink: 0 }} />
         Your location
       </div>
       {showHomePin && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#a855f7', flexShrink: 0 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <div style={{ width: 9, height: 9, borderRadius: '50%', background: '#a855f7', flexShrink: 0 }} />
           Home (saved address)
         </div>
       )}
       {showShelters && (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden>
-              <svg width="22" height="22" viewBox="0 0 28 28">
+              <svg width="16" height="16" viewBox="0 0 28 28">
                 <circle cx="14" cy="14" r="11" fill="#22c55e" fillOpacity={0.25} stroke="#16a34a" strokeWidth="2" />
                 <path d="M8 14.5l4 4 8-9" fill="none" stroke="#15803d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </span>
-            <span>Open shelter (FEMA feed)</span>
+            <span>Open shelter (FEMA)</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} aria-hidden>
-              <svg width="22" height="22" viewBox="0 0 28 28">
+              <svg width="16" height="16" viewBox="0 0 28 28">
                 <circle cx="14" cy="14" r="11" fill="#64748b" fillOpacity={0.35} stroke="#475569" strokeWidth="2" />
                 <text x="14" y="18" textAnchor="middle" fontSize="11" fill="#e2e8f0">&#x1F4CD;</text>
               </svg>
             </span>
-            <span>Pre-identified (unconfirmed)</span>
+            <span>Pre-identified</span>
           </div>
         </>
       )}
       {showFacilities && (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 12 }}>☢</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ fontSize: 10 }}>☢</span>
             Nuclear facility
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 12 }}>⚗</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ fontSize: 10 }}>⚗</span>
             Chemical plant
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 12 }}>⚡</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <span style={{ fontSize: 10 }}>⚡</span>
             LNG / Energy
           </div>
         </>
