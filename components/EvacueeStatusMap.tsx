@@ -742,10 +742,7 @@ export default function EvacueeStatusMap({
                   <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Needs assistance / EMS</div>
                 </div>
               </div>
-              {/* Icon key */}
-              <div style={{ color: '#475569', fontSize: 9.5, lineHeight: 1.5, marginTop: 2, marginBottom: 2 }}>
-                house pin = home address &nbsp;·&nbsp; building pin = work
-              </div>
+
             </>
           )}
           {/* Status counts */}
