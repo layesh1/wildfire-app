@@ -15,6 +15,8 @@ import {
   Phone,
   Heart,
   Flame,
+  X,
+  Navigation,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import type { HouseholdPin } from '@/lib/responder-household'
@@ -98,6 +100,7 @@ export default function ResponderEvacuationMap({
   const [responderProfiles, setResponderProfiles] = useState<ResponderVisibleProfile[]>([])
   const [commandBriefingKey, setCommandBriefingKey] = useState(0)
   const [mapFocus, setMapFocus] = useState<{ lat: number; lng: number; nonce: number } | null>(null)
+  const [statusFilter, setStatusFilter] = useState<'evacuated' | 'not_evacuated' | 'cannot_evacuate' | null>(null)
   const [nifcFires, setNifcFires] = useState<NifcFire[]>([])
   const [windData, setWindData] = useState<WindData | null>(null)
   const [firefighterPins, setFirefighterPins] = useState<FirefighterPin[]>([])
@@ -353,6 +356,22 @@ export default function ResponderEvacuationMap({
     return { evacuated, not_evacuated, cannot_evacuate }
   }, [householdPins])
 
+  // Flat list of members matching the active status filter, with their pin's lat/lng for map focus.
+  const filteredPeople = useMemo(() => {
+    if (!statusFilter) return []
+    const matchStatus = statusFilter === 'cannot_evacuate' ? 'cannot_evacuate' : statusFilter
+    return householdPins.flatMap(pin =>
+      pin.members
+        .filter(m => {
+          const s = m.home_evacuation_status
+          if (matchStatus === 'cannot_evacuate') return s === 'cannot_evacuate'
+          if (matchStatus === 'evacuated') return s === 'evacuated'
+          return s === 'not_evacuated' || !s
+        })
+        .map(m => ({ ...m, pinLat: pin.lat, pinLng: pin.lng, pinAddress: pin.address }))
+    )
+  }, [householdPins, statusFilter])
+
   return (
     <div
       className="flex min-h-0 w-full flex-1 flex-col overflow-hidden"
@@ -399,21 +418,45 @@ export default function ResponderEvacuationMap({
         )}
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 sm:ml-2">
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-signal-safe/10 border border-signal-safe/20">
+          <button
+            type="button"
+            onClick={() => setStatusFilter(f => f === 'evacuated' ? null : 'evacuated')}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border transition-all text-left ${
+              statusFilter === 'evacuated'
+                ? 'bg-signal-safe/20 border-signal-safe/60 ring-1 ring-signal-safe/40'
+                : 'bg-signal-safe/10 border-signal-safe/20 hover:bg-signal-safe/20'
+            }`}
+          >
             <CheckCircle className="w-3 h-3 text-signal-safe" />
             <span className="text-signal-safe text-xs font-bold">{byHome.evacuated}</span>
             <span className="text-gray-500 dark:text-ash-500 text-xs">evacuated</span>
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-gray-100 border border-gray-200 dark:bg-ash-800 dark:border-ash-600">
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter(f => f === 'not_evacuated' ? null : 'not_evacuated')}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border transition-all text-left ${
+              statusFilter === 'not_evacuated'
+                ? 'bg-gray-200 border-gray-400 ring-1 ring-gray-400/50 dark:bg-ash-700 dark:border-ash-400'
+                : 'bg-gray-100 border-gray-200 hover:bg-gray-200 dark:bg-ash-800 dark:border-ash-600 dark:hover:bg-ash-700'
+            }`}
+          >
             <MapPin className="w-3 h-3 text-gray-500 dark:text-ash-400" />
             <span className="text-gray-800 dark:text-ash-300 text-xs font-bold">{byHome.not_evacuated}</span>
             <span className="text-gray-500 dark:text-ash-500 text-xs">not evacuated</span>
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-red-50 border border-red-200 dark:bg-signal-danger/10 dark:border-signal-danger/30">
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter(f => f === 'cannot_evacuate' ? null : 'cannot_evacuate')}
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border transition-all text-left ${
+              statusFilter === 'cannot_evacuate'
+                ? 'bg-red-100 border-red-400 ring-1 ring-red-400/50 dark:bg-signal-danger/20 dark:border-signal-danger/60'
+                : 'bg-red-50 border-red-200 hover:bg-red-100 dark:bg-signal-danger/10 dark:border-signal-danger/30 dark:hover:bg-signal-danger/20'
+            }`}
+          >
             <AlertTriangle className="w-3 h-3 text-red-600 dark:text-signal-danger" />
             <span className="text-red-700 dark:text-signal-danger text-xs font-bold">{byHome.cannot_evacuate}</span>
             <span className="text-gray-500 dark:text-ash-500 text-xs">cannot evacuate</span>
-          </div>
+          </button>
         </div>
 
         <button
@@ -545,6 +588,62 @@ export default function ResponderEvacuationMap({
             </div>
 
             <div className="w-full max-h-[45vh] lg:max-h-none lg:w-[26rem] shrink-0 flex flex-col overflow-hidden border-t border-gray-200 bg-gray-50/80 dark:border-ash-800 dark:bg-ash-950 lg:border-t-0 lg:border-l">
+
+              {/* Status filter panel — visible when a pill is active */}
+              {statusFilter && (
+                <div className="shrink-0 border-b border-gray-200 dark:border-ash-800 bg-white dark:bg-ash-900 flex flex-col">
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-ash-800">
+                    <span className="text-xs font-semibold text-gray-900 dark:text-white">
+                      {statusFilter === 'evacuated' && `${filteredPeople.length} evacuated`}
+                      {statusFilter === 'not_evacuated' && `${filteredPeople.length} not evacuated`}
+                      {statusFilter === 'cannot_evacuate' && `${filteredPeople.length} cannot evacuate`}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setStatusFilter(null)}
+                      className="text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors"
+                      aria-label="Clear filter"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  <div className="overflow-y-auto max-h-52">
+                    {filteredPeople.length === 0 ? (
+                      <p className="px-3 py-3 text-xs text-gray-400 dark:text-ash-500">No people in this category.</p>
+                    ) : (
+                      filteredPeople.map((person, i) => (
+                        <button
+                          key={person.id ?? i}
+                          type="button"
+                          onClick={() => setMapFocus({ lat: person.pinLat, lng: person.pinLng, nonce: Date.now() })}
+                          className="w-full flex items-start gap-2.5 px-3 py-2.5 border-b border-gray-100 dark:border-ash-800 last:border-0 hover:bg-gray-50 dark:hover:bg-ash-800/60 transition-colors text-left group"
+                        >
+                          <Navigation className="w-3 h-3 mt-0.5 shrink-0 text-gray-300 dark:text-ash-600 group-hover:text-signal-info transition-colors" />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-semibold text-gray-900 dark:text-white truncate">
+                              {person.name || 'Unknown'}
+                            </div>
+                            <div className="text-[10px] text-gray-500 dark:text-ash-400 truncate mt-0.5">
+                              {person.pinAddress}
+                            </div>
+                            {person.phone && (
+                              <div className="text-[10px] text-gray-400 dark:text-ash-500 mt-0.5">{person.phone}</div>
+                            )}
+                          </div>
+                          <span className={`shrink-0 text-[10px] font-medium mt-0.5 ${
+                            statusFilter === 'evacuated' ? 'text-signal-safe' :
+                            statusFilter === 'cannot_evacuate' ? 'text-red-500 dark:text-signal-danger' :
+                            'text-gray-500 dark:text-ash-400'
+                          }`}>
+                            Go to ›
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
               <FlameoCommandRoom
                 householdPins={householdPins}
                 firefighterPins={firefighterPins}
