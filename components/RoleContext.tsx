@@ -90,6 +90,7 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
     } else {
       localStorage.removeItem('wfa_active_person_id')
       localStorage.setItem('wfa_role_mode', 'self')
+      setModeState('self')
     }
   }, [])
 

@@ -132,113 +132,166 @@ function toRolePerson(p: MonitoredPerson): RolePerson {
   }
 }
 
+const HUB_PEOPLE_ROW_BASE =
+  'w-full rounded-xl border px-3 py-2.5 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60'
+const HUB_PEOPLE_ROW_SELECTED =
+  'border-amber-600 bg-amber-50/80 dark:border-amber-500 dark:bg-gray-800'
+const HUB_PEOPLE_ROW_IDLE = 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
+
+type HubPersonStatus = {
+  home?: HomeEvacuationStatus
+  safety?: PersonSafetyStatus
+  homeAt?: string | null
+  safetyAt?: string | null
+}
+
+/** Shared My People rows: map/Flameo anchor via RoleContext; status + address under mobility. */
+function HubMyPeopleRows({
+  monitoredOthers,
+  personStatuses,
+  liveAddressLabel,
+  isAwayFromHome,
+  viewingSelf,
+  selectedMemberId,
+  onSelectSelf,
+  onSelectMember,
+  missingHomeAddress,
+  userProfile,
+}: {
+  monitoredOthers: MonitoredPerson[]
+  personStatuses: Record<string, HubPersonStatus>
+  liveAddressLabel: string
+  isAwayFromHome: boolean
+  viewingSelf: boolean
+  selectedMemberId: string | null
+  onSelectSelf: () => void
+  onSelectMember: (p: RolePerson) => void
+  missingHomeAddress: boolean
+  userProfile: {
+    full_name?: string
+    email?: string
+    address?: string | null
+    work_address?: string | null
+  } | null
+}) {
+  return (
+    <>
+      <button type="button" onClick={onSelectSelf} className={cn(HUB_PEOPLE_ROW_BASE, HUB_PEOPLE_ROW_IDLE)}>
+        <div className="text-xs font-semibold text-gray-900 dark:text-white">Live location</div>
+        <div
+          className="line-clamp-2 break-words text-[11px] leading-snug text-gray-500 dark:text-gray-400"
+          title={liveAddressLabel}
+        >
+          {liveAddressLabel}
+        </div>
+        {isAwayFromHome && (
+          <div className="mt-1 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
+            Live location differs from home
+          </div>
+        )}
+      </button>
+
+      <button
+        type="button"
+        onClick={onSelectSelf}
+        className={cn(
+          HUB_PEOPLE_ROW_BASE,
+          missingHomeAddress
+            ? 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40'
+            : viewingSelf
+              ? HUB_PEOPLE_ROW_SELECTED
+              : HUB_PEOPLE_ROW_IDLE
+        )}
+      >
+        <div className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          Me
+        </div>
+        <div className="text-xs font-semibold text-gray-900 dark:text-white">
+          {userProfile?.full_name?.trim() || 'You'}
+        </div>
+        {userProfile?.email && (
+          <div className="text-[11px] text-gray-500 dark:text-gray-400">{userProfile.email}</div>
+        )}
+        <div className="mt-1.5 space-y-1 text-[11px] text-gray-500 dark:text-gray-400">
+          <div>
+            <span className="font-medium text-gray-900 dark:text-white">Home:</span>{' '}
+            {userProfile?.address?.trim() || (
+              <span className="font-medium text-amber-800 dark:text-amber-200">
+                Add your address in Settings to unlock hub features
+              </span>
+            )}
+          </div>
+          <div>
+            <span className="font-medium text-gray-900 dark:text-white">Work:</span>{' '}
+            {userProfile?.work_address?.trim() || 'Not set'}
+          </div>
+        </div>
+      </button>
+
+      {monitoredOthers.map(p => {
+        const st = personStatuses[p.id]
+        const memberSelected = Boolean(selectedMemberId && selectedMemberId === p.id)
+        return (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => onSelectMember(toRolePerson(p))}
+            className={cn(
+              HUB_PEOPLE_ROW_BASE,
+              memberSelected ? HUB_PEOPLE_ROW_SELECTED : HUB_PEOPLE_ROW_IDLE
+            )}
+          >
+            <div className="truncate text-xs font-semibold text-gray-900 dark:text-white">{p.name}</div>
+            <div className="truncate text-[11px] text-gray-500 dark:text-gray-400">
+              {p.familyRelation || p.relationship}
+            </div>
+            <div className="truncate text-[11px] text-gray-500 dark:text-gray-400">
+              {p.mobilityOther || p.mobility || '—'}
+            </div>
+            {p.address?.trim() && (
+              <div className="mt-1 line-clamp-2 text-left text-[10px] leading-snug text-gray-600 dark:text-gray-300">
+                <span className="font-semibold text-gray-700 dark:text-gray-200">Location: </span>
+                {p.address.trim()}
+              </div>
+            )}
+            {(st?.home || st?.safety) ? (
+              <div className="mt-2 space-y-1 border-t border-gray-100 pt-2 text-left text-[10px] text-gray-800 dark:border-gray-600 dark:text-gray-100">
+                {st.home && (
+                  <div>
+                    <span className="font-semibold">Home evacuation: </span>
+                    {labelForHomeEvacuationStatus(st.home)}
+                    {st.homeAt && (
+                      <span className="text-gray-500 dark:text-gray-400"> · {new Date(st.homeAt).toLocaleString()}</span>
+                    )}
+                  </div>
+                )}
+                {st.safety && (
+                  <div>
+                    <span className="font-semibold">Safety: </span>
+                    {PERSON_SAFETY_CHECKIN_STATUS_OPTIONS.find(o => o.value === st.safety)?.label}
+                    {st.safetyAt && (
+                      <span className="text-gray-500 dark:text-gray-400"> · {new Date(st.safetyAt).toLocaleString()}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="mt-2 border-t border-gray-100 pt-2 text-left text-[10px] text-gray-500 dark:border-gray-600 dark:text-gray-400">
+                Evacuation and safety status appear here after their next check-in.
+              </p>
+            )}
+          </button>
+        )
+      })}
+    </>
+  )
+}
+
 const STAGE_META: Record<EvacStage, { bg: string; text: string; action: string }> = {
   'Order issued':    { bg: '#c86432', text: 'white',    action: 'Mandatory evacuation — go immediately. Shelter info on map.' },
   'Warning issued':  { bg: '#d97706', text: 'white',    action: 'Leave NOW — do not wait for Order. In high-SVI counties, a formal order may never be issued.' },
   'Advisory issued': { bg: '#d4a574', text: '#3e2723',  action: 'Load car, move valuables, prepare to leave immediately.' },
   'Watch (now)':     { bg: '#7cb342', text: 'white',    action: 'Pack go-bag, fill gas, locate pets, know your route.' },
-}
-
-function mobilityStatus(m: string): 'safe' | 'caution' | 'danger' {
-  const l = (m || '').toLowerCase()
-  if (l.includes('oxygen') || l.includes('bedridden') || l.includes('medical')) return 'danger'
-  if (l.includes('wheelchair') || l.includes('limited') || l.includes('walker')) return 'caution'
-  return 'safe'
-}
-
-const STATUS_COLORS = {
-  safe:    '#7cb342',
-  caution: '#d4a574',
-  danger:  '#c86432',
-}
-
-// ── Person tracking card ──────────────────────────────────────────────────────
-function PersonCard({ person, index }: { person: MonitoredPerson; index: number }) {
-  const status  = mobilityStatus(person.mobility)
-  const color   = STATUS_COLORS[status]
-  const isPrimary = index === 0
-
-  return (
-    <div
-      className="rounded-2xl p-4 transition-shadow hover:shadow-md"
-      style={{
-        background: isPrimary
-          ? 'linear-gradient(135deg, #c86432 0%, #8b3a1a 100%)'
-          : 'var(--wfa-panel-solid)',
-        border: isPrimary ? 'none' : `1.5px solid ${color}40`,
-      }}
-    >
-      {/* Name + badge */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1 min-w-0 pr-2">
-          <div
-            className={`font-semibold text-sm truncate ${isPrimary ? 'text-white' : ''}`}
-            style={isPrimary ? undefined : { color: 'var(--wfa-text)' }}
-          >
-            {person.name}
-          </div>
-          <div
-            className={`text-xs mt-0.5 ${isPrimary ? 'text-white/60' : ''}`}
-            style={isPrimary ? undefined : { color: 'var(--wfa-text-50)' }}
-          >
-            {person.familyRelation || person.relationship}
-          </div>
-        </div>
-        <span
-          className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide shrink-0"
-          style={{
-            background: isPrimary ? 'rgba(255,255,255,0.2)' : color + '20',
-            color: isPrimary ? 'white' : color,
-            border: `1px solid ${isPrimary ? 'rgba(255,255,255,0.3)' : color + '50'}`,
-          }}
-        >
-          {status}
-        </span>
-      </div>
-
-      {/* Mobility pill */}
-      {person.mobility && (
-        <div
-          className="inline-block text-[11px] px-2.5 py-1 rounded-xl mb-3"
-          style={{
-            background: isPrimary ? 'rgba(255,255,255,0.15)' : 'var(--wfa-tag-bg)',
-            color: isPrimary ? 'rgba(255,255,255,0.8)' : 'var(--wfa-text)',
-          }}
-        >
-          {person.mobilityOther || person.mobility}
-        </div>
-      )}
-
-      {/* Timeline dots */}
-      <div className="space-y-1.5">
-        {person.address && (
-          <div className={`flex items-center gap-2 text-xs ${isPrimary ? 'text-white/55' : 'text-gray-400'}`}>
-            <div className="w-2 h-2 rounded-full shrink-0"
-              style={{ background: color }} />
-            <span className="truncate">{person.address}</span>
-          </div>
-        )}
-        {person.phone && (
-          <div className={`flex items-center gap-2 text-xs ${isPrimary ? 'text-white/55' : 'text-gray-400'}`}>
-            <div className="w-2 h-2 rounded-full shrink-0 bg-gray-300" />
-            <span>{person.phone}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Quick call on featured card */}
-      {isPrimary && person.phone && (
-        <a
-          href={`tel:${person.phone}`}
-          className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-colors hover:bg-white/90"
-          style={{ background: 'var(--wfa-call-btn-bg)', color: 'var(--wfa-accent)' }}
-        >
-          <Phone className="w-3 h-3" />
-          Call {person.name.split(' ')[0]}
-        </a>
-      )}
-    </div>
-  )
 }
 
 // ── Main dashboard (household = evacuee; canonical route /dashboard/home) ───
@@ -1422,45 +1475,27 @@ export function ConsumerHubDashboard({
         {/* My People */}
         {showPeopleRail && (
           <div data-hub-tour="people" className="space-y-4">
-            {persons.length > 0 && (
-              <div>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-gray-900 dark:text-white">My People</div>
-                <div className="space-y-2">
-                  {meCard}
-                  {persons.map((p, i) => (
-                    <div key={p.id}>
-                      <PersonCard person={p} index={i} />
-                      {personStatuses[p.id] && (personStatuses[p.id].home || personStatuses[p.id].safety) && (
-                        <div className="mt-2 rounded-xl px-3 py-2 text-[11px] border bg-white/80" style={{ borderColor: 'var(--wfa-border)' }}>
-                          {personStatuses[p.id].home && (
-                            <div className="text-gray-800">
-                              <span className="font-semibold">Home: </span>
-                              {labelForHomeEvacuationStatus(personStatuses[p.id].home!)}
-                              {personStatuses[p.id].homeAt && (
-                                <span className="text-gray-500 ml-1">
-                                  · {new Date(personStatuses[p.id].homeAt!).toLocaleString()}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                          {personStatuses[p.id].safety && (
-                            <div className="text-gray-800 mt-1">
-                              <span className="font-semibold">Safety: </span>
-                              {PERSON_SAFETY_CHECKIN_STATUS_OPTIONS.find(o => o.value === personStatuses[p.id].safety)?.label}
-                              {personStatuses[p.id].safetyAt && (
-                                <span className="text-gray-500 ml-1">
-                                  · {new Date(personStatuses[p.id].safetyAt!).toLocaleString()}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+            <div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-gray-900 dark:text-white">My People</div>
+              <p className="mb-2 text-[11px] leading-snug text-gray-600 dark:text-gray-400">
+                Tap <span className="font-semibold text-gray-800 dark:text-gray-200">Me</span> or{' '}
+                <span className="font-semibold text-gray-800 dark:text-gray-200">Live location</span> for your map; tap a family row to center on them. Evacuation status and home address appear on each row when shared.
+              </p>
+              <div className="space-y-2">
+                <HubMyPeopleRows
+                  monitoredOthers={monitoredOthers}
+                  personStatuses={personStatuses}
+                  liveAddressLabel={liveAddressLabel}
+                  isAwayFromHome={isAwayFromHome}
+                  viewingSelf={!isViewingMember}
+                  selectedMemberId={isViewingMember && activePerson ? activePerson.id : null}
+                  onSelectSelf={() => { setMode('self'); setActivePerson(null) }}
+                  onSelectMember={setActivePerson}
+                  missingHomeAddress={missingHomeAddress}
+                  userProfile={userProfile}
+                />
               </div>
-            )}
+            </div>
           <div className="space-y-2 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <div className="text-sm font-semibold text-gray-900 dark:text-white">My People</div>
             <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-400">
@@ -1604,76 +1639,25 @@ export function ConsumerHubDashboard({
               </div>
               <div className="mt-1 text-xs leading-snug text-gray-600 dark:text-gray-400">
                 {showPeopleRail
-                  ? 'If you are caring for somebody or watching out for your family, add them here. Tap a row to center the map.'
+                  ? 'If you are caring for somebody or watching out for your family, add them here. Tap Me or Live location for your map, or a family row for theirs.'
                   : 'Address powers nearby alerts'}
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {showPeopleRail ? (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => { setMode('self'); setActivePerson(null) }}
-                    className={cn(
-                      'w-full rounded-xl border px-3 py-2.5 text-left transition-all',
-                      mode === 'self'
-                        ? 'border-amber-600 bg-amber-50/80 dark:border-amber-500 dark:bg-gray-800'
-                        : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
-                    )}
-                  >
-                    <div className="text-xs font-semibold text-gray-900 dark:text-white">Live location</div>
-                    <div
-                      className="line-clamp-2 break-words text-[11px] leading-snug text-gray-500 dark:text-gray-400"
-                      title={liveAddressLabel}
-                    >
-                      {liveAddressLabel}
-                    </div>
-                    {isAwayFromHome && (
-                      <div className="mt-1 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
-                        Live location differs from home
-                      </div>
-                    )}
-                  </button>
-                  {meCard}
-                  {monitoredOthers.map((p) => (
-                    <div key={p.id} className="space-y-1">
-                      <button
-                        type="button"
-                        onClick={() => setActivePerson(toRolePerson(p))}
-                        className={cn(
-                          'w-full rounded-xl border px-3 py-2.5 text-left transition-all',
-                          activePerson?.id === p.id
-                            ? 'border-amber-600 bg-amber-50/80 dark:border-amber-500 dark:bg-gray-800'
-                            : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'
-                        )}
-                      >
-                        <div className="truncate text-xs font-semibold text-gray-900 dark:text-white">{p.name}</div>
-                        <div className="truncate text-[11px] text-gray-500 dark:text-gray-400">{p.mobilityOther || p.mobility || '—'}</div>
-                      </button>
-                      {personStatuses[p.id] && (personStatuses[p.id].home || personStatuses[p.id].safety) && (
-                        <div className="space-y-0.5 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-[10px] text-gray-800 dark:border-gray-600 dark:bg-gray-800/60 dark:text-gray-100">
-                          {personStatuses[p.id].home && (
-                            <div>
-                              <span className="font-semibold">Home:</span>{' '}
-                              {labelForHomeEvacuationStatus(personStatuses[p.id].home!)}
-                              {personStatuses[p.id].homeAt && (
-                                <span className="text-gray-500 dark:text-gray-400"> · {new Date(personStatuses[p.id].homeAt!).toLocaleString()}</span>
-                              )}
-                            </div>
-                          )}
-                          {personStatuses[p.id].safety && (
-                            <div>
-                              <span className="font-semibold">Safety:</span>{' '}
-                              {PERSON_SAFETY_CHECKIN_STATUS_OPTIONS.find(o => o.value === personStatuses[p.id].safety)?.label}
-                              {personStatuses[p.id].safetyAt && (
-                                <span className="text-gray-500 dark:text-gray-400"> · {new Date(personStatuses[p.id].safetyAt!).toLocaleString()}</span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                  <HubMyPeopleRows
+                    monitoredOthers={monitoredOthers}
+                    personStatuses={personStatuses}
+                    liveAddressLabel={liveAddressLabel}
+                    isAwayFromHome={isAwayFromHome}
+                    viewingSelf={!isViewingMember}
+                    selectedMemberId={isViewingMember && activePerson ? activePerson.id : null}
+                    onSelectSelf={() => { setMode('self'); setActivePerson(null) }}
+                    onSelectMember={setActivePerson}
+                    missingHomeAddress={missingHomeAddress}
+                    userProfile={userProfile}
+                  />
                   <Link
                     href={personsManageHref}
                     className="flex items-center justify-center gap-1 text-xs font-semibold py-2.5 rounded-xl border border-dashed"
