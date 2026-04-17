@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { Users, CheckCircle, MessageSquare, Phone, Plus, X, Copy, MapPin } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
-import { loadPersons, savePersons } from '@/lib/user-data'
+import { loadMonitoredPersonsForHub, savePersons } from '@/lib/user-data'
 
 type CheckinStatus = 'confirmed_safe' | 'waiting' | 'needs_help' | 'unknown'
 interface Person {
@@ -60,7 +60,7 @@ export default function MobilePersonsPage() {
       try {
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
-          const persons = await loadPersons(supabase, user.id)
+          const persons = await loadMonitoredPersonsForHub(supabase, user.id)
           if (persons.length > 0) { setPersons(persons); return }
         }
       } catch {}

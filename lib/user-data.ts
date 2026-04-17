@@ -34,6 +34,88 @@ export function monitoredPersonsExcludingSelf<
   return persons.filter(p => !isPlaceholderSelfMonitoredPerson(p))
 }
 
+/**
+ * Loads `monitored_persons` then merges anyone linked in `caregiver_family_links` where this user is
+ * **either** caregiver or evacuee — so when A adds B, B’s hub shows A even if only the forward row
+ * exists or `monitored_persons` JSON was never written on B’s profile.
+ */
+export async function loadMonitoredPersonsForHub(supabase: SupabaseClient, userId: string): Promise<any[]> {
+  const base = await loadPersons(supabase, userId)
+  const list = Array.isArray(base) ? base : []
+  const byId = new Map<string, Record<string, unknown>>()
+  for (const p of list as Record<string, unknown>[]) {
+    const id = String(p?.id ?? '').trim()
+    if (id) byId.set(id, p)
+  }
+
+  const { data: links, error: linkErr } = await supabase
+    .from('caregiver_family_links')
+    .select('caregiver_user_id, evacuee_user_id')
+    .or(`caregiver_user_id.eq.${userId},evacuee_user_id.eq.${userId}`)
+
+  if (linkErr || !Array.isArray(links) || links.length === 0) {
+    return list
+  }
+
+  const linkedOthers = new Set<string>()
+  for (const row of links as { caregiver_user_id?: string; evacuee_user_id?: string }[]) {
+    const c = String(row?.caregiver_user_id ?? '').trim()
+    const e = String(row?.evacuee_user_id ?? '').trim()
+    if (c === userId && e && e !== userId) linkedOthers.add(e)
+    else if (e === userId && c && c !== userId) linkedOthers.add(c)
+  }
+
+  const linkedIds = [...linkedOthers]
+
+  const missingIds = linkedIds.filter(id => !byId.has(id))
+  if (missingIds.length === 0) {
+    return list
+  }
+
+  const { data: profs, error: profErr } = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .in('id', missingIds)
+
+  let addedFromLinks = 0
+  if (!profErr && Array.isArray(profs)) {
+    for (const pr of profs as { id?: string; full_name?: string | null }[]) {
+      const id = String(pr?.id ?? '').trim()
+      if (!id || byId.has(id)) continue
+      const name = (typeof pr.full_name === 'string' ? pr.full_name.trim() : '') || 'Family'
+      byId.set(id, {
+        id,
+        name,
+        relationship: 'Family',
+        familyRelation: 'Family',
+        mobility: 'Mobile Adult',
+        address: '',
+        phone: '',
+        email: '',
+        notes: '',
+      })
+      addedFromLinks += 1
+    }
+  }
+
+  const merged = Array.from(byId.values())
+  try {
+    localStorage.setItem(PERSONS_LS, JSON.stringify(merged))
+  } catch {}
+
+  if (addedFromLinks > 0) {
+    const { error: upErr } = await supabase
+      .from('profiles')
+      .update({ monitored_persons: merged })
+      .eq('id', userId)
+    if (upErr) {
+      console.error('[loadMonitoredPersonsForHub] backfill monitored_persons failed:', upErr.message, upErr)
+    }
+  }
+
+  return merged
+}
+
 export async function loadPersons(supabase: SupabaseClient, userId: string): Promise<any[]> {
   try {
     const { data } = await supabase
@@ -65,13 +147,10 @@ export async function loadPersons(supabase: SupabaseClient, userId: string): Pro
 export async function savePersons(supabase: SupabaseClient, userId: string, persons: any[]) {
   // Always write localStorage immediately (cache)
   try { localStorage.setItem(PERSONS_LS, JSON.stringify(persons)) } catch {}
-  // Write to DB (best effort)
-  try {
-    await supabase
-      .from('profiles')
-      .update({ monitored_persons: persons })
-      .eq('id', userId)
-  } catch {}
+  const { error } = await supabase.from('profiles').update({ monitored_persons: persons }).eq('id', userId)
+  if (error) {
+    console.error('[savePersons] profiles update failed:', error.message, error)
+  }
 }
 
 // ── Go-bag ───────────────────────────────────────────────────────────────────

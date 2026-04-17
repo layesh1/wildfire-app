@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
-import { loadPersons, savePersons, loadProfileCard } from '@/lib/user-data'
+import { loadMonitoredPersonsForHub, savePersons, loadProfileCard } from '@/lib/user-data'
 import {
   Users,
   Heart,
@@ -287,7 +287,7 @@ export default function PersonsPage() {
         if (user) {
           setUserId(user.id)
           const [persons, card] = await Promise.all([
-            loadPersons(supabase, user.id),
+            loadMonitoredPersonsForHub(supabase, user.id),
             loadProfileCard(supabase, user.id),
           ])
           if (persons.length > 0) setPersons(persons)
@@ -371,7 +371,7 @@ export default function PersonsPage() {
     if (!uid) return
     try {
       const supabase = createClient()
-      const fresh = await loadPersons(supabase, uid)
+      const fresh = await loadMonitoredPersonsForHub(supabase, uid)
       if (Array.isArray(fresh)) setPersons(fresh as Person[])
     } catch {
       /* non-fatal: UI keeps current state */

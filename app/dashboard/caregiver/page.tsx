@@ -18,7 +18,7 @@ import type { NifcFire, WindData, EvacShelter, LiveShelterPin } from './map/Leaf
 import type { HazardFacility } from '@/lib/hazard-facilities'
 import AlertJar from '@/components/AlertJar'
 import { useRoleContext, type RolePerson } from '@/components/RoleContext'
-import { loadPersons, loadGoBag, saveGoBag, monitoredPersonsExcludingSelf } from '@/lib/user-data'
+import { loadMonitoredPersonsForHub, loadGoBag, saveGoBag, monitoredPersonsExcludingSelf } from '@/lib/user-data'
 import { useConsumerAlerts } from '@/hooks/useConsumerAlerts'
 import { useFlameoContext } from '@/hooks/useFlameoContext'
 import { useFlameoHubAgentBridge } from '@/components/FlameoHubAgentBridge'
@@ -723,7 +723,7 @@ export function ConsumerHubDashboard({
   const supabase = createClient()
   const refreshPersons = useCallback(
     async (userId: string) => {
-      const list = await loadPersons(supabase, userId)
+      const list = await loadMonitoredPersonsForHub(supabase, userId)
       setPersons(list)
     },
     [supabase]

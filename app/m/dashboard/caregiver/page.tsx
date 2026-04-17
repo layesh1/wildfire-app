@@ -5,7 +5,7 @@ import { Flame, MapPin, CheckCircle, Shield, Bell, Package, ChevronRight, Monito
 import { createClient } from '@/lib/supabase'
 import { useRoleContext } from '@/components/RoleContext'
 import { addNotification } from '@/components/NotificationCenter'
-import { loadPersons, loadGoBag, loadProfileCard, monitoredPersonsExcludingSelf } from '@/lib/user-data'
+import { loadMonitoredPersonsForHub, loadGoBag, loadProfileCard, monitoredPersonsExcludingSelf } from '@/lib/user-data'
 
 type FireEvent = {
   id: string; incident_name: string; county: string; state: string
@@ -58,7 +58,7 @@ export default function MobileCaregiverHub() {
         const { data: { user } } = await supabase.auth.getUser()
         if (user) {
           const [persons, gobag, card] = await Promise.all([
-            loadPersons(supabase, user.id),
+            loadMonitoredPersonsForHub(supabase, user.id),
             loadGoBag(supabase, user.id),
             loadProfileCard(supabase, user.id),
           ])

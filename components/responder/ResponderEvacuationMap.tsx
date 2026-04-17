@@ -662,21 +662,24 @@ export default function ResponderEvacuationMap({
                   directionsOrigin={stationAddressForDirections}
                 />
               </div>
-              <div className="max-h-[min(40vh,280px)] min-h-0 shrink-0 overflow-y-auto overscroll-contain border-t border-gray-200 dark:border-ash-800 lg:max-h-[38%]">
+              <div className="max-h-[min(40vh,280px)] min-h-0 shrink-0 overflow-y-auto overscroll-contain border-t-2 border-sky-500/80 bg-gradient-to-b from-sky-100/95 via-sky-50/90 to-gray-50/95 dark:border-sky-500/70 dark:from-sky-950/50 dark:via-sky-950/35 dark:to-ash-950 lg:max-h-[38%]">
                 <div className="p-2.5 sm:p-3">
-                  <div className="mb-2 rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800/95">
-                    <div className="flex items-center gap-2">
-                      <MessageCircle className="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-signal-info" />
-                      <span className="text-xs font-semibold text-gray-900 dark:text-white">
-                        Opt-in households — communication &amp; health
+                  <div className="mb-2 rounded-xl border border-sky-200/90 bg-white p-3 shadow-md ring-1 ring-sky-200/70 dark:border-sky-700 dark:bg-sky-950/70 dark:ring-sky-800/80">
+                    <div className="flex flex-wrap items-center gap-2 border-b border-sky-100 pb-2 dark:border-sky-800/80">
+                      <MessageCircle className="h-3.5 w-3.5 shrink-0 text-sky-700 dark:text-sky-300" />
+                      <span className="min-w-0 flex-1 text-xs font-bold uppercase tracking-wide text-sky-900 dark:text-sky-100">
+                        Opt-in households
+                      </span>
+                      <span className="shrink-0 rounded-md bg-sky-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white dark:bg-sky-500">
+                        Profiles
                       </span>
                     </div>
-                    <p className="mt-1.5 text-[10px] leading-snug text-gray-500 dark:text-gray-400">
-                      Evacuees who consented to responder visibility in Settings. Profile flags appear here.
+                    <p className="mt-2 text-[10px] font-medium leading-snug text-sky-900/90 dark:text-sky-200/95">
+                      Communication &amp; health — evacuees who opted in under Settings. Flags show below (separate from Flameo above).
                     </p>
                   </div>
                   {responderProfiles.length === 0 ? (
-                    <p className="px-1 text-xs text-gray-500 dark:text-gray-400">No households have opted in yet.</p>
+                    <p className="px-1 text-xs font-medium text-sky-900/80 dark:text-sky-200/90">No households have opted in yet.</p>
                   ) : (
                     <div className="max-h-[220px] space-y-2 overflow-y-auto pr-1">
                       {responderProfiles.map(row => {
