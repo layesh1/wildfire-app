@@ -34,6 +34,30 @@ export function monitoredPersonsExcludingSelf<
   return persons.filter(p => !isPlaceholderSelfMonitoredPerson(p))
 }
 
+/** Default row when we know the linked account id but DB/local list has not caught up yet. */
+export function linkedMonitoredPersonPlaceholder(opts: {
+  linkedUserId: string
+  displayName: string
+  email: string
+}): Record<string, unknown> {
+  const em = opts.email.trim()
+  const name =
+    opts.displayName.trim() ||
+    (em.includes('@') ? em.split('@')[0] : em).trim() ||
+    'Family'
+  return {
+    id: opts.linkedUserId,
+    name,
+    relationship: 'Family Member',
+    familyRelation: 'Family',
+    mobility: 'Mobile Adult',
+    address: '',
+    phone: '',
+    email: em,
+    notes: '',
+  }
+}
+
 /**
  * Loads `monitored_persons` then merges anyone linked in `caregiver_family_links` where this user is
  * **either** caregiver or evacuee — so when A adds B, B’s hub shows A even if only the forward row

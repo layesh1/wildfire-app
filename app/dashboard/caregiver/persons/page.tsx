@@ -1,7 +1,12 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
-import { loadMonitoredPersonsForHub, savePersons, loadProfileCard } from '@/lib/user-data'
+import {
+  loadMonitoredPersonsForHub,
+  savePersons,
+  loadProfileCard,
+  linkedMonitoredPersonPlaceholder,
+} from '@/lib/user-data'
 import {
   Users,
   Heart,
@@ -367,16 +372,55 @@ export default function PersonsPage() {
 
   // ── Re-read persons from DB (call after server-side add / link) ──────────
 
-  const refreshPersons = useCallback(async (uid: string | null) => {
-    if (!uid) return
-    try {
-      const supabase = createClient()
-      const fresh = await loadMonitoredPersonsForHub(supabase, uid)
-      if (Array.isArray(fresh)) setPersons(fresh as Person[])
-    } catch {
-      /* non-fatal: UI keeps current state */
-    }
-  }, [])
+  const refreshPersons = useCallback(
+    async (uid: string | null, ensureLinked?: { linkedUserId: string; name: string; email: string }) => {
+      if (!uid) return
+      let list: Person[] = []
+      try {
+        const supabase = createClient()
+        const fresh = await loadMonitoredPersonsForHub(supabase, uid)
+        if (Array.isArray(fresh)) list = fresh as Person[]
+      } catch (e) {
+        console.warn('[refreshPersons] Supabase load failed; using local cache if any', e)
+        try {
+          const raw = localStorage.getItem(LS_KEY)
+          if (raw) list = JSON.parse(raw) as Person[]
+        } catch {
+          list = []
+        }
+      }
+      if (ensureLinked && !list.some(p => p.id === ensureLinked.linkedUserId)) {
+        const base = linkedMonitoredPersonPlaceholder({
+          linkedUserId: ensureLinked.linkedUserId,
+          displayName: ensureLinked.name,
+          email: ensureLinked.email,
+        }) as Record<string, unknown>
+        const row: Person = {
+          id: String(base.id),
+          name: String(base.name),
+          address: String(base.address ?? ''),
+          relationship: (base.relationship as Person['relationship']) || 'Family Member',
+          mobility: (base.mobility as Person['mobility']) || 'Mobile Adult',
+          phone: String(base.phone ?? ''),
+          languages: [],
+          notes: String(base.notes ?? ''),
+          status: 'unknown',
+          last_confirmed: null,
+          checkin_token: null,
+          ping_sent_at: null,
+          justConfirmed: false,
+        }
+        list = [...list, row]
+        try {
+          localStorage.setItem(LS_KEY, JSON.stringify(list))
+        } catch {
+          /* ignore */
+        }
+      }
+      setPersons(list)
+    },
+    []
+  )
 
   // ── Background fire check on mount ───────────────────────────────────────
 
@@ -505,11 +549,25 @@ export default function PersonsPage() {
           const supabase = createClient()
           const { data: { user } } = await supabase.auth.getUser()
           if (user) {
-            await supabase.from('profiles').update({ my_people_consent_shown: true }).eq('id', user.id)
+            const { error: consentErr } = await supabase
+              .from('profiles')
+              .update({ my_people_consent_shown: true })
+              .eq('id', user.id)
+            if (consentErr) {
+              console.warn('[sendInviteToEmail] my_people_consent_shown update:', consentErr.message)
+            }
+            const linkedId = typeof data?.linkedUserId === 'string' ? data.linkedUserId : ''
+            const ensure =
+              mode === 'linked' && linkedId
+                ? {
+                    linkedUserId: linkedId,
+                    name: typeof data?.name === 'string' ? data.name : '',
+                    email: email.toLowerCase(),
+                  }
+                : undefined
             await Promise.all([
               loadPendingInvites(user.id),
-              // Re-read monitored_persons so a newly-linked person shows up without a page reload.
-              refreshPersons(user.id),
+              refreshPersons(user.id, ensure),
             ])
           }
         } catch {

@@ -121,6 +121,9 @@ export async function POST(request: Request) {
         name: linked.name,
         alreadyLinked: linked.alreadyLinked,
         message: linked.alreadyLinked ? 'Already in My People' : 'Added to My People',
+        /** Lets the hub merge this row if Supabase profile reads fail (e.g. missing anon key). */
+        linkedUserId: target.user_id,
+        linkedEmail: email,
       })
     }
 

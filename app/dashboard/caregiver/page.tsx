@@ -18,7 +18,13 @@ import type { NifcFire, WindData, EvacShelter, LiveShelterPin } from './map/Leaf
 import type { HazardFacility } from '@/lib/hazard-facilities'
 import AlertJar from '@/components/AlertJar'
 import { useRoleContext, type RolePerson } from '@/components/RoleContext'
-import { loadMonitoredPersonsForHub, loadGoBag, saveGoBag, monitoredPersonsExcludingSelf } from '@/lib/user-data'
+import {
+  loadMonitoredPersonsForHub,
+  loadGoBag,
+  saveGoBag,
+  monitoredPersonsExcludingSelf,
+  linkedMonitoredPersonPlaceholder,
+} from '@/lib/user-data'
 import { useConsumerAlerts } from '@/hooks/useConsumerAlerts'
 import { useFlameoContext } from '@/hooks/useFlameoContext'
 import { useFlameoHubAgentBridge } from '@/components/FlameoHubAgentBridge'
@@ -722,8 +728,35 @@ export function ConsumerHubDashboard({
 
   const supabase = createClient()
   const refreshPersons = useCallback(
-    async (userId: string) => {
-      const list = await loadMonitoredPersonsForHub(supabase, userId)
+    async (
+      userId: string,
+      ensureLinked?: { linkedUserId: string; name: string; email: string }
+    ) => {
+      let list: MonitoredPerson[] = []
+      try {
+        list = (await loadMonitoredPersonsForHub(supabase, userId)) as MonitoredPerson[]
+      } catch (e) {
+        console.warn('[refreshPersons] Supabase load failed; using local cache if any', e)
+        try {
+          const raw = localStorage.getItem('monitored_persons_v2')
+          if (raw) list = JSON.parse(raw) as MonitoredPerson[]
+        } catch {
+          list = []
+        }
+      }
+      if (ensureLinked && !list.some(p => p.id === ensureLinked.linkedUserId)) {
+        const row = linkedMonitoredPersonPlaceholder({
+          linkedUserId: ensureLinked.linkedUserId,
+          displayName: ensureLinked.name,
+          email: ensureLinked.email,
+        }) as MonitoredPerson
+        list = [...list, row]
+        try {
+          localStorage.setItem('monitored_persons_v2', JSON.stringify(list))
+        } catch {
+          /* ignore */
+        }
+      }
       setPersons(list)
     },
     [supabase]
@@ -941,7 +974,8 @@ export function ConsumerHubDashboard({
   }
 
   async function handleFamilyInvite() {
-    if (!familyEmail.trim() || !hubUserId) return
+    const emailInput = familyEmail.trim()
+    if (!emailInput || !hubUserId) return
     setFamilyAddLoading(true)
     setFamilyAddErr(null)
     setFamilyAddOk(null)
@@ -949,7 +983,7 @@ export function ConsumerHubDashboard({
       const res = await fetch('/api/family/send-invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: familyEmail.trim() }),
+        body: JSON.stringify({ email: emailInput }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
@@ -967,7 +1001,17 @@ export function ConsumerHubDashboard({
       if (data.mode === 'linked') {
         setFamilyAddOk(`${data.name} — ${data.message}` || 'Added to My Family')
         setFamilyEmail('')
-        await refreshPersons(hubUserId)
+        const linkedId = typeof data.linkedUserId === 'string' ? data.linkedUserId : ''
+        await refreshPersons(
+          hubUserId,
+          linkedId
+            ? {
+                linkedUserId: linkedId,
+                name: typeof data.name === 'string' ? data.name : '',
+                email: emailInput.toLowerCase(),
+              }
+            : undefined
+        )
       } else {
         const extra =
           data.devLink && !data.emailSent
