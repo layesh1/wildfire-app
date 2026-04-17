@@ -54,11 +54,20 @@ export async function POST(request: Request) {
       .maybeSingle()
 
     if (profErr || !prof) {
-      return NextResponse.json({ error: 'Could not load your profile.' }, { status: 500 })
+      console.error('[family/send-invite] profile (full error object):', profErr)
+      return NextResponse.json(
+        {
+          error: 'Could not load your profile.',
+          details: profErr?.message,
+          code: profErr?.code,
+        },
+        { status: 500 }
+      )
     }
 
     const role = (prof as { role?: string }).role
     const inviterName = ((prof as { full_name?: string }).full_name || '').trim() || 'Someone'
+    const inviterRoleForDb: 'caregiver' | 'evacuee' = role === 'caregiver' ? 'caregiver' : 'evacuee'
 
     if (role !== 'caregiver' && role !== 'evacuee') {
       return NextResponse.json({ error: 'Only evacuee accounts can send My People invites.' }, { status: 400 })
@@ -68,8 +77,11 @@ export async function POST(request: Request) {
       p_email: email,
     })
     if (findErr) {
-      console.error('[family/send-invite] lookup', findErr)
-      return NextResponse.json({ error: 'Could not look up that email.' }, { status: 500 })
+      console.error('[family/send-invite] lookup (full error object):', findErr)
+      return NextResponse.json(
+        { error: 'Could not look up that email.', details: findErr.message, code: findErr.code },
+        { status: 500 }
+      )
     }
 
     const row = Array.isArray(lookupRows) ? lookupRows[0] : lookupRows
@@ -124,15 +136,18 @@ export async function POST(request: Request) {
     const token = randomBytes(24).toString('hex')
     const { error: insErr } = await supabase.from('family_invites').insert({
       inviter_user_id: user.id,
-      inviter_role: 'evacuee',
+      inviter_role: inviterRoleForDb,
       invitee_email: email,
       token,
       expires_at: new Date(Date.now() + 14 * 86400000).toISOString(),
     })
 
     if (insErr) {
-      console.error('[family/send-invite] insert', insErr)
-      return NextResponse.json({ error: insErr.message }, { status: 500 })
+      console.error('[family/send-invite] insert (full error object):', insErr)
+      return NextResponse.json(
+        { error: insErr.message, details: insErr.details, hint: insErr.hint, code: insErr.code },
+        { status: 500 }
+      )
     }
 
     const acceptUrl = `${appBaseUrl()}/auth/family-invite?token=${encodeURIComponent(token)}`
@@ -141,7 +156,7 @@ export async function POST(request: Request) {
       acceptUrl,
       inviteToken: token,
       inviterName,
-      inviterRole: 'evacuee',
+      inviterRole: inviterRoleForDb,
     })
 
     const message = emailed.sent
@@ -162,6 +177,16 @@ export async function POST(request: Request) {
     if (e instanceof ValidationError) {
       return NextResponse.json({ error: e.message }, { status: 400 })
     }
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    console.log('[family/send-invite] unhandled (full error object):', e)
+    console.error('[family/send-invite] unhandled (full error):', e)
+    const message = e instanceof Error ? e.message : String(e)
+    const stack = e instanceof Error ? e.stack : undefined
+    return NextResponse.json(
+      {
+        error: message || 'Server error',
+        ...(process.env.NODE_ENV === 'development' && stack ? { stack } : {}),
+      },
+      { status: 500 }
+    )
   }
 }

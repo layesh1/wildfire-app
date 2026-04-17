@@ -93,12 +93,27 @@ export async function mirrorFamilyLinkForEvacuee(
   targetUserId: string,
   inviterEmail: string
 ) {
-  const { error: revErr } = await supabase.from('caregiver_family_links').insert({
-    caregiver_user_id: targetUserId,
-    evacuee_user_id: inviterUserId,
+  const { error: rpcErr } = await supabase.rpc('mirror_caregiver_family_link', {
+    p_inviter: inviterUserId,
+    p_peer: targetUserId,
   })
-  if (revErr && revErr.code !== '23505' && !revErr.message?.includes('duplicate')) {
-    console.warn('[mirrorFamilyLinkForEvacuee]', revErr.message)
+  if (rpcErr) {
+    const msg = rpcErr.message || ''
+    const missingFn =
+      rpcErr.code === '42883' ||
+      rpcErr.code === 'PGRST202' ||
+      /could not find the function|function .* does not exist|schema cache/i.test(msg)
+    if (missingFn) {
+      const { error: revErr } = await supabase.from('caregiver_family_links').insert({
+        caregiver_user_id: targetUserId,
+        evacuee_user_id: inviterUserId,
+      })
+      if (revErr && revErr.code !== '23505' && !revErr.message?.includes('duplicate')) {
+        console.warn('[mirrorFamilyLinkForEvacuee] legacy insert', revErr.message, revErr)
+      }
+    } else {
+      console.warn('[mirrorFamilyLinkForEvacuee] rpc', msg, rpcErr)
+    }
   }
   await ensureEvacueeOnCaregiverMonitored(supabase, targetUserId, inviterUserId, inviterEmail)
 }

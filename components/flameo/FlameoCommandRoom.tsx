@@ -272,7 +272,7 @@ export default function FlameoCommandRoom({
   return (
     <div className="flex flex-col space-y-3 p-2.5 sm:p-3 text-left">
       <div className={flameoActivePanel}>
-        <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
           <div className={flameoActiveHead}>Flameo · Command briefing</div>
           <button
             type="button"
@@ -284,27 +284,32 @@ export default function FlameoCommandRoom({
             Refresh
           </button>
         </div>
-        {briefingLoading ? (
-          <div className="space-y-2" aria-busy="true">
-            <div className="h-3 w-[92%] max-w-[280px] animate-pulse rounded bg-amber-200/70 dark:bg-amber-900/50" />
-            <div className="h-3 w-full max-w-[300px] animate-pulse rounded bg-amber-200/70 dark:bg-amber-900/50" />
-            <div className="h-3 w-4/5 max-w-[240px] animate-pulse rounded bg-amber-200/70 dark:bg-amber-900/50" />
-          </div>
-        ) : (
-          <div className="whitespace-pre-wrap text-xs leading-relaxed text-amber-950/95 dark:text-amber-50/95">
-            {briefing}
-          </div>
-        )}
-        {briefingFallback && !briefingLoading && (
-          <p className="mt-2 text-[10px] text-amber-900/85 dark:text-amber-400/90">
-            Template / offline briefing (model unavailable).
-          </p>
-        )}
-        {briefingAt && !briefingLoading && (
-          <p className="mt-2 text-[10px] text-amber-800/80 dark:text-amber-500">
-            Last updated {briefingAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </p>
-        )}
+        <div
+          className="max-h-96 min-h-0 overflow-y-auto overscroll-contain pr-1"
+          aria-label="Command briefing text"
+        >
+          {briefingLoading ? (
+            <div className="space-y-2" aria-busy="true">
+              <div className="h-3 w-[92%] max-w-[280px] animate-pulse rounded bg-amber-200/70 dark:bg-amber-900/50" />
+              <div className="h-3 w-full max-w-[300px] animate-pulse rounded bg-amber-200/70 dark:bg-amber-900/50" />
+              <div className="h-3 w-4/5 max-w-[240px] animate-pulse rounded bg-amber-200/70 dark:bg-amber-900/50" />
+            </div>
+          ) : (
+            <div className="whitespace-pre-wrap text-xs leading-relaxed text-amber-950/95 dark:text-amber-50/95">
+              {briefing}
+            </div>
+          )}
+          {briefingFallback && !briefingLoading && (
+            <p className="mt-2 text-[10px] text-amber-900/85 dark:text-amber-400/90">
+              Template / offline briefing (model unavailable).
+            </p>
+          )}
+          {briefingAt && !briefingLoading && (
+            <p className="mt-2 text-[10px] text-amber-800/80 dark:text-amber-500">
+              Last updated {briefingAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          )}
+        </div>
       </div>
 
       <div className={panel}>

@@ -951,9 +951,17 @@ export function ConsumerHubDashboard({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: familyEmail.trim() }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setFamilyAddErr(typeof data.error === 'string' ? data.error : 'Request failed')
+        const base = typeof data.error === 'string' ? data.error : 'Request failed'
+        const extra =
+          typeof data.details === 'string' && data.details.trim()
+            ? ` — ${data.details.trim()}`
+            : typeof data.hint === 'string' && data.hint.trim()
+              ? ` — ${data.hint.trim()}`
+              : ''
+        const code = typeof data.code === 'string' && data.code.trim() ? ` [${data.code}]` : ''
+        setFamilyAddErr(`${base}${extra}${code}`)
         return
       }
       if (data.mode === 'linked') {
@@ -968,8 +976,9 @@ export function ConsumerHubDashboard({
         setFamilyAddOk((data.message || 'Invitation sent.') + extra)
         setFamilyEmail('')
       }
-    } catch {
-      setFamilyAddErr('Something went wrong.')
+    } catch (e) {
+      console.error('[handleFamilyInvite]', e)
+      setFamilyAddErr(e instanceof Error ? e.message : 'Something went wrong.')
     } finally {
       setFamilyAddLoading(false)
     }

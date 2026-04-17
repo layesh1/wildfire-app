@@ -386,7 +386,7 @@ export default function ResponderEvacuationMap({
 
   return (
     <div
-      className="flex min-h-0 w-full flex-1 flex-col overflow-hidden"
+      className="flex max-h-[100dvh] min-h-0 w-full flex-1 flex-col overflow-hidden"
       style={{ background: 'var(--wfa-page-bg)' }}
     >
       <div className="px-3 sm:px-6 py-2.5 sm:py-3 border-b border-gray-200 dark:border-ash-800 flex flex-wrap items-center gap-x-3 gap-y-2 shrink-0 bg-gray-50/90 dark:bg-ash-900">
@@ -535,7 +535,8 @@ export default function ResponderEvacuationMap({
         </div>
       </div>
 
-      <div className="flex flex-1 min-h-0 min-w-0 flex-col lg:flex-row gap-0">
+      {/* max-h caps row height so the map column (flex + min-h-0) keeps a stable Leaflet viewport; sidebar scrolls internally */}
+      <div className="flex max-h-[calc(100dvh-9rem)] min-h-0 w-full flex-1 flex-col gap-0 overflow-hidden lg:flex-row lg:max-h-[calc(100dvh-7rem)]">
         {!canAccessEvacueeData ? (
           <div className="flex flex-1 min-h-[220px] items-center justify-center px-4 lg:min-h-0">
             <div className="max-w-md text-center">
@@ -555,7 +556,7 @@ export default function ResponderEvacuationMap({
           </div>
         ) : (
           <>
-            <div className="flex h-full w-full min-w-0 min-h-[220px] flex-1 flex-col lg:min-h-0 border-b border-gray-200 dark:border-ash-800 lg:border-b-0">
+            <div className="flex min-h-[min(280px,45vh)] w-full min-w-0 flex-1 flex-col border-b border-gray-200 dark:border-ash-800 lg:min-h-0 lg:border-b-0">
               <div className="shrink-0 border-b border-gray-200 bg-white/90 px-3 py-2 dark:border-ash-800 dark:bg-ash-900/90">
                 <h2 className="font-display text-sm font-bold tracking-tight text-gray-900 dark:text-white">
                   Evacuation Status Map
@@ -564,8 +565,9 @@ export default function ResponderEvacuationMap({
                   NIFC incidents, hazard sites, and shelters respect the toggles above; household pins reflect opt-in evacuation status.
                 </p>
               </div>
-              <div className="min-h-0 flex-1">
+              <div className="h-full min-h-0 flex-1">
               <EvacueeStatusMap
+                fillParentHeight
                 pins={EMPTY_EVACUEE_PINS}
                 householdPins={householdPins}
                 center={effectiveMapCenter}
@@ -591,7 +593,7 @@ export default function ResponderEvacuationMap({
               </div>
             </div>
 
-            <div className="w-full max-h-[45vh] lg:max-h-none lg:w-[26rem] shrink-0 flex flex-col overflow-hidden border-t border-gray-200 bg-gray-50/80 dark:border-ash-800 dark:bg-ash-950 lg:border-t-0 lg:border-l">
+            <div className="flex w-full max-h-[55vh] shrink-0 flex-col overflow-hidden border-t border-gray-200 bg-gray-50/80 dark:border-ash-800 dark:bg-ash-950 lg:max-h-full lg:min-h-0 lg:w-[26rem] lg:shrink-0 lg:border-l lg:border-t-0">
 
               {/* Status filter panel — visible when a pill is active */}
               {statusFilter && (
@@ -648,17 +650,19 @@ export default function ResponderEvacuationMap({
                 </div>
               )}
 
-              <FlameoCommandRoom
-                householdPins={householdPins}
-                firefighterPins={firefighterPins}
-                rosterFieldUnitTotal={rosterFieldUnitTotal}
-                mapCenter={effectiveMapCenter}
-                fireContext={flameoContext}
-                briefingRefreshKey={commandBriefingKey}
-                onViewOnMap={(lat, lng) => setMapFocus({ lat, lng, nonce: Date.now() })}
-                directionsOrigin={stationAddressForDirections}
-              />
-              <div className="flex-1 overflow-y-auto border-t border-gray-200 dark:border-ash-800">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                <FlameoCommandRoom
+                  householdPins={householdPins}
+                  firefighterPins={firefighterPins}
+                  rosterFieldUnitTotal={rosterFieldUnitTotal}
+                  mapCenter={effectiveMapCenter}
+                  fireContext={flameoContext}
+                  briefingRefreshKey={commandBriefingKey}
+                  onViewOnMap={(lat, lng) => setMapFocus({ lat, lng, nonce: Date.now() })}
+                  directionsOrigin={stationAddressForDirections}
+                />
+              </div>
+              <div className="max-h-[min(40vh,280px)] min-h-0 shrink-0 overflow-y-auto overscroll-contain border-t border-gray-200 dark:border-ash-800 lg:max-h-[38%]">
                 <div className="p-2.5 sm:p-3">
                   <div className="mb-2 rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800/95">
                     <div className="flex items-center gap-2">

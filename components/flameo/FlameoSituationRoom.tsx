@@ -205,9 +205,11 @@ export default function FlameoSituationRoom({
           </div>
           <div className="text-amber-100/90">Fire risk: {flameoContext?.weather_summary?.fire_risk ?? 'Unknown'}</div>
           {flameoBriefing && (
-            <p className="text-xs text-amber-100/85 whitespace-pre-wrap leading-relaxed">
-              <FlameoFormattedText text={flameoBriefing} />
-            </p>
+            <div className="max-h-96 min-h-0 overflow-y-auto overscroll-contain pr-1" aria-label="Flameo briefing">
+              <p className="text-xs text-amber-100/85 whitespace-pre-wrap leading-relaxed">
+                <FlameoFormattedText text={flameoBriefing} />
+              </p>
+            </div>
           )}
           {status === 'feeds_partial' && (
             <p className="text-xs text-amber-200/90">Some data sources reported errors; showing the best available picture.</p>

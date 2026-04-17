@@ -265,6 +265,11 @@ interface Props {
   householdTintNifcFires?: NifcFire[]
   /** Field units on the same station (blue pins). */
   firefighters?: FirefighterPin[]
+  /**
+   * When true, the map uses only the parent’s height (min-h-0) so flex layouts can cap total height.
+   * Default keeps legacy min-heights for standalone pages.
+   */
+  fillParentHeight?: boolean
 }
 
 export default function EvacueeStatusMap({
@@ -288,13 +293,18 @@ export default function EvacueeStatusMap({
   householdFireTintProximityMiles,
   householdTintNifcFires,
   firefighters = [],
+  fillParentHeight = false,
 }: Props) {
   const { notEvacuated, evacuated, cannotEvac } = mapStats(pins, householdPins)
   const useHouseholdFireTint =
     householdFireTintProximityMiles != null && householdTintNifcFires != null
 
+  const sizeClass = fillParentHeight
+    ? 'min-h-0'
+    : 'min-h-[260px] sm:min-h-[360px] md:min-h-[480px]'
+
   return (
-    <div className="relative h-full min-h-[260px] sm:min-h-[360px] md:min-h-[480px] w-full min-w-0">
+    <div className={`relative h-full w-full min-w-0 ${sizeClass}`}>
       {demoMode && (
         <div
           className="absolute top-2 left-2 z-[1000] rounded-lg border border-amber-400/70 bg-amber-100/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-950 shadow-lg pointer-events-none dark:border-amber-500/40 dark:bg-amber-950/90 dark:text-amber-200"

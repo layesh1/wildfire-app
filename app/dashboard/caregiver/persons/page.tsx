@@ -462,13 +462,24 @@ export default function PersonsPage() {
         })
         const data = await res.json().catch(() => ({}))
         if (!res.ok) {
-          const msg = String(data?.error || '').toLowerCase()
+          const serverMsg = typeof data?.error === 'string' ? data.error : ''
+          const details =
+            typeof data?.details === 'string' && data.details.trim()
+              ? ` (${data.details.trim()})`
+              : typeof data?.hint === 'string' && data.hint.trim()
+                ? ` (${data.hint.trim()})`
+                : ''
+          const code =
+            typeof data?.code === 'string' && data.code.trim() ? ` [${data.code.trim()}]` : ''
+          const msg = serverMsg.toLowerCase()
           if (msg.includes('already') && msg.includes('my people')) {
             setInviteError('This person is already in your My People list')
           } else if (msg.includes('valid email')) {
             setInviteError('Please enter a valid email address')
+          } else if (serverMsg) {
+            setInviteError(`${serverMsg}${details}${code}`)
           } else {
-            setInviteError('Something went wrong. Try again.')
+            setInviteError(`Request failed (${res.status}). Try again.`)
           }
           return
         }
@@ -504,8 +515,9 @@ export default function PersonsPage() {
         } catch {
           /* non-fatal */
         }
-      } catch {
-        setInviteError('Something went wrong. Try again.')
+      } catch (e) {
+        console.error('[sendInviteToEmail]', e)
+        setInviteError(e instanceof Error ? e.message : 'Something went wrong. Try again.')
       } finally {
         setInviteLoading(false)
       }
@@ -602,7 +614,8 @@ export default function PersonsPage() {
       const supabase = createClient()
       const { error } = await supabase.from('family_invites').delete().eq('id', id)
       if (error) {
-        setInviteError('Something went wrong. Try again.')
+        console.error('[cancelInvite]', error)
+        setInviteError(error.message || 'Something went wrong. Try again.')
         return
       }
       setPendingInvites(prev => prev.filter(inv => inv.id !== id))

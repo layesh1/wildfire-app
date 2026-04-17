@@ -71,7 +71,7 @@ export default function ResponderCommandHubShell() {
       <ResponderDataConsent open={showConsentGate} onAgreed={() => setConsentOk(true)} />
       <div
         className={cn(
-          'flex min-h-0 min-w-0 flex-1 flex-col',
+          'flex min-h-0 min-w-0 max-h-[100dvh] flex-1 flex-col overflow-hidden',
           showConsentGate && 'pointer-events-none select-none blur-[3px] opacity-40'
         )}
       >
