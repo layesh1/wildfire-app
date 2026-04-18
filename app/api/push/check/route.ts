@@ -9,6 +9,7 @@ import {
   shouldSendStatusPrompt,
 } from '@/lib/flameo-push-escalation'
 import { geocodeAddress } from '@/lib/geocoding'
+import { charlotteDemoFireEventRowsForPush } from '@/lib/charlotte-demo-incidents'
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://wildfire-app-three.vercel.app'
 const DEFAULT_RADIUS_MI = 50
@@ -138,11 +139,14 @@ export async function GET(req: NextRequest) {
     .not('longitude', 'is', null)
     .limit(1200)
 
-  const fireRows: FireRow[] = (fireRowsRaw ?? []).filter(
-    (r): r is FireRow =>
-      typeof r.latitude === 'number'
-      && typeof r.longitude === 'number'
-  )
+  const fireRows: FireRow[] = [
+    ...(fireRowsRaw ?? []).filter(
+      (r): r is FireRow =>
+        typeof r.latitude === 'number'
+        && typeof r.longitude === 'number'
+    ),
+    ...charlotteDemoFireEventRowsForPush(),
+  ]
 
   if (firmsPoints.length === 0 && fireRows.length === 0) {
     logger.warn('push/check: no FIRMS or fire_events rows', { route: 'push/check' })

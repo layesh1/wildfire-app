@@ -2,7 +2,7 @@
 import { MapContainer, TileLayer, CircleMarker, Marker, Popup, Tooltip, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import type { HazardFacility, FacilityType } from '@/lib/hazard-facilities'
 import LeafletInvalidateOnLayout from '@/components/leaflet/LeafletInvalidateOnLayout'
 import {
@@ -298,6 +298,11 @@ export default function EvacueeStatusMap({
   const { notEvacuated, evacuated, cannotEvac } = mapStats(pins, householdPins)
   const useHouseholdFireTint =
     householdFireTintProximityMiles != null && householdTintNifcFires != null
+
+  const householdPinsHaveOfficeSites = useMemo(
+    () => householdPins.some(p => (p.officeSites?.length ?? 0) > 0),
+    [householdPins],
+  )
 
   const sizeClass = fillParentHeight
     ? 'min-h-0'
@@ -752,6 +757,44 @@ export default function EvacueeStatusMap({
                   <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Needs assistance / EMS</div>
                 </div>
               </div>
+
+              {householdPinsHaveOfficeSites && (
+                <>
+                  <div style={{ color: '#94a3b8', fontSize: 10, fontWeight: 700, marginBottom: 8, marginTop: 6, letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+                    Work / office
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 7 }}>
+                    <div style={{ flexShrink: 0, transform: 'scale(0.72)', transformOrigin: 'left center', width: 24, height: 24 }}
+                      // eslint-disable-next-line react/no-danger
+                      dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('neutral', 'office') }}
+                    />
+                    <div>
+                      <div style={{ color: '#cbd5e1', fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Work site — neutral</div>
+                      <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Building icon; grey ring outside active-incident tint radius</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 7 }}>
+                    <div style={{ flexShrink: 0, transform: 'scale(0.72)', transformOrigin: 'left center', width: 24, height: 24 }}
+                      // eslint-disable-next-line react/no-danger
+                      dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('cleared', 'office') }}
+                    />
+                    <div>
+                      <div style={{ color: '#4ade80', fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Work site — cleared</div>
+                      <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Everyone with this work address marked evacuated</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 7 }}>
+                    <div style={{ flexShrink: 0, transform: 'scale(0.72)', transformOrigin: 'left center', width: 24, height: 24 }}
+                      // eslint-disable-next-line react/no-danger
+                      dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('needs_action', 'office') }}
+                    />
+                    <div>
+                      <div style={{ color: '#f87171', fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Work site — needs action</div>
+                      <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Needs evacuation update for people at this office</div>
+                    </div>
+                  </div>
+                </>
+              )}
 
             </>
           )}

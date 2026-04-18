@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { CHARLOTTE_DEMO_NIFC_INCIDENTS } from '@/lib/charlotte-demo-incidents'
 
 const ARCGIS_BASE = 'https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services'
 
@@ -102,7 +103,9 @@ export async function GET() {
       return true
     })
 
-    return NextResponse.json({ data: deduped, count: deduped.length })
+    const data = [...deduped, ...CHARLOTTE_DEMO_NIFC_INCIDENTS]
+
+    return NextResponse.json({ data, count: data.length })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
   }

@@ -1,5 +1,4 @@
 import type { HouseholdPin } from '@/lib/responder-household'
-import type { NifcFire } from '@/app/dashboard/caregiver/map/LeafletMap'
 
 /** Charlotte, NC — demo framing for responder evacuation map + field hub demo pins. */
 export const FIELD_HUB_DEMO_MAP_CENTER: [number, number] = [35.21, -80.84]
@@ -160,36 +159,8 @@ export const RESPONDER_DEMO_HOUSEHOLDS: HouseholdPin[] = [
   },
 ]
 
-/** Simulated NIFC-style points near Charlotte for demo / training (circle markers only on map). */
-export const CHARLOTTE_DEMO_NIFC_FIRES: NifcFire[] = [
-  {
-    id: 'charlotte-demo-nifc-1',
-    latitude: 35.168,
-    longitude: -80.905,
-    fire_name: 'Demo — Southwest corridor (training)',
-    acres: 920,
-    containment: 14,
-    source: 'nifc_incident',
-  },
-  {
-    id: 'charlotte-demo-nifc-2',
-    latitude: 35.268,
-    longitude: -80.72,
-    fire_name: 'Demo — North Mecklenburg (training)',
-    acres: 210,
-    containment: 38,
-    source: 'nifc_incident',
-  },
-  {
-    id: 'charlotte-demo-nifc-3',
-    latitude: 35.235,
-    longitude: -80.79,
-    fire_name: 'Demo — East sector (training)',
-    acres: 45,
-    containment: 62,
-    source: 'nifc_incident',
-  },
-]
+/** Re-export: same as {@link CHARLOTTE_DEMO_NIFC_INCIDENTS} in `@/lib/charlotte-demo-incidents` (always merged into `/api/fires/nifc`). */
+export { CHARLOTTE_DEMO_NIFC_INCIDENTS as CHARLOTTE_DEMO_NIFC_FIRES } from '@/lib/charlotte-demo-incidents'
 
 export const RESPONDER_DEMO_HOUSEHOLDS_TAGGED: HouseholdPin[] = RESPONDER_DEMO_HOUSEHOLDS.map(h => ({
   ...h,
