@@ -187,7 +187,7 @@ export default function FlameoSituationRoom({
       const threatLabel = nearestIncident?.name?.trim() || 'Mapped wildfire (NIFC)'
       return (
         <div className="mt-2 space-y-1 text-sm text-amber-50/95">
-          <div className="font-semibold text-white">
+          <div className="font-bold text-amber-100/90">
             🔥 {threatLabel} — {nearestIncidentMiles != null ? `${nearestIncidentMiles.toFixed(1)} mi` : '—'} away
           </div>
           <div className="flex flex-wrap items-center gap-2 text-amber-100/90">
