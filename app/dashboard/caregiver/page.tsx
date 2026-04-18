@@ -149,6 +149,7 @@ type HubPersonStatus = {
 function HubMyPeopleRows({
   monitoredOthers,
   personStatuses,
+  personCoords,
   liveAddressLabel,
   isAwayFromHome,
   viewingSelf,
@@ -160,6 +161,7 @@ function HubMyPeopleRows({
 }: {
   monitoredOthers: MonitoredPerson[]
   personStatuses: Record<string, HubPersonStatus>
+  personCoords: Record<string, [number, number]>
   liveAddressLabel: string
   isAwayFromHome: boolean
   viewingSelf: boolean
@@ -248,10 +250,12 @@ function HubMyPeopleRows({
             <div className="truncate text-[11px] text-gray-500 dark:text-gray-400">
               {p.mobilityOther || p.mobility || '—'}
             </div>
-            {p.address?.trim() && (
+            {(p.address?.trim() || personCoords[p.id]) && (
               <div className="mt-1 line-clamp-2 text-left text-[10px] leading-snug text-gray-600 dark:text-gray-300">
-                <span className="font-semibold text-gray-700 dark:text-gray-200">Location: </span>
-                {p.address.trim()}
+                <span className="font-semibold text-gray-700 dark:text-gray-200">Live: </span>
+                {p.address?.trim()
+                  ? p.address.trim()
+                  : 'On map from geocoded home — add their full street in Manage My People if you don’t see it here yet'}
               </div>
             )}
             {(st?.home || st?.safety) ? (
@@ -1479,12 +1483,13 @@ export function ConsumerHubDashboard({
               <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-gray-900 dark:text-white">My People</div>
               <p className="mb-2 text-[11px] leading-snug text-gray-600 dark:text-gray-400">
                 Tap <span className="font-semibold text-gray-800 dark:text-gray-200">Me</span> or{' '}
-                <span className="font-semibold text-gray-800 dark:text-gray-200">Live location</span> for your map; tap a family row to center on them. Evacuation status and home address appear on each row when shared.
+                <span className="font-semibold text-gray-800 dark:text-gray-200">Live location</span> for your map; tap a family row to center on them. Each row shows <span className="font-semibold text-gray-800 dark:text-gray-200">Live:</span> home when their profile shares it, plus evacuation status when they share check-ins.
               </p>
               <div className="space-y-2">
                 <HubMyPeopleRows
                   monitoredOthers={monitoredOthers}
                   personStatuses={personStatuses}
+                  personCoords={personCoords}
                   liveAddressLabel={liveAddressLabel}
                   isAwayFromHome={isAwayFromHome}
                   viewingSelf={!isViewingMember}
@@ -1649,6 +1654,7 @@ export function ConsumerHubDashboard({
                   <HubMyPeopleRows
                     monitoredOthers={monitoredOthers}
                     personStatuses={personStatuses}
+                    personCoords={personCoords}
                     liveAddressLabel={liveAddressLabel}
                     isAwayFromHome={isAwayFromHome}
                     viewingSelf={!isViewingMember}

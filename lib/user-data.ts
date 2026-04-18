@@ -90,35 +90,53 @@ export async function loadMonitoredPersonsForHub(supabase: SupabaseClient, userI
   }
 
   const linkedIds = [...linkedOthers]
-
-  const missingIds = linkedIds.filter(id => !byId.has(id))
-  if (missingIds.length === 0) {
+  if (linkedIds.length === 0) {
     return list
   }
 
   const { data: profs, error: profErr } = await supabase
     .from('profiles')
-    .select('id, full_name')
-    .in('id', missingIds)
+    .select('id, full_name, address')
+    .in('id', linkedIds)
 
-  let addedFromLinks = 0
+  let mutations = 0
   if (!profErr && Array.isArray(profs)) {
-    for (const pr of profs as { id?: string; full_name?: string | null }[]) {
+    for (const pr of profs as Array<{ id?: string; full_name?: string | null; address?: string | null }>) {
       const id = String(pr?.id ?? '').trim()
-      if (!id || byId.has(id)) continue
+      if (!id) continue
       const name = (typeof pr.full_name === 'string' ? pr.full_name.trim() : '') || 'Family'
-      byId.set(id, {
-        id,
-        name,
-        relationship: 'Family',
-        familyRelation: 'Family',
-        mobility: 'Mobile Adult',
-        address: '',
-        phone: '',
-        email: '',
-        notes: '',
-      })
-      addedFromLinks += 1
+      const addr = typeof pr.address === 'string' ? pr.address.trim() : ''
+
+      const existing = byId.get(id)
+      if (existing) {
+        const prevAddr = String(existing.address ?? '').trim()
+        const prevName = String(existing.name ?? '').trim()
+        const next = { ...existing }
+        let changed = false
+        if (addr && !prevAddr) {
+          next.address = addr
+          changed = true
+        }
+        if (name && name !== 'Family' && (!prevName || prevName === 'Family')) {
+          next.name = name
+          changed = true
+        }
+        byId.set(id, next)
+        if (changed) mutations += 1
+      } else {
+        byId.set(id, {
+          id,
+          name,
+          relationship: 'Family',
+          familyRelation: 'Family',
+          mobility: 'Mobile Adult',
+          address: addr,
+          phone: '',
+          email: '',
+          notes: '',
+        })
+        mutations += 1
+      }
     }
   }
 
@@ -127,7 +145,7 @@ export async function loadMonitoredPersonsForHub(supabase: SupabaseClient, userI
     localStorage.setItem(PERSONS_LS, JSON.stringify(merged))
   } catch {}
 
-  if (addedFromLinks > 0) {
+  if (mutations > 0) {
     const { error: upErr } = await supabase
       .from('profiles')
       .update({ monitored_persons: merged })
