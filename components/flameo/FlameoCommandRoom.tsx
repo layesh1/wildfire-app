@@ -4,10 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { RefreshCw, AlertTriangle, MapPin, Copy, Users } from 'lucide-react'
 import type { HouseholdPin } from '@/lib/responder-household'
+import type { NifcFire } from '@/app/dashboard/caregiver/map/LeafletMap'
 import type { FirefighterPin } from '@/lib/firefighter-pin'
 import type { FlameoContext } from '@/lib/flameo-context-types'
 import type { FlameoCommandContext, PriorityAssignment } from '@/lib/flameo-command-types'
-import { assembleFlameoCommandContext } from '@/lib/flameo-command'
+import {
+  assembleFlameoCommandContext,
+  filterHouseholdsForIncidentBriefing,
+} from '@/lib/flameo-command'
 
 type Props = {
   householdPins: HouseholdPin[]
@@ -15,6 +19,10 @@ type Props = {
   /** Station roster size (includes members not yet reporting GPS). */
   rosterFieldUnitTotal?: number
   mapCenter: [number, number]
+  /** NIFC points shown on the hub map (same radius filter). Briefing only includes households near these fires + map center. */
+  nifcFiresInZone?: NifcFire[]
+  /** Miles from map center for operational zone (default 50). */
+  zoneMiles?: number
   fireContext: FlameoContext | null
   briefingRefreshKey: number
   onViewOnMap: (lat: number, lng: number) => void
@@ -112,11 +120,16 @@ function openFlameoChat() {
   window.dispatchEvent(new Event('wfa-flameo-open'))
 }
 
+const DEFAULT_ZONE_MI = 50
+const FIRE_PROXIMITY_AT_RISK_MI = 42
+
 export default function FlameoCommandRoom({
   householdPins,
   firefighterPins = [],
   rosterFieldUnitTotal = 0,
   mapCenter,
+  nifcFiresInZone = [],
+  zoneMiles = DEFAULT_ZONE_MI,
   fireContext: _fireContext,
   briefingRefreshKey,
   onViewOnMap,
@@ -135,10 +148,22 @@ export default function FlameoCommandRoom({
   const [copyOk, setCopyOk] = useState(false)
   const [regenBusy, setRegenBusy] = useState(false)
 
+  const householdPinsForBriefing = useMemo(
+    () =>
+      filterHouseholdsForIncidentBriefing(
+        householdPins,
+        mapCenter,
+        zoneMiles,
+        nifcFiresInZone,
+        FIRE_PROXIMITY_AT_RISK_MI
+      ),
+    [householdPins, mapCenter, zoneMiles, nifcFiresInZone]
+  )
+
   const commandContext: FlameoCommandContext = useMemo(
     () =>
       assembleFlameoCommandContext(
-        householdPins,
+        householdPinsForBriefing,
         {
           nearest_fire_miles: firePart.nearest_fire_miles,
           wind_dir: firePart.wind_dir,
@@ -148,7 +173,7 @@ export default function FlameoCommandRoom({
         firefighterPins,
         rosterFieldUnitTotal
       ),
-    [householdPins, firePart, firefighterPins, rosterFieldUnitTotal]
+    [householdPinsForBriefing, firePart, firefighterPins, rosterFieldUnitTotal]
   )
 
   const loadFireFromApi = useCallback(async () => {
@@ -268,9 +293,10 @@ export default function FlameoCommandRoom({
   const s = commandContext.incident_summary
   const fc = commandContext.fire_context
   const topFive = commandContext.priority_assignments.slice(0, 5)
-  const recentDone = recentEvacuationRows(householdPins, 5)
+  const recentDone = recentEvacuationRows(householdPinsForBriefing, 5)
 
-  const showCommandAlert = householdPins.length > 0 || fc.nearest_fire_miles != null || s.needs_help > 0
+  const showCommandAlert =
+    householdPinsForBriefing.length > 0 || fc.nearest_fire_miles != null || s.needs_help > 0
   const weatherBits = [
     fc.wind_mph != null && fc.wind_mph > 0 ? `${fc.wind_mph} mph` : null,
     fc.wind_dir?.trim() ? `from the ${fc.wind_dir}` : null,

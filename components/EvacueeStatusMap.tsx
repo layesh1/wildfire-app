@@ -2,7 +2,7 @@
 import { MapContainer, TileLayer, CircleMarker, Marker, Popup, Tooltip, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import type { HazardFacility, FacilityType } from '@/lib/hazard-facilities'
 import LeafletInvalidateOnLayout from '@/components/leaflet/LeafletInvalidateOnLayout'
 import {
@@ -318,11 +318,6 @@ export default function EvacueeStatusMap({
   const { notEvacuated, evacuated, cannotEvac } = mapStats(pins, householdPins)
   const useHouseholdFireTint =
     householdFireTintProximityMiles != null && householdTintNifcFires != null
-
-  const householdPinsHaveOfficeSites = useMemo(
-    () => householdPins.some(p => (p.officeSites?.length ?? 0) > 0),
-    [householdPins],
-  )
 
   /** ER command hub: tighter legend + regional fitBounds (see FitBoundsCombined). */
   const legendCompact = fillParentHeight
@@ -822,161 +817,67 @@ export default function EvacueeStatusMap({
                   color: '#94a3b8',
                   fontSize: legendCompact ? 7 : 10,
                   fontWeight: 700,
-                  marginBottom: legendCompact ? 4 : 8,
+                  marginBottom: legendCompact ? 2 : 4,
                   letterSpacing: '0.07em',
                   textTransform: 'uppercase',
                 }}
               >
-                Evacuees
+                {legendCompact ? 'Homes & work' : 'Evacuees & work sites'}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: legendCompact ? 5 : 9, marginBottom: legendCompact ? 4 : 7 }}>
-                <div
-                  style={{
-                    flexShrink: 0,
-                    transform: legendCompact ? 'scale(0.52)' : 'scale(0.72)',
-                    transformOrigin: 'left center',
-                    width: 24,
-                    height: 24,
-                  }}
-                  // eslint-disable-next-line react/no-danger
-                  dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('neutral', 'home') }}
-                />
-                <div>
-                  <div style={{ color: '#cbd5e1', fontSize: legendCompact ? 9 : 11, fontWeight: 600, lineHeight: 1.2 }}>
-                    {legendCompact ? 'Home · not out' : 'Home, not evacuated'}
-                  </div>
-                  {!legendCompact && (
-                    <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Still at address</div>
-                  )}
+              {!legendCompact && (
+                <div style={{ color: '#64748b', fontSize: 9, lineHeight: 1.35, marginBottom: 6 }}>
+                  House = home · Building = office — same ring colors for both.
                 </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: legendCompact ? 5 : 9, marginBottom: legendCompact ? 4 : 7 }}>
-                <div
-                  style={{
-                    flexShrink: 0,
-                    transform: legendCompact ? 'scale(0.52)' : 'scale(0.72)',
-                    transformOrigin: 'left center',
-                    width: 24,
-                    height: 24,
-                  }}
-                  // eslint-disable-next-line react/no-danger
-                  dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('cleared', 'home') }}
-                />
-                <div>
-                  <div style={{ color: '#4ade80', fontSize: legendCompact ? 9 : 11, fontWeight: 600, lineHeight: 1.2 }}>
-                    {legendCompact ? 'Evacuated' : 'Evacuated — I left'}
-                  </div>
-                  {!legendCompact && (
-                    <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Cleared location</div>
-                  )}
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: legendCompact ? 5 : 9, marginBottom: legendCompact ? 4 : 7 }}>
-                <div
-                  style={{
-                    flexShrink: 0,
-                    transform: legendCompact ? 'scale(0.52)' : 'scale(0.72)',
-                    transformOrigin: 'left center',
-                    width: 24,
-                    height: 24,
-                  }}
-                  // eslint-disable-next-line react/no-danger
-                  dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('needs_action', 'home') }}
-                />
-                <div>
-                  <div style={{ color: '#f87171', fontSize: legendCompact ? 9 : 11, fontWeight: 600, lineHeight: 1.2 }}>Cannot evacuate</div>
-                  {!legendCompact && (
-                    <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Needs assistance / EMS</div>
-                  )}
-                </div>
-              </div>
-
-              {householdPinsHaveOfficeSites && (
-                <>
-                  <div
-                    style={{
-                      color: '#94a3b8',
-                      fontSize: legendCompact ? 7 : 10,
-                      fontWeight: 700,
-                      marginBottom: legendCompact ? 3 : 8,
-                      marginTop: legendCompact ? 2 : 6,
-                      letterSpacing: '0.07em',
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    {legendCompact ? 'Work' : 'Work / office'}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: legendCompact ? 5 : 9, marginBottom: legendCompact ? 3 : 7 }}>
-                    <div
-                      style={{
-                        flexShrink: 0,
-                        transform: legendCompact ? 'scale(0.52)' : 'scale(0.72)',
-                        transformOrigin: 'left center',
-                        width: 24,
-                        height: 24,
-                      }}
-                      // eslint-disable-next-line react/no-danger
-                      dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('neutral', 'office') }}
-                    />
-                    <div>
-                      <div style={{ color: '#cbd5e1', fontSize: legendCompact ? 8 : 11, fontWeight: 600, lineHeight: 1.25 }}>
-                        {legendCompact ? 'Office · grey ring' : 'Work site — neutral'}
-                      </div>
-                      {!legendCompact && (
-                        <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>
-                          Grey ring outside active-incident tint radius
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: legendCompact ? 5 : 9, marginBottom: legendCompact ? 3 : 7 }}>
-                    <div
-                      style={{
-                        flexShrink: 0,
-                        transform: legendCompact ? 'scale(0.52)' : 'scale(0.72)',
-                        transformOrigin: 'left center',
-                        width: 24,
-                        height: 24,
-                      }}
-                      // eslint-disable-next-line react/no-danger
-                      dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('cleared', 'office') }}
-                    />
-                    <div>
-                      <div style={{ color: '#4ade80', fontSize: legendCompact ? 8 : 11, fontWeight: 600, lineHeight: 1.25 }}>
-                        {legendCompact ? 'Office · cleared' : 'Work site — cleared'}
-                      </div>
-                      {!legendCompact && (
-                        <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>
-                          Everyone with this work address marked evacuated
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: legendCompact ? 5 : 9, marginBottom: legendCompact ? 3 : 7 }}>
-                    <div
-                      style={{
-                        flexShrink: 0,
-                        transform: legendCompact ? 'scale(0.52)' : 'scale(0.72)',
-                        transformOrigin: 'left center',
-                        width: 24,
-                        height: 24,
-                      }}
-                      // eslint-disable-next-line react/no-danger
-                      dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('needs_action', 'office') }}
-                    />
-                    <div>
-                      <div style={{ color: '#f87171', fontSize: legendCompact ? 8 : 11, fontWeight: 600, lineHeight: 1.25 }}>
-                        {legendCompact ? 'Office · action' : 'Work site — needs action'}
-                      </div>
-                      {!legendCompact && (
-                        <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>
-                          Needs evacuation update for people at this office
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </>
               )}
+              {([
+                { tint: 'neutral' as const, homeLabel: legendCompact ? 'Not cleared' : 'Not cleared (home or office)', sub: legendCompact ? '' : 'Still at address / grey ring' },
+                { tint: 'cleared' as const, homeLabel: legendCompact ? 'Cleared' : 'Evacuated / cleared', sub: legendCompact ? '' : 'Left home or work site' },
+                { tint: 'needs_action' as const, homeLabel: 'Cannot evacuate / needs action', sub: legendCompact ? '' : 'EMS or transport — home or office' },
+              ]).map(row => (
+                <div
+                  key={row.tint}
+                  style={{ display: 'flex', alignItems: 'center', gap: legendCompact ? 4 : 8, marginBottom: legendCompact ? 4 : 7 }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                    <div
+                      style={{
+                        transform: legendCompact ? 'scale(0.48)' : 'scale(0.62)',
+                        transformOrigin: 'left center',
+                        width: 22,
+                        height: 22,
+                      }}
+                      // eslint-disable-next-line react/no-danger
+                      dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint(row.tint, 'home') }}
+                    />
+                    <div
+                      style={{
+                        transform: legendCompact ? 'scale(0.48)' : 'scale(0.62)',
+                        transformOrigin: 'left center',
+                        width: 22,
+                        height: 22,
+                        marginLeft: -6,
+                      }}
+                      // eslint-disable-next-line react/no-danger
+                      dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint(row.tint, 'office') }}
+                    />
+                  </div>
+                  <div>
+                    <div
+                      style={{
+                        color: row.tint === 'cleared' ? '#4ade80' : row.tint === 'needs_action' ? '#f87171' : '#cbd5e1',
+                        fontSize: legendCompact ? 8 : 11,
+                        fontWeight: 600,
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {row.homeLabel}
+                    </div>
+                    {row.sub ? (
+                      <div style={{ color: '#64748b', fontSize: 9, lineHeight: 1.3 }}>{row.sub}</div>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
 
             </>
           )}

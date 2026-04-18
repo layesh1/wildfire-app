@@ -238,6 +238,41 @@ export function buildPriorityAssignments(
   })
 }
 
+/**
+ * Households for command briefing: within `zoneMiles` of map center, and when `fires` is non-empty,
+ * within `fireProximityMiles` of at least one incident (NIFC points already scoped to the hub).
+ * Excludes opt-in profiles outside the operational area (e.g. other states).
+ */
+export function filterHouseholdsForIncidentBriefing(
+  pins: HouseholdPin[],
+  mapCenter: [number, number],
+  zoneMiles: number,
+  fires: Array<{ latitude: number; longitude: number }>,
+  fireProximityMiles: number,
+): HouseholdPin[] {
+  const [clat, clng] = mapCenter
+  if (!Number.isFinite(clat) || !Number.isFinite(clng) || zoneMiles <= 0) return pins
+  const byCenter = pins.filter(
+    p =>
+      Number.isFinite(p.lat)
+      && Number.isFinite(p.lng)
+      && distanceMiles([p.lat, p.lng], [clat, clng]) <= zoneMiles
+  )
+  const validFires = fires.filter(
+    f => Number.isFinite(f.latitude) && Number.isFinite(f.longitude)
+  )
+  if (validFires.length === 0) return byCenter
+  const cap = Math.min(fireProximityMiles, zoneMiles)
+  return byCenter.filter(pin => {
+    let minD = Infinity
+    for (const f of validFires) {
+      const d = distanceMiles([pin.lat, pin.lng], [f.latitude, f.longitude])
+      if (d < minD) minD = d
+    }
+    return minD <= cap
+  })
+}
+
 export function assembleFlameoCommandContext(
   pins: HouseholdPin[],
   fire_context: FlameoCommandFireContext,

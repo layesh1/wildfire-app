@@ -656,6 +656,8 @@ export default function ResponderEvacuationMap({
                   firefighterPins={firefighterPins}
                   rosterFieldUnitTotal={rosterFieldUnitTotal}
                   mapCenter={effectiveMapCenter}
+                  nifcFiresInZone={nifcForEvacMap}
+                  zoneMiles={incidentRadiusMiles}
                   fireContext={flameoContext}
                   briefingRefreshKey={commandBriefingKey}
                   onViewOnMap={(lat, lng) => setMapFocus({ lat, lng, nonce: Date.now() })}
