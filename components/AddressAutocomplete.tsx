@@ -17,15 +17,16 @@ type GoogleAutocompletePrediction = {
   place_id: string
 }
 
-function clientPlacesKey() {
-  const key = process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY
-  if (!key) throw new Error('Missing NEXT_PUBLIC_GOOGLE_PLACES_API_KEY')
-  return key
+function getClientPlacesKey(): string | null {
+  const key = process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY?.trim()
+  return key || null
 }
 
 let mapsPlacesLoadPromise: Promise<void> | null = null
 function ensureGooglePlacesLoaded(): Promise<void> {
   if (typeof window === 'undefined') return Promise.reject(new Error('Browser required'))
+  const clientKey = getClientPlacesKey()
+  if (!clientKey) return Promise.reject(new Error('Missing NEXT_PUBLIC_GOOGLE_PLACES_API_KEY'))
   const g = (window as unknown as { google?: unknown }).google as
     | { maps?: { places?: unknown } }
     | undefined
@@ -35,7 +36,7 @@ function ensureGooglePlacesLoaded(): Promise<void> {
     const script = document.createElement('script')
     script.src =
       'https://maps.googleapis.com/maps/api/js'
-      + `?key=${encodeURIComponent(clientPlacesKey())}`
+      + `?key=${encodeURIComponent(clientKey)}`
       + '&libraries=places'
     script.async = true
     script.defer = true
@@ -113,7 +114,38 @@ export default function AddressAutocomplete({
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
+  async function fetchDetailsFromServer(placeId: string): Promise<PlaceSuggestion | null> {
+    try {
+      const res = await fetch(`/api/places/details?place_id=${encodeURIComponent(placeId)}`, {
+        credentials: 'same-origin',
+      })
+      const j = (await res.json()) as {
+        error?: string
+        formatted_address?: string
+        lat?: number
+        lng?: number
+        types?: string[]
+      }
+      if (!res.ok || !j.formatted_address || typeof j.lat !== 'number' || typeof j.lng !== 'number') {
+        return null
+      }
+      return {
+        place_id: placeId,
+        description: j.formatted_address,
+        formatted_address: j.formatted_address,
+        lat: j.lat,
+        lng: j.lng,
+        types: Array.isArray(j.types) ? j.types : [],
+      }
+    } catch {
+      return null
+    }
+  }
+
   async function fetchDetails(placeId: string): Promise<PlaceSuggestion | null> {
+    if (!getClientPlacesKey()) {
+      return fetchDetailsFromServer(placeId)
+    }
     await ensureGooglePlacesLoaded()
     const mapsAny = (window as any).google?.maps
     if (!mapsAny?.places?.PlacesService) return null
@@ -167,57 +199,84 @@ export default function AddressAutocomplete({
     }
     debounceRef.current = setTimeout(async () => {
       setLoading(true)
+      let googleFailMsg: string | null = null
       try {
-        await ensureGooglePlacesLoaded()
-        const mapsAny = (window as any).google?.maps
-        if (!mapsAny?.places?.AutocompleteService || !mapsAny?.places?.PlacesServiceStatus) {
-          throw new Error('Google Places unavailable')
-        }
-        const service = new mapsAny.places.AutocompleteService()
-        const runPredictions = (request: {
-          input: string
-          componentRestrictions: { country: string }
-          types?: string[]
-        }) =>
-          new Promise<GoogleAutocompletePrediction[]>(resolve => {
-            let done = false
-            const timer = window.setTimeout(() => {
-              if (done) return
-              done = true
-              resolve([])
-            }, 5000)
-            service.getPlacePredictions(
-              request,
-              (predictions: any[] | null, status: any) => {
+        let preds: GoogleAutocompletePrediction[] = []
+
+        if (!getClientPlacesKey()) {
+          const res = await fetch(`/api/places/autocomplete?input=${encodeURIComponent(v)}`, {
+            credentials: 'same-origin',
+          })
+          const j = (await res.json()) as {
+            predictions?: GoogleAutocompletePrediction[]
+            error?: string
+            googleStatus?: string
+            googleError?: string
+          }
+          if (res.status === 503) {
+            setSuggestions([])
+            setShowDrop(false)
+            setSearchError(
+              'Address search is not configured on the server (missing GOOGLE_GEOCODING_API_KEY), and no browser Places key. Add one of them in Vercel env, enable Places API on the GCP project, then redeploy.'
+            )
+            return
+          }
+          preds = Array.isArray(j.predictions) ? j.predictions : []
+          if (preds.length === 0 && (j.googleStatus || j.googleError)) {
+            googleFailMsg = `Google could not run address search (${j.googleStatus || 'error'}). ${j.googleError || 'Enable Places API for the same GCP key as Geocoding, or set NEXT_PUBLIC_GOOGLE_PLACES_API_KEY with a browser-safe key.'}`
+          }
+        } else {
+          await ensureGooglePlacesLoaded()
+          const mapsAny = (window as any).google?.maps
+          if (!mapsAny?.places?.AutocompleteService || !mapsAny?.places?.PlacesServiceStatus) {
+            throw new Error('Google Places unavailable')
+          }
+          const service = new mapsAny.places.AutocompleteService()
+          const runPredictions = (request: {
+            input: string
+            componentRestrictions: { country: string }
+            types?: string[]
+          }) =>
+            new Promise<GoogleAutocompletePrediction[]>(resolve => {
+              let done = false
+              const timer = window.setTimeout(() => {
                 if (done) return
                 done = true
-                window.clearTimeout(timer)
-                if (status !== mapsAny.places.PlacesServiceStatus.OK || !predictions) {
-                  resolve([])
-                  return
+                resolve([])
+              }, 5000)
+              service.getPlacePredictions(
+                request,
+                (predictions: any[] | null, status: any) => {
+                  if (done) return
+                  done = true
+                  window.clearTimeout(timer)
+                  if (status !== mapsAny.places.PlacesServiceStatus.OK || !predictions) {
+                    resolve([])
+                    return
+                  }
+                  resolve(
+                    predictions.slice(0, 12).map(p => ({
+                      place_id: String(p.place_id || ''),
+                      description: String(p.description || ''),
+                    }))
+                  )
                 }
-                resolve(
-                  predictions.slice(0, 12).map(p => ({
-                    place_id: String(p.place_id || ''),
-                    description: String(p.description || ''),
-                  }))
-                )
-              }
-            )
-          })
+              )
+            })
 
-        let preds = await runPredictions({
-          input: v,
-          componentRestrictions: { country: 'us' },
-          types: ['address'],
-        })
-        // `types: ['address']` misses many valid lines; retry without type filter and keep street-like rows.
-        if (preds.length === 0 && looksLikeUsStreetAddress(v)) {
-          const broad = await runPredictions({
+          preds = await runPredictions({
             input: v,
             componentRestrictions: { country: 'us' },
+            types: ['address'],
           })
-          preds = broad.filter(p => /^\d/.test(p.description.trim())).slice(0, 12)
+          // `types: ['address']` misses many valid lines; retry without type filter and keep street-like rows.
+          if (preds.length === 0 && looksLikeUsStreetAddress(v)) {
+            const broad = await runPredictions({
+              input: v,
+              componentRestrictions: { country: 'us' },
+            })
+            preds = broad.filter(p => /^\d/.test(p.description.trim())).slice(0, 12)
+          }
         }
 
         setSuggestions(preds)
@@ -226,7 +285,9 @@ export default function AddressAutocomplete({
         const persisted =
           matchesPersistedAddress && normAddr(v) === normAddr(matchesPersistedAddress)
         const ambiguousLine = looksLikeCompleteUsAddress(v) || persisted
-        if (preds.length === 0 && !ambiguousLine) {
+        if (googleFailMsg) {
+          setSearchError(googleFailMsg)
+        } else if (preds.length === 0 && !ambiguousLine) {
           setSearchError('No address matches found. Try a more complete street address.')
         } else if (preds.length === 0) {
           setSearchError(null)
@@ -234,7 +295,9 @@ export default function AddressAutocomplete({
       } catch {
         setSuggestions([])
         setShowDrop(false)
-        setSearchError('Address search is unavailable right now. Check API key restrictions and retry.')
+        setSearchError(
+          'Address search failed. If you use a browser Places key, check referrer restrictions for this domain; otherwise ensure GOOGLE_GEOCODING_API_KEY is set and the Places API is enabled for that GCP project.'
+        )
       } finally {
         setLoading(false)
       }

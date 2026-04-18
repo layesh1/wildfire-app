@@ -2,6 +2,11 @@
  * Sends My People invite email via Resend when RESEND_API_KEY is set; otherwise logs the link (dev).
  * The invite `token` is the same value accepted by /api/family/invite/accept and /auth/family-invite.
  *
+ * Resend production checklist:
+ * - Verify your sending domain at resend.com and set `RESEND_FROM_EMAIL` to an address on that domain
+ *   (defaults to `Wildfire App <onboarding@resend.dev>` which only works for limited test recipients).
+ * - Ensure `NEXT_PUBLIC_APP_URL` matches your public site so invite links are correct on Vercel.
+ *
  * Default HTML matches the Minutes Matter branded template used for Supabase “Confirm email” (same header/footer
  * and layout). Set RESEND_INVITE_EMAIL_STYLE=confirmation for a minimal plain alternative.
  */
@@ -148,6 +153,21 @@ export type SendFamilyInviteEmailResult = {
   devLink?: string
   /** Why email was not delivered (for UI copy; never includes secrets). */
   failureReason?: 'missing_api_key' | 'provider_error'
+  /** Sanitized Resend / provider message for operators (truncated). */
+  providerMessage?: string
+}
+
+function parseProviderErrorMessage(status: number, errText: string): string | undefined {
+  try {
+    const j = JSON.parse(errText) as { message?: unknown }
+    if (typeof j.message === 'string' && j.message.trim()) {
+      return `${status}: ${j.message.trim().slice(0, 400)}`
+    }
+  } catch {
+    /* not JSON */
+  }
+  const t = errText.trim().slice(0, 400)
+  return t ? `${status}: ${t}` : `${status}: unknown error`
 }
 
 export async function sendFamilyInviteEmail({
@@ -211,7 +231,12 @@ export async function sendFamilyInviteEmail({
   if (!res.ok) {
     const errText = await res.text()
     console.error('[family-invite email] Resend error:', res.status, errText)
-    return { sent: false, devLink: acceptUrl, failureReason: 'provider_error' }
+    return {
+      sent: false,
+      devLink: acceptUrl,
+      failureReason: 'provider_error',
+      providerMessage: parseProviderErrorMessage(res.status, errText),
+    }
   }
 
   return { sent: true }

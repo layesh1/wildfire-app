@@ -1106,12 +1106,19 @@ export function ConsumerHubDashboard({
               }
             : undefined
         )
+      } else if (data.mode === 'pending_signup') {
+        setFamilyAddOk(typeof data.message === 'string' ? data.message : 'Added.')
+        setFamilyEmail('')
       } else {
         const extra =
           data.devLink && !data.emailSent
             ? ` Copy link: ${data.devLink}`
             : ''
-        setFamilyAddOk((data.message || 'Invitation sent.') + extra)
+        const provider =
+          typeof data.emailProviderMessage === 'string' && data.emailProviderMessage.trim()
+            ? `\n\nResend: ${data.emailProviderMessage.trim()}`
+            : ''
+        setFamilyAddOk((data.message || 'Invitation sent.') + extra + provider)
         setFamilyEmail('')
       }
     } catch (e) {

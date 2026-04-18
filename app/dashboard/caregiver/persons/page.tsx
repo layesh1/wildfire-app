@@ -535,12 +535,18 @@ export default function PersonsPage() {
         if (mode === 'linked') {
           // Existing account was linked — they will appear in the list immediately after refresh.
           okText = serverMsg || `${email} is now in your My People`
+        } else if (mode === 'pending_signup') {
+          okText = serverMsg || `Added ${email}. They will join My People when they sign up with that address.`
         } else {
           okText = serverMsg || (emailSent
             ? `Invitation email sent to ${email}`
             : `Invitation created for ${email}`)
           if (!emailSent && devLink) {
             okText += `\n\nThe invite email couldn't be delivered from this server. Copy the link below and share it yourself (text, WhatsApp, or email):\n${devLink}`
+          }
+          const pm = typeof data?.emailProviderMessage === 'string' ? data.emailProviderMessage.trim() : ''
+          if (pm) {
+            okText += `\n\nResend details: ${pm}`
           }
         }
         setInviteOk(okText)

@@ -3,29 +3,14 @@ import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { validateString, ValidationError } from '@/lib/validate'
 import { linkCaregiverToEvacueeByEmail, mirrorFamilyLinkForEvacuee } from '@/lib/family-link'
-import { sendFamilyInviteEmail } from '@/lib/send-family-invite-email'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i
 
 /**
- * Invite links must use the public HTTPS origin in production.
- * Prefer NEXT_PUBLIC_APP_URL; on Vercel fall back to VERCEL_URL when unset (common misconfig).
- */
-function appBaseUrl() {
-  const explicit = process.env.NEXT_PUBLIC_APP_URL?.trim()
-  if (explicit) return explicit.replace(/\/$/, '')
-  const vercel = process.env.VERCEL_URL?.trim()
-  if (vercel) {
-    const host = vercel.replace(/\/$/, '')
-    if (host.startsWith('http://') || host.startsWith('https://')) return host
-    return `https://${host}`
-  }
-  return 'http://localhost:3000'.replace(/\/$/, '')
-}
-
-/**
- * Unified evacuee model: any consumer (evacuee or legacy caregiver row) can invite by email.
- * If the address matches an existing evacuee (or legacy caregiver) account → link both ways in My People.
+ * Unified evacuee model: any consumer (evacuee or legacy caregiver row) can add by email.
+ * If the address matches an existing account → link both ways in My People.
+ * If not, a pending family_invites row is created; when they sign up with that email, a DB trigger
+ * completes the symmetric link (no Resend, no token acceptance).
  */
 export async function POST(request: Request) {
   try {
@@ -66,7 +51,6 @@ export async function POST(request: Request) {
     }
 
     const role = (prof as { role?: string }).role
-    const inviterName = ((prof as { full_name?: string }).full_name || '').trim() || 'Someone'
     const inviterRoleForDb: 'caregiver' | 'evacuee' = role === 'caregiver' ? 'caregiver' : 'evacuee'
 
     if (role !== 'caregiver' && role !== 'evacuee') {
@@ -142,7 +126,7 @@ export async function POST(request: Request) {
       inviter_role: inviterRoleForDb,
       invitee_email: email,
       token,
-      expires_at: new Date(Date.now() + 14 * 86400000).toISOString(),
+      expires_at: new Date(Date.now() + 365 * 86400000).toISOString(),
     })
 
     if (insErr) {
@@ -153,28 +137,11 @@ export async function POST(request: Request) {
       )
     }
 
-    const acceptUrl = `${appBaseUrl()}/auth/family-invite?token=${encodeURIComponent(token)}`
-    const emailed = await sendFamilyInviteEmail({
-      to: email,
-      acceptUrl,
-      inviteToken: token,
-      inviterName,
-      inviterRole: inviterRoleForDb,
-    })
-
-    const message = emailed.sent
-      ? 'Invitation email sent. They can accept with the same email after signing up.'
-      : emailed.failureReason === 'missing_api_key'
-        ? 'Invitation saved. This server has no email API key—copy the link below and send it yourself (e.g. text or email).'
-        : 'Invitation saved, but the email provider rejected the send—copy the link below and share it manually.'
-
     return NextResponse.json({
       ok: true,
-      mode: 'invite_sent',
-      emailSent: emailed.sent,
-      devLink: emailed.devLink,
-      emailFailureReason: emailed.failureReason,
-      message,
+      mode: 'pending_signup',
+      message:
+        'Added. When they create an account with this email, they will appear in My People automatically (no invite email or link).',
     })
   } catch (e) {
     if (e instanceof ValidationError) {
