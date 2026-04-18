@@ -266,11 +266,50 @@ export default function FlameoCommandRoom({
   }, [briefingRefreshKey, briefingManualTick, commandContext])
 
   const s = commandContext.incident_summary
+  const fc = commandContext.fire_context
   const topFive = commandContext.priority_assignments.slice(0, 5)
   const recentDone = recentEvacuationRows(householdPins, 5)
 
+  const showCommandAlert = householdPins.length > 0 || fc.nearest_fire_miles != null || s.needs_help > 0
+  const weatherBits = [
+    fc.wind_mph != null && fc.wind_mph > 0 ? `${fc.wind_mph} mph` : null,
+    fc.wind_dir?.trim() ? `from the ${fc.wind_dir}` : null,
+    fc.fire_risk && fc.fire_risk !== 'Unknown' ? `Fire risk: ${fc.fire_risk}` : null,
+  ].filter(Boolean)
+
   return (
     <div className="flex flex-col space-y-3 p-2.5 sm:p-3 text-left">
+      {showCommandAlert && (
+        <div className="overflow-hidden rounded-xl border-2 border-red-600 shadow-md dark:border-red-500">
+          <div className="bg-red-700 px-2 py-1.5 text-center text-[10px] font-black uppercase tracking-[0.18em] text-white dark:bg-red-800">
+            Alert
+          </div>
+          <div className="border-t border-red-700/30 bg-red-50 px-2.5 py-2 dark:border-red-900/50 dark:bg-red-950/95">
+            {fc.nearest_fire_miles != null ? (
+              <p className="text-sm font-bold leading-snug text-red-900 dark:text-red-100">
+                Nearest wildfire: ~{fc.nearest_fire_miles} mi from command map center
+              </p>
+            ) : (
+              <p className="text-xs font-semibold leading-snug text-red-900 dark:text-red-200">
+                Nearest fire distance not loaded — refresh or confirm station / map center.
+              </p>
+            )}
+            {weatherBits.length > 0 && (
+              <p className="mt-1.5 text-xs font-semibold text-red-800 dark:text-red-200/95">
+                {weatherBits.join(' · ')}
+              </p>
+            )}
+            {s.needs_help > 0 && (
+              <p className="mt-2 text-xs font-bold leading-snug text-red-900 dark:text-red-100">
+                <span className="text-red-950 dark:text-red-50">{s.needs_help}</span>{' '}
+                {s.needs_help === 1 ? 'person needs' : 'people need'} immediate evacuation assistance
+                (cannot evacuate) — dispatch now.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className={flameoActivePanel}>
         <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
           <div className={flameoActiveHead}>Flameo · Command briefing</div>
@@ -295,7 +334,7 @@ export default function FlameoCommandRoom({
               <div className="h-3 w-4/5 max-w-[240px] animate-pulse rounded bg-amber-200/70 dark:bg-amber-900/50" />
             </div>
           ) : (
-            <div className="whitespace-pre-wrap text-xs leading-relaxed text-amber-950/95 dark:text-amber-50/95">
+            <div className="whitespace-pre-wrap text-[11px] leading-relaxed text-amber-950/90 dark:text-amber-50/90">
               {briefing}
             </div>
           )}

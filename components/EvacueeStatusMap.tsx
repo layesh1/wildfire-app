@@ -186,11 +186,16 @@ function FitBoundsCombined({
   householdPins,
   stationAnchor,
   firefighters = [],
+  nifcFires = [],
+  /** Command hub: include NIFC dots in bounds + wider framing (state / metro). */
+  commandHubFraming = false,
 }: {
   pins: EvacueePin[]
   householdPins: HouseholdPin[]
   stationAnchor?: { lat: number; lng: number } | null
   firefighters?: FirefighterPin[]
+  nifcFires?: NifcFire[]
+  commandHubFraming?: boolean
 }) {
   const map = useMap()
   useEffect(() => {
@@ -204,6 +209,9 @@ function FitBoundsCombined({
       ...firefighters
         .filter(f => Number.isFinite(f.lat) && Number.isFinite(f.lng))
         .map(f => [f.lat, f.lng] as [number, number]),
+      ...nifcFires
+        .filter(f => Number.isFinite(f.latitude) && Number.isFinite(f.longitude))
+        .map(f => [f.latitude, f.longitude] as [number, number]),
     ]
     if (
       stationAnchor != null
@@ -213,14 +221,26 @@ function FitBoundsCombined({
       pts.push([stationAnchor.lat, stationAnchor.lng])
     }
     if (pts.length === 0) return
+
+    if (pts.length === 1) {
+      map.setView(pts[0], commandHubFraming ? 10 : 12)
+      return
+    }
+
     const lats = pts.map(p => p[0])
     const lons = pts.map(p => p[1])
+    const pad = commandHubFraming ? 0.045 : 0.01
     map.fitBounds(
-      [[Math.min(...lats) - 0.01, Math.min(...lons) - 0.01],
-       [Math.max(...lats) + 0.01, Math.max(...lons) + 0.01]],
-      { maxZoom: 14 }
+      [
+        [Math.min(...lats) - pad, Math.min(...lons) - pad],
+        [Math.max(...lats) + pad, Math.max(...lons) + pad],
+      ],
+      {
+        maxZoom: commandHubFraming ? 11 : 14,
+        padding: commandHubFraming ? [20, 20] : [12, 12],
+      }
     )
-  }, [pins, householdPins, stationAnchor, firefighters, map])
+  }, [pins, householdPins, stationAnchor, firefighters, nifcFires, commandHubFraming, map])
   return null
 }
 
@@ -304,6 +324,9 @@ export default function EvacueeStatusMap({
     [householdPins],
   )
 
+  /** ER command hub: tighter legend + regional fitBounds (see FitBoundsCombined). */
+  const legendCompact = fillParentHeight
+
   const sizeClass = fillParentHeight
     ? 'min-h-0'
     : 'min-h-[260px] sm:min-h-[360px] md:min-h-[480px]'
@@ -329,6 +352,8 @@ export default function EvacueeStatusMap({
           householdPins={householdPins}
           stationAnchor={stationAnchor}
           firefighters={firefighters}
+          nifcFires={nifcFires}
+          commandHubFraming={fillParentHeight}
         />
 
         {showNifcPredictionOverlays && (
@@ -666,131 +691,288 @@ export default function EvacueeStatusMap({
           </Marker>
         )}
 
-        <div style={{
-          position: 'absolute', bottom: 28, right: 10, zIndex: 1000,
-          background: 'rgba(15,20,30,0.92)', borderRadius: 10,
-          padding: '10px 14px', border: '1px solid rgba(255,255,255,0.1)',
-          pointerEvents: 'none',
-        }}>
+        <div
+          style={{
+            position: 'absolute',
+            bottom: legendCompact ? 8 : 28,
+            right: legendCompact ? 6 : 10,
+            zIndex: 1000,
+            maxWidth: legendCompact ? 200 : 280,
+            maxHeight: legendCompact ? 'min(38vh, 188px)' : undefined,
+            overflowY: legendCompact ? 'auto' : undefined,
+            WebkitOverflowScrolling: 'touch',
+            background: 'rgba(15,20,30,0.92)',
+            borderRadius: legendCompact ? 8 : 10,
+            padding: legendCompact ? '6px 8px' : '10px 14px',
+            border: '1px solid rgba(255,255,255,0.1)',
+            pointerEvents: legendCompact ? 'auto' : 'none',
+          }}
+        >
           {nifcFires.length > 0 && (
             <>
-              <div style={{ color: '#94a3b8', fontSize: 10, fontWeight: 700, marginBottom: 8, letterSpacing: '0.07em', textTransform: 'uppercase' }}>
-                Active fires
+              <div
+                style={{
+                  color: '#94a3b8',
+                  fontSize: legendCompact ? 7 : 10,
+                  fontWeight: 700,
+                  marginBottom: legendCompact ? 4 : 8,
+                  letterSpacing: '0.07em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {legendCompact ? 'Fires (NIFC)' : 'Active fires'}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
-                <span style={{ color: '#fca5a5', fontSize: 11, fontWeight: 600 }}>Spreading</span>
-                <span style={{ color: '#64748b', fontSize: 10 }}>&lt;25% contained</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#f97316', flexShrink: 0 }} />
-                <span style={{ color: '#fdba74', fontSize: 11, fontWeight: 600 }}>Active</span>
-                <span style={{ color: '#64748b', fontSize: 10 }}>25–50%</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#eab308', flexShrink: 0 }} />
-                <span style={{ color: '#fde047', fontSize: 11, fontWeight: 600 }}>Partial</span>
-                <span style={{ color: '#64748b', fontSize: 10 }}>50–75%</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
-                <span style={{ color: '#86efac', fontSize: 11, fontWeight: 600 }}>Controlled</span>
-                <span style={{ color: '#64748b', fontSize: 10 }}>75%+</span>
-              </div>
+              {legendCompact ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    gap: 4,
+                    marginBottom: 6,
+                    fontSize: 8,
+                    lineHeight: 1.35,
+                    color: '#94a3b8',
+                  }}
+                >
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444' }} />
+                    &lt;25%
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f97316' }} />
+                    25–50
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#eab308' }} />
+                    50–75
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e' }} />
+                    75%+
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+                    <span style={{ color: '#fca5a5', fontSize: 11, fontWeight: 600 }}>Spreading</span>
+                    <span style={{ color: '#64748b', fontSize: 10 }}>&lt;25% contained</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#f97316', flexShrink: 0 }} />
+                    <span style={{ color: '#fdba74', fontSize: 11, fontWeight: 600 }}>Active</span>
+                    <span style={{ color: '#64748b', fontSize: 10 }}>25–50%</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#eab308', flexShrink: 0 }} />
+                    <span style={{ color: '#fde047', fontSize: 11, fontWeight: 600 }}>Partial</span>
+                    <span style={{ color: '#64748b', fontSize: 10 }}>50–75%</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+                    <span style={{ color: '#86efac', fontSize: 11, fontWeight: 600 }}>Controlled</span>
+                    <span style={{ color: '#64748b', fontSize: 10 }}>75%+</span>
+                  </div>
+                </>
+              )}
             </>
           )}
           {stationAnchor != null
             && Number.isFinite(stationAnchor.lat)
             && Number.isFinite(stationAnchor.lng) && (
             <>
-              <div style={{ color: '#94a3b8', fontSize: 10, fontWeight: 700, marginBottom: 8, letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+              <div
+                style={{
+                  color: '#94a3b8',
+                  fontSize: legendCompact ? 7 : 10,
+                  fontWeight: 700,
+                  marginBottom: legendCompact ? 3 : 8,
+                  letterSpacing: '0.07em',
+                  textTransform: 'uppercase',
+                }}
+              >
                 Station
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: legendCompact ? 5 : 8, marginBottom: legendCompact ? 6 : 10 }}>
                 <div
-                  style={{ flexShrink: 0, transform: 'scale(0.72)', transformOrigin: 'left center', width: 24, height: 24 }}
+                  style={{
+                    flexShrink: 0,
+                    transform: legendCompact ? 'scale(0.55)' : 'scale(0.72)',
+                    transformOrigin: 'left center',
+                    width: 24,
+                    height: 24,
+                  }}
                   // eslint-disable-next-line react/no-danger
                   dangerouslySetInnerHTML={{ __html: fireStationMarkerImgHtml(32) }}
                 />
                 <div>
-                  <div style={{ color: '#cbd5e1', fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Your station</div>
-                  <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Command map anchor</div>
+                  <div style={{ color: '#cbd5e1', fontSize: legendCompact ? 9 : 11, fontWeight: 600, lineHeight: 1.2 }}>Your station</div>
+                  {!legendCompact && (
+                    <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Command map anchor</div>
+                  )}
                 </div>
               </div>
             </>
           )}
           {householdPins.length > 0 && (
             <>
-              <div style={{ color: '#94a3b8', fontSize: 10, fontWeight: 700, marginBottom: 8, letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+              <div
+                style={{
+                  color: '#94a3b8',
+                  fontSize: legendCompact ? 7 : 10,
+                  fontWeight: 700,
+                  marginBottom: legendCompact ? 4 : 8,
+                  letterSpacing: '0.07em',
+                  textTransform: 'uppercase',
+                }}
+              >
                 Evacuees
               </div>
-              {/* Not evacuated */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 7 }}>
-                <div style={{ flexShrink: 0, transform: 'scale(0.72)', transformOrigin: 'left center', width: 24, height: 24 }}
+              <div style={{ display: 'flex', alignItems: 'center', gap: legendCompact ? 5 : 9, marginBottom: legendCompact ? 4 : 7 }}>
+                <div
+                  style={{
+                    flexShrink: 0,
+                    transform: legendCompact ? 'scale(0.52)' : 'scale(0.72)',
+                    transformOrigin: 'left center',
+                    width: 24,
+                    height: 24,
+                  }}
                   // eslint-disable-next-line react/no-danger
                   dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('neutral', 'home') }}
                 />
                 <div>
-                  <div style={{ color: '#cbd5e1', fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Home, not evacuated</div>
-                  <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Still at address</div>
+                  <div style={{ color: '#cbd5e1', fontSize: legendCompact ? 9 : 11, fontWeight: 600, lineHeight: 1.2 }}>
+                    {legendCompact ? 'Home · not out' : 'Home, not evacuated'}
+                  </div>
+                  {!legendCompact && (
+                    <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Still at address</div>
+                  )}
                 </div>
               </div>
-              {/* Evacuated */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 7 }}>
-                <div style={{ flexShrink: 0, transform: 'scale(0.72)', transformOrigin: 'left center', width: 24, height: 24 }}
+              <div style={{ display: 'flex', alignItems: 'center', gap: legendCompact ? 5 : 9, marginBottom: legendCompact ? 4 : 7 }}>
+                <div
+                  style={{
+                    flexShrink: 0,
+                    transform: legendCompact ? 'scale(0.52)' : 'scale(0.72)',
+                    transformOrigin: 'left center',
+                    width: 24,
+                    height: 24,
+                  }}
                   // eslint-disable-next-line react/no-danger
                   dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('cleared', 'home') }}
                 />
                 <div>
-                  <div style={{ color: '#4ade80', fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Evacuated — I left</div>
-                  <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Cleared location</div>
+                  <div style={{ color: '#4ade80', fontSize: legendCompact ? 9 : 11, fontWeight: 600, lineHeight: 1.2 }}>
+                    {legendCompact ? 'Evacuated' : 'Evacuated — I left'}
+                  </div>
+                  {!legendCompact && (
+                    <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Cleared location</div>
+                  )}
                 </div>
               </div>
-              {/* Cannot evacuate */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 7 }}>
-                <div style={{ flexShrink: 0, transform: 'scale(0.72)', transformOrigin: 'left center', width: 24, height: 24 }}
+              <div style={{ display: 'flex', alignItems: 'center', gap: legendCompact ? 5 : 9, marginBottom: legendCompact ? 4 : 7 }}>
+                <div
+                  style={{
+                    flexShrink: 0,
+                    transform: legendCompact ? 'scale(0.52)' : 'scale(0.72)',
+                    transformOrigin: 'left center',
+                    width: 24,
+                    height: 24,
+                  }}
                   // eslint-disable-next-line react/no-danger
                   dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('needs_action', 'home') }}
                 />
                 <div>
-                  <div style={{ color: '#f87171', fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Cannot evacuate</div>
-                  <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Needs assistance / EMS</div>
+                  <div style={{ color: '#f87171', fontSize: legendCompact ? 9 : 11, fontWeight: 600, lineHeight: 1.2 }}>Cannot evacuate</div>
+                  {!legendCompact && (
+                    <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Needs assistance / EMS</div>
+                  )}
                 </div>
               </div>
 
               {householdPinsHaveOfficeSites && (
                 <>
-                  <div style={{ color: '#94a3b8', fontSize: 10, fontWeight: 700, marginBottom: 8, marginTop: 6, letterSpacing: '0.07em', textTransform: 'uppercase' }}>
-                    Work / office
+                  <div
+                    style={{
+                      color: '#94a3b8',
+                      fontSize: legendCompact ? 7 : 10,
+                      fontWeight: 700,
+                      marginBottom: legendCompact ? 3 : 8,
+                      marginTop: legendCompact ? 2 : 6,
+                      letterSpacing: '0.07em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {legendCompact ? 'Work' : 'Work / office'}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 7 }}>
-                    <div style={{ flexShrink: 0, transform: 'scale(0.72)', transformOrigin: 'left center', width: 24, height: 24 }}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: legendCompact ? 5 : 9, marginBottom: legendCompact ? 3 : 7 }}>
+                    <div
+                      style={{
+                        flexShrink: 0,
+                        transform: legendCompact ? 'scale(0.52)' : 'scale(0.72)',
+                        transformOrigin: 'left center',
+                        width: 24,
+                        height: 24,
+                      }}
                       // eslint-disable-next-line react/no-danger
                       dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('neutral', 'office') }}
                     />
                     <div>
-                      <div style={{ color: '#cbd5e1', fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Work site — neutral</div>
-                      <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Building icon; grey ring outside active-incident tint radius</div>
+                      <div style={{ color: '#cbd5e1', fontSize: legendCompact ? 8 : 11, fontWeight: 600, lineHeight: 1.25 }}>
+                        {legendCompact ? 'Office · grey ring' : 'Work site — neutral'}
+                      </div>
+                      {!legendCompact && (
+                        <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>
+                          Grey ring outside active-incident tint radius
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 7 }}>
-                    <div style={{ flexShrink: 0, transform: 'scale(0.72)', transformOrigin: 'left center', width: 24, height: 24 }}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: legendCompact ? 5 : 9, marginBottom: legendCompact ? 3 : 7 }}>
+                    <div
+                      style={{
+                        flexShrink: 0,
+                        transform: legendCompact ? 'scale(0.52)' : 'scale(0.72)',
+                        transformOrigin: 'left center',
+                        width: 24,
+                        height: 24,
+                      }}
                       // eslint-disable-next-line react/no-danger
                       dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('cleared', 'office') }}
                     />
                     <div>
-                      <div style={{ color: '#4ade80', fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Work site — cleared</div>
-                      <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Everyone with this work address marked evacuated</div>
+                      <div style={{ color: '#4ade80', fontSize: legendCompact ? 8 : 11, fontWeight: 600, lineHeight: 1.25 }}>
+                        {legendCompact ? 'Office · cleared' : 'Work site — cleared'}
+                      </div>
+                      {!legendCompact && (
+                        <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>
+                          Everyone with this work address marked evacuated
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 7 }}>
-                    <div style={{ flexShrink: 0, transform: 'scale(0.72)', transformOrigin: 'left center', width: 24, height: 24 }}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: legendCompact ? 5 : 9, marginBottom: legendCompact ? 3 : 7 }}>
+                    <div
+                      style={{
+                        flexShrink: 0,
+                        transform: legendCompact ? 'scale(0.52)' : 'scale(0.72)',
+                        transformOrigin: 'left center',
+                        width: 24,
+                        height: 24,
+                      }}
                       // eslint-disable-next-line react/no-danger
                       dangerouslySetInnerHTML={{ __html: responderEvacueeMarkerHtmlTint('needs_action', 'office') }}
                     />
                     <div>
-                      <div style={{ color: '#f87171', fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Work site — needs action</div>
-                      <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>Needs evacuation update for people at this office</div>
+                      <div style={{ color: '#f87171', fontSize: legendCompact ? 8 : 11, fontWeight: 600, lineHeight: 1.25 }}>
+                        {legendCompact ? 'Office · action' : 'Work site — needs action'}
+                      </div>
+                      {!legendCompact && (
+                        <div style={{ color: '#64748b', fontSize: 10, lineHeight: 1.3 }}>
+                          Needs evacuation update for people at this office
+                        </div>
+                      )}
                     </div>
                   </div>
                 </>
@@ -798,19 +980,34 @@ export default function EvacueeStatusMap({
 
             </>
           )}
-          {/* Status counts */}
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: 8, paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div
+            style={{
+              borderTop: '1px solid rgba(255,255,255,0.08)',
+              marginTop: legendCompact ? 4 : 8,
+              paddingTop: legendCompact ? 4 : 8,
+              display: 'flex',
+              flexDirection: legendCompact ? 'row' : 'column',
+              flexWrap: legendCompact ? 'wrap' : undefined,
+              gap: legendCompact ? 6 : 4,
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#64748b', flexShrink: 0 }} />
-              <span style={{ color: '#94a3b8', fontSize: 11 }}>{notEvacuated} not evacuated</span>
+              <div style={{ width: legendCompact ? 6 : 8, height: legendCompact ? 6 : 8, borderRadius: '50%', background: '#64748b', flexShrink: 0 }} />
+              <span style={{ color: '#94a3b8', fontSize: legendCompact ? 8 : 11 }}>
+                {notEvacuated} {legendCompact ? 'not out' : 'not evacuated'}
+              </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
-              <span style={{ color: '#4ade80', fontSize: 11, fontWeight: 600 }}>{evacuated} evacuated</span>
+              <div style={{ width: legendCompact ? 6 : 8, height: legendCompact ? 6 : 8, borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+              <span style={{ color: '#4ade80', fontSize: legendCompact ? 8 : 11, fontWeight: 600 }}>
+                {evacuated} {legendCompact ? 'out' : 'evacuated'}
+              </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
-              <span style={{ color: '#f87171', fontSize: 11, fontWeight: 600 }}>{cannotEvac} cannot evacuate</span>
+              <div style={{ width: legendCompact ? 6 : 8, height: legendCompact ? 6 : 8, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+              <span style={{ color: '#f87171', fontSize: legendCompact ? 8 : 11, fontWeight: 600 }}>
+                {cannotEvac} {legendCompact ? 'cannot' : 'cannot evacuate'}
+              </span>
             </div>
           </div>
         </div>
