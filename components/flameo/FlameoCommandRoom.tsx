@@ -49,6 +49,28 @@ const flameoActivePanel =
 const flameoActiveHead =
   'text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-200/95'
 
+/** Names for briefing row: cannot-evacuate first, then others not evacuated. */
+function priorityRowNames(a: PriorityAssignment): string {
+  const cannot = a.members
+    .filter(m => m.status === 'cannot_evacuate')
+    .map(m => m.name.trim())
+    .filter(Boolean)
+  const notEv = a.members
+    .filter(m => m.status === 'not_evacuated')
+    .map(m => m.name.trim())
+    .filter(Boolean)
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const n of [...cannot, ...notEv]) {
+    if (seen.has(n)) continue
+    seen.add(n)
+    out.push(n)
+  }
+  if (out.length > 0) return out.join(', ')
+  const all = a.members.map(m => m.name.trim()).filter(Boolean)
+  return [...new Set(all)].join(', ') || 'Unknown'
+}
+
 function actionBadgeClass(action: PriorityAssignment['action_required']): string {
   switch (action) {
     case 'EMS':
@@ -300,11 +322,13 @@ export default function FlameoCommandRoom({
     () => splitFlameoCommandBriefing(briefing),
     [briefing]
   )
-  const showBriefingTabs = briefingPriorities.length > 0
+  const priorityRows = commandContext.priority_assignments
+  const showBriefingTabs =
+    priorityRows.length > 0 || briefingPriorities.length > 0
 
   const s = commandContext.incident_summary
   const fc = commandContext.fire_context
-  const topFive = commandContext.priority_assignments.slice(0, 5)
+  const topFive = priorityRows.slice(0, 5)
   const recentDone = recentEvacuationRows(householdPinsForBriefing, 5)
 
   const showCommandAlert =
@@ -400,7 +424,7 @@ export default function FlameoCommandRoom({
                   id="flameo-command-tab-priorities"
                   aria-controls="flameo-command-panel-priorities"
                   onClick={() => setBriefingTab('priorities')}
-                  className={`min-w-0 flex-1 rounded-md px-2 py-1.5 text-sm font-bold transition-colors ${
+                  className={`min-w-0 flex-1 rounded-md px-2 py-1.5 text-sm font-semibold transition-colors ${
                     briefingTab === 'priorities'
                       ? 'bg-white text-amber-950 shadow-sm dark:bg-amber-900/80 dark:text-amber-50'
                       : 'text-amber-900/80 hover:bg-amber-50/80 dark:text-amber-200/80 dark:hover:bg-amber-900/30'
@@ -423,9 +447,72 @@ export default function FlameoCommandRoom({
                   role="tabpanel"
                   id="flameo-command-panel-priorities"
                   aria-labelledby="flameo-command-tab-priorities"
-                  className="whitespace-pre-wrap text-sm font-bold leading-relaxed text-amber-950 dark:text-amber-50"
+                  className="text-sm leading-relaxed text-amber-950/90 dark:text-amber-50/90"
                 >
-                  {briefingPriorities}
+                  {priorityRows.length > 0 ? (
+                    <ul className="space-y-4">
+                      {priorityRows.map(a => (
+                        <li
+                          key={`${a.rank}-${a.address}`}
+                          className="border-b border-amber-200/50 pb-4 last:border-0 last:pb-0 dark:border-amber-800/35"
+                        >
+                          <div className="leading-snug">
+                            <span className="font-bold text-red-600 dark:text-red-400">
+                              {priorityRowNames(a)}
+                            </span>
+                            <span className="font-normal text-amber-800/75 dark:text-amber-300/75"> — </span>
+                            <span className="font-bold text-amber-950 dark:text-amber-50">{a.address}</span>
+                          </div>
+                          <div className="mt-2 flex flex-wrap items-center gap-2 font-normal">
+                            <span
+                              className={`rounded-md border px-2 py-0.5 text-xs font-semibold uppercase ${actionBadgeClass(a.action_required)}`}
+                            >
+                              {a.action_required}
+                            </span>
+                            <span className="text-xs text-amber-900/90 dark:text-amber-100/85">
+                              {a.people_count} {a.people_count === 1 ? 'person' : 'people'}
+                              {a.cannot_evacuate_count > 0
+                                ? ` · ${a.cannot_evacuate_count} cannot self-evacuate`
+                                : ''}
+                            </span>
+                          </div>
+                          {(a.mobility_flags.length > 0 || a.medical_flags.length > 0) && (
+                            <div className="mt-1.5 flex flex-wrap gap-1 font-normal">
+                              {a.mobility_flags.map((t, i) => (
+                                <span
+                                  key={`mob-${i}-${t}`}
+                                  className="rounded-md border border-amber-200/80 bg-white/60 px-1.5 py-0.5 text-xs text-amber-950 dark:border-amber-800/50 dark:bg-amber-950/40 dark:text-amber-100"
+                                >
+                                  {t}
+                                </span>
+                              ))}
+                              {a.medical_flags.map((t, i) => (
+                                <span
+                                  key={`med-${i}-${t}`}
+                                  className="rounded-md border border-blue-200/90 bg-blue-50/90 px-1.5 py-0.5 text-xs text-blue-950 dark:border-blue-800/50 dark:bg-blue-950/35 dark:text-blue-100"
+                                >
+                                  {t}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <p className="mt-1.5 font-normal leading-relaxed text-amber-900/95 dark:text-amber-100/90">
+                            {a.reason}
+                          </p>
+                          {a.assigned_to && (
+                            <p className="mt-1.5 font-normal text-xs text-sky-900 dark:text-sky-300">
+                              Suggested: {a.assigned_to}
+                              {typeof a.estimated_travel_minutes === 'number'
+                                ? ` · ~${a.estimated_travel_minutes} min (est.)`
+                                : ''}
+                            </p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <div className="whitespace-pre-wrap font-normal">{briefingPriorities}</div>
+                  )}
                 </div>
               )}
             </div>
