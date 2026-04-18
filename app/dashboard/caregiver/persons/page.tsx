@@ -1082,9 +1082,16 @@ export default function PersonsPage() {
                         {person.relationship}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5 mt-1 text-ash-500 text-xs">
-                      <MapPin className="w-3 h-3 shrink-0" />
-                      <span className="truncate">{person.address}</span>
+                    <div className="mt-1 flex items-start gap-1.5 text-xs leading-snug">
+                      <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ash-500" aria-hidden />
+                      <div className="min-w-0 text-ash-400">
+                        <span className="font-semibold text-ash-200">Live: </span>
+                        <span className="break-words">
+                          {person.address?.trim()
+                            ? person.address.trim()
+                            : 'No home street on file — link their account so their profile address fills in, or add one when you add them manually.'}
+                        </span>
+                      </div>
                     </div>
                     {person.phone && (
                       <div className="flex items-center gap-1.5 mt-0.5 text-ash-600 text-xs">

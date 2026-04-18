@@ -335,8 +335,16 @@ export function ConsumerHubDashboard({
 
   const { mode, activePerson, setMode, setActivePerson } = useRoleContext()
   const isViewingMember = mode === 'member' && activePerson != null
-  const flameoContextAddress =
-    isViewingMember && activePerson?.address?.trim() ? activePerson.address.trim() : null
+
+  /** Home street for Flameo/map when viewing someone — RoleContext may omit address until refresh. */
+  const flameoContextAddress = useMemo(() => {
+    if (!isViewingMember || !activePerson) return null
+    const direct = activePerson.address?.trim()
+    if (direct) return direct
+    const row = persons.find(p => p.id === activePerson.id)
+    const fromRow = typeof row?.address === 'string' ? row.address.trim() : ''
+    return fromRow || null
+  }, [isViewingMember, activePerson, persons])
 
   const userLocHook = useUserLocation({
     homeAddress: userProfile?.address,
@@ -540,13 +548,24 @@ export function ConsumerHubDashboard({
     }
   }, [searchParams])
 
-  // Geocode active person's address whenever they change
+  // Geocode active My People member home (RoleContext address or row from profiles merge)
   useEffect(() => {
-    if (!activePerson?.address) { setPersonLocation(null); return }
+    if (!isViewingMember || !activePerson) {
+      setPersonLocation(null)
+      return
+    }
+    const addr =
+      activePerson.address?.trim()
+      || persons.find(p => p.id === activePerson.id)?.address?.trim()
+      || ''
+    if (!addr) {
+      setPersonLocation(null)
+      return
+    }
     let cancelled = false
     ;(async () => {
       try {
-        const g = await geocodeAddressClient(activePerson.address!)
+        const g = await geocodeAddressClient(addr)
         if (!cancelled && Number.isFinite(g.lat) && Number.isFinite(g.lng)) {
           setPersonLocation([g.lat, g.lng])
           return
@@ -559,7 +578,7 @@ export function ConsumerHubDashboard({
     return () => {
       cancelled = true
     }
-  }, [activePerson?.address])
+  }, [isViewingMember, activePerson?.id, activePerson?.address, persons])
 
   useEffect(() => {
     const addr = userProfile?.address?.trim()
@@ -592,8 +611,13 @@ export function ConsumerHubDashboard({
   }, [isViewingMember, personLocation, userLocation, homeCoords])
 
   useEffect(() => {
-    const addr =
-      (isViewingMember && activePerson?.address?.trim()) || userProfile?.address?.trim() || ''
+    const memberAddr =
+      isViewingMember && activePerson
+        ? activePerson.address?.trim()
+          || persons.find(p => p.id === activePerson.id)?.address?.trim()
+          || ''
+        : ''
+    const addr = memberAddr || userProfile?.address?.trim() || ''
     const st = parseUsStateCodeFromAddress(addr) || 'NC'
     if (!mapAnchor) {
       setLiveMapShelters([])
@@ -638,7 +662,7 @@ export function ConsumerHubDashboard({
     return () => {
       cancelled = true
     }
-  }, [mapAnchor, isViewingMember, activePerson?.address, userProfile?.address])
+  }, [mapAnchor, isViewingMember, activePerson?.id, activePerson?.address, userProfile?.address, persons])
 
   /** NIFC + AI proximity use saved home (or monitored person’s address), not GPS — matches Flameo “near home”. */
   const homeAnchorForAlerts = useMemo((): [number, number] | null => {
@@ -683,6 +707,19 @@ export function ConsumerHubDashboard({
   const personsManageHref = '/dashboard/home/persons'
 
   const monitoredOthers = useMemo(() => monitoredPersonsExcludingSelf(persons), [persons])
+
+  const viewingMemberLiveLine = useMemo(() => {
+    if (!isViewingMember || !activePerson) return ''
+    const addr =
+      activePerson.address?.trim()
+      || persons.find(p => p.id === activePerson.id)?.address?.trim()
+      || ''
+    if (addr) return addr
+    if (personCoords[activePerson.id]) {
+      return 'On your hub map — their home street appears here when their profile shares it.'
+    }
+    return 'No home address yet — link their account or add a street under Manage people.'
+  }, [isViewingMember, activePerson, persons, personCoords])
 
   const watchedLocationsForMap = useMemo(() => {
     const out: { label: string; lat: number; lng: number }[] = []
@@ -1287,6 +1324,20 @@ export function ConsumerHubDashboard({
     personStatuses,
   ])
 
+  const memberPersonCard =
+    isViewingMember && activePerson ? (
+      <div className="rounded-2xl border-2 border-amber-400/70 bg-gradient-to-br from-amber-50 via-white to-orange-50/80 px-3 py-2.5 shadow-sm dark:border-amber-700/50 dark:from-amber-950/45 dark:via-gray-900 dark:to-amber-950/30">
+        <div className="text-[10px] font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200/90">
+          My People — live location
+        </div>
+        <div className="mt-0.5 text-sm font-semibold text-gray-900 dark:text-white">{activePerson.name}</div>
+        <div className="mt-1.5 text-[11px] leading-snug text-gray-700 dark:text-gray-200">
+          <span className="font-semibold text-gray-900 dark:text-white">Live: </span>
+          {viewingMemberLiveLine}
+        </div>
+      </div>
+    ) : null
+
   return (
     <div className="flex min-h-[100dvh] w-full flex-1 flex-col">
       {bpMd === undefined && (
@@ -1333,6 +1384,8 @@ export function ConsumerHubDashboard({
               : 'My Hub'}
           </h1>
         </div>
+
+        {memberPersonCard}
 
         {!showPeopleRail && (
           <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
@@ -1651,6 +1704,7 @@ export function ConsumerHubDashboard({
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {showPeopleRail ? (
                 <>
+                  {memberPersonCard}
                   <HubMyPeopleRows
                     monitoredOthers={monitoredOthers}
                     personStatuses={personStatuses}
