@@ -19,6 +19,7 @@ import type {
   WindData,
 } from '@/app/dashboard/caregiver/map/LeafletMap'
 import type { FirefighterPin } from '@/lib/firefighter-pin'
+import { distanceMiles } from '@/lib/hub-map-distance'
 import NifcFireMapFeatures from '@/components/leaflet/NifcFireMapFeatures'
 import NifcFirePredictionOverlay from '@/components/leaflet/NifcFirePredictionOverlay'
 import WindCompassOverlay from '@/components/leaflet/WindCompassOverlay'
@@ -187,8 +188,12 @@ function FitBoundsCombined({
   stationAnchor,
   firefighters = [],
   nifcFires = [],
-  /** Command hub: include NIFC dots in bounds + wider framing (state / metro). */
+  /** Command hub: include NIFC dots in bounds + regional framing. */
   commandHubFraming = false,
+  /** Command hub: only points within this many miles of the anchor participate in fitBounds (avoids US-wide zoom). */
+  commandHubFitRadiusMiles = null,
+  /** When station pin is hidden, use map center as the hub anchor for radius filtering. */
+  mapCenterFallback = null,
 }: {
   pins: EvacueePin[]
   householdPins: HouseholdPin[]
@@ -196,10 +201,12 @@ function FitBoundsCombined({
   firefighters?: FirefighterPin[]
   nifcFires?: NifcFire[]
   commandHubFraming?: boolean
+  commandHubFitRadiusMiles?: number | null
+  mapCenterFallback?: [number, number] | null
 }) {
   const map = useMap()
   useEffect(() => {
-    const pts: [number, number][] = [
+    let pts: [number, number][] = [
       ...pins.map(p => [p.lat, p.lon] as [number, number]),
       ...householdPins.flatMap(h => {
         const home: [number, number] = [h.lat, h.lng]
@@ -220,27 +227,61 @@ function FitBoundsCombined({
     ) {
       pts.push([stationAnchor.lat, stationAnchor.lng])
     }
-    if (pts.length === 0) return
+
+    const hubAnchor: [number, number] | null =
+      stationAnchor != null && Number.isFinite(stationAnchor.lat) && Number.isFinite(stationAnchor.lng)
+        ? [stationAnchor.lat, stationAnchor.lng]
+        : mapCenterFallback != null
+          && Number.isFinite(mapCenterFallback[0])
+          && Number.isFinite(mapCenterFallback[1])
+          ? [mapCenterFallback[0], mapCenterFallback[1]]
+          : null
+
+    const hubR =
+      commandHubFraming && commandHubFitRadiusMiles != null && Number.isFinite(commandHubFitRadiusMiles)
+        ? Math.max(20, commandHubFitRadiusMiles)
+        : null
+
+    if (hubR != null && hubAnchor != null) {
+      pts = pts.filter(([lat, lon]) => distanceMiles([lat, lon], hubAnchor) <= hubR)
+    }
+
+    if (pts.length === 0) {
+      if (hubAnchor != null) {
+        map.setView(hubAnchor, commandHubFraming ? 11 : 12)
+      }
+      return
+    }
 
     if (pts.length === 1) {
-      map.setView(pts[0], commandHubFraming ? 10 : 12)
+      map.setView(pts[0], commandHubFraming ? 11 : 12)
       return
     }
 
     const lats = pts.map(p => p[0])
     const lons = pts.map(p => p[1])
-    const pad = commandHubFraming ? 0.045 : 0.01
+    const pad = commandHubFraming ? 0.028 : 0.01
     map.fitBounds(
       [
         [Math.min(...lats) - pad, Math.min(...lons) - pad],
         [Math.max(...lats) + pad, Math.max(...lons) + pad],
       ],
       {
-        maxZoom: commandHubFraming ? 11 : 14,
+        maxZoom: commandHubFraming ? 14 : 14,
         padding: commandHubFraming ? [20, 20] : [12, 12],
       }
     )
-  }, [pins, householdPins, stationAnchor, firefighters, nifcFires, commandHubFraming, map])
+  }, [
+    pins,
+    householdPins,
+    stationAnchor,
+    firefighters,
+    nifcFires,
+    commandHubFraming,
+    commandHubFitRadiusMiles,
+    mapCenterFallback,
+    map,
+  ])
   return null
 }
 
@@ -349,6 +390,12 @@ export default function EvacueeStatusMap({
           firefighters={firefighters}
           nifcFires={nifcFires}
           commandHubFraming={fillParentHeight}
+          mapCenterFallback={center}
+          commandHubFitRadiusMiles={
+            fillParentHeight
+              ? Math.min(220, Math.max(55, (householdFireTintProximityMiles ?? 50) + 40))
+              : null
+          }
         />
 
         {showNifcPredictionOverlays && (
