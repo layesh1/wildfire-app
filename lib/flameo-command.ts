@@ -300,6 +300,22 @@ export function assembleFlameoCommandContext(
   }
 }
 
+/** LLM and fallback briefings emit this line between situation (tabs: Situation) and the rest (tabs: Priorities). */
+export const FLAMEO_COMMAND_PRIORITY_SECTION_DELIMITER = '---FLAMEO_COMMAND_PRIORITIES---' as const
+
+export function splitFlameoCommandBriefing(briefing: string): {
+  overview: string
+  priorities: string
+} {
+  const d = FLAMEO_COMMAND_PRIORITY_SECTION_DELIMITER
+  const i = briefing.indexOf(d)
+  if (i === -1) return { overview: briefing.trim(), priorities: '' }
+  return {
+    overview: briefing.slice(0, i).trim(),
+    priorities: briefing.slice(i + d.length).trim(),
+  }
+}
+
 export function commandBriefingFallback(ctx: FlameoCommandContext): string {
   const pa = ctx.priority_assignments
   const x = pa.length
@@ -323,5 +339,7 @@ export function commandBriefingFallback(ctx: FlameoCommandContext): string {
   if (!first) {
     return `${ctx.incident_summary.total_households} households in zone. No critical queue — maintain patrol pattern.${dispatch}`
   }
-  return `${x} households need immediate attention. ${y} people cannot self-evacuate. Top priority: ${first.address} — ${first.reason}.${dispatch}`
+  const overview = `${x} households need immediate attention. ${y} people cannot self-evacuate.`
+  const priorities = `Top priority: ${first.address} — ${first.reason}.${dispatch}`
+  return `${overview}\n\n${FLAMEO_COMMAND_PRIORITY_SECTION_DELIMITER}\n\n${priorities}`
 }

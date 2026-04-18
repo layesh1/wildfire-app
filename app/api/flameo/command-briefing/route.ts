@@ -5,7 +5,10 @@ import { checkRateLimit, getClientIp } from '@/lib/ratelimit'
 import { logger } from '@/lib/logger'
 import { stripMarkdownHeadingMarkers } from '@/lib/flameo-briefing-format'
 import type { FlameoCommandContext } from '@/lib/flameo-command-types'
-import { commandBriefingFallback } from '@/lib/flameo-command'
+import {
+  commandBriefingFallback,
+  FLAMEO_COMMAND_PRIORITY_SECTION_DELIMITER,
+} from '@/lib/flameo-command'
 import { isEmergencyResponder } from '@/lib/responder-evacuees-server'
 
 const client = process.env.ANTHROPIC_API_KEY
@@ -31,6 +34,8 @@ RULES:
 FORMAT your response as:
 1. Active fires / weather (1 sentence) — distance, wind, risk from fire_context
 2. Situation summary (1–2 sentences) — counts from incident_summary only
+Then output a single line containing exactly this text (nothing else on that line):
+${FLAMEO_COMMAND_PRIORITY_SECTION_DELIMITER}
 3. Priority assignments (numbered list) — include suggested unit / routing when assigned_to is present
 4. Field disposition when relevant
 5. Resources note if relevant

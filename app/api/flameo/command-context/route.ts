@@ -40,7 +40,7 @@ async function fireContextForPoint(
       const d = distanceMiles([lat, lng], [f.latitude, f.longitude])
       if (best == null || d < best) best = d
     }
-    nearest_fire_miles = best
+    nearest_fire_miles = best != null ? Math.round(best * 10) / 10 : null
   }
 
   return { nearest_fire_miles, wind_dir, wind_mph, fire_risk }

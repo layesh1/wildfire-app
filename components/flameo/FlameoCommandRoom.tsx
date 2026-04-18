@@ -11,6 +11,7 @@ import type { FlameoCommandContext, PriorityAssignment } from '@/lib/flameo-comm
 import {
   assembleFlameoCommandContext,
   filterHouseholdsForIncidentBriefing,
+  splitFlameoCommandBriefing,
 } from '@/lib/flameo-command'
 
 type Props = {
@@ -147,6 +148,7 @@ export default function FlameoCommandRoom({
   const [rosterError, setRosterError] = useState<string | null>(null)
   const [copyOk, setCopyOk] = useState(false)
   const [regenBusy, setRegenBusy] = useState(false)
+  const [briefingTab, setBriefingTab] = useState<'situation' | 'priorities'>('situation')
 
   const householdPinsForBriefing = useMemo(
     () =>
@@ -290,6 +292,16 @@ export default function FlameoCommandRoom({
     }
   }, [briefingRefreshKey, briefingManualTick, commandContext])
 
+  useEffect(() => {
+    setBriefingTab('situation')
+  }, [briefing])
+
+  const { overview: briefingOverview, priorities: briefingPriorities } = useMemo(
+    () => splitFlameoCommandBriefing(briefing),
+    [briefing]
+  )
+  const showBriefingTabs = briefingPriorities.length > 0
+
   const s = commandContext.incident_summary
   const fc = commandContext.fire_context
   const topFive = commandContext.priority_assignments.slice(0, 5)
@@ -313,7 +325,7 @@ export default function FlameoCommandRoom({
           <div className="border-t border-red-700/30 bg-red-50 px-2.5 py-2 dark:border-red-900/50 dark:bg-red-950/95">
             {fc.nearest_fire_miles != null ? (
               <p className="text-sm font-bold leading-snug text-red-900 dark:text-red-100">
-                Nearest wildfire: ~{fc.nearest_fire_miles} mi from command map center
+                Nearest wildfire: ~{fc.nearest_fire_miles.toFixed(1)} mi from command map center
               </p>
             ) : (
               <p className="text-xs font-semibold leading-snug text-red-900 dark:text-red-200">
@@ -355,22 +367,80 @@ export default function FlameoCommandRoom({
         >
           {briefingLoading ? (
             <div className="space-y-2" aria-busy="true">
-              <div className="h-3 w-[92%] max-w-[280px] animate-pulse rounded bg-amber-200/70 dark:bg-amber-900/50" />
-              <div className="h-3 w-full max-w-[300px] animate-pulse rounded bg-amber-200/70 dark:bg-amber-900/50" />
-              <div className="h-3 w-4/5 max-w-[240px] animate-pulse rounded bg-amber-200/70 dark:bg-amber-900/50" />
+              <div className="h-3.5 w-[92%] max-w-[280px] animate-pulse rounded bg-amber-200/70 dark:bg-amber-900/50" />
+              <div className="h-3.5 w-full max-w-[300px] animate-pulse rounded bg-amber-200/70 dark:bg-amber-900/50" />
+              <div className="h-3.5 w-4/5 max-w-[240px] animate-pulse rounded bg-amber-200/70 dark:bg-amber-900/50" />
+            </div>
+          ) : showBriefingTabs ? (
+            <div>
+              <div
+                className="mb-2 flex gap-1 rounded-lg border border-amber-300/60 bg-amber-100/50 p-0.5 dark:border-amber-800/50 dark:bg-amber-950/40"
+                role="tablist"
+                aria-label="Briefing sections"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={briefingTab === 'situation'}
+                  id="flameo-command-tab-situation"
+                  aria-controls="flameo-command-panel-situation"
+                  onClick={() => setBriefingTab('situation')}
+                  className={`min-w-0 flex-1 rounded-md px-2 py-1.5 text-sm font-semibold transition-colors ${
+                    briefingTab === 'situation'
+                      ? 'bg-white text-amber-950 shadow-sm dark:bg-amber-900/80 dark:text-amber-50'
+                      : 'text-amber-900/80 hover:bg-amber-50/80 dark:text-amber-200/80 dark:hover:bg-amber-900/30'
+                  }`}
+                >
+                  Situation
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={briefingTab === 'priorities'}
+                  id="flameo-command-tab-priorities"
+                  aria-controls="flameo-command-panel-priorities"
+                  onClick={() => setBriefingTab('priorities')}
+                  className={`min-w-0 flex-1 rounded-md px-2 py-1.5 text-sm font-bold transition-colors ${
+                    briefingTab === 'priorities'
+                      ? 'bg-white text-amber-950 shadow-sm dark:bg-amber-900/80 dark:text-amber-50'
+                      : 'text-amber-900/80 hover:bg-amber-50/80 dark:text-amber-200/80 dark:hover:bg-amber-900/30'
+                  }`}
+                >
+                  Priority assignments
+                </button>
+              </div>
+              {briefingTab === 'situation' ? (
+                <div
+                  role="tabpanel"
+                  id="flameo-command-panel-situation"
+                  aria-labelledby="flameo-command-tab-situation"
+                  className="whitespace-pre-wrap text-sm leading-relaxed text-amber-950/90 dark:text-amber-50/90"
+                >
+                  {briefingOverview}
+                </div>
+              ) : (
+                <div
+                  role="tabpanel"
+                  id="flameo-command-panel-priorities"
+                  aria-labelledby="flameo-command-tab-priorities"
+                  className="whitespace-pre-wrap text-sm font-bold leading-relaxed text-amber-950 dark:text-amber-50"
+                >
+                  {briefingPriorities}
+                </div>
+              )}
             </div>
           ) : (
-            <div className="whitespace-pre-wrap text-[11px] leading-relaxed text-amber-950/90 dark:text-amber-50/90">
-              {briefing}
+            <div className="whitespace-pre-wrap text-sm leading-relaxed text-amber-950/90 dark:text-amber-50/90">
+              {briefingOverview}
             </div>
           )}
           {briefingFallback && !briefingLoading && (
-            <p className="mt-2 text-[10px] text-amber-900/85 dark:text-amber-400/90">
+            <p className="mt-2 text-xs text-amber-900/85 dark:text-amber-400/90">
               Template / offline briefing (model unavailable).
             </p>
           )}
           {briefingAt && !briefingLoading && (
-            <p className="mt-2 text-[10px] text-amber-800/80 dark:text-amber-500">
+            <p className="mt-2 text-xs text-amber-800/80 dark:text-amber-500">
               Last updated {briefingAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </p>
           )}
@@ -482,7 +552,9 @@ export default function FlameoCommandRoom({
       </div>
 
       <div className={panel}>
-        <div className={`${sectionHead} mb-2`}>Priority assignments</div>
+        <div className="mb-2 text-xs font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">
+          Priority assignments
+        </div>
         {topFive.length === 0 ? (
           <p className="text-xs text-gray-500 dark:text-gray-400">No CRITICAL / HIGH households in queue.</p>
         ) : (
